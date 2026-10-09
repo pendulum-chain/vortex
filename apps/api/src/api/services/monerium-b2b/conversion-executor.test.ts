@@ -1008,6 +1008,183 @@ describe("runConversionExecutor activation gate", () => {
   });
 });
 
+// The batch marker starts the RECOVERY_DELAY clock, so a cycle that sends no swap must
+// still arm it: otherwise a deposit whose every attempt fails waits a whole extra delay
+// for its refund.
+describe("runConversionExecutor batch marker", () => {
+  const FACTORY = "0x2222222222222222222222222222222222222222" as Address;
+  const EURE = "0x4444444444444444444444444444444444444444" as Address;
+  const saved = { factory: config.moneriumB2b.forwarderFactoryAddress, rpcUrl: config.moneriumB2b.rpcUrl };
+
+  beforeAll(async () => {
+    config.moneriumB2b.rpcUrl = undefined; // provisioning skips the on-chain clone check
+    config.moneriumB2b.forwarderFactoryAddress = FACTORY;
+    await setupTestDatabase();
+  });
+
+  afterAll(() => {
+    config.moneriumB2b.rpcUrl = saved.rpcUrl;
+    config.moneriumB2b.forwarderFactoryAddress = saved.factory;
+  });
+
+  beforeEach(() => resetTestDatabase());
+  afterEach(() => mock.restore());
+
+  /** A funded clone with a ready-priced 100 EURe swap; returns every keeper write as `fn:nonce`. */
+  function arrange(options: { batchOpenedAt: bigint; failPokeWrite?: boolean; swapReverts?: boolean }) {
+    const writes: string[] = [];
+    const reads: Record<string, unknown> = {
+      batchOpenedAt: options.batchOpenedAt,
+      floorPpm: 1_500,
+      latestRoundData: [1n, 114_000_000n, 0n, 0n, 1n],
+      MIN_SWAP_FLOOR: 1n,
+      minSwapAmount: 25n * EUR,
+      perSwapCap: 10_000n * EUR,
+      subsidyVault: "0x0000000000000000000000000000000000000000",
+      targetPpm: 1_250
+    };
+    spyOn(chain, "getForwarderImmutables").mockResolvedValue({
+      eure: EURE,
+      factory: FACTORY,
+      maxReferenceDeviationBps: 100,
+      oracle: "0x5555555555555555555555555555555555555555",
+      oracleDecimals: 8,
+      recoveryDelaySeconds: 7_200,
+      usdc: "0x6666666666666666666666666666666666666666"
+    } as unknown as chain.ForwarderImmutables);
+    spyOn(chain, "getChainId").mockResolvedValue(31_337); // no pinned quoter: the swap prices ready unprojected
+    spyOn(chain, "readEnabledRoutes").mockResolvedValue([{ index: 0, path: "0xaa" as Hex }]);
+    spyOn(referenceRate, "fetchCoinbaseReference").mockResolvedValue({
+      price: "1.14000000",
+      rateRaw: 114_000_000n,
+      source: "test",
+      time: new Date(0)
+    });
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      getBlockNumber: async () => 100n,
+      getTransactionCount: async () => 7,
+      readContract: async ({ address, functionName }: { address: Address; functionName: string }) =>
+        functionName === "balanceOf" ? (address === EURE ? 100n * EUR : 0n) : reads[functionName],
+      simulateContract: async ({ functionName }: { functionName: string }) => {
+        if (functionName === "swap" && options.swapReverts) throw new Error("execution reverted");
+        return {};
+      },
+      waitForTransactionReceipt: async () => {
+        throw new Error("receipt timeout");
+      }
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+    spyOn(chain, "getKeeperWalletClient").mockReturnValue({
+      account: { address: "0x9999999999999999999999999999999999999999" },
+      writeContract: async ({ functionName, nonce }: { functionName: string; nonce?: number }) => {
+        writes.push(`${functionName}:${nonce ?? "auto"}`);
+        if (functionName === "poke" && options.failPokeWrite) throw new Error("poke rejected");
+        return `0x${writes.length.toString(16).padStart(64, "0")}`;
+      }
+    } as unknown as ReturnType<typeof chain.getKeeperWalletClient>);
+    return writes;
+  }
+
+  async function activeAccountWithDeposit() {
+    const manager = await createTestUser();
+    await ManagedProfileManager.create({
+      allowedCorridors: ["EU"],
+      allowedCustomerTypes: ["business"],
+      isActive: true,
+      profileId: manager.id
+    });
+    const { accountId } = await provisionMoneriumB2bAccount({
+      contactEmail: "ops@client.example.com",
+      destination: "0x5555555555555555555555555555555555555555",
+      externalSubjectId: "client-1",
+      forwarderAddress: "0x1111111111111111111111111111111111111111",
+      managerProfileId: manager.id,
+      moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
+    });
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId,
+      amountRaw: (100n * EUR).toString(),
+      blockNumber: 100,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      mintedAt: new Date(),
+      moneriumOrderId: "order-1",
+      payerIban: "DE89370400440532013000",
+      payerName: "Payer GmbH",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xorder1"
+    });
+    return { accountId, deposit };
+  }
+
+  const executions = (accountId: string) => MoneriumConversionExecution.findAll({ where: { accountId } });
+
+  async function failedAttempt(accountId: string, depositId: string) {
+    await MoneriumConversionExecution.create({
+      accountId,
+      depositId,
+      destination: "0x5555555555555555555555555555555555555555",
+      eureInRaw: (100n * EUR).toString(),
+      error: "attempt 1: execution reverted",
+      kind: MoneriumConversionExecutionKind.Swap,
+      status: MoneriumConversionExecutionStatus.Failed
+    });
+  }
+
+  it("pokes once when the swap attempt fails before sending", async () => {
+    const writes = arrange({ batchOpenedAt: 0n, swapReverts: true });
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["poke:auto"]);
+    expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Failed]);
+  });
+
+  it("pokes during the retry backoff without starting an attempt", async () => {
+    const writes = arrange({ batchOpenedAt: 0n });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    await failedAttempt(accountId, deposit.id);
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["poke:auto"]);
+    expect(await executions(accountId)).toHaveLength(1);
+  });
+
+  it("never pokes an armed batch, on a failed attempt or during backoff", async () => {
+    const writes = arrange({ batchOpenedAt: 1n, swapReverts: true });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId); // fails the attempt
+    await failedAttempt(accountId, deposit.id);
+    await runConversionExecutor(accountId); // backoff
+
+    expect(writes).toEqual([]);
+  });
+
+  it("does not poke again after the sequenced poke was attempted", async () => {
+    const writes = arrange({ batchOpenedAt: 0n, failPokeWrite: true });
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["poke:7"]);
+    expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Failed]);
+  });
+
+  it("keeps the poke-then-swap sequence on a sent attempt, with no extra poke", async () => {
+    const writes = arrange({ batchOpenedAt: 0n });
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId); // the receipt wait times out: the row stays pending
+
+    expect(writes).toEqual(["poke:7", "swap:8"]);
+    expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Pending]);
+  });
+});
+
 // A reservation whose broadcast never happened (the process died between `reserve` and
 // `send`) holds a nonce nobody will use; the keeper re-sends the identical call there.
 describe("runConversionExecutor reserved-nonce re-send", () => {
