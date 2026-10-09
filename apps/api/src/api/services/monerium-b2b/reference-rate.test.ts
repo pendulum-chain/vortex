@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, mock, setSystemTime, spyOn } from "bun:test";
 import { classifyReferenceVenue, fetchCoinbaseProductStatus, fetchCoinbaseReference, isWithinReferenceBand } from "./reference-rate";
 
-// The partner reference is the Coinbase EURC-USDC bid/ask midpoint (adr-0005 P12,
+// The reference rate is the Coinbase EURC-USDC bid/ask midpoint (adr-0005 P12,
 // amendment 2026-09-18): spot, no averaging, with a spread guard for thin books.
 
 function serve(body: unknown, status = 200) {

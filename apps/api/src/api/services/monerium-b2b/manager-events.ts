@@ -436,7 +436,7 @@ async function emitDepositUpdatedEvents(deps: ManagerEventDeps): Promise<void> {
 
 /** ACCOUNT_UPDATED: the account snapshot whenever it changed (IBAN issued, status, dormancy). */
 async function emitAccountUpdatedEvents(): Promise<void> {
-  // ponytail: scans every mapped account each pass; fine at per-partner pilot scale.
+  // ponytail: scans every mapped account each pass; fine at pilot scale.
   const accounts = await MoneriumAccount.findAll({ where: { vortexProfileId: { [Op.ne]: null } } });
   for (const account of accounts) {
     try {

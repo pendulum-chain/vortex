@@ -28,7 +28,7 @@ export interface ProvisionMoneriumB2bAccountInput {
   contactEmail: string;
   destination: string;
   externalSubjectId: string;
-  /** Fee policy in ppm below the reference rate; defaults to the agreed launch policy. */
+  /** Fee policy in ppm below the reference rate; defaults to Vortex's default fee policy (B1). */
   floorPpm?: number;
   forwarderAddress: string;
   managerProfileId: string;
@@ -53,7 +53,7 @@ function normalizeAddress(value: string, name: string): string {
   return value.trim().toLowerCase();
 }
 
-/** Launch fee policy (docs/adr-0005-monerium-b2b-onramp.md, B1): 12.5 bps target, 15 bps floor. */
+/** Default fee policy (docs/adr-0005-monerium-b2b-onramp.md, B1): 12.5 bps target, 15 bps floor. */
 export const DEFAULT_TARGET_PPM = 1_250;
 export const DEFAULT_FLOOR_PPM = 1_500;
 // Mirrors the implementation's immutable MAX_FEE_PPM (ADR-0005 table); the contract re-validates at deploy.
@@ -189,7 +189,7 @@ async function verifyForwarderOnChain(
   }
 }
 
-// Mirrors the whitelabel KYB outcome for a reliance-onboarded corporate: these
+// Mirrors the whitelabel KYB outcome for a Monerium-approved client: these
 // profiles are onboarded and approved on Monerium's side before they are mapped
 // here, so the local provider records are imported directly as approved
 // (docs/operations-monerium-interface.md, profile lifecycle).
@@ -312,8 +312,8 @@ export async function provisionMoneriumB2bAccount(
   let result: { account: { created: boolean; row: MoneriumAccount }; managedProfile: ProvisionManagedProfileResult };
   try {
     result = await sequelize.transaction(async transaction => {
-      // The pilot reliance scope is KYB'd corporates only, so the child is always a
-      // business entity. Every local row is created in this transaction so a late
+      // Every B2B client is mapped as a business (adr-0007 decision 8), so the child is
+      // always a business entity. Every local row is created in this transaction so a late
       // account conflict cannot leave an orphaned approved identity behind.
       const managedProfile = await provisionManagedProfile(
         {

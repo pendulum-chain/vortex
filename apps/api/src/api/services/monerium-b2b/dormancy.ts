@@ -13,8 +13,7 @@ import { forwarderAbi, getGuardianWalletClient, getPublicClient } from "./chain"
  * stays `active` — the pause lives on-chain, `dormant_since` records the detection.
  *
  * Un-pause is MANUAL for now: guardian ops call setGuardianPaused(false) after the
- * partner re-confirms the client relationship — re-confirmation mechanics are a
- * partner-agreement item (adr-0005 registry B5).
+ * partner re-confirms the destination in writing (adr-0005 registry B5).
  */
 
 /** Dormancy pause window — registry P5 (docs/adr-0005-monerium-b2b-onramp.md). */
