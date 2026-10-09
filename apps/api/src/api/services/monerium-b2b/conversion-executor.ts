@@ -952,6 +952,7 @@ export function canConvert(account: Pick<MoneriumAccount, "dormantSince" | "stat
 }
 
 const NOT_ACTIVE: DepositWaitingReason = "account_not_active";
+const BELOW_MINIMUM: DepositWaitingReason = "below_minimum";
 
 /**
  * Partner-visible hold reason for deposits the activation gate holds (canConvert): set
@@ -995,7 +996,8 @@ export interface ActionPlanningInput {
  * the clone's batch has been open for RECOVERY_DELAY and no other refund of this account is
  * in flight (a refund wallet takes one payment at a time); else it waits without blocking
  * younger deposits. Then the oldest convertible deposit is forwarded when all of its
- * EURe is converted, or swapped in its next chunk.
+ * EURe is converted, or swapped in its next chunk; one whose remainder is below the minimum
+ * swap is passed over.
  */
 export function planAction(
   deposits: Array<{ deposit: MoneriumFiatDeposit; state: DepositSettlementState }>,
@@ -1020,29 +1022,26 @@ export function planAction(
   if (!input.convertible) {
     return { kind: "none", reason: "account is not convertible" };
   }
-  const next = deposits.find(({ deposit }) => deposit.status !== MoneriumFiatDepositStatus.Recovering);
-  if (!next) {
-    return { kind: "none", reason: "no settling deposit" };
-  }
-  if (next.state.remainingEureRaw === 0n) {
-    if (next.state.usdcNetRaw === 0n) {
-      return { kind: "none", reason: `deposit ${next.deposit.id} has nothing to forward` };
+  for (const { deposit, state } of deposits) {
+    if (deposit.status === MoneriumFiatDepositStatus.Recovering) continue;
+    if (state.remainingEureRaw === 0n) {
+      if (state.usdcNetRaw === 0n) {
+        return { kind: "none", reason: `deposit ${deposit.id} has nothing to forward` };
+      }
+      return { deposit, kind: "forward", usdcRaw: state.usdcNetRaw };
     }
-    return { deposit: next.deposit, kind: "forward", usdcRaw: next.state.usdcNetRaw };
-  }
-  const amountIn = planChunk(next.state.remainingEureRaw, input.minSwapAmount, input.perSwapCap);
-  if (amountIn === null) {
+    const amountIn = planChunk(state.remainingEureRaw, input.minSwapAmount, input.perSwapCap);
+    // Below the minimum swap: it waits for the refund path and holds back no younger deposit
+    // (below MIN_SWAP_FLOOR the contract may never let the keeper recover it).
+    if (amountIn === null) continue;
     return {
-      kind: "none",
-      reason: `deposit ${next.deposit.id} has ${next.state.remainingEureRaw} raw EURe left, below the minimum swap`
+      amountIn,
+      deposit,
+      elapsedSeconds: chunkElapsedSeconds(deposit, state.lastSwapAt, input.nowMs),
+      kind: "swap"
     };
   }
-  return {
-    amountIn,
-    deposit: next.deposit,
-    elapsedSeconds: chunkElapsedSeconds(next.deposit, next.state.lastSwapAt, input.nowMs),
-    kind: "swap"
-  };
+  return { kind: "none", reason: "no deposit to convert" };
 }
 
 // ------------------------------------------------------------------ executor
@@ -1121,6 +1120,26 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
       });
       if (recovered > 0) continue;
       withState.push({ deposit, state });
+    }
+    // Partner-visible: what planAction passes over below the minimum swap (never shadowing NOT_ACTIVE).
+    const belowMinimum = withState
+      .filter(
+        ({ deposit, state }) =>
+          convertible &&
+          deposit.status !== MoneriumFiatDepositStatus.Recovering &&
+          deposit.waitingReason !== BELOW_MINIMUM &&
+          state.remainingEureRaw > 0n &&
+          state.remainingEureRaw < minSwapAmount
+      )
+      .map(({ deposit }) => deposit.id);
+    if (belowMinimum.length > 0) {
+      await MoneriumFiatDeposit.update(
+        {
+          waitingReason: BELOW_MINIMUM,
+          waitingSince: sequelize.fn("COALESCE", sequelize.col("waiting_since"), sequelize.fn("NOW"))
+        },
+        { transaction, where: { id: { [Op.in]: belowMinimum } } }
+      );
     }
     return planAction(withState, {
       batchOpenedAtSec: batchOpenedAt,

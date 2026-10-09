@@ -361,7 +361,14 @@ and sends at most one transaction per account per cycle:
   per deposit after the forward is deep enough, with `conversions[]` per chunk and
   `forwardTxHash`.
 - **A remainder below `minSwapAmount`** (registry P6) cannot be swapped; it waits for
-  the refund path rather than merging with the next deposit.
+  the refund path (`waiting.reason` `below_minimum`) rather than merging with the next
+  deposit, and the keeper passes over it, so it holds back no younger deposit. A payment
+  below the immutable `MIN_SWAP_FLOOR` never arms the batch marker (`poke` refuses, by
+  design against dust), so `recover` cannot move it unless a larger balance keeps the
+  marker open for `RECOVERY_DELAY`; once marked `recovering` on a clone below the floor,
+  the stranded-balance monitor raises REFUND NEEDS OPERATOR and operations refund it by
+  hand (internal B2B runbook §2.7). A remainder left after chunk swaps is recoverable as
+  usual: its USDC keeps the marker armed.
 - **The refund path.** A deposit marked `recovering` — by an operator through the admin
   endpoint, or once automated by the missed window — is moved off the clone with
   `recover(eureRemaining, usdcConverted)`: keeper-only, explicit amounts, only to the

@@ -1,4 +1,14 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { Address } from "viem";
+import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
+import ManagedProfileManager from "../../../models/managedProfileManager.model";
+import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
+import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
+import { createTestUser } from "../../../test-utils/factories";
+import { provisionMoneriumB2bAccount } from "./account-provisioning";
+import * as chain from "./chain";
 import {
   classifyExecutableDepth,
   classifyRefundQueue,
@@ -8,7 +18,8 @@ import {
   detectConfigDrift,
   diffAssociation,
   eip1167RuntimeCode,
-  normalizeIban
+  normalizeIban,
+  runStrandedBalanceMonitor
 } from "./monitoring";
 
 // Pure monitoring logic (implementation plan D3): quote-impact math against the T6
@@ -244,5 +255,93 @@ describe("eip1167RuntimeCode", () => {
     expect(eip1167RuntimeCode("0x7e1c653CaAFCa44258d8680B09F42a33475504a9")).toBe(
       "0x363d3d373d3d3d363d737e1c653caafca44258d8680b09f42a33475504a95af43d82803e903d91602b57fd5bf3"
     );
+  });
+});
+
+// A refund the keeper can never send: the clone holds less than MIN_SWAP_FLOOR, so the
+// contract arms no batch and `recover` reverts. Only the operator can refund it.
+describe("runStrandedBalanceMonitor below the swap floor", () => {
+  const FACTORY = "0x2222222222222222222222222222222222222222" as Address;
+  const EURE = "0x4444444444444444444444444444444444444444" as Address;
+  const saved = { factory: config.moneriumB2b.forwarderFactoryAddress, rpcUrl: config.moneriumB2b.rpcUrl };
+  let errors: string[];
+
+  beforeAll(async () => {
+    config.moneriumB2b.rpcUrl = undefined; // provisioning skips the on-chain clone check
+    config.moneriumB2b.forwarderFactoryAddress = FACTORY;
+    await setupTestDatabase();
+  });
+
+  afterAll(() => {
+    config.moneriumB2b.rpcUrl = saved.rpcUrl;
+    config.moneriumB2b.forwarderFactoryAddress = saved.factory;
+  });
+
+  beforeEach(async () => {
+    await resetTestDatabase();
+    errors = [];
+    const reads: Record<string, unknown> = { batchOpenedAt: 0n, MIN_SWAP_FLOOR: 1n * EUR, TRIGGER_DELAY: 86_400n };
+    spyOn(chain, "getForwarderImmutables").mockResolvedValue({
+      eure: EURE,
+      factory: FACTORY,
+      recoveryDelaySeconds: 7_200,
+      usdc: "0x6666666666666666666666666666666666666666"
+    } as unknown as chain.ForwarderImmutables);
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      readContract: async ({ address, functionName }: { address: Address; functionName: string }) =>
+        functionName === "balanceOf" ? (address === EURE ? EUR / 2n : 0n) : reads[functionName]
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+    spyOn(logger, "error").mockImplementation(((message: string) => {
+      errors.push(message);
+    }) as unknown as typeof logger.error);
+  });
+
+  afterEach(() => mock.restore());
+
+  async function accountWithDeposit(status: MoneriumFiatDepositStatus) {
+    const manager = await createTestUser();
+    await ManagedProfileManager.create({
+      allowedCorridors: ["EU"],
+      allowedCustomerTypes: ["business"],
+      isActive: true,
+      profileId: manager.id
+    });
+    const { accountId } = await provisionMoneriumB2bAccount({
+      contactEmail: "ops@client.example.com",
+      destination: "0x5555555555555555555555555555555555555555",
+      externalSubjectId: "client-1",
+      forwarderAddress: "0x1111111111111111111111111111111111111111",
+      managerProfileId: manager.id,
+      moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
+    });
+    await MoneriumAccount.update({ status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    return MoneriumFiatDeposit.create({
+      accountId,
+      amountRaw: (EUR / 2n).toString(),
+      blockNumber: 100,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      mintedAt: new Date(),
+      moneriumOrderId: "order-1",
+      payerIban: "DE89370400440532013000",
+      payerName: "Payer GmbH",
+      status,
+      txHash: "0xorder1"
+    });
+  }
+
+  it("asks the operator to refund a payment marked for recovery that the contract cannot recover", async () => {
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    await runStrandedBalanceMonitor();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(deposit.id);
+    expect(errors[0]).toContain("refund them by hand");
+  });
+
+  it("stays quiet while such a payment is not marked for recovery yet", async () => {
+    await accountWithDeposit(MoneriumFiatDepositStatus.Minted);
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
   });
 });
