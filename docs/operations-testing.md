@@ -277,9 +277,11 @@ Tests that hit real RPCs or sandboxes (e.g. XCM dry-runs in `packages/shared`) a
 `RUN_LIVE_TESTS=1` via `describe.skipIf`. They are for local debugging and optional nightly runs,
 never PR-blocking.
 
-The e2e workflow sets `VORTEX_QUOTE_SMOKE_URLS` for `deployed-quotes.e2e.test.ts`, which requires
-successful cross-chain BUY and SELL quotes from both staging and production. Ordinary local and
-PR-blocking API runs leave the variable unset, so this deployment smoke test does not make them
+The e2e workflow sets `VORTEX_QUOTE_SMOKE_URLS` and `RUN_LIVE_TESTS=1` for
+`deployed-quotes.e2e.test.ts`, which requires successful cross-chain BUY and SELL quotes from both
+staging and production. `RUN_LIVE_TESTS=1` is required: without it the test preload installs the
+fetch guard, which rejects the calls to the deployed APIs. Ordinary local and PR-blocking API runs
+leave `VORTEX_QUOTE_SMOKE_URLS` unset, so this deployment smoke test does not make them
 network-dependent.
 
 ### External API contracts (`apps/api/src/tests/contracts/`)

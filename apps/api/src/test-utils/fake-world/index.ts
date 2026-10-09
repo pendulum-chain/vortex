@@ -1,14 +1,14 @@
 import { ApiManager } from "@vortexfi/shared";
 import { type FakeAlfredpay, type FakeBrla, type FakeMykobo, installFakeAnchors } from "./fake-anchors";
 import { installBackgroundWorkTracking } from "./fake-background-work";
-import { type FakeEvm, installFakeEvm } from "./fake-evm";
+import { type FakeEvm, installFakeChainIdRpc, installFakeEvm } from "./fake-evm";
 import { type FakeMonerium, installFakeMonerium } from "./fake-monerium";
 import { type FakePrices, installFakePrices } from "./fake-prices";
 import { type FakeSquidRouter, installFakeSquidRouter } from "./fake-squidrouter";
-import { installFetchGuard, uninstallFetchGuard } from "./fetch-guard";
+import { installFetchGuard } from "./fetch-guard";
 
 export type { FakeAlfredpay, FakeBrla, FakeEvm, FakeMonerium, FakeMykobo, FakePrices, FakeSquidRouter };
-export { installFetchGuard, uninstallFetchGuard };
+export { installFakeChainIdRpc, installFetchGuard };
 
 export interface FakeWorld {
   evm: FakeEvm;
@@ -28,7 +28,7 @@ export interface FakeWorld {
  * test files in one process, so leaked patches bleed into other files.
  */
 export function installFakeWorld(): FakeWorld {
-  installFetchGuard();
+  const uninstallFetchGuard = installFetchGuard();
   const { fakeEvm, restore: restoreEvm } = installFakeEvm();
   const { fakeAlfredpay, fakeBrla, fakeMykobo, restore: restoreAnchors } = installFakeAnchors();
   const { fakeMonerium, restore: restoreMonerium } = installFakeMonerium();

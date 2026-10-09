@@ -36,7 +36,7 @@ import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestUser, updatePartnerPricing } from "../../test-utils/factories";
-import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
+import { type FakeWorld, installFakeChainIdRpc, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
 
@@ -49,34 +49,8 @@ const USDC_ON_ARBITRUM = requireToken(Networks.Arbitrum, EvmToken.USDC).erc20Add
 const EURE_ON_POLYGON = MONERIUM_ISSUE_NETWORKS[Networks.Polygon].eureAddress;
 
 const PROFILE_ID = "9e6a92a5-5f6d-48aa-a57b-0f8ae8eb745d";
-const CHAIN_ID_HEX: Record<string, string> = { arbitrum: "0xa4b1", polygon: "0x89" };
 /** Fake Uniswap quoter: 1 EURe (18 decimals) buys 1.16 USDC (6 decimals). */
 const EURE_USDC_RATE_MICRO = 1_160_000n;
-
-function installChainIdShim(): { restore: () => void } {
-  const guardedFetch = globalThis.fetch;
-  const shim = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-    if (typeof init?.body === "string") {
-      try {
-        const payload = JSON.parse(init.body) as { id?: number; method?: string };
-        if (payload.method === "eth_chainId") {
-          const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-          const chainId = Object.entries(CHAIN_ID_HEX).find(([name]) => url.includes(name))?.[1] ?? CHAIN_ID_HEX.arbitrum;
-          return Response.json({ id: payload.id ?? 1, jsonrpc: "2.0", result: chainId });
-        }
-      } catch {
-        // Not a JSON-RPC request; retain the hermetic fetch guard below.
-      }
-    }
-    return guardedFetch(input, init);
-  }) as typeof fetch;
-  globalThis.fetch = Object.assign(shim, guardedFetch);
-  return {
-    restore: () => {
-      globalThis.fetch = guardedFetch;
-    }
-  };
-}
 
 const HAPPY_PATH_PHASES: RampPhase[] = [
   "initial",
@@ -129,13 +103,13 @@ interface CorridorSetup {
 describe("EUR onramp Monerium corridor (sepa → Polygon mint+swap → USDC on Arbitrum)", () => {
   let world: FakeWorld;
   let auth: { restore: () => void };
-  let chainIdShim: { restore: () => void };
+  let restoreChainIdRpc: () => void;
   let app: TestApp;
   const originalIssueFee = config.monerium.issueFeeEur;
 
   beforeAll(async () => {
     world = installFakeWorld();
-    chainIdShim = installChainIdShim();
+    restoreChainIdRpc = installFakeChainIdRpc();
     auth = installFakeSupabaseAuth();
     await setupTestDatabase();
     app = await startTestApp();
@@ -146,7 +120,7 @@ describe("EUR onramp Monerium corridor (sepa → Polygon mint+swap → USDC on A
     config.monerium.issueFeeEur = originalIssueFee;
     await app?.close();
     auth?.restore();
-    chainIdShim?.restore();
+    restoreChainIdRpc?.();
     world?.restore();
   });
 

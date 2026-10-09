@@ -47,8 +47,8 @@ describe("leak canary: no test file leaked a singleton patch", () => {
     }
   });
 
-  it("global fetch is not a leftover fetch guard", () => {
-    expect(globalThis.fetch.name, "the fetch guard was left installed").toBe("fetch");
+  it("global fetch is the preload's fetch guard, not a leftover shim", () => {
+    expect(globalThis.fetch.name, "global fetch was left patched").toBe(process.env.RUN_LIVE_TESTS ? "fetch" : "guard");
   });
 
   it("shared getRoute is not a leftover FakeSquidRouter stub", () => {
