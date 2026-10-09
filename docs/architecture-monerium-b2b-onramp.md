@@ -431,6 +431,9 @@ contract settles every fill into three bands against that reference (decisions:
   (permissionlessly) only after the 24 h `FEE_INCREASE_TIMELOCK`, so a client whose
   SEPA transfer is already in flight cannot be swapped under a silently worse policy;
   lowering is immediate (registry P11). Swaps always use the currently applied policy.
+  Once an increase is due, the keeper sends `applyFeePolicy()` in the account's next
+  cycle, before pricing, and waits for it; a revert or timeout is logged and the cycle
+  goes on.
 - **Subsidy vault (`VortexSubsidyVault`)**: one contract shared by every clone, funded
   from the treasury. It pays only when called by a factory-registered clone, to the
   clone itself (the subsidy is forwarded with the payment), within a guardian-settable
