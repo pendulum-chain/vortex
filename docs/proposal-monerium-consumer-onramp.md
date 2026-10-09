@@ -35,7 +35,7 @@
 
 Vortex adds a new onramp: a user onboards once, receives a **dedicated virtual IBAN** (issued by Monerium under Vortex's whitelabel integration) linked to a **user-owned Safe** on Ethereum. EUR wired to that IBAN is minted as EURe into the Safe and automatically converted to USDC and forwarded to a **destination address fixed at onboarding** — no per-transfer quote, signature, or interaction.
 
-**Security posture (honest version):** this design does *not* claim Vortex can never touch user funds. It provides **scoped guarantees per lifecycle stage** (§4): before mint, Vortex and Monerium are trusted parties with defined, monitored, contractually constrained authority; after mint, an immutable on-chain policy limits Vortex's authority to executing a fixed conversion, pausing it, and tuning bounded availability parameters — it cannot redirect minted principal outside the enumerated policy, under the stated assumptions.
+**Security posture:** the design provides **scoped guarantees per lifecycle stage** (§4): before mint, Vortex and Monerium are trusted parties with defined, monitored, contractually constrained authority; after mint, an immutable on-chain policy limits Vortex's authority to executing a fixed conversion, pausing it, and tuning bounded availability parameters — it cannot redirect minted principal outside the enumerated policy, under the stated assumptions.
 
 ## 2. Scope (reduced v1)
 
