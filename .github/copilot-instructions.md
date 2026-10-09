@@ -11,6 +11,7 @@
 
 ## Repository invariants
 
+- This repository is public. Flag customer, business-client, partner or prospect names, commercial terms tied to a named party, and production personal data anywhere in the change, including fixtures, the PR title and the PR description. Point to the location without repeating the name or term in your comment.
 - Treat `docs/security-spec/` as normative for security-sensitive behavior. Flag code/spec contradictions and behavior changes that leave the relevant specification stale.
 - Treat public OpenAPI schemas, `packages/sdk` exports, and shared wire types as compatibility contracts. Check consumers and documentation when their shapes, semantics, defaults, or errors change.
 - Changes to `packages/shared` can affect every application. Check downstream assumptions, and require the shared build before consumer verification.

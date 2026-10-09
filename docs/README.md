@@ -88,7 +88,13 @@ Do not add:
 - agent memory banks, active-context logs, progress journals, or handoff notes;
 - completed implementation plans or refactor summaries;
 - a second architecture document for behavior already owned by `security-spec/`;
-- an in-repository archive of stale docs. Git history is the archive.
+- an in-repository archive of stale docs. Git history is the archive;
+- anything that names clients, partners or prospects, or records agreement or negotiation
+  status, terms agreed with a specific party, onboarding status or contacts. This
+  repository is public: documents written for a partner and rollout trackers with
+  commercial gates live in the private `pendulum-chain/vortex-private` repository. Docs
+  here describe mechanisms with neutral roles ("the partner") and present parameters as
+  configurable defaults; they may cite a registry ID, never the deal behind it.
 
 ### Proposals and decisions
 
