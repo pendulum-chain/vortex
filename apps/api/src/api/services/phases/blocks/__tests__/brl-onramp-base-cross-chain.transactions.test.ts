@@ -15,6 +15,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import * as evmFundingNamespace from "../core/evm-funding";
 import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 import type { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
+import { installFakeChainIdRpc } from "../../../../../test-utils/fake-world/fake-evm";
 import Big from "big.js";
 import { decodeFunctionData, erc20Abi, parseTransaction } from "viem";
 import type { FlowMetadata } from "../core/metadata";
@@ -310,13 +311,15 @@ describe("BRL onramp Base cross-chain transactions", () => {
       type: EphemeralAccountType.EVM
     };
 
-    const presignedTxs = await signUnsignedTransactions(blocks.unsignedTxs, { evmEphemeral });
+    // viem asks the RPC for eth_chainId before signing; any other network use hits the fetch guard.
+    const restoreChainIdRpc = installFakeChainIdRpc();
+    const presignedTxs = await signUnsignedTransactions(blocks.unsignedTxs, { evmEphemeral }).finally(restoreChainIdRpc);
     expect(presignedTxs.length).toBeGreaterThanOrEqual(blocks.unsignedTxs.length);
     expect(presignedTxs.every(tx => typeof tx.txData === "string" && tx.txData.startsWith("0x"))).toBe(true);
     const destinationTransfer = presignedTxs.find(tx => tx.phase === "destinationTransfer");
     expect(destinationTransfer).toBeDefined();
     expect(parseTransaction(destinationTransfer?.txData as `0x${string}`).maxFeePerGas).toBe(3_000_000_000n);
-  }, 60_000);
+  });
 
   it("preserves 18-decimal BSC USDT precision in the destination transfer", async () => {
     const amountRaw = "17500000000000000000";

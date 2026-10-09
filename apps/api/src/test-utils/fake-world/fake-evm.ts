@@ -1,5 +1,6 @@
 import { EvmClientManager, type EvmNetworks } from "@vortexfi/shared";
-import { keccak256 } from "viem";
+import { keccak256, toHex } from "viem";
+import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, polygon, polygonAmoy } from "viem/chains";
 
 export interface RecordedEvmTx {
   network: string;
@@ -34,6 +35,14 @@ const CHAIN_IDS: Record<string, number> = {
 };
 
 const MAX_UINT256 = 2n ** 256n - 1n;
+
+// viem's default public RPC (what a bare http() transport targets, URL-normalized like viem does) → chain id.
+const DEFAULT_RPC_CHAIN_IDS = new Map<string, number>(
+  [arbitrum, avalanche, base, baseSepolia, bsc, mainnet, polygon, polygonAmoy].map(chain => [
+    new URL(chain.rpcUrls.default.http[0]).href,
+    chain.id
+  ])
+);
 
 /**
  * In-memory EVM world standing in for EvmClientManager. Balances are a simple
@@ -309,6 +318,31 @@ export class FakeEvm {
       value: transactionParams.value
     });
   }
+}
+
+/**
+ * Client-side signing (signUnsignedTransactions, also used by the SDK) builds its own viem wallet
+ * clients outside the EvmClientManager seam, and viem's signTransaction asks the RPC for
+ * eth_chainId before signing locally. Answers exactly that call for viem's default public RPCs;
+ * every other request falls through to the fetch guard. Returns the restore function.
+ */
+export function installFakeChainIdRpc(): () => void {
+  const guardedFetch = globalThis.fetch;
+  const fake = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    const chainId = DEFAULT_RPC_CHAIN_IDS.get(url);
+    if (chainId !== undefined && typeof init?.body === "string") {
+      const payload = JSON.parse(init.body) as { id?: number; method?: string };
+      if (payload.method === "eth_chainId") {
+        return Response.json({ id: payload.id ?? 1, jsonrpc: "2.0", result: toHex(chainId) });
+      }
+    }
+    return guardedFetch(input, init);
+  }) as typeof fetch;
+  globalThis.fetch = Object.assign(fake, guardedFetch);
+  return () => {
+    globalThis.fetch = guardedFetch;
+  };
 }
 
 export function installFakeEvm(): { fakeEvm: FakeEvm; restore: () => void } {
