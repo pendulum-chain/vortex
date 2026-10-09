@@ -3,6 +3,11 @@ import { Address, formatUnits, Hex, parseAbi } from "viem";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumConversionExecution, {
+  MoneriumConversionExecutionKind,
+  MoneriumConversionExecutionStatus
+} from "../../../models/moneriumConversionExecution.model";
+import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
 import MoneriumRecovery, { MoneriumRecoveryPhase } from "../../../models/moneriumRecovery.model";
 import {
   chainlinkAbi,
@@ -38,6 +43,8 @@ import { refundAccountFor } from "./refund-wallet";
  *    longer than RECOVERY_DELAY (the promised window, registry P3) warn — the deposit
  *    should be forwarded or recovering by then; past TRIGGER_DELAY (the
  *    permissionless-trigger delay, registry P4) they error — a keeper-outage signal.
+ *    A payment marked for recovery on a clone below MIN_SWAP_FLOOR errors too: the
+ *    contract cannot recover it, so the operator refunds it by hand.
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
  *    (docs/architecture-monerium-b2b-onramp.md, fees section); a vault that cannot cover a
  *    below-floor swap makes the keeper defer, so runway problems surface here first.
@@ -385,6 +392,29 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "batchOpenedAt" })
       ]);
       if (eureBalance < minSwapFloor && usdcBalance === 0n) {
+        // Below MIN_SWAP_FLOOR the contract arms no batch, so `recover` can never run for a
+        // payment marked for the refund path (one already recovered is the refund monitor's).
+        const marked = await MoneriumFiatDeposit.findAll({
+          attributes: ["id"],
+          where: { accountId: account.id, status: MoneriumFiatDepositStatus.Recovering }
+        });
+        if (marked.length === 0) continue;
+        const recovered = await MoneriumConversionExecution.findAll({
+          attributes: ["depositId"],
+          where: {
+            depositId: { [Op.in]: marked.map(deposit => deposit.id) },
+            kind: MoneriumConversionExecutionKind.Recover,
+            status: { [Op.in]: [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed] }
+          }
+        });
+        const stuck = marked.filter(deposit => !recovered.some(execution => execution.depositId === deposit.id));
+        if (stuck.length > 0) {
+          logger.error(
+            `monerium-b2b: REFUND NEEDS OPERATOR — deposit(s) ${stuck.map(deposit => deposit.id).join(", ")} on forwarder ` +
+              `${forwarder} (account ${account.id}) are marked for recovery, but the clone holds ${eureBalance} EURe, below ` +
+              "MIN_SWAP_FLOOR, so the contract cannot recover them: refund them by hand and close them as refunded (runbook §2.7)"
+          );
+        }
         continue;
       }
       const severity = classifyStranding(batchOpenedAt, BigInt(recoveryDelaySeconds), triggerDelay, now);

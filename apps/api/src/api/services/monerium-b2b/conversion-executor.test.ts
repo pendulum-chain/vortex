@@ -217,10 +217,17 @@ describe("planAction", () => {
 
   it("does nothing for a sub-minimum remainder or an empty queue", () => {
     expect(planAction([withSwaps(deposit("a", MoneriumFiatDepositStatus.Minted, 10n * EUR), [])], base)).toMatchObject({
-      kind: "none",
-      reason: expect.stringContaining("below the minimum swap")
+      kind: "none"
     });
     expect(planAction([], base)).toMatchObject({ kind: "none" });
+  });
+
+  it("never lets a deposit below the minimum hold back a younger one", () => {
+    // The contract arms no batch below MIN_SWAP_FLOOR, so the small payment may never reach
+    // `recover`: waiting for it would stall every later payment of the account.
+    const small = withSwaps(deposit("small", MoneriumFiatDepositStatus.Minted, 10n * EUR), []);
+    const young = withSwaps(deposit("young", MoneriumFiatDepositStatus.Minted, 100n * EUR), []);
+    expect(planAction([small, young], base)).toMatchObject({ amountIn: 100n * EUR, deposit: young.deposit, kind: "swap" });
   });
 });
 
@@ -975,13 +982,15 @@ describe("runConversionExecutor activation gate", () => {
     await runConversionExecutor(accountId);
     await deposit.reload();
     expect(deposit.waitingReason).toBe("account_not_active");
-    expect(deposit.waitingSince).toBeInstanceOf(Date);
+    const activationWait = deposit.waitingSince;
+    expect(activationWait).toBeInstanceOf(Date);
 
     await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
     await runConversionExecutor(accountId);
     await deposit.reload();
-    expect(deposit.waitingReason).toBeNull();
-    expect(deposit.waitingSince).toBeNull();
+    // The activation wait is over; what holds this small deposit now is the minimum swap.
+    expect(deposit.waitingReason).toBe("below_minimum");
+    expect(deposit.waitingSince?.getTime()).not.toBe(activationWait?.getTime());
   });
 
   it("clears the reason on every queued deposit once the account converts, not only the next one", async () => {
@@ -996,6 +1005,19 @@ describe("runConversionExecutor activation gate", () => {
     expect(next.waitingReason).toBe("oracle_unavailable");
     expect(next.waitingSince).toBeInstanceOf(Date); // a fresh wait, not the cleared activation wait
     expect((await queued.reload()).waitingReason).toBeNull();
+  });
+
+  it("tells the partner a payment below the minimum swap waits, and converts the next payment meanwhile", async () => {
+    const { accountId, deposits } = await accountWithDeposit(null, [10n, 100n]);
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+
+    await runConversionExecutor(accountId);
+    const [small, next] = deposits;
+    await small.reload();
+    expect(small.waitingReason).toBe("below_minimum");
+    expect(small.waitingSince).toBeInstanceOf(Date);
+    // The later payment is priced (and defers only because Chainlink is down here).
+    expect((await next.reload()).waitingReason).toBe("oracle_unavailable");
   });
 
   it("replaces an earlier hold reason and keeps when the wait started", async () => {
