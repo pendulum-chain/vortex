@@ -1,6 +1,6 @@
 /**
  * End-to-end run of the Monerium B2B onramp against a live backend, the sandbox or a local
- * rehearsal (B2B operations runbook §8, pendulum-chain/vortex-private). It registers a client's destination
+ * rehearsal (B2B operations runbook §8). It registers a client's destination
  * the way the partner does, waits until the keeper has deployed, linked and activated the
  * account, then waits for one EUR payment and checks on chain that it was converted and
  * forwarded, or refunded with --refund.

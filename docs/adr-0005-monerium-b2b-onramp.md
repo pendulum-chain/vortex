@@ -11,9 +11,8 @@ acceptances* of the B2B EUR → USDC onramp. How the system works lives in
 [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md); security
 invariants and the threat model in
 [`security-spec/05-integrations/monerium-b2b.md`](security-spec/05-integrations/monerium-b2b.md);
-launch gates and the deploy checklist in
-[`operations-monerium-b2b-rollout.md`](https://github.com/pendulum-chain/vortex-private/blob/HEAD/partner-docs/monerium-b2b/operations-monerium-b2b-rollout.md) (private repository); procedures in
-[`operations-monerium-b2b-runbook.md`](https://github.com/pendulum-chain/vortex-private/blob/HEAD/operations/operations-monerium-b2b-runbook.md) (private repository). The
+launch gates, the deploy checklist and operator procedures in the internal operations
+runbooks. The
 consumer-flow design this grew out of remains a phase-2 proposal:
 [`proposal-monerium-consumer-onramp.md`](proposal-monerium-consumer-onramp.md).
 

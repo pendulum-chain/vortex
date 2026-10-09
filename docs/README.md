@@ -83,14 +83,13 @@ Do not add:
 - completed implementation plans or refactor summaries;
 - a second architecture document for behavior already owned by `security-spec/`;
 - an in-repository archive of stale docs. Git history is the archive;
-- operator runbooks (incident, rollout, environment and migration procedures). They live
-  in `operations/` of the private `pendulum-chain/vortex-private` repository; cite them
-  by file name and section (for example "runbook §2.7");
+- operator runbooks (incident, rollout, environment and migration procedures). They are
+  maintained outside this repository; cite them by name and section (for example
+  "runbook §2.7");
 - anything that names clients, partners or prospects, or records agreement or negotiation
   status, terms agreed with a specific party, onboarding status or contacts. This
-  repository is public: documents written for a partner and rollout trackers with
-  commercial gates live in the private `pendulum-chain/vortex-private` repository. Docs
-  here describe mechanisms with neutral roles ("the partner") and present parameters as
+  repository is public: documents written for a specific partner and rollout trackers
+  with commercial gates do not belong here. Docs here describe mechanisms with neutral roles ("the partner") and present parameters as
   configurable defaults; they may cite a registry ID, never the deal behind it.
 
 ### Proposals and decisions

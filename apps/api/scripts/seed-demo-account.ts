@@ -5,7 +5,7 @@
  *
  * Sandbox only — the restore routine itself refuses to run anywhere else. The demo profile
  * must have signed in once via OTP first; the seed cannot forge a Supabase Auth user.
- * See operations/operations-demo-environment.md in pendulum-chain/vortex-private.
+ * See the internal demo-environment runbook.
  */
 import path from "node:path";
 import dotenv from "dotenv";

@@ -166,7 +166,7 @@ function readRecipientInviteDiscountLimit(): number {
 interface Config {
   env: string;
   deploymentEnv: DeploymentEnv;
-  /** Login email of the seeded sales-demo account. Sandbox only; see operations/operations-demo-environment.md in pendulum-chain/vortex-private. */
+  /** Login email of the seeded sales-demo account. Sandbox only; see the internal demo-environment runbook. */
   demoAccountEmail: string;
   /**
    * Replaces the Alfredpay client with a canned in-process stand-in so the demo corridor can be

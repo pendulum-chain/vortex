@@ -204,7 +204,7 @@ quote cannot be claimed by another user.
 - Provider ownership resolution: `apps/api/src/api/services/avenia-account.ts` and provider controllers/services
 - Schema history: `apps/api/src/database/migrations/038-*` onward
 - Managed-profile schema: `apps/api/src/database/migrations/063-create-managed-profiles.ts`
-- Migrations 060-061 production gates: [`operations-legacy-schema-cleanup.md`](https://github.com/pendulum-chain/vortex-private/blob/HEAD/operations/operations-legacy-schema-cleanup.md) (private repository)
+- Migrations 060-061 production gates: the internal legacy-schema-cleanup runbook
 - Security details: `docs/security-spec/01-auth/`, `03-ramp-engine/recipient-transfers.md`, and the provider specs under `05-integrations/`
 
 Update this document only when the cross-module shape changes. Provider-specific flows,
