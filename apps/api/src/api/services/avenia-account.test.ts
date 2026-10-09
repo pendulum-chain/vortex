@@ -26,7 +26,7 @@ function approvedAccount(entityId: string, subAccountId: string) {
     customerType: "individual",
     providerSubaccountId: subAccountId,
     status: VerificationStatus.Approved,
-    taxReference: "08786985906"
+    taxReference: "04821536951"
   };
 }
 
@@ -42,7 +42,7 @@ describe("resolveAveniaAccountForUser", () => {
     const resolved = await resolveAveniaAccountForUser("user-1");
 
     expect(resolved.subAccountId).toBe("sub-1");
-    expect(resolved.taxId).toBe("08786985906");
+    expect(resolved.taxId).toBe("04821536951");
   });
 
   it("prefers the active entity's account when several are approved", async () => {

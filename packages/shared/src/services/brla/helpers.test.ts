@@ -5,7 +5,7 @@ describe("isValidCpf", () => {
   it("accepts a checksum-valid CPF in digits-only and formatted form", () => {
     expect(isValidCpf("52998224725")).toBe(true);
     expect(isValidCpf("529.982.247-25")).toBe(true);
-    expect(isValidCpf("08786985906")).toBe(true);
+    expect(isValidCpf("04821536951")).toBe(true);
   });
 
   it("rejects CPFs with wrong check digits", () => {

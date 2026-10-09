@@ -44,8 +44,8 @@ import { refundAccountFor } from "./refund-wallet";
  *     IBAN, which pays out of the client's own IBAN, and mark the deposit `refunded` when
  *     Monerium processed it.
  *
- * Crash safety rests on the refund wallet being dedicated and empty between refunds:
- * every step re-derives what is still to do from the wallet's balances, so a lost
+ * Crash safety rests on the refund wallet being dedicated and empty between refunds (a
+ * payment memo-routed to it breaks that until refunded by hand: runbook §2.7): every step re-derives what is still to do from the wallet's balances, so a lost
  * transaction hash never repeats a value-moving send (a top-up already on chain makes the
  * remaining need zero). One recovery at a time PER CLIENT is what keeps those balances
  * meaningful: the executor refuses a second `recover` for an account while one is in flight
@@ -58,7 +58,7 @@ import { refundAccountFor } from "./refund-wallet";
  */
 
 export const REFUND_MEMO_PREFIX = "vortex-refund:";
-/** Monerium requires a supporting document above this amount; such refunds stay manual (rollout G1). */
+/** Monerium requires a supporting document from this amount; such refunds stay manual (runbook §2.7). */
 export const SUPPORTING_DOCUMENT_THRESHOLD_EUR = 15_000;
 /** Gas the refund wallet's own transactions use (approve, reverse swap, surplus transfer), with margin. */
 const REFUND_WALLET_GAS_UNITS = 400_000n;

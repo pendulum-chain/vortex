@@ -29,12 +29,11 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`operations-brl-tax-id-claim-release.md`](operations-brl-tax-id-claim-release.md) | Operator runbook for releasing a BRL tax ID squatted through `createSubaccount` (RISK-026) |
 | [`operations-demo-environment.md`](operations-demo-environment.md) | Setup and runbook for the sandbox sales-demo account |
 | [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md) | Deployment gates and recovery runbook for irreversible migrations 060-061 |
-| [`operations-monerium-b2b-rollout.md`](operations-monerium-b2b-rollout.md) | Launch gates, deploy checklist, and terms inputs for the B2B onramp pilot |
+| [`operations-monerium-b2b-rollout.md`](operations-monerium-b2b-rollout.md) | Deploy checklist, launch readiness, and open items ledger for the B2B onramp |
 | [`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-runbook.md) | Operator procedures for the B2B onramp: onboarding, incidents, alert triage, dormancy, migration |
 | [`operations-monerium-interface.md`](operations-monerium-interface.md) | Monerium onramp boundary across the OAuth and white-label apps plus the profile, address, IBAN, and payment interface reference |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
-| [`product-monerium-b2b-flow.md`](product-monerium-b2b-flow.md) | High-level end-to-end flow of the Monerium B2B onramp for Vortex, the partner and Monerium, with the open questions per party |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 | [`proposal-monerium-consumer-onramp.md`](proposal-monerium-consumer-onramp.md) | Phase-2 proposal for the consumer (Safe + passkey) Monerium onramp; the B2B variant shipped |
 | [`proposal-api-driven-kyc-kyb.md`](proposal-api-driven-kyc-kyb.md) | Proposal for API-driven verification using preserved provider-specific workflows |
@@ -88,7 +87,13 @@ Do not add:
 - agent memory banks, active-context logs, progress journals, or handoff notes;
 - completed implementation plans or refactor summaries;
 - a second architecture document for behavior already owned by `security-spec/`;
-- an in-repository archive of stale docs. Git history is the archive.
+- an in-repository archive of stale docs. Git history is the archive;
+- anything that names clients, partners or prospects, or records agreement or negotiation
+  status, terms agreed with a specific party, onboarding status or contacts. This
+  repository is public: documents written for a partner and rollout trackers with
+  commercial gates live in the private `pendulum-chain/vortex-private` repository. Docs
+  here describe mechanisms with neutral roles ("the partner") and present parameters as
+  configurable defaults; they may cite a registry ID, never the deal behind it.
 
 ### Proposals and decisions
 

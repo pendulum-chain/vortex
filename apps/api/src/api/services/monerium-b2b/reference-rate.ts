@@ -1,7 +1,7 @@
 import { formatUnits, parseUnits } from "viem";
 
 /**
- * Partner reference rate for the forwarder fee bands (docs/adr-0005-monerium-b2b-onramp.md, P12):
+ * Reference rate for the forwarder fee bands (docs/adr-0005-monerium-b2b-onramp.md, P12):
  * the Coinbase Exchange EURC-USDC bid/ask midpoint, read fresh before every swap and
  * recorded on the execution row (rate, source, time) so the partner can check it against
  * Coinbase's public ticker. Spot rather than an average (amendment 2026-09-18): an average

@@ -91,7 +91,7 @@ export interface RegistrationDeps {
    * blamed on the partner's input.
    */
   profileState(moneriumProfileId: string): Promise<MoneriumProfileState | null>;
-  /** The clone's CREATE2 address, bound to its destination, recovery address, launch fee policy and salt. */
+  /** The clone's CREATE2 address, bound to its destination, recovery address, default fee policy and salt. */
   predictAddress(destination: Address, recoveryAddress: Address, salt: Hex): Promise<Address>;
   isForwarder(address: Address): Promise<boolean>;
   /** Simulates, then sends `deployForwarder` from the deployer key; a contract revert throws. */

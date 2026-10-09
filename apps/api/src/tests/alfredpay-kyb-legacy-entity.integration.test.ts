@@ -204,7 +204,7 @@ describe("Alfredpay KYB on a migrated (individual-entity) profile", () => {
   });
 
   it("createAlfredpayCustomer homes a new corridor's business row with the existing legacy rows", async () => {
-    const { entity, user } = await seedLegacyBusinessCustomer("kyb-legacy-colocate@example.com");
+    const { entity, user } = await seedLegacyBusinessCustomer("kyb-legacy-business@example.com");
 
     // Ramp registration resolves the active entity — a new corridor's row must land next to
     // the legacy rows there, not on a fresh business entity it can never reach.

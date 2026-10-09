@@ -189,7 +189,7 @@ test('KYC polling rides out blips and reconciliation, and stops on every final s
   const jwt=exp=>'e30.'+Buffer.from(JSON.stringify({exp})).toString('base64url')+'.x';
   const script=(replies)=>{let calls=0;globalThis.fetch=async()=>{const reply=replies[Math.min(calls++,replies.length-1)];if(reply instanceof Error) throw reply;return new Response(JSON.stringify(reply.body),{status:reply.status});};return ()=>calls;};
   const ok=(body)=>({status:200,body});
-  const poll=(options={})=>pollBrazilKyc('08786985906',{intervalMs:1,timeoutMs:2000,...options});
+  const poll=(options={})=>pollBrazilKyc('04821536951',{intervalMs:1,timeoutMs:2000,...options});
   const inPortuguese=(error)=>/verificação/.test(error.message)&&!/not found|reconciliation/i.test(error.message);
   try {
     setVortexSession({access_token:jwt(Math.floor(Date.now()/1000)+3600),refresh_token:'fake-test-only'});
@@ -221,7 +221,7 @@ test('a refused new KYC attempt points to support in Portuguese',async()=>{
   try {
     setVortexSession({access_token:jwt(Math.floor(Date.now()/1000)+3600),refresh_token:'fake-test-only'});
     globalThis.fetch=async()=>new Response(JSON.stringify({error:'The KYC submission does not match this request'}),{status:409,headers:{'X-Request-ID':'req-123'}});
-    await assert.rejects(submitBrazilKyc({taxIdNumber:'08786985906'}),(error)=>error.code==='KYC_NEW_ATTEMPT_BLOCKED'&&/suporte/.test(error.message)&&/req-123/.test(error.message)&&!/does not match/.test(error.message));
+    await assert.rejects(submitBrazilKyc({taxIdNumber:'04821536951'}),(error)=>error.code==='KYC_NEW_ATTEMPT_BLOCKED'&&/suporte/.test(error.message)&&/req-123/.test(error.message)&&!/does not match/.test(error.message));
     globalThis.fetch=async()=>new Response(JSON.stringify({error:'Invalid documentType'}),{status:400});
     await assert.rejects(submitBrazilKyc({}),(error)=>error.status===400&&error.code!=='KYC_NEW_ATTEMPT_BLOCKED');
   } finally {clearVortexSession();globalThis.fetch=old;}
@@ -247,13 +247,13 @@ test('KYC polling stops when the modal closes, even with a status answer in flig
     setVortexSession({access_token:jwt(Math.floor(Date.now()/1000)+3600),refresh_token:'fake-test-only'});
     globalThis.fetch=async()=>{calls++;return reply({status:'PROCESSING'});};
     const waiting=new AbortController();setTimeout(()=>waiting.abort(),20);
-    await assert.rejects(pollBrazilKyc('08786985906',{intervalMs:60_000,signal:waiting.signal}),{name:'AbortError'});
+    await assert.rejects(pollBrazilKyc('04821536951',{intervalMs:60_000,signal:waiting.signal}),{name:'AbortError'});
     assert.equal(calls,1);
-    await assert.rejects(pollBrazilKyc('08786985906',{signal:AbortSignal.abort()}),{name:'AbortError'});
+    await assert.rejects(pollBrazilKyc('04821536951',{signal:AbortSignal.abort()}),{name:'AbortError'});
     assert.equal(calls,1);
     globalThis.fetch=()=>new Promise((resolve)=>{release=()=>resolve(reply({status:'COMPLETED',result:'APPROVED'}));});
     const closing=new AbortController();
-    const polling=pollBrazilKyc('08786985906',{intervalMs:1,signal:closing.signal});
+    const polling=pollBrazilKyc('04821536951',{intervalMs:1,signal:closing.signal});
     await new Promise((resolve)=>setTimeout(resolve,10));
     closing.abort();release();
     await assert.rejects(polling,{name:'AbortError'});
