@@ -2898,7 +2898,7 @@
             "type": "string"
           },
           "waitingReason": {
-            "description": "What a `requested` registration waits for; null in every other status. `monerium_profile_pending`: the provider has not approved the profile yet (created, incomplete, pending or in review); finish its KYB in your provider app. `monerium_profile_not_visible`: the provider no longer shows the profile to your app; check the profile ID. `deployment_pending`: Vortex is deploying the client's conversion contract or waiting for it to confirm. `deployer_not_ready`: Vortex's deployment wallet lacks its role or gas; Vortex fixes it, nothing to do on your side. `manager_inactive`: your manager profile is not active for business EUR clients; contact Vortex. `temporary_error`: a temporary failure at Vortex or the provider, retried automatically.",
+            "description": "What a `requested` registration waits for; null while Vortex has not checked it yet (as in the 202 response) and in every other status. `monerium_profile_pending`: the provider has not approved the profile yet (created, incomplete, pending or in review); finish its KYB in your provider app. `monerium_profile_not_visible`: the provider no longer shows the profile to your app; check the profile ID. `deployment_pending`: Vortex is deploying the client's conversion contract or waiting for it to confirm. `deployer_not_ready`: Vortex's deployment wallet lacks its role or gas; Vortex fixes it, nothing to do on your side. `manager_inactive`: your manager profile is not active for business EUR clients; contact Vortex. `temporary_error`: a temporary failure at Vortex or the provider, retried automatically.",
             "enum": [
               "monerium_profile_pending",
               "monerium_profile_not_visible",
@@ -11619,7 +11619,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "example": {
