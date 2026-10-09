@@ -129,6 +129,7 @@ export const forwarderAbi = [
     type: "function"
   },
   { inputs: [], name: "forwardAll", outputs: [], stateMutability: "nonpayable", type: "function" },
+  { inputs: [], name: "applyFeePolicy", outputs: [], stateMutability: "nonpayable", type: "function" },
   {
     inputs: [
       { name: "eureAmount", type: "uint256" },
@@ -166,7 +167,14 @@ export const forwarderAbi = [
     type: "function"
   },
   { inputs: [], name: "targetPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
-  { inputs: [], name: "floorPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" }
+  { inputs: [], name: "floorPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
+  {
+    inputs: [],
+    name: "pendingFeePolicyEffectiveAt",
+    outputs: [{ name: "", type: "uint64" }],
+    stateMutability: "view",
+    type: "function"
+  }
 ] as const;
 
 export const factoryAbi = [
