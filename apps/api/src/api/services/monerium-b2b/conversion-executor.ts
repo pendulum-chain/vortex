@@ -1055,7 +1055,8 @@ export function planAction(
 // ------------------------------------------------------------------ executor
 
 /**
- * Runs one keeper cycle for an account: at most one transaction. Safe to call for
+ * Runs one keeper cycle for an account: at most one value-moving transaction (plus the
+ * permissionless poke and applyFeePolicy). Safe to call for
  * accounts with nothing to do (cheap chain reads, then returns).
  */
 export async function runConversionExecutor(accountId: string): Promise<void> {

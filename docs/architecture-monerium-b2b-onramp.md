@@ -344,7 +344,8 @@ protective stranding marker still arms).
 ## Chunking, forwarding and the refund path
 
 The keeper serves **one deposit at a time** per account, oldest chain-indexed mint first,
-and sends at most one transaction per account per cycle:
+and sends at most one value-moving transaction per account per cycle (plus the
+permissionless `poke` and `applyFeePolicy`):
 
 - **A large deposit is chunked; the client still gets one transfer.** `swap` takes an
   explicit `amountIn`: at most `perSwapCap`, and never leaving a sub-minimum dust
