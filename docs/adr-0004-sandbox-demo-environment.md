@@ -1,7 +1,7 @@
 # ADR 0004: Sandbox Sales-Demo Account
 
 Status: accepted 2026-08-07. Implemented in `apps/api/src/api/services/demo/`; the runbook
-is [`operations-demo-environment.md`](operations-demo-environment.md).
+is [`operations-demo-environment.md`](https://github.com/pendulum-chain/vortex-private/blob/HEAD/operations/operations-demo-environment.md) (private repository).
 
 ## Context
 

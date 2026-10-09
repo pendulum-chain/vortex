@@ -105,6 +105,9 @@ update the existing canonical document when one owns the topic.
 - Never create or extend a document whose audience includes a client or partner, or that
   tracks commercial gates, terms or negotiation status: it belongs in the private
   `pendulum-chain/vortex-private` repository (see "Public Repository: No Client Data").
+- Operator runbooks live in `operations/` of the private `pendulum-chain/vortex-private`
+  repository, not here. Cite them by file name and section; when a change alters a
+  documented procedure, update the runbook there in a follow-up pull request.
 - Repair indexes and relative links in the same change as a move or deletion.
 - Agent skills live in `.agents/skills/<name>/SKILL.md` so every coding agent can use
   them; `.claude/skills/` holds only symlinks to those directories (Claude Code follows

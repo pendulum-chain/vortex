@@ -49,7 +49,7 @@ export interface DemoRestoreSummary {
  * rows. Every write is keyed by a fixed demo id, so running it twice is the same as
  * running it once and it can never overwrite a real ramp created during a demo.
  *
- * Sandbox only. See docs/operations-demo-environment.md.
+ * Sandbox only. See operations/operations-demo-environment.md in pendulum-chain/vortex-private.
  */
 export async function restoreDemoAccount(): Promise<DemoRestoreSummary> {
   if (config.deploymentEnv !== "sandbox") {

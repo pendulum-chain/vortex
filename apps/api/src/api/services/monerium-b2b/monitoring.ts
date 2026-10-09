@@ -344,9 +344,7 @@ export async function runExecutableDepthCheck(): Promise<void> {
 
   const verdict = classifyExecutableDepth(best.minImpactBps, best.capImpactBps, slippageBps);
   if (verdict.severity === "error") {
-    logger.error(
-      `monerium-b2b: DEPTH BELOW FLOOR — ${verdict.reason}; triage per docs/operations-monerium-b2b-runbook.md §3. ${detail}`
-    );
+    logger.error(`monerium-b2b: DEPTH BELOW FLOOR — ${verdict.reason}; triage per the B2B operations runbook §3. ${detail}`);
   } else if (verdict.severity === "warn") {
     logger.warn(`monerium-b2b: ${verdict.reason}. ${detail}`);
   } else {
@@ -417,7 +415,7 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
  * Association monitor (S1 detective control): compares the Monerium-side linked
  * addresses + IBAN state per active account against the DB record and alerts on ANY
  * change. Error-level: an unexplained association change is an incident trigger
- * (docs/operations-monerium-b2b-runbook.md).
+ * (B2B operations runbook, pendulum-chain/vortex-private).
  */
 export async function runAssociationMonitor(): Promise<void> {
   const accounts = await monitoredAccounts([MoneriumAccountStatus.Active]);

@@ -3,7 +3,7 @@
  * carries one of these ids, so restore is idempotent and can never touch a real ramp,
  * recipient, or provider record created during a demo.
  *
- * See docs/operations-demo-environment.md.
+ * See operations/operations-demo-environment.md in pendulum-chain/vortex-private.
  */
 
 /** All demo-owned primary keys share this prefix. */

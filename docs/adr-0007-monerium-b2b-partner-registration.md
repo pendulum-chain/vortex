@@ -6,7 +6,7 @@
 invariants in
 [`security-spec/05-integrations/monerium-b2b.md`](security-spec/05-integrations/monerium-b2b.md)
 (0, 12, 15 and the key separation), procedures in
-[`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-runbook.md) §1, §6 and §8.
+[`operations-monerium-b2b-runbook.md`](https://github.com/pendulum-chain/vortex-private/blob/HEAD/operations/operations-monerium-b2b-runbook.md) (private repository) §1, §6 and §8.
 
 ## Context
 
