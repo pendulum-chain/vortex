@@ -173,7 +173,7 @@ describe("Avenia API KYB validators", () => {
         percentageOfOwnership: "100",
         state: "SP",
         streetLine1: "Av Paulista 1000",
-        taxIdNumber: "08786985906",
+        taxIdNumber: "04821536951",
         uploadedIdentificationId: "identity-1",
         zipCode: "01310-100"
       }

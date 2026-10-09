@@ -149,7 +149,7 @@ describe("getAveniaUser", () => {
     await getAveniaUser(
       {
         authenticatedPartner: { id: "partner-1", name: "Partner" },
-        query: { taxId: "08786985906" }
+        query: { taxId: "04821536951" }
       } as any,
       res as any
     );
@@ -173,7 +173,7 @@ describe("getAveniaUser", () => {
           profileId: "user-1",
           strength: "secret"
         },
-        query: { taxId: "08786985906" }
+        query: { taxId: "04821536951" }
       } as any,
       res as any
     );
@@ -188,7 +188,7 @@ describe("getAveniaUser", () => {
     const res = createResponse();
     await getAveniaUser(
       {
-        query: { taxId: "08786985906" },
+        query: { taxId: "04821536951" },
         userId: "user-1"
       } as any,
       res as any
@@ -204,7 +204,7 @@ describe("getAveniaUser", () => {
     const res = createResponse();
     await getAveniaUser(
       {
-        query: { taxId: "08786985906" },
+        query: { taxId: "04821536951" },
         userId: "attacker-user"
       } as any,
       res as any
@@ -239,7 +239,7 @@ describe("getAveniaUser", () => {
     );
 
     const res = createResponse();
-    await getAveniaUser({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await getAveniaUser({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(res.body).toEqual(expectedConfirmedBody);
@@ -270,7 +270,7 @@ describe("getAveniaUser", () => {
     const res = createResponse();
     await getAveniaUser(
       {
-        query: { taxId: "08786985906" },
+        query: { taxId: "04821536951" },
         userId: "user-1"
       } as any,
       res as any
@@ -307,7 +307,7 @@ describe("recordInitialKycAttempt", () => {
 
     const res = createResponse();
     await recordInitialKycAttempt(
-      { body: { quoteId: "quote-1", taxId: "08786985906" }, userId: "user-1" } as any,
+      { body: { quoteId: "quote-1", taxId: "04821536951" }, userId: "user-1" } as any,
       res as any
     );
 
@@ -319,7 +319,7 @@ describe("recordInitialKycAttempt", () => {
   it("requires a quote id before recording an Avenia interaction", async () => {
     const res = createResponse();
 
-    await recordInitialKycAttempt({ body: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await recordInitialKycAttempt({ body: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
     expect(res.body).toEqual({ error: "Missing quoteId or taxId body parameter" });
@@ -338,7 +338,7 @@ describe("recordInitialKycAttempt", () => {
 
     const res = createResponse();
     await recordInitialKycAttempt(
-      { body: { quoteId: "quote-1", taxId: "08786985906" }, userId: "attacker" } as any,
+      { body: { quoteId: "quote-1", taxId: "04821536951" }, userId: "attacker" } as any,
       res as any
     );
 
@@ -358,7 +358,7 @@ describe("recordInitialKycAttempt", () => {
 
     const res = createResponse();
     await recordInitialKycAttempt(
-      { body: { quoteId: "quote-1", taxId: "08786985906" }, userId: "user-1" } as any,
+      { body: { quoteId: "quote-1", taxId: "04821536951" }, userId: "user-1" } as any,
       res as any
     );
 
@@ -610,7 +610,7 @@ describe("fetchSubaccountKycStatus", () => {
     );
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.NOT_FOUND);
     expect(update).toHaveBeenCalledWith({ status: VerificationStatus.Pending, statusExternal: null }, expect.anything());
@@ -650,7 +650,7 @@ describe("fetchSubaccountKycStatus", () => {
     );
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
     expect(res.body).toEqual({ details: "database unavailable", error: "Server error" });
@@ -692,7 +692,7 @@ describe("fetchSubaccountKycStatus", () => {
     );
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
     expect(res.body).toEqual({ error: "The KYC submission requires reconciliation" });
@@ -747,7 +747,7 @@ describe("fetchSubaccountKycStatus", () => {
     });
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect((res.body as { result: string }).result).toBe(KycAttemptResult.APPROVED);
@@ -766,7 +766,7 @@ describe("fetchSubaccountKycStatus", () => {
     });
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.BAD_GATEWAY);
     expect(res.body).toEqual({ error: "The provider returned an inconsistent KYC attempt" });
@@ -781,7 +781,7 @@ describe("fetchSubaccountKycStatus", () => {
     });
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.BAD_GATEWAY);
     expect(res.body).toEqual({ error: "The provider returned an inconsistent KYC attempt" });
@@ -797,7 +797,7 @@ describe("fetchSubaccountKycStatus", () => {
     });
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(update).toHaveBeenCalledWith(
@@ -840,7 +840,7 @@ describe("fetchSubaccountKycStatus", () => {
     );
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
     expect(res.body).toEqual({ error: "The imported KYC attempt requires reconciliation" });
@@ -890,7 +890,7 @@ describe("fetchSubaccountKycStatus", () => {
     );
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(strayCreate).not.toHaveBeenCalled();
@@ -904,7 +904,7 @@ describe("fetchSubaccountKycStatus", () => {
     });
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(update).toHaveBeenCalledWith(
@@ -957,7 +957,7 @@ describe("fetchSubaccountKycStatus", () => {
     );
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(getExactAttempt).toHaveBeenCalledWith("attempt-imported", "subaccount-1");
@@ -978,7 +978,7 @@ describe("fetchSubaccountKycStatus", () => {
       providerSubaccountId: "subaccount-1",
       status: VerificationStatus.InReview,
       statusExternal: KycAttemptStatus.PROCESSING,
-      taxReferenceHash: hashTaxReference("08786985906"),
+      taxReferenceHash: hashTaxReference("04821536951"),
       update: customerUpdate
     };
     ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
@@ -1017,7 +1017,7 @@ describe("fetchSubaccountKycStatus", () => {
     const { caseUpdate, customerUpdate } = mockImportedApproval("111.444.777-35");
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
     expect(customerUpdate).not.toHaveBeenCalled();
@@ -1025,10 +1025,10 @@ describe("fetchSubaccountKycStatus", () => {
   });
 
   it("approves imported KYC when Avenia returns the canonical CPF with formatting", async () => {
-    const { caseUpdate, customerUpdate } = mockImportedApproval("087.869.859-06");
+    const { caseUpdate, customerUpdate } = mockImportedApproval("048.215.369-51");
 
     const res = createResponse();
-    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+    await fetchSubaccountKycStatus({ query: { taxId: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(customerUpdate).toHaveBeenCalledWith(
@@ -1612,7 +1612,7 @@ describe("createSubaccount", () => {
   const validBody = {
     accountType: AveniaAccountType.INDIVIDUAL,
     name: "Attacker",
-    taxId: "08786985906"
+    taxId: "04821536951"
   };
 
   it("rejects a managed child's mismatched account type before provider access", async () => {
@@ -1831,7 +1831,7 @@ describe("createSubaccount", () => {
         customerEntityId: "entity-new-user",
         provider: "avenia",
         providerSubaccountId: "new-subaccount",
-        taxReference: "08786985906"
+        taxReference: "04821536951"
       }),
       expect.anything()
     );
@@ -1884,12 +1884,12 @@ describe("createSubaccount", () => {
       { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: "12345678901" },
       { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: "abc" },
       { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter" },
-      { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: 8786985906 },
+      { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: 4821536951 },
       { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: "11222333000181" },
-      { accountType: AveniaAccountType.COMPANY, name: "Squatter Ltda", taxId: "08786985906" },
-      { accountType: AveniaAccountType.INDIVIDUAL, name: "  ", taxId: "08786985906" },
-      { accountType: AveniaAccountType.INDIVIDUAL, taxId: "08786985906" },
-      { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: "08786985907" }
+      { accountType: AveniaAccountType.COMPANY, name: "Squatter Ltda", taxId: "04821536951" },
+      { accountType: AveniaAccountType.INDIVIDUAL, name: "  ", taxId: "04821536951" },
+      { accountType: AveniaAccountType.INDIVIDUAL, taxId: "04821536951" },
+      { accountType: AveniaAccountType.INDIVIDUAL, name: "Squatter", taxId: "04821536952" }
     ];
     for (const body of malformed) {
       const res = await submitThroughRoute(body);
@@ -1908,13 +1908,13 @@ describe("createSubaccount", () => {
     ProviderCustomer.findOne = mock(async () => null) as typeof ProviderCustomer.findOne;
     ProviderCustomer.create = providerCreateMock as unknown as typeof ProviderCustomer.create;
 
-    const res = await submitThroughRoute({ ...validBody, taxId: "087.869.859-06" }, "new-user");
+    const res = await submitThroughRoute({ ...validBody, taxId: "048.215.369-51" }, "new-user");
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(createAveniaSubaccountMock).toHaveBeenCalledTimes(1);
     expect(providerCreateMock.mock.calls[0]?.[0]).toMatchObject({
-      taxReference: "08786985906",
-      taxReferenceHash: hashTaxReference("08786985906")
+      taxReference: "04821536951",
+      taxReferenceHash: hashTaxReference("04821536951")
     });
   });
 
@@ -2124,7 +2124,7 @@ describe("getUploadUrls", () => {
 
     const res = createResponse();
     await getUploadUrls(
-      { body: { documentType: BrDocumentType.ID, taxId: "08786985906" }, userId: "user-1" } as any,
+      { body: { documentType: BrDocumentType.ID, taxId: "04821536951" }, userId: "user-1" } as any,
       res as any
     );
 
@@ -2184,7 +2184,7 @@ describe("newKyc", () => {
         id: "customer-1",
         provider: "avenia",
         providerSubaccountId: "subaccount-1",
-        taxReferenceHash: hashTaxReference("08786985906")
+        taxReferenceHash: hashTaxReference("04821536951")
       })) as unknown as typeof ProviderCustomer.findOne;
       const getInstance = mock(() => ({}) as BrlaApiService);
       BrlaApiService.getInstance = getInstance;
@@ -2199,7 +2199,7 @@ describe("newKyc", () => {
     it("rejects a taxIdNumber that differs from the claimed CPF before any provider call", async () => {
       const { getInstance, transaction } = mockOwnedIndividual();
 
-      for (const taxIdNumber of ["52998224725", "", undefined, 8786985906]) {
+      for (const taxIdNumber of ["52998224725", "", undefined, 4821536951]) {
         const res = createResponse();
         await newKyc({ body: { subAccountId: "subaccount-1", taxIdNumber }, userId: "user-1" } as any, res as any);
 
@@ -2214,7 +2214,7 @@ describe("newKyc", () => {
       const { transaction } = mockOwnedIndividual();
 
       const res = createResponse();
-      await newKyc({ body: { subAccountId: "subaccount-1", taxIdNumber: "087.869.859-06" }, userId: "user-1" } as any, res as any);
+      await newKyc({ body: { subAccountId: "subaccount-1", taxIdNumber: "048.215.369-51" }, userId: "user-1" } as any, res as any);
 
       expect(transaction).toHaveBeenCalled();
       expect(res.statusCode).not.toBe(httpStatus.BAD_REQUEST);
@@ -2229,7 +2229,7 @@ describe("newKyc", () => {
       id: "customer-1",
       provider: "avenia",
       providerSubaccountId: "subaccount-1",
-      taxReferenceHash: hashTaxReference("08786985906")
+      taxReferenceHash: hashTaxReference("04821536951")
     })) as unknown as typeof ProviderCustomer.findOne;
     KycCase.findAll = mock(async () => [{ id: "case-1", verificationMethod: "sumsub_share_token" }]) as unknown as typeof KycCase.findAll;
     sequelize.transaction = mock(async callback =>
@@ -2247,7 +2247,7 @@ describe("newKyc", () => {
     );
 
     const res = createResponse();
-    await newKyc({ body: { subAccountId: "subaccount-1", taxIdNumber: "08786985906" }, userId: "user-1" } as any, res as any);
+    await newKyc({ body: { subAccountId: "subaccount-1", taxIdNumber: "04821536951" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
     expect(getUploadedDocuments).not.toHaveBeenCalled();
@@ -2264,7 +2264,7 @@ describe("newKyc", () => {
       provider: "avenia",
       providerSubaccountId: "subaccount-1",
       status: VerificationStatus.InReview,
-      taxReferenceHash: hashTaxReference("08786985906"),
+      taxReferenceHash: hashTaxReference("04821536951"),
       update: customerUpdate
     };
     ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
@@ -2322,7 +2322,7 @@ describe("newKyc", () => {
         {
           body: {
             subAccountId: "subaccount-1",
-            taxIdNumber: "087.869.859-06",
+            taxIdNumber: "048.215.369-51",
             uploadedDocumentId: "document-1",
             uploadedSelfieId: "selfie-1"
           },
