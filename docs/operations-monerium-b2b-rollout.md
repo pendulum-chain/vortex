@@ -25,7 +25,7 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
    (it would stay in flight forever and block its account) and no deposit-converted
    outbox delivery is still pending (it would replay without the `execution` block).
 2. **Treasury first (O2):** create the dedicated fee Safe multisig — `FEE_RECIPIENT` is
-   immutable in the implementation. Confirm guardian key custody plan (EOA acceptable
+   immutable in the implementation. Confirm the guardian key storage plan (EOA acceptable
    for pilot; hardware/multisig at GA).
 3. Re-verify the initial route's pools and fee tiers at the deploy block (P10) and re-run
    the liquidity baseline quote methodology (T6); confirm `perSwapCap` €10k still

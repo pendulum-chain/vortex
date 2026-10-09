@@ -9,7 +9,7 @@ security invariants:
 
 Ground rules that shape every procedure here:
 
-- **Vortex powers are bounded, not custodial by default.** Guardian/keeper can pause,
+- **Vortex powers are bounded.** Guardian/keeper can pause,
   execute the policy (chunk swaps, one forward per payment) and — only for a payment
   whose batch has been open for `RECOVERY_DELAY` (2 h) — move that payment to the
   client's refund wallet fixed in the clone for a bank refund (§2.7). Nothing else can
@@ -359,7 +359,7 @@ Trigger: a deposit the promised window was missed on (the deadline,
 `minSwapAmount`, a compliance decision, or a critical incident (§2.4). Prerequisites: the
 client's refund wallet (the clone's `recoveryAddress()`) is linked to the client's
 Monerium profile (onboarding does this, §1.5), `MONERIUM_B2B_REFUND_SEED` and the EURe
-float wallet's key are in the operator's custody, and the float holds EURe and some ETH
+float wallet's key are held by the operator, and the float holds EURe and some ETH
 (it also pays the refund wallet's gas).
 
 **Automation.** `MONERIUM_B2B_AUTO_RECOVERY` selects the mode: `off` (default) leaves
@@ -553,7 +553,7 @@ monitor's alerts are expected, then:
 5. Update the `monerium_accounts` row (forwarder address), re-activate (§1.7), then
    optionally penny-test the new clone: only an active account converts.
 
-There is no unlink at Monerium and no custodial parking position: EURe mints to the
+There is no unlink at Monerium and no parking position: EURe mints to the
 IBAN's current default address. The old clone stays linked, so a payer who names it in
 the SEPA memo still mints there; that payment is refunded by hand (§2.7, "Memo-routed
 payment").
@@ -936,7 +936,7 @@ Required results:
 - It does not test reorg replacement, duplicate-log replay, concurrent executors,
   advisory-lock contention, process crashes before/after broadcast, lost transaction
   hashes, nonce replacement, or restart recovery.
-- It does not test production key custody, private orderflow, production RPC behavior,
+- It does not test production key storage, private orderflow, production RPC behavior,
   source verification, deployment manifests, or independent bytecode verification.
 - It does not validate manager notifications, webhook outbox delivery, email delivery,
   or the 32-block client-notification confirmation policy.

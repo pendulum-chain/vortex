@@ -109,7 +109,7 @@ apps/api/src/api/services/phases/blocks/
     avenia-{direct-mint,mint,moonbeam-mint}/   # BRL onramp variants
     avenia-{offramp-fee,offramp-payout,pendulum-offramp}/
     mykobo-{mint,offramp-fee,offramp-payout}/  # legacy EUR recovery phases
-    monerium-{issue,self-transfer}/            # active EUR issue/custody phases
+    monerium-{issue,self-transfer}/            # active EUR issue/self-transfer phases
     uniswap-v3-fixed-swap/                     # pinned Polygon EURe/USDC conversion
     {evm,assethub}-offramp-source/             # source validation and tx plans
     fund-ephemeral/                            # EVM/Substrate funding and source-hash checks
@@ -607,7 +607,7 @@ Unmapped cases fail at quote resolution; there is no alternate engine:
    the persisted subsidy. Provider orders remain bound to those persisted terms; if
    an expired order cannot be replaced
    without degrading them, execution pauses before the single-use provider transfer
-   and leaves the funds on the client-custodied Polygon ephemeral for reconciliation.
+   and leaves the funds on the client-held Polygon ephemeral for reconciliation.
 
 ### Runtime ownership
 
