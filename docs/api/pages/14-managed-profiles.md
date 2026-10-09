@@ -181,7 +181,7 @@ X-API-Key: sk_test_...
 ```
 
 4. Wait for an `ACCOUNT_UPDATED` event whose `payload.status` is `"active"` and whose `payload.iban` is set. In sandbox, an account activates on its own once its IBAN is issued. The event's `payload.profileId` is the client's managed profile: send it as `X-Managed-Profile-Id` in the reads below. `GET /v1/monerium-b2b/accounts` with your manager key lists the same accounts if you missed an event.
-5. Ask Vortex to send a test payment of at least EUR 1 to the client's IBAN. Currently, test payments run in a joint session with Vortex: a normal one, one large enough to convert in several chunks, and one that is refunded. `DEPOSIT_UPDATED` events follow each payment until the deposit is `forwarded` to the destination, or `refunded` for the refunded one.
+5. Test payments are not available yet: sandbox cannot currently send EUR to a client's IBAN, and Vortex will tell you once it can. When a payment arrives, `DEPOSIT_UPDATED` events follow it until the deposit is `forwarded` to the destination, or `refunded` if it is not converted within the refund window.
 6. Read the client's account and deposits. They return `{ "account": { ... } }` and `{ "deposits": [ ... ], "pagination": { "limit", "offset", "total" } }`, each deposit being the same snapshot `DEPOSIT_UPDATED` delivers. A managed child without a business EUR account returns `404 MONERIUM_B2B_ACCOUNT_NOT_FOUND`; an ID that is not your child returns `403 MANAGED_PROFILE_ACCESS_DENIED`.
 
 ```http
