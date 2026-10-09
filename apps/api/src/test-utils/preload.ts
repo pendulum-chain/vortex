@@ -71,6 +71,10 @@ if (!process.env.RUN_LIVE_TESTS) {
   process.env.SUBSIDY_SETTLEMENT_DELAY_MS = "25";
   process.env.PHASE_SETTLEMENT_RETRY_BACKOFF_MS = "25";
 
+  // Any real network call (fetch, viem RPC) fails loudly, not only in fake-world tests.
+  const { installFetchGuard } = await import("./fake-world/fetch-guard");
+  installFetchGuard();
+
   // Close the shared Sequelize pool after the whole run so lingering pg
   // connections don't surface as unhandled "Connection terminated" errors.
   const { afterAll } = await import("bun:test");

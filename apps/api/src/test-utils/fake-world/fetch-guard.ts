@@ -2,15 +2,17 @@
  * Replaces global fetch with a guard that only allows loopback traffic
  * (the in-process test app). Any other HTTP call is a hermeticity violation
  * and fails with a descriptive error instead of silently reaching a real
- * service.
+ * service. viem's http transport goes through global fetch, so RPC calls are
+ * covered too. The test preload installs it for every hermetic run.
  */
 let originalFetch: typeof fetch | null = null;
 
 const LOOPBACK_PATTERN = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/;
 
-export function installFetchGuard(): void {
+/** Returns the uninstaller; a no-op when an outer caller (the preload) already owns the guard. */
+export function installFetchGuard(): () => void {
   if (originalFetch) {
-    return;
+    return () => undefined;
   }
   const realFetch = globalThis.fetch;
   originalFetch = realFetch;
@@ -29,9 +31,10 @@ export function installFetchGuard(): void {
   }) as typeof fetch;
 
   globalThis.fetch = Object.assign(guard, realFetch);
+  return uninstallFetchGuard;
 }
 
-export function uninstallFetchGuard(): void {
+function uninstallFetchGuard(): void {
   if (originalFetch) {
     globalThis.fetch = originalFetch;
     originalFetch = null;
