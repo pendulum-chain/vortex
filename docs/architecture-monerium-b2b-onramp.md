@@ -499,7 +499,10 @@ read-only — no keys, no transactions:
    whitelabel credentials can change associations at Monerium: those changes cannot be
    prevented client-side, only detected fast.
 2. **Executable-depth monitor.** QuoterV2 quotes on every enabled route vs Chainlink;
-   the best route's impact past the floor is an alert before clients feel it.
+   the best route's impact past the floor is an alert before clients feel it. It runs
+   on the Sepolia sandbox too, so a sandbox pool priced away from the Sepolia oracle logs
+   the same error-level line every pass (and the keeper defers sandbox swaps as below the
+   floor); rebalance the sandbox pool rather than treating it as a production incident.
 3. **Stranded-balance monitor.** Forwarders holding EURe or USDC whose batch marker has
    been open longer than `RECOVERY_DELAY` warn (the promised window was missed: forward
    or recover) and longer than `TRIGGER_DELAY` error (the permissionless path is live —
