@@ -367,8 +367,13 @@ and sends at most one transaction per account per cycle:
   design against dust), so `recover` cannot move it unless a larger balance keeps the
   marker open for `RECOVERY_DELAY`; once marked `recovering` on a clone below the floor,
   the stranded-balance monitor raises REFUND NEEDS OPERATOR and operations refund it by
-  hand (internal B2B runbook §2.7). A remainder left after chunk swaps is recoverable as
-  usual: its USDC keeps the marker armed.
+  hand from the client's refund wallet under the memo `vortex-refund:<depositId>` (so a
+  later keeper `recover` cannot pay it twice) and close it `refunded` (internal B2B
+  runbook §2.7). A remainder left after chunk swaps is recoverable as usual: its USDC
+  keeps the marker armed. Every younger deposit's `forward` re-times the marker, so a
+  passed-over remainder at or above the floor (possible only once `minSwapAmount` is
+  raised above `MIN_SWAP_FLOOR`) becomes recoverable only after a forward-free
+  `RECOVERY_DELAY`.
 - **The refund path.** A deposit marked `recovering` — by an operator through the admin
   endpoint, or once automated by the missed window — is moved off the clone with
   `recover(eureRemaining, usdcConverted)`: keeper-only, explicit amounts, only to the
@@ -509,7 +514,11 @@ read-only — no keys, no transactions:
 3. **Stranded-balance monitor.** Forwarders holding EURe or USDC whose batch marker has
    been open longer than `RECOVERY_DELAY` warn (the promised window was missed: forward
    or recover) and longer than `TRIGGER_DELAY` error (the permissionless path is live —
-   a keeper-outage signal; funds are never at risk).
+   a keeper-outage signal; funds are never at risk). A deposit marked `recovering` on a
+   clone below `MIN_SWAP_FLOOR` without a pending or confirmed `recover`, unswapped and
+   with its EURe still on the clone, raises REFUND NEEDS OPERATOR (manual refund under
+   its memo, then close it `refunded`, internal B2B runbook §2.7); one whose funds left
+   the clone by an unrecorded path warns "reconcile, do not refund".
 4. **Config reconciliation.** Re-reads per-clone config and bytecode: guardian-authorized
    fee-policy changes (timelocked) are reconciled into the DB with a version bump; a
    destination change (no setter exists), bytecode or registration drift is a
