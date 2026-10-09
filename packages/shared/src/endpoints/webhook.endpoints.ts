@@ -188,8 +188,10 @@ export interface DepositReturnedWebhookPayload {
 /**
  * Why a deposit is waiting: `monerium_pending` until Monerium mints it (minting or a
  * compliance review, which Monerium does not tell apart), `account_not_active` while the
- * account cannot convert (not activated yet, suspended, or paused for dormancy), otherwise
- * the reason the keeper is holding the next conversion chunk.
+ * account cannot convert (not activated yet, suspended, or paused for dormancy),
+ * `below_minimum` while the unconverted amount is below the minimum swap (it waits for the
+ * refund path and holds back no later deposit), otherwise the reason the keeper is holding
+ * the next conversion chunk.
  */
 export type DepositWaitingReason =
   | "monerium_pending"
@@ -198,7 +200,8 @@ export type DepositWaitingReason =
   | "reference_unavailable"
   | "reference_out_of_band"
   | "no_route"
-  | "below_floor";
+  | "below_floor"
+  | "below_minimum";
 
 /** Why a deposit entered the refund path. */
 export type DepositRefundReason = "window_missed" | "compliance" | "incident" | "operator";
