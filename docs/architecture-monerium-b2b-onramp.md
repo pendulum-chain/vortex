@@ -452,8 +452,9 @@ contract settles every fill into three bands against that reference (decisions:
 - **Routes**: the factory holds a guardian-managed whitelist of packed Uniswap v3 paths,
   validated on chain to touch only EURe, EURC and USDC on the immutable router, with at
   most two hops on Uniswap's four fee tiers; entries are disabled, never removed, so
-  indices stay stable. The keeper quotes every enabled route on the mainnet QuoterV2
-  and passes the best index. A poor pick costs Vortex fee or subsidy, never the client.
+  indices stay stable. The keeper quotes every enabled route on the chain's pinned
+  QuoterV2 (Ethereum mainnet and the Sepolia sandbox; elsewhere it takes the first
+  enabled route unprojected) and passes the best index. A poor pick costs Vortex fee or subsidy, never the client.
 - **Subsidy ladder and per-swap cap.** How much of a shortfall Vortex pays depends on
   how long the chunk has waited: `MONERIUM_B2B_SUBSIDY_LADDER` maps seconds waited to a
   maximum subsidy in bps of the reference value (launch: nothing for six minutes, then
