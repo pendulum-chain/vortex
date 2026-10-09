@@ -909,6 +909,7 @@ describe("runConversionExecutor activation gate", () => {
       latestRoundData: [1n, 0n, 0n, 0n, 1n], // Chainlink down: a planned swap defers before sending anything
       MIN_SWAP_FLOOR: 1n,
       minSwapAmount: 25n * EUR,
+      pendingFeePolicyEffectiveAt: 0n,
       perSwapCap: 10_000n * EUR,
       subsidyVault: "0x0000000000000000000000000000000000000000",
       targetPpm: 1_250
@@ -1039,6 +1040,7 @@ describe("runConversionExecutor batch marker", () => {
       latestRoundData: [1n, 114_000_000n, 0n, 0n, 1n],
       MIN_SWAP_FLOOR: 1n,
       minSwapAmount: 25n * EUR,
+      pendingFeePolicyEffectiveAt: 0n,
       perSwapCap: 10_000n * EUR,
       subsidyVault: "0x0000000000000000000000000000000000000000",
       targetPpm: 1_250
@@ -1523,5 +1525,132 @@ describe("runConversionExecutor reserved-nonce re-send", () => {
     const { sent, updates } = await cycle({ latest: 7, latestInLock: 8 });
     expect(sent).toHaveLength(0);
     expect(updates).toEqual([]);
+  });
+});
+
+// P11: an announced fee increase only takes effect once someone calls the permissionless
+// applyFeePolicy() after the timelock; the keeper does so in the account's cycle.
+describe("runConversionExecutor fee-policy apply", () => {
+  const FACTORY = "0x2222222222222222222222222222222222222222" as Address;
+  const EURE = "0x4444444444444444444444444444444444444444" as Address;
+  const NOW = 1_800_000_000n;
+  const saved = { factory: config.moneriumB2b.forwarderFactoryAddress, rpcUrl: config.moneriumB2b.rpcUrl };
+  let reads: Record<string, unknown>;
+  let writes: string[];
+  let writeError: Error | null;
+
+  beforeAll(async () => {
+    config.moneriumB2b.rpcUrl = undefined;
+    config.moneriumB2b.forwarderFactoryAddress = FACTORY;
+    await setupTestDatabase();
+  });
+
+  afterAll(() => {
+    config.moneriumB2b.rpcUrl = saved.rpcUrl;
+    config.moneriumB2b.forwarderFactoryAddress = saved.factory;
+  });
+
+  beforeEach(async () => {
+    await resetTestDatabase();
+    writes = [];
+    writeError = null;
+    reads = {
+      batchOpenedAt: 1n,
+      floorPpm: 1_500,
+      latestRoundData: [1n, 0n, 0n, 0n, 1n], // Chainlink down: the planned swap defers, nothing else is sent
+      MIN_SWAP_FLOOR: 1n,
+      minSwapAmount: 25n * EUR,
+      pendingFeePolicyEffectiveAt: 0n,
+      perSwapCap: 10_000n * EUR,
+      subsidyVault: "0x0000000000000000000000000000000000000000",
+      targetPpm: 1_250
+    };
+    spyOn(chain, "getForwarderImmutables").mockResolvedValue({
+      eure: EURE,
+      factory: FACTORY,
+      usdc: "0x6666666666666666666666666666666666666666",
+      recoveryDelaySeconds: 7_200
+    } as unknown as chain.ForwarderImmutables);
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      getBlock: async () => ({ timestamp: NOW }),
+      readContract: async ({ address, functionName }: { address: Address; functionName: string }) =>
+        functionName === "balanceOf" ? (address === EURE ? 100n * EUR : 0n) : reads[functionName],
+      simulateContract: async () => ({}),
+      waitForTransactionReceipt: async () => ({ status: "success" })
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+    spyOn(chain, "getKeeperWalletClient").mockReturnValue({
+      account: { address: "0x9999999999999999999999999999999999999999" },
+      writeContract: async ({ functionName }: { functionName: string }) => {
+        if (writeError) throw writeError;
+        writes.push(functionName);
+        return "0xapply";
+      }
+    } as unknown as ReturnType<typeof chain.getKeeperWalletClient>);
+  });
+
+  afterEach(() => mock.restore());
+
+  async function activeAccountWithDeposit() {
+    const manager = await createTestUser();
+    await ManagedProfileManager.create({
+      allowedCorridors: ["EU"],
+      allowedCustomerTypes: ["business"],
+      isActive: true,
+      profileId: manager.id
+    });
+    const { accountId } = await provisionMoneriumB2bAccount({
+      contactEmail: "ops@client.example.com",
+      destination: "0x5555555555555555555555555555555555555555",
+      externalSubjectId: "client-1",
+      forwarderAddress: "0x1111111111111111111111111111111111111111",
+      managerProfileId: manager.id,
+      moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
+    });
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId,
+      amountRaw: (100n * EUR).toString(),
+      blockNumber: 100,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      mintedAt: new Date(),
+      moneriumOrderId: "order-1",
+      payerIban: "DE89370400440532013000",
+      payerName: "Payer GmbH",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xorder1"
+    });
+    return { accountId, deposit };
+  }
+
+  it("applies a due increase once, before the cycle prices its swap", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW;
+    const { accountId, deposit } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["applyFeePolicy"]);
+    expect((await deposit.reload()).waitingReason).toBe("oracle_unavailable"); // the cycle went on
+  });
+
+  it("sends nothing while no increase is pending or its timelock still runs", async () => {
+    const { accountId } = await activeAccountWithDeposit();
+    await runConversionExecutor(accountId);
+    reads.pendingFeePolicyEffectiveAt = NOW + 1n;
+    await runConversionExecutor(accountId);
+    expect(writes).toEqual([]);
+  });
+
+  it("logs a reverted apply and carries on with the cycle", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW - 60n;
+    writeError = new Error("NoPendingFeePolicy()");
+    const warn = spyOn(logger, "warn");
+    const { accountId, deposit } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(warn.mock.calls.some(([message]) => String(message).includes("applyFeePolicy"))).toBe(true);
+    expect((await deposit.reload()).waitingReason).toBe("oracle_unavailable");
   });
 });

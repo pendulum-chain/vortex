@@ -1096,14 +1096,18 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   ) {
     throw new Error(`Forwarder ${forwarder} is not bound to the configured trusted factory`);
   }
-  const [eureBalance, usdcBalance, batchOpenedAt, minSwapAmount, minSwapFloor, perSwapCap] = await Promise.all([
+  const [eureBalance, usdcBalance, batchOpenedAt, minSwapAmount, minSwapFloor, perSwapCap, feeIncreaseAt] = await Promise.all([
     client.readContract({ abi: erc20Abi, address: eure, args: [forwarder], functionName: "balanceOf" }),
     client.readContract({ abi: erc20Abi, address: usdc, args: [forwarder], functionName: "balanceOf" }),
     client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "batchOpenedAt" }),
     client.readContract({ abi: factoryAbi, address: factory, functionName: "minSwapAmount" }),
     client.readContract({ abi: factoryAbi, address: factory, functionName: "MIN_SWAP_FLOOR" }),
-    client.readContract({ abi: factoryAbi, address: factory, functionName: "perSwapCap" })
+    client.readContract({ abi: factoryAbi, address: factory, functionName: "perSwapCap" }),
+    client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "pendingFeePolicyEffectiveAt" })
   ]);
+
+  // Before pricing, so a swap this cycle is projected under the policy it will settle at.
+  await applyDueFeePolicy(forwarder, feeIncreaseAt);
 
   // Arm the batch marker whenever funds are present, even below the (guardian-tunable)
   // minSwapAmount: the recovery and trigger clocks must run regardless of whether a swap
@@ -1405,6 +1409,32 @@ async function sendPoke(forwarder: Address): Promise<void> {
     // Best-effort: poke is also permissionless on-chain, so a missed poke only delays
     // the batch clocks until the next cycle.
     logger.warn(`monerium-b2b: poke for forwarder ${forwarder} failed: ${errorText(error)}`);
+  }
+}
+
+/**
+ * P11: finalizes a guardian fee increase whose timelock has elapsed (`applyFeePolicy` is
+ * permissionless; nothing else would ever apply it). Waits for the receipt so the cycle
+ * then reads the applied policy. Best-effort like sendPoke: a revert (applied by someone
+ * else, clock skew) or a timeout is logged and the cycle goes on, since the contract always
+ * settles under its current on-chain policy. The monitor's config reconciliation mirrors
+ * the applied values into the account row.
+ */
+async function applyDueFeePolicy(forwarder: Address, effectiveAt: bigint): Promise<void> {
+  if (effectiveAt === 0n) return;
+  try {
+    const client = getPublicClient();
+    const { timestamp } = await client.getBlock();
+    if (timestamp < effectiveAt) return;
+    const keeper = getKeeperWalletClient();
+    const call = { abi: forwarderAbi, account: keeper.account, address: forwarder, functionName: "applyFeePolicy" } as const;
+    await client.simulateContract(call);
+    const hash = await withKeeperSendLock(() => keeper.writeContract({ ...call, chain: null }));
+    const receipt = await client.waitForTransactionReceipt({ hash, timeout: RECEIPT_TIMEOUT_MS });
+    if (receipt.status !== "success") throw new Error(`transaction ${hash} reverted`);
+    logger.info(`monerium-b2b: applied the pending fee policy on forwarder ${forwarder} (${hash})`);
+  } catch (error) {
+    logger.warn(`monerium-b2b: applyFeePolicy on forwarder ${forwarder} failed: ${errorText(error)}`);
   }
 }
 
