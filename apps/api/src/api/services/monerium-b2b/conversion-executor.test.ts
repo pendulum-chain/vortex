@@ -644,7 +644,7 @@ describe("pricePlannedSwap", () => {
     spyOn(chain, "readEnabledRoutes").mockResolvedValue(overrides.routes ?? routes);
     spyOn(chain, "readSubsidyVaultState").mockResolvedValue(vault);
     const quotes = overrides.quotes ?? { "0xaa": 1_138_400_000n, "0xbb": 1_139_000_000n };
-    spyOn(chain, "quoteRouteOutput").mockImplementation(async path => {
+    const quoteSpy = spyOn(chain, "quoteRouteOutput").mockImplementation(async (_quoter, path) => {
       const quote = quotes[path];
       if (quote instanceof Error) throw quote;
       return quote;
@@ -656,6 +656,7 @@ describe("pricePlannedSwap", () => {
     } else {
       fetchSpy.mockResolvedValue(fetched);
     }
+    return { quoteSpy };
   }
 
   const price = (maxSubsidyBps = 50) => pricePlannedSwap(FORWARDER, FACTORY, 1_000n * EUR, maxSubsidyBps);
@@ -688,9 +689,16 @@ describe("pricePlannedSwap", () => {
     expect(await price()).toEqual({ code: "no_route", kind: "defer", reason: "the factory has no enabled swap route" });
   });
 
-  it("uses the first enabled route unprojected off mainnet, still carrying the tier cap", async () => {
-    arrange({ chainId: 11_155_111 });
+  it("quotes on the Sepolia QuoterV2 and defers on its projection like mainnet", async () => {
+    const { quoteSpy } = arrange({ chainId: 11_155_111, quotes: { "0xaa": 1_130n * USDC, "0xbb": new Error("no pool") } });
+    expect(await price(100)).toMatchObject({ code: "below_floor", kind: "defer", reason: expect.stringContaining("per-swap cap") });
+    expect(quoteSpy).toHaveBeenCalledWith("0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3", "0xaa", 1_000n * EUR);
+  });
+
+  it("uses the first enabled route unquoted on a chain without a known quoter, still carrying the tier cap", async () => {
+    const { quoteSpy } = arrange({ chainId: 31_337 });
     expect(await price()).toEqual({ kind: "ready", maxSubsidyRaw: 5_700_000n, reference, routeIndex: 0 });
+    expect(quoteSpy).not.toHaveBeenCalled();
   });
 
   it("defers when no route can be quoted", async () => {
@@ -698,14 +706,15 @@ describe("pricePlannedSwap", () => {
     expect(await price()).toEqual({ code: "no_route", kind: "defer", reason: "no enabled swap route could be quoted" });
   });
 
-  it("picks the route with the highest quote", async () => {
-    arrange();
+  it("picks the route with the highest quote on the mainnet QuoterV2", async () => {
+    const { quoteSpy } = arrange();
     expect(await price()).toEqual({
       kind: "ready",
       maxSubsidyRaw: 5_700_000n, // 50 bps of the 1140 USDC reference value
       reference,
       routeIndex: 1
     });
+    expect(quoteSpy).toHaveBeenCalledWith("0x61fFE014bA17989E743c5F6cB21bF9697530B21e", "0xbb", 1_000n * EUR);
   });
 
   it("defers with the route, quote and shortfall when the projection defers", async () => {
