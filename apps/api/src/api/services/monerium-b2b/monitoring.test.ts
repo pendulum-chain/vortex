@@ -1,4 +1,7 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { Hex } from "viem";
+import MoneriumAccount from "../../../models/moneriumAccount.model";
+import * as chain from "./chain";
 import {
   classifyExecutableDepth,
   classifyRefundQueue,
@@ -8,7 +11,8 @@ import {
   detectConfigDrift,
   diffAssociation,
   eip1167RuntimeCode,
-  normalizeIban
+  normalizeIban,
+  runExecutableDepthCheck
 } from "./monitoring";
 
 // Pure monitoring logic (implementation plan D3): quote-impact math against the T6
@@ -244,5 +248,54 @@ describe("eip1167RuntimeCode", () => {
     expect(eip1167RuntimeCode("0x7e1c653CaAFCa44258d8680B09F42a33475504a9")).toBe(
       "0x363d3d373d3d3d363d737e1c653caafca44258d8680b09f42a33475504a95af43d82803e903d91602b57fd5bf3"
     );
+  });
+});
+
+describe("runExecutableDepthCheck", () => {
+  afterEach(() => mock.restore());
+
+  function arrange(chainId: number) {
+    spyOn(chain, "getChainId").mockResolvedValue(chainId);
+    const findAll = spyOn(MoneriumAccount, "findAll").mockResolvedValue([
+      { forwarderAddress: "0x1111111111111111111111111111111111111111" } as MoneriumAccount
+    ]);
+    const reads: Record<string, unknown> = {
+      latestRoundData: [1n, 114_000_000n, 0n, 0n, 1n],
+      minSwapAmount: 1n * EUR,
+      perSwapCap: 10_000n * EUR
+    };
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      readContract: async ({ functionName }: { functionName: string }) => reads[functionName]
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+    spyOn(chain, "getForwarderImmutables").mockResolvedValue({
+      factory: "0x2222222222222222222222222222222222222222",
+      oracle: "0x5555555555555555555555555555555555555555",
+      oracleDecimals: 8,
+      slippageBps: 60
+    } as unknown as chain.ForwarderImmutables);
+    spyOn(chain, "readEnabledRoutes").mockResolvedValue([{ index: 0, path: "0xaa" as Hex }]);
+    const quoteSpy = spyOn(chain, "quoteRouteOutput").mockImplementation(async (_quoter, _path, amountIn) => {
+      return (amountIn * 114n) / (100n * 10n ** 12n);
+    });
+    return { findAll, quoteSpy };
+  }
+
+  it("quotes on the Sepolia QuoterV2 on the sandbox chain", async () => {
+    const { quoteSpy } = arrange(11_155_111);
+    await runExecutableDepthCheck();
+    expect(quoteSpy).toHaveBeenCalledWith("0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3", "0xaa", 1n * EUR);
+  });
+
+  it("quotes on the mainnet QuoterV2 on Ethereum", async () => {
+    const { quoteSpy } = arrange(1);
+    await runExecutableDepthCheck();
+    expect(quoteSpy).toHaveBeenCalledWith("0x61fFE014bA17989E743c5F6cB21bF9697530B21e", "0xaa", 10_000n * EUR);
+  });
+
+  it("skips a chain without a known quoter", async () => {
+    const { findAll, quoteSpy } = arrange(31_337);
+    await runExecutableDepthCheck();
+    expect(findAll).not.toHaveBeenCalled();
+    expect(quoteSpy).not.toHaveBeenCalled();
   });
 });

@@ -30,6 +30,7 @@ import {
   getKeeperWalletClient,
   getPublicClient,
   quoteRouteOutput,
+  quoterV2ForChainId,
   readEnabledRoutes,
   readSubsidyVaultState,
   recoveredEvent,
@@ -833,15 +834,16 @@ function deferSwap(code: DepositWaitingReason, reason: string): PlannedSwap {
   return { code, kind: "defer", reason };
 }
 
-/** Quotes every enabled route on the mainnet QuoterV2; a route that cannot be quoted is skipped with a warning. */
+/** Quotes every enabled route on the chain's QuoterV2; a route that cannot be quoted is skipped with a warning. */
 async function quoteRoutes(
+  quoter: Address,
   routes: Array<{ index: number; path: Hex }>,
   amountIn: bigint
 ): Promise<Array<{ index: number; quotedOut: bigint }>> {
   const quotes: Array<{ index: number; quotedOut: bigint }> = [];
   for (const route of routes) {
     try {
-      quotes.push({ index: route.index, quotedOut: await quoteRouteOutput(route.path, amountIn) });
+      quotes.push({ index: route.index, quotedOut: await quoteRouteOutput(quoter, route.path, amountIn) });
     } catch (error) {
       logger.warn(`monerium-b2b: route ${route.index} could not be quoted: ${errorText(error)}`);
     }
@@ -853,8 +855,8 @@ async function quoteRoutes(
  * Reference, route, tier cap and projection for a swap of `amountIn`
  * (docs/architecture-monerium-b2b-onramp.md, fees section). `maxSubsidyBps` is the
  * keeper's tier for the chunk's waiting time; the cap it yields is passed into the swap
- * and binds on chain. Outside Ethereum mainnet there is no quoter pin: the first enabled
- * route is used unprojected and the contract's own checks remain the only gate.
+ * and binds on chain. On a chain without a pinned QuoterV2 (quoterV2ForChainId) the first
+ * enabled route is used unprojected and the contract's own checks remain the only gate.
  */
 export async function pricePlannedSwap(
   forwarder: Address,
@@ -895,10 +897,11 @@ export async function pricePlannedSwap(
   if (routes.length === 0) {
     return deferSwap("no_route", "the factory has no enabled swap route");
   }
-  if ((await getChainId()) !== 1) {
+  const quoter = quoterV2ForChainId(await getChainId());
+  if (!quoter) {
     return { kind: "ready", maxSubsidyRaw, reference, routeIndex: routes[0].index };
   }
-  const quotes = await quoteRoutes(routes, amountIn);
+  const quotes = await quoteRoutes(quoter, routes, amountIn);
   if (quotes.length === 0) {
     return deferSwap("no_route", "no enabled swap route could be quoted");
   }

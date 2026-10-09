@@ -15,6 +15,7 @@ import {
   getPublicClient,
   moneriumChainForChainId,
   quoteRouteOutput,
+  quoterV2ForChainId,
   readEnabledRoutes,
   readSubsidyVaultState,
   SubsidyVaultState
@@ -32,7 +33,7 @@ import { refundAccountFor } from "./refund-wallet";
  *    EUR/USD rate. Raw impact of the best route above SLIPPAGE_BPS at minSwapAmount size
  *    means every keeper swap draws a subsidy and the permissionless path would revert
  *    (error-level DEPTH BELOW FLOOR line, triage per the runbook); at perSwapCap size it
- *    is an early warning. Mainnet-only (QuoterV2 pin).
+ *    is an early warning. Only on chains with a pinned QuoterV2 (mainnet, Sepolia).
  * 2. Stranded-balance monitor: forwarders whose on-chain batch marker has been open
  *    longer than RECOVERY_DELAY (the promised window, registry P3) warn — the deposit
  *    should be forwarded or recovering by then; past TRIGGER_DELAY (the
@@ -283,10 +284,11 @@ async function monitoredAccounts(statuses: MoneriumAccountStatus[]): Promise<Mon
 /**
  * Executable-depth check (PRD §7.4): QuoterV2 static quotes at minSwapAmount and
  * perSwapCap on every enabled factory route vs Chainlink; the best route decides.
- * Runs only against Ethereum mainnet — MAINNET_QUOTER_V2 is a mainnet pin.
+ * Skipped on a chain without a pinned QuoterV2 (quoterV2ForChainId).
  */
 export async function runExecutableDepthCheck(): Promise<void> {
-  if ((await getChainId()) !== 1) {
+  const quoter = quoterV2ForChainId(await getChainId());
+  if (!quoter) {
     return;
   }
   const accounts = await monitoredAccounts([MoneriumAccountStatus.Onboarding, MoneriumAccountStatus.Active]);
@@ -321,8 +323,8 @@ export async function runExecutableDepthCheck(): Promise<void> {
   for (const route of routes) {
     try {
       const [minOut, capOut] = await Promise.all([
-        quoteRouteOutput(route.path, minSwapAmount),
-        quoteRouteOutput(route.path, perSwapCap)
+        quoteRouteOutput(quoter, route.path, minSwapAmount),
+        quoteRouteOutput(quoter, route.path, perSwapCap)
       ]);
       quoted.push({
         capImpactBps: computeQuoteImpactBps(perSwapCap, capOut, answer, oracleDecimals),
