@@ -1153,6 +1153,7 @@ describe("runConversionExecutor batch marker", () => {
     await runConversionExecutor(accountId); // backoff
 
     expect(writes).toEqual([]);
+    expect(await executions(accountId)).toHaveLength(2); // no third attempt: the backoff held
   });
 
   it("does not poke again after the sequenced poke was attempted", async () => {
