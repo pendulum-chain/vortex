@@ -1415,9 +1415,10 @@ async function sendPoke(forwarder: Address): Promise<void> {
 /**
  * P11: finalizes a guardian fee increase whose timelock has elapsed (`applyFeePolicy` is
  * permissionless; nothing else would ever apply it). Waits for the receipt so the cycle
- * then reads the applied policy. Best-effort like sendPoke: a revert (applied by someone
- * else, clock skew) or a timeout is logged and the cycle goes on, since the contract always
- * settles under its current on-chain policy. The monitor's config reconciliation mirrors
+ * then reads the applied policy, and skips while any keeper transaction is still unmined so
+ * a timed-out apply is not re-sent every cycle. Best-effort like sendPoke: a revert (applied
+ * by someone else, clock skew) or a timeout is logged and the cycle goes on, since the
+ * contract always settles under its current on-chain policy. The monitor's config reconciliation mirrors
  * the applied values into the account row.
  */
 async function applyDueFeePolicy(forwarder: Address, effectiveAt: bigint): Promise<void> {
@@ -1429,7 +1430,16 @@ async function applyDueFeePolicy(forwarder: Address, effectiveAt: bigint): Promi
     const keeper = getKeeperWalletClient();
     const call = { abi: forwarderAbi, account: keeper.account, address: forwarder, functionName: "applyFeePolicy" } as const;
     await client.simulateContract(call);
-    const hash = await withKeeperSendLock(() => keeper.writeContract({ ...call, chain: null }));
+    const hash = await withKeeperSendLock(async () => {
+      const [latest, pending] = await Promise.all([
+        client.getTransactionCount({ address: keeper.account.address, blockTag: "latest" }),
+        client.getTransactionCount({ address: keeper.account.address, blockTag: "pending" })
+      ]);
+      // An earlier apply (or any keeper send) still unmined: re-sending would only stack nonces.
+      if (pending !== latest) return null;
+      return keeper.writeContract({ ...call, chain: null });
+    });
+    if (hash === null) return;
     const receipt = await client.waitForTransactionReceipt({ hash, timeout: RECEIPT_TIMEOUT_MS });
     if (receipt.status !== "success") throw new Error(`transaction ${hash} reverted`);
     logger.info(`monerium-b2b: applied the pending fee policy on forwarder ${forwarder} (${hash})`);

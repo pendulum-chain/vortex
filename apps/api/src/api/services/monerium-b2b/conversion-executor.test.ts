@@ -1538,6 +1538,8 @@ describe("runConversionExecutor fee-policy apply", () => {
   let reads: Record<string, unknown>;
   let writes: string[];
   let writeError: Error | null;
+  let nonces: { latest: number; pending: number };
+  let receiptTimesOut: boolean;
 
   beforeAll(async () => {
     config.moneriumB2b.rpcUrl = undefined;
@@ -1554,6 +1556,8 @@ describe("runConversionExecutor fee-policy apply", () => {
     await resetTestDatabase();
     writes = [];
     writeError = null;
+    nonces = { latest: 0, pending: 0 };
+    receiptTimesOut = false;
     reads = {
       batchOpenedAt: 1n,
       floorPpm: 1_500,
@@ -1573,16 +1577,24 @@ describe("runConversionExecutor fee-policy apply", () => {
     } as unknown as chain.ForwarderImmutables);
     spyOn(chain, "getPublicClient").mockReturnValue({
       getBlock: async () => ({ timestamp: NOW }),
-      readContract: async ({ address, functionName }: { address: Address; functionName: string }) =>
-        functionName === "balanceOf" ? (address === EURE ? 100n * EUR : 0n) : reads[functionName],
+      getTransactionCount: async ({ blockTag }: { blockTag: "latest" | "pending" }) => nonces[blockTag],
+      readContract: async ({ address, functionName }: { address: Address; functionName: string }) => {
+        if (functionName === "targetPpm") writes.push("read targetPpm");
+        return functionName === "balanceOf" ? (address === EURE ? 100n * EUR : 0n) : reads[functionName];
+      },
       simulateContract: async () => ({}),
-      waitForTransactionReceipt: async () => ({ status: "success" })
+      waitForTransactionReceipt: async () => {
+        if (receiptTimesOut) throw new Error("WaitForTransactionReceiptTimeoutError");
+        nonces.latest = nonces.pending;
+        return { status: "success" };
+      }
     } as unknown as ReturnType<typeof chain.getPublicClient>);
     spyOn(chain, "getKeeperWalletClient").mockReturnValue({
       account: { address: "0x9999999999999999999999999999999999999999" },
       writeContract: async ({ functionName }: { functionName: string }) => {
         if (writeError) throw writeError;
         writes.push(functionName);
+        nonces.pending += 1;
         return "0xapply";
       }
     } as unknown as ReturnType<typeof chain.getKeeperWalletClient>);
@@ -1630,8 +1642,19 @@ describe("runConversionExecutor fee-policy apply", () => {
 
     await runConversionExecutor(accountId);
 
-    expect(writes).toEqual(["applyFeePolicy"]);
+    expect(writes).toEqual(["applyFeePolicy", "read targetPpm"]);
     expect((await deposit.reload()).waitingReason).toBe("oracle_unavailable"); // the cycle went on
+  });
+
+  it("does not re-send while an earlier apply is still unmined", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW;
+    receiptTimesOut = true;
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId); // sent, receipt wait times out
+    await runConversionExecutor(accountId); // still looks pending on chain
+
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual(["applyFeePolicy"]);
   });
 
   it("sends nothing while no increase is pending or its timelock still runs", async () => {
@@ -1639,7 +1662,7 @@ describe("runConversionExecutor fee-policy apply", () => {
     await runConversionExecutor(accountId);
     reads.pendingFeePolicyEffectiveAt = NOW + 1n;
     await runConversionExecutor(accountId);
-    expect(writes).toEqual([]);
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual([]);
   });
 
   it("logs a reverted apply and carries on with the cycle", async () => {
