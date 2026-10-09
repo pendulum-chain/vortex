@@ -11,9 +11,8 @@ acceptances* of the B2B EUR → USDC onramp. How the system works lives in
 [`architecture-monerium-b2b-onramp.md`](architecture-monerium-b2b-onramp.md); security
 invariants and the threat model in
 [`security-spec/05-integrations/monerium-b2b.md`](security-spec/05-integrations/monerium-b2b.md);
-launch gates and the deploy checklist in
-[`operations-monerium-b2b-rollout.md`](operations-monerium-b2b-rollout.md); procedures in
-[`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-runbook.md). The
+launch gates, the deploy checklist and operator procedures in the internal operations
+runbooks. The
 consumer-flow design this grew out of remains a phase-2 proposal:
 [`proposal-monerium-consumer-onramp.md`](proposal-monerium-consumer-onramp.md).
 
@@ -38,7 +37,7 @@ of access to funds.
 **Why the naive alternative is unsafe:** Monerium validates *redeem orders* ("Send EUR
 `<amount>` to `<IBAN>` …") through the same EIP-1271 interface. A general-purpose
 validation key would let its holder redeem the client's EURe to an arbitrary IBAN —
-a fiat theft path and unambiguous custody. The whole design follows from closing it.
+a fiat theft path. The whole design follows from closing it.
 
 Supporting decisions, all in force:
 
@@ -52,11 +51,11 @@ Supporting decisions, all in force:
   treasury.
 - **No upgradeability, ever.** Immutable-and-migratable: evolution (new tokens, a new
   router, contract fixes) happens by deploying a new implementation + factory and
-  migrating clients clone-by-clone — never by mutating deployed code. The custody
-  argument depends on it. Routes, the fee policy and the vault limits are bounded
+  migrating clients clone-by-clone — never by mutating deployed code. The design's
+  guarantees depend on it. Routes, the fee policy and the vault limits are bounded
   *data* the guardian may change within immutable validation, not code.
 - **No client key on the clone** (amended 2026-09-17; superseded the mandatory
-  self-custodied `fallbackAddress` of 2026-07-17 and its `sweep`/config functions and
+  client-controlled `fallbackAddress` of 2026-07-17 and its `sweep`/config functions and
   dead-man sweep). The only exits are the client's fixed `destination` and, for a payment
   the promised window was missed on, the client's refund wallet held by Vortex — see
   the amendments of 2026-09-17 and 2026-10-01. A destination change means a new clone (runbook §5).
@@ -315,7 +314,7 @@ the promised window. Decisions:
 | T4 | Sandbox wire-format verifications | Webhook digest encoding, delivery id field, order-state vocabulary, and the EIP-191 link-hash variant were confirmed against the sandbox during G0; re-verify against production before first mainnet deposit |
 | T1 | Issuer recovery message | **Identical to the link message** — already whitelisted, recovery works as built; `RECOVERY_HASH` stays 0 |
 | O1 | Client-migration tooling | Build when first needed; manual procedure in the runbook meanwhile |
-| O2 | `FEE_RECIPIENT` treasury | **New dedicated Safe multisig** (immutable at implementation deploy); guardian key to hardware/multisig custody at GA |
+| O2 | `FEE_RECIPIENT` treasury | **New dedicated Safe multisig** (immutable at implementation deploy); guardian key moves to hardware/multisig at GA |
 
 ## Review history (details in git history)
 
@@ -352,8 +351,8 @@ example (oversized-deposit allocation).
   dormancy gate turns a rotation after 60 idle days into a pause, and an optional penny
   test catches a wrong address when run; a rotation on an account that keeps converting
   is not detected, and its forwards keep going to the old address.
-- **Vortex custody on the refund path** (amendment 2026-09-17). A recovered payment
-  sits in Vortex's own wallet until the bank refund goes out; a compromised keeper plus
+- **Refund path** (amendment 2026-09-17). A recovered payment waits on the client's
+  refund wallet until the bank refund goes out; a compromised keeper plus
   recovery key could divert a payment the window was missed on. Bounded by the immutable
   wallet, the on-chain delay, explicit amounts, a dedicated linked address holding
   nothing else, and the association monitor.
@@ -388,7 +387,7 @@ example (oversized-deposit allocation).
 Zero-touch onboarding works end to end (validated against the Monerium sandbox: link
 accepted, IBAN issued, no client interaction). A Vortex outage can never trap converted
 funds (the permissionless path), and a payment the promised window was missed on is
-refunded rather than parked, at the price of Vortex custody on that path. The cost: every rescue path must be designed in upfront
+refunded rather than parked. The cost: every rescue path must be designed in upfront
 (no universal owner key), fee-policy increases are timelocked and venue changes are
 bounded by on-chain route validation rather than admin switches, the client's rate
 guarantee is enforced by the contract at the cost of a treasury-funded subsidy budget,

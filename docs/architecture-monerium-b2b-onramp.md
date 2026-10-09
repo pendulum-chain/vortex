@@ -5,8 +5,7 @@ clients. Normative security detail lives in
 [`security-spec/05-integrations/monerium-b2b.md`](security-spec/05-integrations/monerium-b2b.md);
 decisions, final parameters, and accepted risks in
 [`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md);
-launch gates in [`operations-monerium-b2b-rollout.md`](operations-monerium-b2b-rollout.md);
-operator procedures in [`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-runbook.md).
+launch gates and operator procedures in the internal operations runbooks.
 
 ## The shape in one paragraph
 

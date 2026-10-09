@@ -102,9 +102,11 @@ update the existing canonical document when one owns the topic.
   `docs/adr-NNNN-<topic>.md`, with current behavior updated in the relevant maintained
   document.
 - Keep local `README.md` files only when they explain a non-obvious subsystem contract.
-- Never create or extend a document whose audience includes a client or partner, or that
-  tracks commercial gates, terms or negotiation status: it belongs in the private
-  `pendulum-chain/vortex-private` repository (see "Public Repository: No Client Data").
+- Never add a document written for a specific client or partner, or one that tracks
+  commercial gates, terms or negotiation status (see "Public Repository: No Client Data").
+- Operator runbooks are maintained outside this repository. Cite them by name and section
+  (for example "runbook §2.7"); when a change alters a documented procedure, say so in the
+  pull request description.
 - Repair indexes and relative links in the same change as a move or deletion.
 - Agent skills live in `.agents/skills/<name>/SKILL.md` so every coding agent can use
   them; `.claude/skills/` holds only symlinks to those directories (Claude Code follows
