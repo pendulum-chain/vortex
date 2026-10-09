@@ -26,6 +26,11 @@ the implementing session or via `/address-feedback`.
   A stale snapshot on the branch = automatic P1 finding.
 - Read the PR description and any linked proposal/ADR: findings include "the change
   doesn't achieve its stated intent", not just "the code is wrong".
+- Public-repo check (CLAUDE.md "Public Repository: No Client Data"): scan the diff, every
+  commit message in the range, the branch name, and the PR title and body for client,
+  partner or prospect names, commercial terms tied to a named party, and production
+  personal data. Any hit is an automatic P1 finding. Cite its location only: never repeat
+  the name or term in the report or in anything posted to GitHub.
 
 ## 2. Round 1 — finder fleet
 

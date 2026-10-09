@@ -102,6 +102,9 @@ update the existing canonical document when one owns the topic.
   `docs/adr-NNNN-<topic>.md`, with current behavior updated in the relevant maintained
   document.
 - Keep local `README.md` files only when they explain a non-obvious subsystem contract.
+- Never create or extend a document whose audience includes a client or partner, or that
+  tracks commercial gates, terms or negotiation status: it belongs in the private
+  `pendulum-chain/vortex-private` repository (see "Public Repository: No Client Data").
 - Repair indexes and relative links in the same change as a move or deletion.
 - Agent skills live in `.agents/skills/<name>/SKILL.md` so every coding agent can use
   them; `.claude/skills/` holds only symlinks to those directories (Claude Code follows
@@ -138,6 +141,27 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
 Commit examples from history: `fix(api): keep active phase retries below lock expiry`,
 `feat(dashboard): add searchable token selection`, `docs(dashboard): sync implemented
 feature specs`.
+
+## Public Repository: No Client Data
+
+This repository is public. Files, commit messages, branch names, PR titles and
+descriptions, and review comments are world-readable, and git and GitHub keep every
+earlier version even after an edit.
+
+- Never name customers, business clients, partners, prospects, or their end users. Write
+  "the partner", "a business client", or another neutral role, even when the user or the
+  task context uses the real name. Providers the code already integrates (for example
+  Monerium or Avenia) are not clients and may be named.
+- Keep commercial details out as well: agreement and negotiation status, prices, fees or
+  discounts agreed with a specific party, onboarding status, contacts, and anything quoted
+  from a client conversation.
+- Never commit production personal data (names, emails, tax IDs, IBANs, wallet addresses
+  tied to a person). Fixtures use obviously fake values such as `@example.com`, and must
+  not hint at a real client in disguise.
+- Before every commit, push, `gh pr create`, `gh pr edit`, or review comment, check the
+  diff, message, branch name, and PR title and body for any of the above.
+- If something already leaked, stop and tell the user. Never write a commit message, PR
+  title, or comment that explains what was removed or why.
 
 ## Lean, Safe Fixes
 
