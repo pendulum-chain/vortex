@@ -1155,6 +1155,16 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
         { transaction, where: { id: { [Op.in]: belowMinimum } } }
       );
     }
+    // A lowered minimum ends that wait even for a deposit queued behind the one planned.
+    const nowAboveMinimum = withState
+      .filter(({ deposit, state }) => deposit.waitingReason === BELOW_MINIMUM && state.remainingEureRaw >= minSwapAmount)
+      .map(({ deposit }) => deposit.id);
+    if (nowAboveMinimum.length > 0) {
+      await MoneriumFiatDeposit.update(
+        { waitingReason: null, waitingSince: null },
+        { transaction, where: { id: { [Op.in]: nowAboveMinimum } } }
+      );
+    }
     return planAction(withState, {
       batchOpenedAtSec: batchOpenedAt,
       convertible,

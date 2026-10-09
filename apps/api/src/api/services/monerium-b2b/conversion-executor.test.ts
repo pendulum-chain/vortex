@@ -906,11 +906,13 @@ describe("runConversionExecutor activation gate", () => {
     config.moneriumB2b.forwarderFactoryAddress = saved.factory;
   });
 
+  let reads: Record<string, unknown>;
+
   beforeEach(async () => {
     await resetTestDatabase();
     // A clone holding a deposit below the minimum swap: nothing is sent either way, so the
     // cycle exercises only the gate's partner-visible reason.
-    const reads: Record<string, unknown> = {
+    reads = {
       batchOpenedAt: 1n,
       floorPpm: 1_500,
       latestRoundData: [1n, 0n, 0n, 0n, 1n], // Chainlink down: a planned swap defers before sending anything
@@ -1018,6 +1020,23 @@ describe("runConversionExecutor activation gate", () => {
     expect(small.waitingSince).toBeInstanceOf(Date);
     // The later payment is priced (and defers only because Chainlink is down here).
     expect((await next.reload()).waitingReason).toBe("oracle_unavailable");
+  });
+
+  it("clears below_minimum on a queued deposit once the guardian lowers the minimum swap", async () => {
+    const { accountId, deposits } = await accountWithDeposit(null, [100n, 10n]);
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    const [older, small] = deposits;
+
+    await runConversionExecutor(accountId);
+    expect((await small.reload()).waitingReason).toBe("below_minimum");
+
+    reads.minSwapAmount = 5n * EUR;
+    await runConversionExecutor(accountId);
+    // The older deposit is still the one planned; the small one no longer waits for the refund path.
+    expect((await older.reload()).waitingReason).toBe("oracle_unavailable");
+    await small.reload();
+    expect(small.waitingReason).toBeNull();
+    expect(small.waitingSince).toBeNull();
   });
 
   it("replaces an earlier hold reason and keeps when the wait started", async () => {
