@@ -472,7 +472,12 @@ async function settleDeposit(
 
 // ------------------------------------------------------------------ pending resolution + backoff
 
-type PreparationResult = { kind: "proceed"; attempt: number } | { kind: "skip"; reason: string };
+// "backoff" (no pending execution left, waiting out failures) is the one wait whose poke this
+// executor owes; a "skip" waits on a pending execution, whose own sequence carries the poke.
+type PreparationResult =
+  | { kind: "proceed"; attempt: number }
+  | { kind: "skip"; reason: string }
+  | { kind: "backoff"; reason: string };
 
 export type HashlessPendingClassification =
   | { kind: "fail"; reason: string }
@@ -811,7 +816,7 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
     const backoffMs = Math.min(RETRY_BASE_MS * 2 ** (failedSince.length - 1), RETRY_MAX_MS);
     const nextAttemptAt = failedSince[0].updatedAt.getTime() + backoffMs;
     if (Date.now() < nextAttemptAt) {
-      return { kind: "skip", reason: `retry backoff until ${new Date(nextAttemptAt).toISOString()}` };
+      return { kind: "backoff", reason: `retry backoff until ${new Date(nextAttemptAt).toISOString()}` };
     }
   }
   return { attempt: failedSince.length + 1, kind: "proceed" };
@@ -1066,6 +1071,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
     const recovery = await withForwarderLock(account.forwarderAddress, transaction =>
       prepareExecutionSlot(account, transaction)
     );
+    // A backoff falls through: the slot check below pokes for it.
     if (recovery.kind === "skip") {
       logger.info(`monerium-b2b: skipping conversion for account ${account.id}: ${recovery.reason}`);
       return;
@@ -1173,7 +1179,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   // transactions, two concurrent executors could both pass the check and both broadcast.
   const slot = await withForwarderLock(account.forwarderAddress, async transaction => {
     const preparation = await prepareExecutionSlot(account, transaction);
-    if (preparation.kind === "skip") {
+    if (preparation.kind !== "proceed") {
       return preparation;
     }
     // Execution-before-send record: committed before any broadcast so a crash leaves an
@@ -1203,9 +1209,9 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
     }
     return { attempt: preparation.attempt, execution, kind: "proceed" as const };
   });
-  if (slot.kind === "skip") {
+  if (slot.kind !== "proceed") {
     logger.info(`monerium-b2b: skipping conversion for account ${account.id}: ${slot.reason}`);
-    if (pokeNeeded) {
+    if (slot.kind === "backoff" && pokeNeeded) {
       await sendPoke(forwarder);
     }
     return;

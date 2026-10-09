@@ -1156,6 +1156,47 @@ describe("runConversionExecutor batch marker", () => {
     expect(await executions(accountId)).toHaveLength(2); // no third attempt: the backoff held
   });
 
+  it("pokes when a crashed pre-send reservation expires into a backoff", async () => {
+    const writes = arrange({ batchOpenedAt: 0n });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    await MoneriumConversionExecution.create({
+      accountId,
+      createdAt: new Date(Date.now() - 10 * 60_000),
+      depositId: deposit.id,
+      destination: "0x5555555555555555555555555555555555555555",
+      eureInRaw: (100n * EUR).toString(),
+      kind: MoneriumConversionExecutionKind.Swap,
+      status: MoneriumConversionExecutionStatus.Pending
+    });
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["poke:auto"]);
+    expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Failed]);
+  });
+
+  it("leaves the poke to another executor whose execution appears mid-cycle", async () => {
+    const writes = arrange({ batchOpenedAt: 0n });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    // Another process reserves its execution after this cycle's first pending check.
+    spyOn(referenceRate, "fetchCoinbaseReference").mockImplementation(async () => {
+      await MoneriumConversionExecution.create({
+        accountId,
+        depositId: deposit.id,
+        destination: "0x5555555555555555555555555555555555555555",
+        eureInRaw: (100n * EUR).toString(),
+        kind: MoneriumConversionExecutionKind.Swap,
+        status: MoneriumConversionExecutionStatus.Pending
+      });
+      return { price: "1.14000000", rateRaw: 114_000_000n, source: "test", time: new Date(0) };
+    });
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual([]);
+    expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Pending]);
+  });
+
   it("does not poke again after the sequenced poke was attempted", async () => {
     const writes = arrange({ batchOpenedAt: 0n, failPokeWrite: true });
     const { accountId } = await activeAccountWithDeposit();
