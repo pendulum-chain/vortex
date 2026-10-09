@@ -367,9 +367,10 @@ and sends at most one transaction per account per cycle:
   `recover(eureRemaining, usdcConverted)`: keeper-only, explicit amounts, only to the
   clone's fixed `recoveryAddress` (the client's refund wallet), and only once the clone's `batchOpenedAt` marker is older
   than `RECOVERY_DELAY` (2 h). The marker opens when funds first arrive (the keeper
-  sends the permissionless `poke()` ahead of the first swap, and on its own in any cycle
+  sends the permissionless `poke()` ahead of the first swap, and on its own in a cycle
   that sends no swap: nothing to do, a deferral, a retry backoff or a failed attempt, so
-  a deposit whose every attempt fails is still refundable on time), is never
+  a deposit whose every attempt fails is still refundable on time; a cycle waiting on a
+  pending execution leaves the poke to that execution's own sequence), is never
   re-timed by a chunk swap, and is re-timed for whatever remains after a forward or a
   recovery, so a younger payment sharing the clone gets its own clock. The keeper
   recovers before it converts anything else, and still does so on suspended or dormant
