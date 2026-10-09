@@ -253,9 +253,10 @@ the promised window. Decisions:
   16 minutes, so a payment above roughly €70k could reach the two-hour window. The
   guardian can change the cap at any time up to the €50k ceiling.
 - **Penny test optional.** The penny test (B2) is an optional check, recommended for
-  exchange destinations, and not an activation requirement. A wrong or rotated
-  destination is now caught by the penny test only when one is run, otherwise by the
-  dormancy gate.
+  exchange destinations, and not an activation requirement. A wrong destination is
+  caught by the penny test only when one is run; an address an exchange retires after a
+  long idle period is caught by the dormancy gate; a rotation on an account that keeps
+  converting is caught by neither (B5).
 
 ## Amendment 2026-10-01: per-client refund wallets
 
@@ -291,7 +292,7 @@ the promised window. Decisions:
 |---|---|---|
 | B1 | Default fee policy | **target 1250 ppm (12.5 bps), floor 1500 ppm (15 bps) below the reference**, per client, guardian-adjustable (amended 2026-09-15; replaces the flat 0 / 15 bps skim) |
 | B2 | Penny-test amount | 5 USDC, **optional** (amended 2026-09-29): recommended for exchange destinations, not an activation requirement |
-| B3 | Conversion window | **2 h from the mint** (P3; `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` default 120), refunded past it; weekend mints execute within the 52 h oracle window at possibly wider spreads |
+| B3 | Conversion window | **2 h from the mint** (P3; `MONERIUM_B2B_RECOVERY_DEADLINE_MINUTES` default 120). Past it the payment is due for a refund: marked automatically with `MONERIUM_B2B_AUTO_RECOVERY=auto`, reported for an operator with `alert`, left to the operator with the default `off` (runbook §2.7). Weekend mints convert too, because the Chainlink bound accepts a price up to 52 h old (P8), at possibly wider spreads |
 | B4 | Per-client volume limit | **Not enforced by the backend** (GA revisit); `perSwapCap` (P7) bounds each swap, not a client's daily volume |
 | B5 | Destination responsibility | The partner supplies and confirms each destination; dormancy re-activation on written partner confirmation |
 | B6 | Redemption limitation | A clone validates no redeem order, so its EURe is never redeemed to an IBAN directly: it leaves only by swap and forward to the destination, by recovery to the client's refund wallet, or through Monerium's issuer recovery (T1) |
@@ -347,9 +348,10 @@ example (oversized-deposit allocation).
   control (authorization requirements on `PATCH /ibans` and `POST /addresses`) can exist
   only at Monerium; the association monitor is the detective control; response = rotate
   + suspend (runbook).
-- **CEX destination rotation.** Not verifiable on-chain; left to the partner (B5),
-  with the dormancy gate and an optional penny test. Silent-loss risk
-  converts to a pause via the dormancy gate.
+- **CEX destination rotation.** Not verifiable on-chain; left to the partner (B5). The
+  dormancy gate turns a rotation after 60 idle days into a pause, and an optional penny
+  test catches a wrong address when run; a rotation on an account that keeps converting
+  is not detected, and its forwards keep going to the old address.
 - **Vortex custody on the refund path** (amendment 2026-09-17). A recovered payment
   sits in Vortex's own wallet until the bank refund goes out; a compromised keeper plus
   recovery key could divert a payment the window was missed on. Bounded by the immutable

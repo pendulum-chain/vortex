@@ -98,9 +98,11 @@ could deploy.
    never-converted account runs from it) and every status change is logged with its
    from and to status, destination and forwarder. Operators find the accounts waiting
    with `GET /v1/admin/monerium-b2b/accounts?status=onboarding`.
-7. **No exchange-address distinction.** Every valid address is accepted the same way;
-   an exchange rotating a deposit address is caught by the dormancy gate or an optional
-   penny test (ADR-0005 B5).
+7. **No exchange-address distinction.** Every valid address is accepted the same way.
+   An address an exchange retires after a long idle period is caught by the dormancy
+   gate, and a wrong address by an optional penny test; a rotation on an account that
+   keeps converting is not detected, so the destination stays with the partner
+   (ADR-0005 B5).
 8. **Profile kind.** The keeper reads a profile's state, not its kind, so a personal
    (individual) Monerium profile in the partner's app is accepted like a corporate one
    and mapped with a mirrored business KYB record. Accepted scope decision of the

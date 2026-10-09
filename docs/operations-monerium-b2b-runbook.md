@@ -451,6 +451,18 @@ be pending. If its float top-up was dropped, park the refund, clear its hash (`U
    Record deposit id, recover tx, reverse-swap tx,
    float top-up, redeem order id and payer IBAN (masked) in the ops ledger.
 
+**Memo-routed payment** (no deposit row; found through the §3 warning `webhook order ...
+references unknown forwarder address`). Look the order up at Monerium by the id in the
+warning: it gives the amount, the address it minted to, and the payer's IBAN and name. If
+that address is an old clone (§5), `poke()` it, wait for `RECOVERY_DELAY` (2 h), and have
+the keeper `recover` the EURe to that clone's refund wallet; an old refund wallet from a
+seed rotation (§6) needs the old seed's key. Then redeem the exact amount from the refund
+wallet to the payer as in step 5, with a memo naming the issue order instead of a deposit
+(`vortex-refund:` is reserved for deposits). On the client's current refund wallet, do
+this before the client's next refund starts: that refund treats any EURe on the wallet as
+surplus and sweeps it to the float, from where it must first be moved back. Record the
+order id, recover tx (if any) and redeem order id in the ops ledger.
+
 ## 3. Alert triage (monitoring log lines → action)
 
 Monitors run from the keeper worker every ~30 min; lines are prefixed `monerium-b2b:`.
@@ -464,6 +476,7 @@ Monitors run from the keeper worker every ~30 min; lines are prefixed `monerium-
 | `subsidy vault ... refill before below-floor swaps start deferring` | Less than a day of budget left, or today's budget spent | §2.6 refill; consider the budget vs. observed spreads |
 | `no subsidy vault is configured on the factory` | `setSubsidyVault` never ran; below-floor swaps defer | §2.6 |
 | `route ... could not be quoted` | One whitelisted route's pool is unquotable (drained, removed) | Disable it (§2.1) so the keeper stops trying; keep at least one healthy route |
+| `webhook order ... references unknown forwarder address, skipping` (warn) | An issue order minted to an address that is no account's forwarder: usually a payment memo-routed to a client's refund wallet, or to an old clone or refund wallet after a migration or seed rotation | Refund it by hand: §2.7, "Memo-routed payment" |
 | `ASSOCIATION CHANGE` | Monerium-side association diverged from the DB (IBAN moved, an address other than the forwarder and the client's own refund wallet linked) — the S1 detective control | §2.5 — potential credential compromise unless the change was an announced migration (§5) |
 | `stranded funds on forwarder ... past RECOVERY_DELAY` (warn) | A batch has been open longer than the promised 2 h window and is neither forwarded nor recovering | Check worker liveness, RPC health, keeper gas, oracle staleness (`StalePrice` reverts), `deferring conversion` lines; if the payment cannot complete, mark it for recovery (§2.7) |
 | `stranded funds ... past TRIGGER_DELAY` (error) | Permissionless path now live; the promised window long missed (keeper outage or a persistent deferral) | Escalate; anyone may call `swap(reference, route, amountIn)` and `forwardAll()` — that path prices against Chainlink and pays no subsidy; communicate the delay |
@@ -540,8 +553,10 @@ monitor's alerts are expected, then:
 5. Update the `monerium_accounts` row (forwarder address), re-activate (§1.7), then
    optionally penny-test the new clone: only an active account converts.
 
-There is no unlink at Monerium and no custodial parking position: EURe always mints to
-the IBAN's current default address; the old clone stays linked but inert.
+There is no unlink at Monerium and no custodial parking position: EURe mints to the
+IBAN's current default address. The old clone stays linked, so a payer who names it in
+the SEPA memo still mints there; that payment is refunded by hand (§2.7, "Memo-routed
+payment").
 
 ## 6. Key compromise quick reference
 
@@ -549,7 +564,7 @@ the IBAN's current default address; the old clone stays linked but inert.
 |---|---|---|
 | Attestor | Can link addresses to profiles; never move funds (recovery payouts go only to the client's own bank account) | Rotate key; new forwarders need a new implementation (ATTESTOR is immutable); existing links unaffected |
 | Keeper | `poke`/`swap`/`forward`/`recover`: can pick any whitelisted route and any reference inside the Chainlink band — worst case the fee reaches the 1% cap or the vault pays up to its caps, plus gas theft — and can move a payment whose batch is 2 h old to the client's refund wallet (never anywhere else, never a redirect) | Rotate; `setKeeper(old,false)` + `setKeeper(new,true)`; pause the vault while rotating; reconcile executions against Coinbase history; audit `Recovered` events against marked deposits; refund gas |
-| Refund seed (`MONERIUM_B2B_REFUND_SEED`) | Derives every client's refund wallet; each holds funds only between that client's `recover` and its bank refund, and can redeem them out of the client's IBAN to any IBAN | Set `MONERIUM_B2B_AUTO_RECOVERY=off`, finish or reconcile open refunds by hand, rotate the seed, then give every client a new clone with its new refund wallet and move the IBANs (§5); the old wallets hold nothing between refunds |
+| Refund seed (`MONERIUM_B2B_REFUND_SEED`) | Derives every client's refund wallet; each holds funds only between that client's `recover` and its bank refund, or after a payer memo-routes a payment to it until it is refunded by hand (§2.7), and can redeem them out of the client's IBAN to any IBAN | Set `MONERIUM_B2B_AUTO_RECOVERY=off`, finish or reconcile open refunds by hand, rotate the seed, then give every client a new clone with its new refund wallet and move the IBANs (§5); the old wallets hold nothing between refunds unless a payment is memo-routed to them later (keep the old seed for that refund) |
 | Guardian | Pause/unpause, bounded params, timelocked fee policy, route whitelist (validated), vault limits and withdrawal to treasury, revoking clones — delay-only griefing plus Vortex-money exposure | Two-step `transferGuardian`/`acceptGuardian`; audit pause, pending-policy, route, vault, keeper and deployer state after (below) |
 | Deployer (`MONERIUM_B2B_DEPLOYER_PRIVATE_KEY`) | Deploys a registered clone for any destination and refund address; no power over existing clones, funds or settings. Each such clone counts as a forwarder, so the vault pays it, up to its `dailyBudget` and `maxSubsidyPpm`, once its batch delay allows a swap | Guardian: `setDeployer(old,false)`, then `revokeForwarder` for its rogue clones (below); fresh key, fund it, `setDeployer(new,true)`, update the env |
 | Whitelabel API credentials | Control-plane: can re-link/move IBANs (future mints only) — S1 | §2.5 full sequence |

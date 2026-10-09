@@ -10,8 +10,8 @@ operator procedures in [`operations-monerium-b2b-runbook.md`](operations-moneriu
 
 ## The shape in one paragraph
 
-Each corporate client is onboarded and KYB-approved by Monerium in Vortex's whitelabel
-app and owns a dedicated Monerium profile. Vortex
+Each corporate client is onboarded and KYB-approved by Monerium in the partner's
+white-label app and owns a dedicated Monerium profile. Vortex
 deploys one `VortexForwarder` contract clone per client, links it to that profile with an
 attestor signature, and requests an IBAN **for the linked contract address** — the IBAN's
 default mint destination *is* the forwarder. From then on the flow is passive on
@@ -209,12 +209,16 @@ candidate. A live balance by itself is deliberately insufficient: this prevents 
 from outrunning the watcher's reorg window and becoming impossible to attribute safely.
 
 A payer can name a chain and address in the SEPA memo; when that address is linked to the
-client's profile, Monerium mints there instead of to the IBAN's default address. The only
-other address linked to a client profile is the client's refund wallet, so such a payment
-lands there: its order is skipped as referencing an unknown forwarder address, and it is
-neither converted nor refunded automatically. Operators refund it by hand (runbook §2.7)
-before the client's next refund, which would otherwise sweep that EURe to the float as
-surplus.
+client's profile, Monerium mints there instead of to the IBAN's default address. Besides
+the current clone, a profile's linked addresses are the client's refund wallet and, after
+a migration (runbook §5) or a refund-seed rotation (runbook §6), the old clone and the old
+refund wallet, because Monerium has no unlink. Such a payment's order is skipped as
+referencing an unknown forwarder address, and it is neither converted nor refunded
+automatically. Detecting it is an open item (rollout ledger, "Memo-routed mint to a refund
+wallet"); until then the only signal is that warning (runbook §3), and operators refund
+the payment by hand (runbook §2.7, "Memo-routed payment"). On the current refund wallet
+this has to happen before the client's next refund, which otherwise treats that EURe as
+surplus and sweeps it to the float.
 
 ## How the mint watcher walks the chain
 

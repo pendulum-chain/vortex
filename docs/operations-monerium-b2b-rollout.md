@@ -1,7 +1,7 @@
 # Monerium B2B Onramp — Rollout
 
-What still stands between the implemented system and a live pilot: the launch-readiness
-gates, the deploy checklist, and the open items ledger. Decisions and parameters are
+What still stands between the implemented system and a live pilot on the engineering
+side: the external audit gate, the deploy checklist, and the open items ledger. Decisions and parameters are
 final in [`adr-0005-monerium-b2b-onramp.md`](adr-0005-monerium-b2b-onramp.md);
 procedures in [`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-runbook.md).
 
@@ -42,14 +42,14 @@ The Sepolia sandbox follows its own procedure in the runbook (§8).
    it from the treasury with the first days of budget. Runbook §2.6 has the commands.
 5. Verify factory + implementation source on the block explorer; generate, verify, and
    publish the manifest.
-6. Production whitelabel credentials from Monerium; configure the keeper backend (the
+6. Production credentials for the partner's white-label app from Monerium; configure the keeper backend (the
    mykobo flow variant only): credentials, attestor/keeper/guardian/deployer keys (four
    distinct; keeper and deployer funded), `MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID` (the
    partner manager allowed to register destinations), `MONERIUM_B2B_REFUND_SEED` (derives every client's refund wallet),
    read RPC + private orderflow RPC, webhook secret, and
    `MONERIUM_B2B_FORWARDER_FACTORY_ADDRESS`; the backend needs outbound HTTPS to
    `api.exchange.coinbase.com` for the reference rate (P12) — without it every swap
-   defers. Keep `MONERIUM_B2B_ENABLED=false` until every remaining gate is complete.
+   defers. Keep `MONERIUM_B2B_ENABLED=false` until G3 is done and the launch is signed off.
 7. Register the webhook endpoint at Monerium (`profile.updated`, `iban.updated`,
    `order.created`, `order.updated`).
 8. Before first production onboarding, simulate a SEPA deposit end to end (dashboard →
