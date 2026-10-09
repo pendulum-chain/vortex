@@ -1205,9 +1205,14 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   });
   if (slot.kind === "skip") {
     logger.info(`monerium-b2b: skipping conversion for account ${account.id}: ${slot.reason}`);
+    if (pokeNeeded) {
+      await sendPoke(forwarder);
+    }
     return;
   }
   const { attempt, execution } = slot;
+  // Cleared once the sequenced poke is attempted, so a failed attempt never pokes twice.
+  let pokeOutstanding = pokeNeeded;
 
   try {
     const keeper = getKeeperWalletClient();
@@ -1246,6 +1251,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
         },
         send: nonce => writeCall(keeper, forwarder, call.request, nonce),
         sendPoke: async nonce => {
+          pokeOutstanding = false;
           await keeper.writeContract({
             abi: forwarderAbi,
             account: keeper.account,
@@ -1284,6 +1290,10 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
       status: MoneriumConversionExecutionStatus.Failed
     });
     logger.error(`monerium-b2b: ${call.kind} for account ${account.id} failed (attempt ${attempt}):`, error);
+    // Nothing was sent: still arm the marker, or the recovery clock waits for the next cycle.
+    if (pokeOutstanding) {
+      await sendPoke(forwarder);
+    }
   }
 }
 
@@ -1365,7 +1375,7 @@ function executionCall(
   }
 }
 
-/** Standalone batch-marker poke for funds the keeper cannot act on yet. */
+/** Standalone batch-marker poke for funds the keeper does not act on this cycle. */
 async function sendPoke(forwarder: Address): Promise<void> {
   try {
     const client = getPublicClient();
