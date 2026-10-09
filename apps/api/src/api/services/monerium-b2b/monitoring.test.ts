@@ -384,6 +384,15 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     expect(warnings.some(message => message.includes(deposit.id) && message.includes("do not refund"))).toBe(true);
   });
 
+  it("never asks to refund a swapped payment, even when the clone holds as much EURe", async () => {
+    // Its USDC left on the unrecorded forwardAll; the 0.5 EURe on the clone is someone else's.
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 4n) / 10n);
+    await execution(deposit, MoneriumConversionExecutionKind.Swap, MoneriumConversionExecutionStatus.Confirmed);
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+    expect(warnings.some(message => message.includes(deposit.id) && message.includes("do not refund"))).toBe(true);
+  });
+
   // EURe the ledger places on the clone for other payments: a younger one still settling, or
   // one refunded by hand (its EURe never left the clone).
   for (const other of [MoneriumFiatDepositStatus.Minted, MoneriumFiatDepositStatus.Refunded]) {
