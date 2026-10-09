@@ -141,7 +141,7 @@ The business EUR onramp is open for testing in sandbox as a preliminary release;
 
 1. Sign up at <https://dashboard-sandbox.vortexfinance.co> with your email, open **API keys**, and create a credential. Keep the secret key (`sk_test_...`) on your backend.
 2. Email <support@vortexfinance.co> the address you signed up with. The dashboard does not show your profile ID; Vortex looks it up from the email.
-3. Vortex enables your profile as a manager for the `EU` corridor and business customers, binds it to the EUR provider app as the manager that registers clients (until then `POST /v1/monerium-b2b/accounts` returns `403 MANAGED_PROFILE_ACCESS_DENIED`), and sends you the EUR provider's sandbox profile IDs of the test companies you can register. During this pilot those companies live in Vortex's own provider app, and the provider approves each profile in its sandbox before Vortex deploys anything for it.
+3. Vortex enables your profile as a manager for the `EU` corridor and business customers, binds it to the EUR provider app as the manager that registers clients (until then `POST /v1/monerium-b2b/accounts` returns `403 MANAGED_PROFILE_ACCESS_DENIED`), and sends you the EUR provider's sandbox profile IDs of the test companies you can register. Currently those companies live in Vortex's own provider app, and the provider approves each profile in its sandbox before Vortex deploys anything for it.
 
 **Integrate**
 
@@ -173,7 +173,7 @@ Content-Type: application/json
 }
 ```
 
-3. Follow the registration (`registrations[0].status` in the response) until it is `mapped`. It reports `waitingReason: null` until Vortex first checks it, `monerium_profile_pending` until the provider approves the profile, then `deployment_pending` while Vortex deploys the client's conversion contract. During this pilot the provider approves the test profiles, not you: if a registration stays at `monerium_profile_pending`, or `POST` returns `422 MONERIUM_B2B_PROFILE_UNAVAILABLE`, check the profile ID against the one Vortex sent and contact Vortex.
+3. Follow the registration (`registrations[0].status` in the response) until it is `mapped`. It reports `waitingReason: null` until Vortex first checks it, `monerium_profile_pending` until the provider approves the profile, then `deployment_pending` while Vortex deploys the client's conversion contract. Currently the provider approves the test profiles, not you: if a registration stays at `monerium_profile_pending`, or `POST` returns `422 MONERIUM_B2B_PROFILE_UNAVAILABLE`, check the profile ID against the one Vortex sent and contact Vortex.
 
 ```http
 GET /v1/monerium-b2b/registrations?moneriumProfileId=<profile ID from Vortex>
@@ -181,7 +181,7 @@ X-API-Key: sk_test_...
 ```
 
 4. Wait for an `ACCOUNT_UPDATED` event whose `payload.status` is `"active"` and whose `payload.iban` is set. In sandbox, an account activates on its own once its IBAN is issued. The event's `payload.profileId` is the client's managed profile: send it as `X-Managed-Profile-Id` in the reads below. `GET /v1/monerium-b2b/accounts` with your manager key lists the same accounts if you missed an event.
-5. Ask Vortex to send a test payment of at least EUR 1 to the client's IBAN. During this pilot, test payments run in a joint session with Vortex: a normal one, one large enough to convert in several chunks, and one that is refunded. `DEPOSIT_UPDATED` events follow each payment until the deposit is `forwarded` to the destination, or `refunded` for the refunded one.
+5. Ask Vortex to send a test payment of at least EUR 1 to the client's IBAN. Currently, test payments run in a joint session with Vortex: a normal one, one large enough to convert in several chunks, and one that is refunded. `DEPOSIT_UPDATED` events follow each payment until the deposit is `forwarded` to the destination, or `refunded` for the refunded one.
 6. Read the client's account and deposits. They return `{ "account": { ... } }` and `{ "deposits": [ ... ], "pagination": { "limit", "offset", "total" } }`, each deposit being the same snapshot `DEPOSIT_UPDATED` delivers. A managed child without a business EUR account returns `404 MONERIUM_B2B_ACCOUNT_NOT_FOUND`; an ID that is not your child returns `403 MANAGED_PROFILE_ACCESS_DENIED`.
 
 ```http
