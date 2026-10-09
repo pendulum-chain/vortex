@@ -24,6 +24,7 @@ import {
   readSubsidyVaultState,
   SubsidyVaultState
 } from "./chain";
+import { settlementState } from "./conversion-executor";
 import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
 import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProductStatus } from "./reference-rate";
 import { refundAccountFor } from "./refund-wallet";
@@ -393,15 +394,30 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
       if (eureBalance < minSwapFloor && usdcBalance === 0n) {
         // Below MIN_SWAP_FLOOR the contract arms no batch, so `recover` can never run for a
         // payment marked for the refund path (one already recovered is the refund monitor's).
-        const marked = await MoneriumFiatDeposit.findAll({
-          attributes: ["id", "amountRaw"],
+        const marked = await MoneriumFiatDeposit.count({
           where: { accountId: account.id, status: MoneriumFiatDepositStatus.Recovering }
         });
-        if (marked.length === 0) continue;
-        const executions = await MoneriumConversionExecution.findAll({
-          attributes: ["depositId", "kind"],
+        if (marked === 0) continue;
+        // Every deposit whose EURe the ledger may still place on the clone: settling, marked, or
+        // refunded (a manual refund leaves its EURe there; a confirmed `recover` took it away).
+        const deposits = await MoneriumFiatDeposit.findAll({
+          attributes: ["id", "amountRaw", "status"],
           where: {
-            depositId: { [Op.in]: marked.map(deposit => deposit.id) },
+            accountId: account.id,
+            status: {
+              [Op.in]: [
+                MoneriumFiatDepositStatus.Minted,
+                MoneriumFiatDepositStatus.Converting,
+                MoneriumFiatDepositStatus.Recovering,
+                MoneriumFiatDepositStatus.Refunded
+              ]
+            }
+          }
+        });
+        const executions = await MoneriumConversionExecution.findAll({
+          attributes: ["depositId", "eureInRaw", "kind", "status"],
+          where: {
+            depositId: { [Op.in]: deposits.map(deposit => deposit.id) },
             [Op.or]: [
               {
                 kind: MoneriumConversionExecutionKind.Recover,
@@ -411,14 +427,26 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
             ]
           }
         });
-        const stuck = marked.filter(
-          deposit => !executions.some(e => e.depositId === deposit.id && e.kind === MoneriumConversionExecutionKind.Recover)
+        const swapsOf = (deposit: MoneriumFiatDeposit) =>
+          executions.filter(e => e.depositId === deposit.id && e.kind === MoneriumConversionExecutionKind.Swap);
+        const recoverOf = (deposit: MoneriumFiatDeposit, statuses: MoneriumConversionExecutionStatus[]) =>
+          executions.some(
+            e => e.depositId === deposit.id && e.kind === MoneriumConversionExecutionKind.Recover && statuses.includes(e.status)
+          );
+        const stuck = deposits.filter(
+          deposit =>
+            deposit.status === MoneriumFiatDepositStatus.Recovering &&
+            !recoverOf(deposit, [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed])
         );
-        // Only an unswapped payment whose EURe is provably still on the clone is refunded by hand;
-        // anything else left the clone by a path the ledger does not record (the permissionless
-        // swap/forwardAll), so refunding it would pay twice.
-        const unswapped = stuck.filter(deposit => !executions.some(e => e.depositId === deposit.id));
-        const onClone = unswapped.reduce((sum, deposit) => sum + BigInt(deposit.amountRaw), 0n) <= eureBalance ? unswapped : [];
+        // Only an unswapped payment is refunded by hand, and only while the clone still holds
+        // all the EURe the ledger places there (every payment's unswapped, unrecovered rest);
+        // anything less means EURe left by a path the ledger does not record (the permissionless
+        // swap/forwardAll), so refunding could pay twice.
+        const unswapped = stuck.filter(deposit => swapsOf(deposit).length === 0);
+        const ledgerEure = deposits
+          .filter(deposit => !recoverOf(deposit, [MoneriumConversionExecutionStatus.Confirmed]))
+          .reduce((sum, deposit) => sum + settlementState(deposit, swapsOf(deposit)).remainingEureRaw, 0n);
+        const onClone = ledgerEure <= eureBalance ? unswapped : [];
         const elsewhere = stuck.filter(deposit => !onClone.includes(deposit));
         if (onClone.length > 0) {
           logger.error(

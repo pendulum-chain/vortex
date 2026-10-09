@@ -514,11 +514,13 @@ read-only — no keys, no transactions:
 3. **Stranded-balance monitor.** Forwarders holding EURe or USDC whose batch marker has
    been open longer than `RECOVERY_DELAY` warn (the promised window was missed: forward
    or recover) and longer than `TRIGGER_DELAY` error (the permissionless path is live —
-   a keeper-outage signal; funds are never at risk). A deposit marked `recovering` on a
-   clone below `MIN_SWAP_FLOOR` without a pending or confirmed `recover`, unswapped and
-   with its EURe still on the clone, raises REFUND NEEDS OPERATOR (manual refund under
-   its memo, then close it `refunded`, internal B2B runbook §2.7); one whose funds left
-   the clone by an unrecorded path warns "reconcile, do not refund".
+   a keeper-outage signal; funds are never at risk). An unswapped deposit marked
+   `recovering` without a pending or confirmed `recover`, on a clone below
+   `MIN_SWAP_FLOOR` that still holds all the EURe the ledger places there (every
+   deposit's unswapped, unrecovered rest, a manual refund's EURe included), raises REFUND
+   NEEDS OPERATOR (manual refund under its memo, then close it `refunded`, internal B2B
+   runbook §2.7); otherwise its funds may have left the clone by an unrecorded path, so
+   it warns "reconcile, do not refund".
 4. **Config reconciliation.** Re-reads per-clone config and bytecode: guardian-authorized
    fee-policy changes (timelocked) are reconciled into the DB with a version bump; a
    destination change (no setter exists), bytecode or registration drift is a

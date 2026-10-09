@@ -324,19 +324,37 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
       moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
     });
     await MoneriumAccount.update({ status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    return addDeposit(accountId, status, amountRaw);
+  }
+
+  let orders = 0;
+  function addDeposit(accountId: string, status: MoneriumFiatDepositStatus, amountRaw: bigint) {
+    orders += 1;
     return MoneriumFiatDeposit.create({
       accountId,
       amountRaw: amountRaw.toString(),
       blockNumber: 100,
       chainId: 11155111,
       currency: "eur",
-      logIndex: 1,
+      logIndex: orders,
       mintedAt: new Date(),
-      moneriumOrderId: "order-1",
+      moneriumOrderId: `order-${orders}`,
       payerIban: "DE89370400440532013000",
       payerName: "Payer GmbH",
       status,
-      txHash: "0xorder1"
+      txHash: `0xorder${orders}`
+    });
+  }
+
+  function execution(deposit: MoneriumFiatDeposit, kind: MoneriumConversionExecutionKind, status: MoneriumConversionExecutionStatus) {
+    return MoneriumConversionExecution.create({
+      accountId: deposit.accountId,
+      depositId: deposit.id,
+      destination: "0x5555555555555555555555555555555555555555",
+      eureInRaw: deposit.amountRaw,
+      kind,
+      status,
+      usdcNetRaw: "0"
     });
   }
 
@@ -352,15 +370,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
   for (const status of [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed]) {
     it(`stays quiet while the keeper's recover is ${status} (the automatic refund is under way)`, async () => {
       const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
-      await MoneriumConversionExecution.create({
-        accountId: deposit.accountId,
-        depositId: deposit.id,
-        destination: "0x5555555555555555555555555555555555555555",
-        eureInRaw: deposit.amountRaw,
-        kind: MoneriumConversionExecutionKind.Recover,
-        status,
-        usdcNetRaw: "0"
-      });
+      await execution(deposit, MoneriumConversionExecutionKind.Recover, status);
       await runStrandedBalanceMonitor();
       expect(errors).toEqual([]);
     });
@@ -372,6 +382,28 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     await runStrandedBalanceMonitor();
     expect(errors).toEqual([]);
     expect(warnings.some(message => message.includes(deposit.id) && message.includes("do not refund"))).toBe(true);
+  });
+
+  // EURe the ledger places on the clone for other payments: a younger one still settling, or
+  // one refunded by hand (its EURe never left the clone).
+  for (const other of [MoneriumFiatDepositStatus.Minted, MoneriumFiatDepositStatus.Refunded]) {
+    it(`does not count a ${other} payment's EURe as the marked payment's`, async () => {
+      const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 3n) / 10n);
+      await addDeposit(deposit.accountId, other, (EUR * 4n) / 10n);
+      await runStrandedBalanceMonitor();
+      expect(errors).toEqual([]);
+      expect(warnings.some(message => message.includes(deposit.id) && message.includes("do not refund"))).toBe(true);
+    });
+  }
+
+  it("still asks to refund when the clone holds the marked payment and the others' EURe", async () => {
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 2n) / 10n);
+    await addDeposit(deposit.accountId, MoneriumFiatDepositStatus.Minted, (EUR * 3n) / 10n);
+    const recovered = await addDeposit(deposit.accountId, MoneriumFiatDepositStatus.Refunded, EUR);
+    await execution(recovered, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Confirmed);
+    await runStrandedBalanceMonitor();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(deposit.id);
   });
 
   it("stays quiet while such a payment is not marked for recovery yet", async () => {
