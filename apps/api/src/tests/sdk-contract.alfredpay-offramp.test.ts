@@ -21,11 +21,10 @@ import QuoteTicket from "../models/quoteTicket.model";
 import RampState from "../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestAlfredpayCustomer, createTestApiKey, createTestUser } from "../test-utils/factories";
-import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
+import { type FakeWorld, installFakeChainIdRpc, installFakeWorld } from "../test-utils/fake-world";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const POLYGON_CHAIN_ID_HEX = "0x89"; // 137
 
 interface CurrencyCase {
   fiat: FiatToken;
@@ -117,35 +116,6 @@ const FULL_LIFECYCLE_CASES: LifecycleCase[] = [
 ];
 
 /**
- * Same shim as the other SDK contract tests: the SDK's viem wallet client
- * issues one eth_chainId RPC before signing locally. The Alfredpay SELL
- * corridor only ephemeral-signs on Polygon (the source-of-funds transfer is
- * user-broadcast, never SDK-signed), so answer with the Polygon chain id.
- */
-function installChainIdShim(): { restore: () => void } {
-  const guardedFetch = globalThis.fetch;
-  const shim = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-    if (typeof init?.body === "string") {
-      try {
-        const payload = JSON.parse(init.body) as { id?: number; method?: string };
-        if (payload.method === "eth_chainId") {
-          return Response.json({ id: payload.id ?? 1, jsonrpc: "2.0", result: POLYGON_CHAIN_ID_HEX });
-        }
-      } catch {
-        // not JSON — let the guarded fetch decide
-      }
-    }
-    return guardedFetch(input, init);
-  }) as typeof fetch;
-  globalThis.fetch = Object.assign(shim, guardedFetch);
-  return {
-    restore: () => {
-      globalThis.fetch = guardedFetch;
-    }
-  };
-}
-
-/**
  * SDK ↔ API contract tests for the Alfredpay SELL rail (USDT on Polygon →
  * USD/MXN/COP/ARS bank payouts): the real SDK lists the user's registered
  * fiat accounts, registers the offramp on the no-permit path (fiatAccountId +
@@ -155,19 +125,19 @@ function installChainIdShim(): { restore: () => void } {
  */
 describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank payout)", () => {
   let world: FakeWorld;
-  let chainIdShim: { restore: () => void };
+  let restoreChainIdRpc: () => void;
   let app: TestApp;
 
   beforeAll(async () => {
     world = installFakeWorld();
-    chainIdShim = installChainIdShim();
+    restoreChainIdRpc = installFakeChainIdRpc();
     await setupTestDatabase();
     app = await startTestApp();
   });
 
   afterAll(async () => {
     await app?.close();
-    chainIdShim?.restore();
+    restoreChainIdRpc?.();
     world?.restore();
   });
 

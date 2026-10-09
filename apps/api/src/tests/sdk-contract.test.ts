@@ -14,7 +14,7 @@ import { VortexSdk, VortexSdkError } from "../../../../packages/sdk/src";
 import RampState from "../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestApiKey, createTestTaxId, createTestUser } from "../test-utils/factories";
-import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
+import { type FakeWorld, installFakeChainIdRpc, installFakeWorld } from "../test-utils/fake-world";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
 function requireBrlaOnBase() {
@@ -28,40 +28,6 @@ const brlaTokenDetails = requireBrlaOnBase();
 const BRLA_ON_BASE = brlaTokenDetails.erc20AddressSourceChain as `0x${string}`;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const BASE_CHAIN_ID_HEX = "0x2105"; // 8453
-
-/**
- * The SDK signs EVM transactions through a real viem wallet client, and viem's
- * signTransaction issues a single eth_chainId RPC before signing locally with
- * the ephemeral key. Answer that one call in-memory (the corridor only signs on
- * Base) and let every other request fall through to the fetch guard, so any
- * genuine network use still fails loudly. The SDK's NetworkManager itself is
- * inert here: it only opens chain WebSockets when signing Pendulum, Moonbeam,
- * or Hydration transactions, and the direct BRL→BRLA-on-Base corridor produces
- * a single Base EVM transaction.
- */
-function installChainIdShim(): { restore: () => void } {
-  const guardedFetch = globalThis.fetch;
-  const shim = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-    if (typeof init?.body === "string") {
-      try {
-        const payload = JSON.parse(init.body) as { id?: number; method?: string };
-        if (payload.method === "eth_chainId") {
-          return Response.json({ id: payload.id ?? 1, jsonrpc: "2.0", result: BASE_CHAIN_ID_HEX });
-        }
-      } catch {
-        // not JSON — let the guarded fetch decide
-      }
-    }
-    return guardedFetch(input, init);
-  }) as typeof fetch;
-  globalThis.fetch = Object.assign(shim, guardedFetch);
-  return {
-    restore: () => {
-      globalThis.fetch = guardedFetch;
-    }
-  };
-}
 
 /**
  * SDK ↔ API contract tests: the real @vortexfi/sdk (imported from source)
@@ -71,19 +37,21 @@ function installChainIdShim(): { restore: () => void } {
  */
 describe("SDK ↔ API contract (BRL onramp, pix → BRLA on Base)", () => {
   let world: FakeWorld;
-  let chainIdShim: { restore: () => void };
+  let restoreChainIdRpc: () => void;
   let app: TestApp;
 
   beforeAll(async () => {
     world = installFakeWorld();
-    chainIdShim = installChainIdShim();
+    // The SDK's NetworkManager stays inert: it only opens chain WebSockets for Pendulum,
+    // Moonbeam, or Hydration signing, and this corridor signs a single Base EVM transaction.
+    restoreChainIdRpc = installFakeChainIdRpc();
     await setupTestDatabase();
     app = await startTestApp();
   });
 
   afterAll(async () => {
     await app?.close();
-    chainIdShim?.restore();
+    restoreChainIdRpc?.();
     world?.restore();
   });
 

@@ -26,7 +26,7 @@ import {
   createTestUser,
   updatePartnerPricing
 } from "../test-utils/factories";
-import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
+import { type FakeWorld, installFakeChainIdRpc, installFakeWorld } from "../test-utils/fake-world";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
 function requireToken(network: Networks.Base | Networks.Polygon, token: EvmToken) {
@@ -43,35 +43,6 @@ const BRLA_ON_BASE = requireToken(Networks.Base, EvmToken.BRLA).erc20AddressSour
 const TAX_ID = "12345678901";
 const RECEIVER_TAX_ID = "12345678900";
 const PIX_KEY = "test-pix-key";
-const BASE_CHAIN_ID_HEX = "0x2105"; // 8453
-
-/**
- * Same shim as sdk-contract.test.ts: the SDK's viem wallet client issues one
- * eth_chainId RPC before signing locally; the SELL corridor only ephemeral-signs
- * on Base (the Polygon squid leg is user-broadcast, never SDK-signed).
- */
-function installChainIdShim(): { restore: () => void } {
-  const guardedFetch = globalThis.fetch;
-  const shim = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-    if (typeof init?.body === "string") {
-      try {
-        const payload = JSON.parse(init.body) as { id?: number; method?: string };
-        if (payload.method === "eth_chainId") {
-          return Response.json({ id: payload.id ?? 1, jsonrpc: "2.0", result: BASE_CHAIN_ID_HEX });
-        }
-      } catch {
-        // not JSON — let the guarded fetch decide
-      }
-    }
-    return guardedFetch(input, init);
-  }) as typeof fetch;
-  globalThis.fetch = Object.assign(shim, guardedFetch);
-  return {
-    restore: () => {
-      globalThis.fetch = guardedFetch;
-    }
-  };
-}
 
 /**
  * SDK ↔ API contract tests for the SELL direction and the user-transaction
@@ -84,19 +55,19 @@ function installChainIdShim(): { restore: () => void } {
  */
 describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
   let world: FakeWorld;
-  let chainIdShim: { restore: () => void };
+  let restoreChainIdRpc: () => void;
   let app: TestApp;
 
   beforeAll(async () => {
     world = installFakeWorld();
-    chainIdShim = installChainIdShim();
+    restoreChainIdRpc = installFakeChainIdRpc();
     await setupTestDatabase();
     app = await startTestApp();
   });
 
   afterAll(async () => {
     await app?.close();
-    chainIdShim?.restore();
+    restoreChainIdRpc?.();
     world?.restore();
   });
 
