@@ -4,6 +4,10 @@ import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumConversionExecution, {
+  MoneriumConversionExecutionKind,
+  MoneriumConversionExecutionStatus
+} from "../../../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
@@ -315,6 +319,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
   const EURE = "0x4444444444444444444444444444444444444444" as Address;
   const saved = { factory: config.moneriumB2b.forwarderFactoryAddress, rpcUrl: config.moneriumB2b.rpcUrl };
   let errors: string[];
+  let warnings: string[];
 
   beforeAll(async () => {
     config.moneriumB2b.rpcUrl = undefined; // provisioning skips the on-chain clone check
@@ -330,6 +335,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
   beforeEach(async () => {
     await resetTestDatabase();
     errors = [];
+    warnings = [];
     const reads: Record<string, unknown> = { batchOpenedAt: 0n, MIN_SWAP_FLOOR: 1n * EUR, TRIGGER_DELAY: 86_400n };
     spyOn(chain, "getForwarderImmutables").mockResolvedValue({
       eure: EURE,
@@ -344,11 +350,14 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     spyOn(logger, "error").mockImplementation(((message: string) => {
       errors.push(message);
     }) as unknown as typeof logger.error);
+    spyOn(logger, "warn").mockImplementation(((message: string) => {
+      warnings.push(message);
+    }) as unknown as typeof logger.warn);
   });
 
   afterEach(() => mock.restore());
 
-  async function accountWithDeposit(status: MoneriumFiatDepositStatus) {
+  async function accountWithDeposit(status: MoneriumFiatDepositStatus, amountRaw = EUR / 2n) {
     const manager = await createTestUser();
     await ManagedProfileManager.create({
       allowedCorridors: ["EU"],
@@ -367,7 +376,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     await MoneriumAccount.update({ status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
     return MoneriumFiatDeposit.create({
       accountId,
-      amountRaw: (EUR / 2n).toString(),
+      amountRaw: amountRaw.toString(),
       blockNumber: 100,
       chainId: 11155111,
       currency: "eur",
@@ -386,7 +395,33 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     await runStrandedBalanceMonitor();
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(deposit.id);
-    expect(errors[0]).toContain("refund them by hand");
+    expect(errors[0]).toContain("refund each by hand");
+    expect(errors[0]).toContain("vortex-refund:<depositId>");
+  });
+
+  for (const status of [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed]) {
+    it(`stays quiet while the keeper's recover is ${status} (the automatic refund is under way)`, async () => {
+      const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+      await MoneriumConversionExecution.create({
+        accountId: deposit.accountId,
+        depositId: deposit.id,
+        destination: "0x5555555555555555555555555555555555555555",
+        eureInRaw: deposit.amountRaw,
+        kind: MoneriumConversionExecutionKind.Recover,
+        status,
+        usdcNetRaw: "0"
+      });
+      await runStrandedBalanceMonitor();
+      expect(errors).toEqual([]);
+    });
+  }
+
+  it("never asks to refund a payment whose funds already left the clone", async () => {
+    // A 100 EUR payment converted and forwarded on the permissionless path, unseen by the ledger.
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, 100n * EUR);
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+    expect(warnings.some(message => message.includes(deposit.id) && message.includes("do not refund"))).toBe(true);
   });
 
   it("stays quiet while such a payment is not marked for recovery yet", async () => {

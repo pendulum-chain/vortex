@@ -43,8 +43,9 @@ import { refundAccountFor } from "./refund-wallet";
  *    longer than RECOVERY_DELAY (the promised window, registry P3) warn — the deposit
  *    should be forwarded or recovering by then; past TRIGGER_DELAY (the
  *    permissionless-trigger delay, registry P4) they error — a keeper-outage signal.
- *    A payment marked for recovery on a clone below MIN_SWAP_FLOOR errors too: the
- *    contract cannot recover it, so the operator refunds it by hand.
+ *    An unswapped payment marked for recovery whose EURe is still on a clone below
+ *    MIN_SWAP_FLOOR errors too: the contract cannot recover it, so the operator refunds
+ *    it by hand (one whose funds already left the clone only warns: reconcile).
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
  *    (docs/architecture-monerium-b2b-onramp.md, fees section); a vault that cannot cover a
  *    below-floor swap makes the keeper defer, so runway problems surface here first.
@@ -395,24 +396,44 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         // Below MIN_SWAP_FLOOR the contract arms no batch, so `recover` can never run for a
         // payment marked for the refund path (one already recovered is the refund monitor's).
         const marked = await MoneriumFiatDeposit.findAll({
-          attributes: ["id"],
+          attributes: ["id", "amountRaw"],
           where: { accountId: account.id, status: MoneriumFiatDepositStatus.Recovering }
         });
         if (marked.length === 0) continue;
-        const recovered = await MoneriumConversionExecution.findAll({
-          attributes: ["depositId"],
+        const executions = await MoneriumConversionExecution.findAll({
+          attributes: ["depositId", "kind"],
           where: {
             depositId: { [Op.in]: marked.map(deposit => deposit.id) },
-            kind: MoneriumConversionExecutionKind.Recover,
-            status: { [Op.in]: [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed] }
+            [Op.or]: [
+              {
+                kind: MoneriumConversionExecutionKind.Recover,
+                status: { [Op.in]: [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed] }
+              },
+              { kind: MoneriumConversionExecutionKind.Swap, status: MoneriumConversionExecutionStatus.Confirmed }
+            ]
           }
         });
-        const stuck = marked.filter(deposit => !recovered.some(execution => execution.depositId === deposit.id));
-        if (stuck.length > 0) {
+        const stuck = marked.filter(
+          deposit => !executions.some(e => e.depositId === deposit.id && e.kind === MoneriumConversionExecutionKind.Recover)
+        );
+        // Only an unswapped payment whose EURe is provably still on the clone is refunded by hand;
+        // anything else left the clone by a path the ledger does not record (the permissionless
+        // swap/forwardAll), so refunding it would pay twice.
+        const unswapped = stuck.filter(deposit => !executions.some(e => e.depositId === deposit.id));
+        const onClone = unswapped.reduce((sum, deposit) => sum + BigInt(deposit.amountRaw), 0n) <= eureBalance ? unswapped : [];
+        const elsewhere = stuck.filter(deposit => !onClone.includes(deposit));
+        if (onClone.length > 0) {
           logger.error(
-            `monerium-b2b: REFUND NEEDS OPERATOR — deposit(s) ${stuck.map(deposit => deposit.id).join(", ")} on forwarder ` +
+            `monerium-b2b: REFUND NEEDS OPERATOR — deposit(s) ${onClone.map(deposit => deposit.id).join(", ")} on forwarder ` +
               `${forwarder} (account ${account.id}) are marked for recovery, but the clone holds ${eureBalance} EURe, below ` +
-              "MIN_SWAP_FLOOR, so the contract cannot recover them: refund them by hand and close them as refunded (runbook §2.7)"
+              "MIN_SWAP_FLOOR, so the contract cannot recover them: refund each by hand as a redeem from the client's refund " +
+              "wallet with memo vortex-refund:<depositId>, then close it as refunded at once (runbook §2.7)"
+          );
+        }
+        if (elsewhere.length > 0) {
+          logger.warn(
+            `monerium-b2b: deposit(s) ${elsewhere.map(deposit => deposit.id).join(", ")} on forwarder ${forwarder} ` +
+              `(account ${account.id}) are marked for recovery but their funds are no longer on the clone: reconcile, do not refund`
           );
         }
         continue;
