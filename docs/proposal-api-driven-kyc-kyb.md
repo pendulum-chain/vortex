@@ -178,7 +178,7 @@ The requirements response is an executable workflow index, not a second schema s
 is authoritative for each operation's complete request, response, and error contract. Discovery
 adds only sequencing and fixed/derived value bindings to fields that OpenAPI already defines. The
 corridor-specific guide remains authoritative for behavioral details such as branching, retries,
-custody, and asynchronous completion.
+key handling, and asynchronous completion.
 
 The OpenAPI document covers the existing Avenia and Alfredpay KYC/KYB operations advertised by
 discovery, including API credential and managed-profile authentication. Discovery links to the

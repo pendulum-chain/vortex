@@ -688,7 +688,7 @@ describe("GET /v1/onboarding/status", () => {
 
   it("does not approve imported onboarding status when Avenia exposes a different CPF", async () => {
     const { user, token } = await createAuthedUser("avenia-import-tax-mismatch@example.com");
-    const customer = await createTestTaxId(user.id, { subAccountId: "sub-import-tax-mismatch", taxId: "08786985906" });
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-import-tax-mismatch", taxId: "04821536951" });
     await customer.update({ status: VerificationStatus.InReview });
     const kycCase = await KycCase.create({
       customerEntityId: customer.customerEntityId,
@@ -726,7 +726,7 @@ describe("GET /v1/onboarding/status", () => {
 
   it("approves imported onboarding status when Avenia returns a formatted matching CPF", async () => {
     const { user, token } = await createAuthedUser("avenia-import-tax-match@example.com");
-    const customer = await createTestTaxId(user.id, { subAccountId: "sub-import-tax-match", taxId: "08786985906" });
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-import-tax-match", taxId: "04821536951" });
     await customer.update({ status: VerificationStatus.InReview });
     const kycCase = await KycCase.create({
       customerEntityId: customer.customerEntityId,
@@ -745,7 +745,7 @@ describe("GET /v1/onboarding/status", () => {
           getVerificationAttemptStatus: mock(async () => ({
             attempt: { id: "attempt-imported", result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }
           })),
-          subaccountInfo: mock(async () => ({ accountInfo: { taxId: "087.869.859-06" } }))
+          subaccountInfo: mock(async () => ({ accountInfo: { taxId: "048.215.369-51" } }))
         }) as unknown as BrlaApiService
     );
 

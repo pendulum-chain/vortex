@@ -31,7 +31,7 @@ function DemoShell() {
   const [authenticated, setAuthenticated] = useState(false);
   const auth = useMemo(() => ({
     authenticated,
-    user: authenticated ? { name: "Ana Silva", firstName: "Ana", email: "ana.silva@gmail.com" } : null,
+    user: authenticated ? { name: "Ana Silva", firstName: "Ana", email: "ana.silva@example.com" } : null,
     address: authenticated ? "0x71c2F3a68790eAd79216dBE733fb83aF089C93a4" : null,
     login: async () => { await new Promise((resolve) => setTimeout(resolve, 550)); setAuthenticated(true); },
     logout: async () => setAuthenticated(false),

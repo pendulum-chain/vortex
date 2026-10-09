@@ -1,7 +1,7 @@
 # ADR 0004: Sandbox Sales-Demo Account
 
-Status: accepted 2026-08-07. Implemented in `apps/api/src/api/services/demo/`; the runbook
-is [`operations-demo-environment.md`](operations-demo-environment.md).
+Status: accepted 2026-08-07. Implemented in `apps/api/src/api/services/demo/`; operating it
+follows the internal demo-environment runbook.
 
 ## Context
 

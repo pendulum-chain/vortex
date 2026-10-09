@@ -154,7 +154,7 @@ Agent → start_ramp     → {"phase":"prepareTransactions"}
 Agent → get_ramp_status (polls; renders phase in plain English)
 ```
 
-The security property: all dangerous mechanics (`sk_*` custody, ephemeral keys, the
+The security property: all dangerous mechanics (`sk_*` handling, ephemeral keys, the
 presigned-variant rule) happen inside a process on the user's machine, invisible to
 the agent and never sent to us.
 

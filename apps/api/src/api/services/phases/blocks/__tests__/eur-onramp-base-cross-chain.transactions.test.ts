@@ -14,6 +14,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import * as evmFundingNamespace from "../core/evm-funding";
 import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 import type { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
+import { installFakeChainIdRpc } from "../../../../../test-utils/fake-world/fake-evm";
 
 const sharedReal = { ...sharedNamespace };
 const evmFundingReal = { ...evmFundingNamespace };
@@ -185,7 +186,9 @@ describe("EUR onramp Base cross-chain transactions", () => {
     });
 
     const evmEphemeral = { address: EPHEMERAL, secret: PRIVATE_KEY, type: EphemeralAccountType.EVM };
-    const signed = await signUnsignedTransactions(prepared.unsignedTxs, { evmEphemeral });
+    // viem asks the RPC for eth_chainId before signing; any other network use hits the fetch guard.
+    const restoreChainIdRpc = installFakeChainIdRpc();
+    const signed = await signUnsignedTransactions(prepared.unsignedTxs, { evmEphemeral }).finally(restoreChainIdRpc);
     expect(signed.length).toBeGreaterThanOrEqual(prepared.unsignedTxs.length);
     expect(prepared.stateMeta.phaseFlow).toEqual([
       "initial",
@@ -236,5 +239,5 @@ describe("EUR onramp Base cross-chain transactions", () => {
     expect(prepared.unsignedTxs.find(tx => tx.phase === "nablaApprove")?.txData).toMatchObject({ data: "0xc1" });
     expect(prepared.unsignedTxs.find(tx => tx.phase === "squidRouterSwap")?.txData).toMatchObject({ data: "0xa2" });
     expect(prepared.unsignedTxs.find(tx => tx.phase === "backupSquidRouterSwap")?.txData).toMatchObject({ data: "0xb2" });
-  }, 60_000);
+  });
 });

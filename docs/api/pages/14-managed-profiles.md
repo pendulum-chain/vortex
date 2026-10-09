@@ -29,7 +29,7 @@ Content-Type: application/json
 {
   "externalSubjectId": "customer-4711",
   "customerType": "individual",
-  "contactEmail": "customer-4711@platform.example"
+  "contactEmail": "customer-4711@platform.example.com"
 }
 ```
 
@@ -43,7 +43,7 @@ Content-Type: application/json
     "profileId": "00000000-0000-0000-0000-000000000002",
     "externalSubjectId": "customer-4711",
     "customerType": "individual",
-    "contactEmail": "customer-4711@platform.example",
+    "contactEmail": "customer-4711@platform.example.com",
     "status": "active",
     "creationSource": "manager",
     "deletedAt": null,
@@ -133,6 +133,76 @@ Two things behave differently for managed children:
 - **Pricing** is resolved as: the child's own partner-pricing assignment if one exists, otherwise **your (the manager's) active assignment**, otherwise default Vortex pricing — identically for header-delegated calls and direct child credentials. Children automatically inherit your negotiated fees.
 - **Transaction webhooks are not supported for managed subjects** — registration returns `400 MANAGED_PROFILE_UNSUPPORTED` with the header and `403` with a child credential. Poll the child-scoped ramp status and history endpoints instead. The exception is the deposit-event family for EUR onramp accounts: the **manager** subscribes with their own credential (no header) and receives the lifecycle events `DEPOSIT_UPDATED`/`ACCOUNT_UPDATED` and the milestones `DEPOSIT_RECEIVED`/`DEPOSIT_CONVERTED`/`DEPOSIT_RETURNED` for all their children's accounts — see the Webhooks page.
 
+## Get Started With The Business EUR Onramp In Sandbox
+
+The business EUR onramp is open for testing in sandbox as a preliminary release; production activation is pending. A business client pays EUR by SEPA to its own IBAN, and Vortex converts the payment to USDC and sends it to the client's destination address. Every call below goes to `https://api-sandbox.vortexfinance.co` with your sandbox secret key.
+
+**Set up with Vortex**
+
+1. Sign up at <https://dashboard-sandbox.vortexfinance.co> with your email, open **API keys**, and create a credential. Keep the secret key (`sk_test_...`) on your backend.
+2. Email <support@vortexfinance.co> the address you signed up with. The dashboard does not show your profile ID; Vortex looks it up from the email.
+3. Vortex enables your profile as a manager for the `EU` corridor and business customers, binds it to the EUR provider app as the manager that registers clients (until then `POST /v1/monerium-b2b/accounts` returns `403 MANAGED_PROFILE_ACCESS_DENIED`), and sends you the EUR provider's sandbox profile IDs of the test companies you can register. Currently those companies live in Vortex's own provider app, and the provider approves each profile in its sandbox before Vortex deploys anything for it.
+
+**Integrate**
+
+1. Subscribe to the deposit and account events with your manager key and no `X-Managed-Profile-Id` header. The response is `201` with the webhook `id`.
+
+```http
+POST /v1/webhook
+X-API-Key: sk_test_...
+Content-Type: application/json
+
+{
+  "url": "https://manager.example.com/vortex/deposits",
+  "events": ["DEPOSIT_UPDATED", "ACCOUNT_UPDATED"]
+}
+```
+
+2. Register each test company with its provider profile ID and the client's destination address. A new registration returns `202` with `status: "requested"`; see [Register A Business EUR Client](#register-a-business-eur-client) for every response. The destination cannot be changed after registration, and each test profile can be registered once, so use an address you control. Use a different `externalSubjectId` and `contactEmail` for each company; reusing either for another profile returns `409 MONERIUM_B2B_CLIENT_CONFLICT`.
+
+```http
+POST /v1/monerium-b2b/accounts
+X-API-Key: sk_test_...
+Content-Type: application/json
+
+{
+  "moneriumProfileId": "<profile ID from Vortex>",
+  "destination": "<Sepolia address the client controls>",
+  "externalSubjectId": "client-1",
+  "contactEmail": "operations@client.example.com"
+}
+```
+
+3. Follow the registration (`registrations[0].status` in the response) until it is `mapped`. It reports `waitingReason: null` until Vortex first checks it, `monerium_profile_pending` until the provider approves the profile, then `deployment_pending` while Vortex deploys the client's conversion contract. Currently the provider approves the test profiles, not you: if a registration stays at `monerium_profile_pending`, or `POST` returns `422 MONERIUM_B2B_PROFILE_UNAVAILABLE`, check the profile ID against the one Vortex sent and contact Vortex.
+
+```http
+GET /v1/monerium-b2b/registrations?moneriumProfileId=<profile ID from Vortex>
+X-API-Key: sk_test_...
+```
+
+4. Wait for an `ACCOUNT_UPDATED` event whose `payload.status` is `"active"` and whose `payload.iban` is set. In sandbox, an account activates on its own once its IBAN is issued. The event's `payload.profileId` is the client's managed profile: send it as `X-Managed-Profile-Id` in the reads below. `GET /v1/monerium-b2b/accounts` with your manager key lists the same accounts if you missed an event.
+5. Test payments are not available yet: sandbox cannot currently send EUR to a client's IBAN, and Vortex will tell you once it can. When a payment arrives, `DEPOSIT_UPDATED` events follow it until the deposit is `forwarded` to the destination, or `refunded` if it is not converted within the refund window.
+6. Read the client's account and deposits. They return `{ "account": { ... } }` and `{ "deposits": [ ... ], "pagination": { "limit", "offset", "total" } }`, each deposit being the same snapshot `DEPOSIT_UPDATED` delivers. A managed child without a business EUR account returns `404 MONERIUM_B2B_ACCOUNT_NOT_FOUND`; an ID that is not your child returns `403 MANAGED_PROFILE_ACCESS_DENIED`.
+
+```http
+GET /v1/monerium-b2b/account
+X-API-Key: sk_test_...
+X-Managed-Profile-Id: <payload.profileId from ACCOUNT_UPDATED>
+```
+
+```http
+GET /v1/monerium-b2b/deposits?limit=20&offset=0
+X-API-Key: sk_test_...
+X-Managed-Profile-Id: <payload.profileId from ACCOUNT_UPDATED>
+```
+
+**Sandbox specifics**
+
+- **Network.** Sandbox converts and delivers on Ethereum Sepolia; production uses Ethereum mainnet. The destination must be an Ethereum address the client controls, and it is fixed for the life of the account.
+- **Minimum.** Payments from EUR 1 are converted; a smaller payment is refunded after the refund window.
+- **Refund window.** A payment that is not converted within 15 minutes of its mint (two hours by default in production), for example because the account was not active yet, is refunded in full to the account it came from (operations process the refund by hand where automatic refunds are off). The EUR provider pays refunds out only for profiles it has approved.
+- **Webhook signatures.** Sandbox signs deliveries with its own key: verify them against `https://api-sandbox.vortexfinance.co/v1/public-key`, not the production key. See [Webhooks](https://api-docs.vortexfinance.co/webhooks).
+
 ## Register A Business EUR Client
 
 You register business EUR clients yourself. Create the client's profile and submit its KYB in your own EUR provider app first; no KYB data goes to Vortex. Then register the client's payout wallet with your manager key (`X-API-Key`; the `X-Managed-Profile-Id` header, a child credential, and an admin impersonation session are refused, and only the manager bound to your provider app may register):
@@ -146,7 +216,7 @@ Content-Type: application/json
   "moneriumProfileId": "0b8e4d1c-6f3a-4c27-9a51-2d7e8b9c0a14",
   "destination": "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc",
   "externalSubjectId": "client-1",
-  "contactEmail": "operations@client.example"
+  "contactEmail": "operations@client.example.com"
 }
 ```
 
@@ -160,12 +230,12 @@ Content-Type: application/json
     "moneriumProfileId": "0b8e4d1c-6f3a-4c27-9a51-2d7e8b9c0a14",
     "rejectedReason": null,
     "status": "requested",
-    "waitingReason": "monerium_profile_pending"
+    "waitingReason": null
   }
 }
 ```
 
-Vortex waits for the provider to approve the profile, deploys the client's conversion contract with the destination fixed in it, then creates the child and its onramp account, which appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook. Follow the registration with `GET /v1/monerium-b2b/registrations` (filter by `moneriumProfileId`). `status` is `requested` until the account exists (`mapped`, with `accountId`) or the registration is `rejected` (see `rejectedReason`). While it is `requested`, `waitingReason` says what it waits for:
+Vortex waits for the provider to approve the profile, deploys the client's conversion contract with the destination fixed in it, then creates the child and its onramp account, which appears in `GET /v1/monerium-b2b/accounts` and the `ACCOUNT_UPDATED` webhook. Follow the registration with `GET /v1/monerium-b2b/registrations` (filter by `moneriumProfileId`). `status` is `requested` until the account exists (`mapped`, with `accountId`) or the registration is `rejected` (see `rejectedReason`). While it is `requested`, `waitingReason` says what it waits for. `null` means Vortex has not checked the registration yet, as in the `202` response to a new registration or to a new attempt after a rejection (an identical replay returns `200` with the current reason); mapped and rejected registrations also report `null`.
 
 | `waitingReason` | Meaning |
 |---|---|
@@ -195,7 +265,7 @@ An account converts payments only once it is `active`, and its IBAN can be issue
 | Response | Meaning |
 |---|---|
 | `403 MANAGED_PROFILE_ACCESS_DENIED` | The selector or child credential failed a check: inactive manager, not your child, deleted child, invalid entity layout, or a corridor/type your policy does not allow. |
-| `400 MANAGED_PROFILE_UNSUPPORTED` | The endpoint does not support delegation (currently webhook management). |
+| `400 MANAGED_PROFILE_UNSUPPORTED` | The endpoint does not support delegation: webhook management, the manager-level business EUR routes (`GET` and `POST /v1/monerium-b2b/accounts`, `GET /v1/monerium-b2b/registrations`), invite preview and acceptance, and `PUT /v1/onboarding/active-entity`. |
 | `404` on lifecycle routes | The `profileId` does not identify a child of the authenticated manager. |
 | `200` instead of `201` on create | Idempotent retry — the identical child already exists. |
 | `409 CREDENTIAL_LIMIT_REACHED` | The child already has five active, non-expired credentials. |

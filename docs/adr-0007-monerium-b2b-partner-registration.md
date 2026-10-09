@@ -6,7 +6,7 @@
 invariants in
 [`security-spec/05-integrations/monerium-b2b.md`](security-spec/05-integrations/monerium-b2b.md)
 (0, 12, 15 and the key separation), procedures in
-[`operations-monerium-b2b-runbook.md`](operations-monerium-b2b-runbook.md) §1, §6 and §8.
+the internal B2B operations runbook, §1, §6 and §8.
 
 ## Context
 
@@ -14,7 +14,7 @@ The partner creates its clients' profiles and submits their KYB in its own Moner
 white-label app, so it holds each new client's Monerium profile ID; only it knows the
 client's payout wallet. Until now a Vortex operator deployed every forwarder with `cast`
 and mapped the account with an admin call, so every client waited on a manual step, and
-the guardian key, which ADR-0005 intends to move to cold custody, was the only key that
+the guardian key, which ADR-0005 intends to move to cold storage, was the only key that
 could deploy.
 
 ## Decision
@@ -73,13 +73,13 @@ could deploy.
    it sends with implicit nonces like the keeper and the float wallet. Added before any
    Sepolia or mainnet factory exists, because the factory is not upgradeable. This does
    not make the guardian key cold: the backend still requires it at boot and signs the
-   dormancy pause (`setGuardianPaused`) with it, so that pause is the open custody item
+   dormancy pause (`setGuardianPaused`) with it, so that pause is the open guardian-key item
    of ADR-0005 O2 (a pause-only role, or an operator-run pause, before a cold guardian).
    The guardian can also revoke a clone: `revokeForwarder` is one-way and removes it from
    the registry (below).
 5. **Partner binding by configuration.** `MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID` (read
    lowercased) names the one manager allowed to register, the partner owning the
-   white-label app. Per-partner credentials and bindings come with the second partner.
+   white-label app. Per-partner credentials and bindings are a later extension.
 6. **Activation.** An operator call everywhere except the sandbox
    (`SANDBOX_ENABLED=true`, which boot pairs with `DEPLOYMENT_ENV=sandbox`), where a
    registered account activates once its IBAN is recorded; staging and development need
@@ -98,8 +98,11 @@ could deploy.
    never-converted account runs from it) and every status change is logged with its
    from and to status, destination and forwarder. Operators find the accounts waiting
    with `GET /v1/admin/monerium-b2b/accounts?status=onboarding`.
-7. **No exchange-address distinction.** Every valid address is accepted the same way;
-   the partner agreement carries the risk of rotating exchange deposit addresses.
+7. **No exchange-address distinction.** Every valid address is accepted the same way.
+   An address an exchange retires after a long idle period is caught by the dormancy
+   gate, and a wrong address by an optional penny test; a rotation on an account that
+   keeps converting is not detected, so the destination stays with the partner
+   (ADR-0005 B5).
 8. **Profile kind.** The keeper reads a profile's state, not its kind, so a personal
    (individual) Monerium profile in the partner's app is accepted like a corporate one
    and mapped with a mirrored business KYB record. Accepted scope decision of the
@@ -109,7 +112,7 @@ could deploy.
 
 Alternatives rejected: a `requested` status inside `monerium_accounts` (would weaken the
 invariant every account row relies on); an operator deploying from a registration queue
-(keeps the manual step); deploying with the guardian or keeper key (custody goal, nonce
+(keeps the manual step); deploying with the guardian or keeper key (cold-key goal, nonce
 interference); merging registrations into the account list (would change a typed
 response partners already read).
 

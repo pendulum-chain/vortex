@@ -3,7 +3,7 @@
 Foundry project for the attestor-linked forwarder (Monerium B2B zero-touch onramp):
 per-client EIP-1167 clones whose EIP-1271 `isValidSignature` accepts only the fixed
 Monerium link message from the Vortex attestor, a conversion policy that swaps over a
-factory-whitelisted Uniswap v3 route and settles the fill against a partner reference
+factory-whitelisted Uniswap v3 route and settles the fill against a reference
 rate (fee above the target, top-up from the shared `VortexSubsidyVault` below the floor,
 Chainlink floor on the client's net), whole-payment forwarding (chunks accumulate as USDC on the
 clone and leave in one `forward`), and a keeper-only, delay-gated `recover` to the client's refund

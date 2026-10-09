@@ -71,6 +71,8 @@ jobs:
         if: always()
         working-directory: apps/api
         env:
+          # Live test: skips the hermetic preload, whose fetch guard would block these calls.
+          RUN_LIVE_TESTS: "1"
           VORTEX_QUOTE_SMOKE_URLS: https://api-staging.vortexfinance.co,https://api.vortexfinance.co
         run: bun test src/tests/deployed-quotes.e2e.test.ts
 

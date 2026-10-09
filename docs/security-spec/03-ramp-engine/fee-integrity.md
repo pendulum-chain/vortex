@@ -155,7 +155,7 @@ always occur only after all user-facing phases is incorrect.
   excludes the platform-funded settlement top-up, so it cannot leak subsidy to the
   user. Automated expired-order recovery does not broadcast that same-nonce
   contingency: when replacement cannot preserve the quote, execution pauses before
-  the provider transfer and leaves principal/top-up on the client-custodied Polygon
+  the provider transfer and leaves principal/top-up on the client-held Polygon
   ephemeral for authorized reconciliation. The onramp mint fallback stays full-mint.
 - **Rollout** — the fee phase shipped as flow version 2 of the three Alfredpay flows
   with a drain-then-deploy gate; persisted v1 identities fail closed at

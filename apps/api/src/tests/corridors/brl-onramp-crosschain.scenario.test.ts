@@ -25,7 +25,7 @@ import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
-import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
+import { type FakeWorld, installFakeChainIdRpc, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
 
@@ -41,33 +41,6 @@ const USDC_ON_ARBITRUM = requireToken(Networks.Arbitrum, EvmToken.USDC).erc20Add
 const BRLA_ON_BASE = requireToken(Networks.Base, EvmToken.BRLA).erc20AddressSourceChain as `0x${string}`;
 
 const TAX_ID = "12345678901";
-const BASE_CHAIN_ID_HEX = "0x2105";
-const ARBITRUM_CHAIN_ID_HEX = "0xa4b1";
-
-function installChainIdShim(): { restore: () => void } {
-  const guardedFetch = globalThis.fetch;
-  const shim = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-    if (typeof init?.body === "string") {
-      try {
-        const payload = JSON.parse(init.body) as { id?: number; method?: string };
-        if (payload.method === "eth_chainId") {
-          const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-          const chainId = url.includes("base") ? BASE_CHAIN_ID_HEX : ARBITRUM_CHAIN_ID_HEX;
-          return Response.json({ id: payload.id ?? 1, jsonrpc: "2.0", result: chainId });
-        }
-      } catch {
-        // Not a JSON-RPC request; retain the hermetic fetch guard below.
-      }
-    }
-    return guardedFetch(input, init);
-  }) as typeof fetch;
-  globalThis.fetch = Object.assign(shim, guardedFetch);
-  return {
-    restore: () => {
-      globalThis.fetch = guardedFetch;
-    }
-  };
-}
 
 // Unlike the direct pix→BRLA-on-Base corridor, the full swap-and-bridge chain
 // executes here: Nabla swaps the minted BRLA into USDC on Base, the squid
@@ -128,12 +101,12 @@ interface DestinationFundingExpectation {
 describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Arbitrum)", () => {
   let world: FakeWorld;
   let auth: { restore: () => void };
-  let chainIdShim: { restore: () => void };
+  let restoreChainIdRpc: () => void;
   let app: TestApp;
 
   beforeAll(async () => {
     world = installFakeWorld();
-    chainIdShim = installChainIdShim();
+    restoreChainIdRpc = installFakeChainIdRpc();
     auth = installFakeSupabaseAuth();
     await setupTestDatabase();
     app = await startTestApp();
@@ -142,7 +115,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
   afterAll(async () => {
     await app?.close();
     auth?.restore();
-    chainIdShim?.restore();
+    restoreChainIdRpc?.();
     world?.restore();
   });
 

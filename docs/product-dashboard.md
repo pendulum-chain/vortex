@@ -317,7 +317,7 @@ provider-shaped rather than UI-shaped.
   `SubmittingUserTxs`. Once registration and signing updates are durably accepted, its owner-scoped
   recovery snapshot or backend
   transaction record survives selection changes and is available again when that owner is selected.
-  Ramp ephemeral storage is independent recovery custody and is never pruned or cleared by
+  Ramp ephemeral storage is independent recovery storage and is never pruned or cleared by
   manager/child selection.
   The customer can return to the same instructions while the payment window remains open. Once
   the instructions expire, **Get a new quote** clears only the local transfer state. Starting an
