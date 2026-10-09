@@ -569,7 +569,7 @@ payment").
 | Deployer (`MONERIUM_B2B_DEPLOYER_PRIVATE_KEY`) | Deploys a registered clone for any destination and refund address; no power over existing clones, funds or settings. Each such clone counts as a forwarder, so the vault pays it, up to its `dailyBudget` and `maxSubsidyPpm`, once its batch delay allows a swap | Guardian: `setDeployer(old,false)`, then `revokeForwarder` for its rogue clones (below); fresh key, fund it, `setDeployer(new,true)`, update the env |
 | Whitelabel API credentials | Control-plane: can re-link/move IBANs (future mints only) — S1 | §2.5 full sequence |
 | `ADMIN_SECRET` | Map/suspend accounts (mapping is bounded by on-chain clone verification) | Rotate; audit recent admin mutations |
-| Webhook HMAC secret | Fabricated inbound order events (accounting noise; forward-only lattice + mint watcher bound the damage) | Rotate at both ends; reconcile deposits against chain |
+| Webhook HMAC secret | Fabricated inbound order events: accounting noise, and a forged delivery that lands before Monerium's sets that deposit's refund target (forward-only lattice + mint watcher bound the rest) | Rotate at both ends; reconcile deposits against chain; check each open deposit's payer IBAN against its order at Monerium before refunding |
 
 **Leaked deployer key (guardian key).** The factory registry is what the vault and the
 backend's account mapping trust, so a rogue clone is cleaned out of it:
