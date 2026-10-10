@@ -8,7 +8,7 @@ import { runConversionExecutor, SETTLING_STATUSES } from "../services/monerium-b
 import { processMoneriumWebhookInbox, pruneProcessedWebhookEvents } from "../services/monerium-b2b/deposit-processor";
 import { runDormancyGate } from "../services/monerium-b2b/dormancy";
 import { emitMoneriumDepositEvents } from "../services/monerium-b2b/manager-events";
-import { runMintWatcher } from "../services/monerium-b2b/mint-watcher";
+import { runMintWatcher, UNATTRIBUTED_ORDER_PREFIX } from "../services/monerium-b2b/mint-watcher";
 import { runMonitoringPass } from "../services/monerium-b2b/monitoring";
 import { advanceOnboardingAccounts } from "../services/monerium-b2b/onboarding";
 import { runRecoveryDeadlines, runRecoveryOrchestrator } from "../services/monerium-b2b/recovery";
@@ -110,7 +110,8 @@ class MoneriumB2bWorker {
    * Accounts worth running the executor for: settled mints from this cycle and accounts
    * with chain-indexed deposits still settling (converting, awaiting their forward, or
    * marked for recovery). The executor never outruns the watcher's reorg-safety window
-   * merely because a live balance is visible.
+   * merely because a live balance is visible. `unattr:` rows (e.g. a refund top-up left on
+   * the clone) are never converted, so they alone keep no account a candidate.
    */
   private async conversionCandidates(mintedAccountIds: string[]): Promise<string[]> {
     const candidates = new Set<string>(mintedAccountIds);
@@ -119,9 +120,10 @@ class MoneriumB2bWorker {
       `SELECT DISTINCT account_id AS "accountId"
        FROM monerium_fiat_deposits
        WHERE status IN (:settling)
-         AND block_number IS NOT NULL`,
+         AND block_number IS NOT NULL
+         AND monerium_order_id NOT LIKE :unattributed`,
       {
-        replacements: { settling: SETTLING_STATUSES },
+        replacements: { settling: SETTLING_STATUSES, unattributed: `${UNATTRIBUTED_ORDER_PREFIX}%` },
         type: QueryTypes.SELECT
       }
     );

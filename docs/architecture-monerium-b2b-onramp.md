@@ -204,8 +204,10 @@ Vortex learns about a deposit through two complementary channels, which converge
 same per-forwarder advisory lock: the **webhooks** carry the provider order accounting
 (amount, order id, compliance holds), while the **mint watcher** proves the on-chain
 mint identity. Only a settled, chain-indexed mint makes an account a conversion
-candidate. A live balance by itself is deliberately insufficient: this prevents a swap
-from outrunning the watcher's reorg window and becoming impossible to attribute safely.
+candidate (an `unattr:` row, such as a refund top-up left on the clone, keeps none
+after the cycle it lands in). A live balance by itself is deliberately insufficient:
+this prevents a swap from outrunning the watcher's reorg window and becoming
+impossible to attribute safely.
 
 A payer can name a chain and address in the SEPA memo; when that address is linked to the
 client's profile, Monerium mints there instead of to the IBAN's default address. Besides
