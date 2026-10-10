@@ -52,7 +52,8 @@ import { fetchCoinbaseReference, isWithinReferenceBand, ReferenceQuote } from ".
  *     to the client's destination in one transfer;
  *   - `recover(eure, usdc)`: a deposit marked `recovering` is moved to the recovery
  *     wallet once the clone's batch has been open for RECOVERY_DELAY.
- * One transaction per account per cycle; a pending row of any kind blocks the next.
+ * At most one value-moving transaction per account per cycle, plus the permissionless
+ * `poke` and `applyFeePolicy`; a pending row of any kind holds the account's cycle until it resolves.
  *
  * Serialization: every database mutation runs inside the per-forwarder advisory lock
  * (withForwarderLock). The chain send/wait itself deliberately happens OUTSIDE a lock —
