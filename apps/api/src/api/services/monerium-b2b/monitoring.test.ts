@@ -1,4 +1,18 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { Address, Hex } from "viem";
+import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
+import ManagedProfileManager from "../../../models/managedProfileManager.model";
+import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumConversionExecution, {
+  MoneriumConversionExecutionKind,
+  MoneriumConversionExecutionStatus
+} from "../../../models/moneriumConversionExecution.model";
+import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
+import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
+import { createTestUser } from "../../../test-utils/factories";
+import { provisionMoneriumB2bAccount } from "./account-provisioning";
+import * as chain from "./chain";
 import {
   classifyExecutableDepth,
   classifyRefundQueue,
@@ -8,7 +22,9 @@ import {
   detectConfigDrift,
   diffAssociation,
   eip1167RuntimeCode,
-  normalizeIban
+  normalizeIban,
+  runExecutableDepthCheck,
+  runStrandedBalanceMonitor
 } from "./monitoring";
 
 // Pure monitoring logic (implementation plan D3): quote-impact math against the T6
@@ -244,5 +260,454 @@ describe("eip1167RuntimeCode", () => {
     expect(eip1167RuntimeCode("0x7e1c653CaAFCa44258d8680B09F42a33475504a9")).toBe(
       "0x363d3d373d3d3d363d737e1c653caafca44258d8680b09f42a33475504a95af43d82803e903d91602b57fd5bf3"
     );
+  });
+});
+
+describe("runExecutableDepthCheck", () => {
+  afterEach(() => mock.restore());
+
+  function arrange(chainId: number) {
+    spyOn(chain, "getChainId").mockResolvedValue(chainId);
+    const findAll = spyOn(MoneriumAccount, "findAll").mockResolvedValue([
+      { forwarderAddress: "0x1111111111111111111111111111111111111111" } as MoneriumAccount
+    ]);
+    const reads: Record<string, unknown> = {
+      latestRoundData: [1n, 114_000_000n, 0n, 0n, 1n],
+      minSwapAmount: 1n * EUR,
+      perSwapCap: 10_000n * EUR
+    };
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      readContract: async ({ functionName }: { functionName: string }) => reads[functionName]
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+    spyOn(chain, "getForwarderImmutables").mockResolvedValue({
+      factory: "0x2222222222222222222222222222222222222222",
+      oracle: "0x5555555555555555555555555555555555555555",
+      oracleDecimals: 8,
+      slippageBps: 60
+    } as unknown as chain.ForwarderImmutables);
+    spyOn(chain, "readEnabledRoutes").mockResolvedValue([{ index: 0, path: "0xaa" as Hex }]);
+    const quoteSpy = spyOn(chain, "quoteRouteOutput").mockImplementation(async (_quoter, _path, amountIn) => {
+      return (amountIn * 114n) / (100n * 10n ** 12n);
+    });
+    return { findAll, quoteSpy };
+  }
+
+  it("quotes on the Sepolia QuoterV2 on the sandbox chain", async () => {
+    const { quoteSpy } = arrange(11_155_111);
+    await runExecutableDepthCheck();
+    expect(quoteSpy).toHaveBeenCalledWith("0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3", "0xaa", 1n * EUR);
+  });
+
+  it("quotes on the mainnet QuoterV2 on Ethereum", async () => {
+    const { quoteSpy } = arrange(1);
+    await runExecutableDepthCheck();
+    expect(quoteSpy).toHaveBeenCalledWith("0x61fFE014bA17989E743c5F6cB21bF9697530B21e", "0xaa", 10_000n * EUR);
+  });
+
+  for (const [chainId, level] of [
+    [1, "error"],
+    [11_155_111, "warn"]
+  ] as const) {
+    it(`logs DEPTH BELOW FLOOR at ${level} on chain ${chainId}`, async () => {
+      const { quoteSpy } = arrange(chainId);
+      quoteSpy.mockImplementation(async (_quoter, _path, amountIn) => (amountIn * 100n) / (100n * 10n ** 12n)); // ~12% impact
+      const lines: Record<string, string[]> = { error: [], warn: [] };
+      for (const name of ["error", "warn"] as const) {
+        spyOn(logger, name).mockImplementation(((message: string) => {
+          lines[name].push(message);
+        }) as unknown as typeof logger.error);
+      }
+      await runExecutableDepthCheck();
+      const other = level === "error" ? "warn" : "error";
+      expect(lines[level]).toHaveLength(1);
+      expect(lines[level][0]).toContain("DEPTH BELOW FLOOR");
+      expect(lines[other]).toEqual([]);
+      if (level === "warn") expect(lines.warn[0]).toContain("re-centre the sandbox pool");
+      else expect(lines.error[0]).toContain("triage per the B2B operations runbook §3");
+    });
+  }
+
+  it("skips a chain without a known quoter", async () => {
+    const { findAll, quoteSpy } = arrange(31_337);
+    await runExecutableDepthCheck();
+    expect(findAll).not.toHaveBeenCalled();
+    expect(quoteSpy).not.toHaveBeenCalled();
+  });
+});
+
+// A refund the keeper can never send: the clone holds less than MIN_SWAP_FLOOR, so the
+// contract arms no batch and `recover` reverts. Only the operator can refund it.
+describe("runStrandedBalanceMonitor below the swap floor", () => {
+  const FACTORY = "0x2222222222222222222222222222222222222222" as Address;
+  const EURE = "0x4444444444444444444444444444444444444444" as Address;
+  const saved = {
+    autoRecovery: config.moneriumB2b.autoRecovery,
+    factory: config.moneriumB2b.forwarderFactoryAddress,
+    rpcUrl: config.moneriumB2b.rpcUrl
+  };
+  let errors: string[];
+  let warnings: string[];
+  let eureOnClone: bigint;
+  let batchOpenedAt: bigint;
+  let cloneReadsFail: boolean;
+
+  beforeAll(async () => {
+    config.moneriumB2b.rpcUrl = undefined; // provisioning skips the on-chain clone check
+    config.moneriumB2b.forwarderFactoryAddress = FACTORY;
+    await setupTestDatabase();
+  });
+
+  afterAll(() => {
+    config.moneriumB2b.rpcUrl = saved.rpcUrl;
+    config.moneriumB2b.forwarderFactoryAddress = saved.factory;
+    config.moneriumB2b.autoRecovery = saved.autoRecovery;
+  });
+
+  beforeEach(async () => {
+    await resetTestDatabase();
+    config.moneriumB2b.autoRecovery = "auto";
+    errors = [];
+    warnings = [];
+    eureOnClone = EUR / 2n;
+    batchOpenedAt = 0n;
+    cloneReadsFail = false;
+    const reads: Record<string, unknown> = { MIN_SWAP_FLOOR: 1n * EUR, TRIGGER_DELAY: 86_400n };
+    spyOn(chain, "getForwarderImmutables").mockResolvedValue({
+      eure: EURE,
+      factory: FACTORY,
+      recoveryDelaySeconds: 7_200,
+      usdc: "0x6666666666666666666666666666666666666666"
+    } as unknown as chain.ForwarderImmutables);
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      readContract: async ({ address, functionName }: { address: Address; functionName: string }) => {
+        if (cloneReadsFail && functionName === "balanceOf") throw new Error("rpc down");
+        return functionName === "balanceOf"
+          ? address === EURE
+            ? eureOnClone
+            : 0n
+          : functionName === "batchOpenedAt"
+            ? batchOpenedAt
+            : reads[functionName];
+      }
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+    spyOn(logger, "error").mockImplementation(((message: string) => {
+      errors.push(message);
+    }) as unknown as typeof logger.error);
+    spyOn(logger, "warn").mockImplementation(((message: string) => {
+      warnings.push(message);
+    }) as unknown as typeof logger.warn);
+  });
+
+  afterEach(() => mock.restore());
+
+  async function accountWithDeposit(status: MoneriumFiatDepositStatus, amountRaw = EUR / 2n) {
+    const manager = await createTestUser();
+    await ManagedProfileManager.create({
+      allowedCorridors: ["EU"],
+      allowedCustomerTypes: ["business"],
+      isActive: true,
+      profileId: manager.id
+    });
+    const { accountId } = await provisionMoneriumB2bAccount({
+      contactEmail: "ops@client.example.com",
+      destination: "0x5555555555555555555555555555555555555555",
+      externalSubjectId: "client-1",
+      forwarderAddress: "0x1111111111111111111111111111111111111111",
+      managerProfileId: manager.id,
+      moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
+    });
+    await MoneriumAccount.update({ status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    return addDeposit(accountId, status, amountRaw);
+  }
+
+  let orders = 0;
+  function addDeposit(accountId: string, status: MoneriumFiatDepositStatus, amountRaw: bigint) {
+    orders += 1;
+    return MoneriumFiatDeposit.create({
+      accountId,
+      amountRaw: amountRaw.toString(),
+      blockNumber: 100,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: orders,
+      mintedAt: new Date(),
+      moneriumOrderId: `order-${orders}`,
+      payerIban: "DE89370400440532013000",
+      payerName: "Payer GmbH",
+      status,
+      txHash: `0xorder${orders}`
+    });
+  }
+
+  function execution(
+    deposit: MoneriumFiatDeposit,
+    kind: MoneriumConversionExecutionKind,
+    status: MoneriumConversionExecutionStatus,
+    createdAt = new Date()
+  ) {
+    return MoneriumConversionExecution.create({
+      accountId: deposit.accountId,
+      createdAt,
+      depositId: deposit.id,
+      destination: "0x5555555555555555555555555555555555555555",
+      eureInRaw: deposit.amountRaw,
+      kind,
+      status,
+      usdcNetRaw: "0"
+    });
+  }
+
+  it("asks the operator for the exact top-up that lets the keeper recover a payment below the floor", async () => {
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    await runStrandedBalanceMonitor();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("REFUND NEEDS OPERATOR");
+    expect(errors[0]).toContain(deposit.id);
+    expect(errors[0]).toContain("0x1111111111111111111111111111111111111111");
+    expect(errors[0]).toContain("the clone holds 0.5 EURe");
+    // MIN_SWAP_FLOOR - balance + 1 wei: arms the marker, and never matches an order by amount.
+    expect(errors[0]).toContain("send exactly 0.500000000000000001 EURe (500000000000000001 raw)");
+    expect(errors[0]).toContain(EURE);
+    expect(errors[0]).toContain("never refund this deposit by hand");
+    expect(errors[0]).toContain("the internal B2B runbook §2.7");
+  });
+
+  for (const mode of ["alert", "off"] as const) {
+    it(`points to the manual redeem instead of the automatic refund with auto recovery ${mode}`, async () => {
+      config.moneriumB2b.autoRecovery = mode;
+      await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+      await runStrandedBalanceMonitor();
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("send exactly 0.500000000000000001 EURe");
+      expect(errors[0]).toContain("moves the payment to the client's refund wallet");
+      expect(errors[0]).toContain(`MONERIUM_B2B_AUTO_RECOVERY is ${mode}, so no automatic refund follows`);
+      expect(errors[0]).toContain("redeem it from the refund wallet under the manual procedure");
+      expect(errors[0]).not.toContain("never refund this deposit by hand");
+    });
+  }
+
+  it("asks for the top-up when the keeper's recover failed, since the funds stayed on the clone", async () => {
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    await execution(deposit, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Failed);
+    await runStrandedBalanceMonitor();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(deposit.id);
+  });
+
+  it("goes quiet once the top-up landed, without calling the clone's EURe unrecorded", async () => {
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    // The mint watcher records the top-up as an unattributed Minted row.
+    await MoneriumFiatDeposit.create({
+      accountId: deposit.accountId,
+      amountRaw: (EUR / 2n + 1n).toString(),
+      blockNumber: 101,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 99,
+      mintedAt: new Date(),
+      moneriumOrderId: "unattr:topup",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xtopup"
+    });
+    eureOnClone = EUR + 1n;
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it("keeps a later top-up off a whole cent when an earlier top-up's odd wei is on the clone", async () => {
+    // D1 (0.3) was recovered with top-up T1 = 0.3 EURe + 1 wei; D2 (0.4) and T1 stay on the clone.
+    const recovered = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 3n) / 10n);
+    await execution(recovered, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Confirmed);
+    const stuck = await addDeposit(recovered.accountId, MoneriumFiatDepositStatus.Recovering, (EUR * 4n) / 10n);
+    await MoneriumFiatDeposit.create({
+      accountId: recovered.accountId,
+      amountRaw: ((EUR * 3n) / 10n + 1n).toString(),
+      blockNumber: 101,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 99,
+      mintedAt: new Date(),
+      moneriumOrderId: "unattr:topup",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xtopup"
+    });
+    eureOnClone = (EUR * 7n) / 10n + 1n;
+    await runStrandedBalanceMonitor();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(stuck.id);
+    // FLOOR - balance + 1 would be exactly 0.30 EUR, the amount of D1: matchable to a pending 0.30 order.
+    expect(errors[0]).toContain("send exactly 0.300000000000000001 EURe (300000000000000001 raw)");
+  });
+
+  for (const status of [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed]) {
+    it(`stays quiet while the keeper's recover is ${status} (the automatic refund is under way)`, async () => {
+      const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+      await execution(deposit, MoneriumConversionExecutionKind.Recover, status);
+      await runStrandedBalanceMonitor();
+      expect(errors).toEqual([]);
+    });
+  }
+
+  // A recover the keeper keeps skipping (failing receipt lookups, an unresolvable hashless row)
+  // would otherwise keep the account silent, since the checks take a pending recover for progress.
+  for (const [hours, level] of [
+    [2, "warn"],
+    [5, "error"]
+  ] as const) {
+    it(`${level}s on a recover still pending ${hours}h after it was sent`, async () => {
+      const recovering = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 3n) / 10n);
+      const stuck = await addDeposit(recovering.accountId, MoneriumFiatDepositStatus.Recovering, EUR / 2n);
+      const recover = await execution(
+        recovering,
+        MoneriumConversionExecutionKind.Recover,
+        MoneriumConversionExecutionStatus.Pending,
+        new Date(Date.now() - hours * 3_600_000)
+      );
+      await runStrandedBalanceMonitor();
+      const alerts = [...errors, ...warnings];
+      expect(alerts).toHaveLength(1);
+      expect((level === "error" ? errors : warnings)[0]).toContain("RECOVER STUCK PENDING");
+      expect(alerts[0]).toContain(`${recover.id} (deposit ${recovering.id})`);
+      expect(alerts[0]).toContain(`pending for up to ${hours}h`);
+      // The sibling's sub-floor alert still waits for the recover, as for a young one.
+      expect(alerts[0]).not.toContain(stuck.id);
+    });
+  }
+
+  it("still errors on a stuck recover while the clone's balance reads fail", async () => {
+    const recovering = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    await execution(
+      recovering,
+      MoneriumConversionExecutionKind.Recover,
+      MoneriumConversionExecutionStatus.Pending,
+      new Date(Date.now() - 5 * 3_600_000)
+    );
+    cloneReadsFail = true; // the RPC failure that keeps the keeper from resolving the row
+    await runStrandedBalanceMonitor();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("RECOVER STUCK PENDING");
+  });
+
+  it("waits for a sibling's mined recover to confirm before judging the clone's EURe", async () => {
+    // D2's recover is mined (the clone holds only D1's 0.5 EURe) but its row is still Pending.
+    const stuck = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    const recovering = await addDeposit(stuck.accountId, MoneriumFiatDepositStatus.Recovering, (EUR * 3n) / 10n);
+    await execution(recovering, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Pending);
+    await runStrandedBalanceMonitor();
+    expect(warnings.filter(message => message.includes(stuck.id))).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  it("never asks to refund a payment whose funds already left the clone", async () => {
+    // A 100 EUR payment converted and forwarded on the permissionless path, unseen by the ledger.
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, 100n * EUR);
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+    expect(warnings.some(message => message.includes(deposit.id) && message.includes("do not refund"))).toBe(true);
+  });
+
+  it("never asks to refund a swapped payment, even when the clone holds as much EURe", async () => {
+    // Its USDC left on the unrecorded forwardAll; the 0.5 EURe on the clone is someone else's.
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 4n) / 10n);
+    await execution(deposit, MoneriumConversionExecutionKind.Swap, MoneriumConversionExecutionStatus.Confirmed);
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+    // Its EURe remainder may still be on the clone: the warning must not claim all of it left.
+    const warning = warnings.find(message => message.includes(deposit.id));
+    expect(warning).toContain("part or all of their funds left the clone: reconcile before refunding");
+    expect(warning).toContain("do not top up the clone");
+    expect(warning).not.toContain("are no longer on the clone");
+  });
+
+  // EURe the ledger places on the clone for other payments: a younger one still settling, or
+  // one refunded by hand (its EURe never left the clone).
+  for (const other of [MoneriumFiatDepositStatus.Minted, MoneriumFiatDepositStatus.Refunded]) {
+    it(`does not count a ${other} payment's EURe as the marked payment's`, async () => {
+      const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 3n) / 10n);
+      await addDeposit(deposit.accountId, other, (EUR * 4n) / 10n);
+      await runStrandedBalanceMonitor();
+      expect(errors).toEqual([]);
+      expect(warnings.some(message => message.includes(deposit.id) && message.includes("do not refund"))).toBe(true);
+    });
+  }
+
+  it("still asks to refund when the clone holds the marked payment and the others' EURe", async () => {
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 2n) / 10n);
+    await addDeposit(deposit.accountId, MoneriumFiatDepositStatus.Minted, (EUR * 3n) / 10n);
+    const recovered = await addDeposit(deposit.accountId, MoneriumFiatDepositStatus.Refunded, EUR);
+    await execution(recovered, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Confirmed);
+    await runStrandedBalanceMonitor();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(deposit.id);
+  });
+
+  it("stays quiet while such a payment is not marked for recovery yet", async () => {
+    await accountWithDeposit(MoneriumFiatDepositStatus.Minted);
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+  });
+
+  // At or above the floor the contract can recover, but younger forwards may keep re-timing
+  // the marker so the deposit never becomes eligible (minSwapAmount raised above the floor).
+  describe("a marked deposit the keeper never recovers", () => {
+    const now = 1_800_000_000_000;
+    const HOUR = 3_600_000;
+
+    async function markedHoursAgo(hours: number) {
+      const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, 10n * EUR);
+      await deposit.update({ refundStartedAt: new Date(now - hours * HOUR) });
+      return deposit;
+    }
+
+    beforeEach(() => {
+      eureOnClone = 10n * EUR;
+      batchOpenedAt = BigInt(Math.floor((now - 10 * 60_000) / 1000)); // freshly re-timed by a forward
+    });
+
+    it("warns once RECOVERY_DELAY plus the margin has passed since it was marked", async () => {
+      const deposit = await markedHoursAgo(4);
+      await runStrandedBalanceMonitor(now);
+      expect(errors).toEqual([]);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("REFUND OVERDUE");
+      expect(warnings[0]).toContain(deposit.id);
+      expect(warnings[0]).toContain("eure=10,");
+    });
+
+    it("errors once it has waited past TRIGGER_DELAY", async () => {
+      const deposit = await markedHoursAgo(25);
+      await runStrandedBalanceMonitor(now);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("REFUND OVERDUE");
+      expect(errors[0]).toContain(deposit.id);
+    });
+
+    it("stays quiet before the bound", async () => {
+      await markedHoursAgo(2);
+      await runStrandedBalanceMonitor(now);
+      expect(errors).toEqual([]);
+      expect(warnings).toEqual([]);
+    });
+
+    for (const status of [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed]) {
+      it(`stays quiet while its recover is ${status}`, async () => {
+        const deposit = await markedHoursAgo(4);
+        await execution(deposit, MoneriumConversionExecutionKind.Recover, status, new Date(now - 10 * 60_000));
+        await runStrandedBalanceMonitor(now);
+        expect(warnings).toEqual([]);
+      });
+    }
+
+    it("leaves a clone below the floor to REFUND NEEDS OPERATOR alone", async () => {
+      eureOnClone = EUR / 2n;
+      batchOpenedAt = 0n;
+      const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+      await deposit.update({ refundStartedAt: new Date(now - 4 * HOUR) });
+      await runStrandedBalanceMonitor(now);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("REFUND NEEDS OPERATOR");
+      expect([...errors, ...warnings].some(message => message.includes("REFUND OVERDUE"))).toBe(false);
+    });
   });
 });

@@ -177,7 +177,10 @@ export async function depositSnapshots(
               reason: deposit.refundReason as DepositRefundReason | null,
               recoverTxHash: recover?.txHash ?? null,
               redeemOrderId: recovery?.redeemOrderId ?? null,
-              refundedAt: deposit.status === MoneriumFiatDepositStatus.Refunded ? iso(recovery?.updatedAt) : null,
+              // Dated by the deposit's refunded transition, its last write (the received/returned markers
+              // are silent, the status is terminal): the orchestrator closes the recovery row after it, or
+              // a cycle later for a refund closed by hand, so that row's time would drift between snapshots.
+              refundedAt: deposit.status === MoneriumFiatDepositStatus.Refunded ? iso(deposit.updatedAt) : null,
               startedAt: iso(deposit.refundStartedAt)
             }
           : null,
@@ -240,7 +243,8 @@ async function emitReceivedEvents(): Promise<void> {
       // Marked emitted even with zero subscribers: webhooks are forward-looking, a
       // later registration must not receive the whole history. A crash between the
       // enqueue and this marker is absorbed by the outbox (webhook_id, event_id) dedup.
-      await deposit.update({ receivedEventAt: new Date() });
+      // Silent: updated_at dates a refunded deposit's refundedAt.
+      await deposit.update({ receivedEventAt: new Date() }, { silent: true });
     } catch (error) {
       // Per-deposit isolation: one failing deposit must not block its siblings.
       logger.error(`monerium-b2b: DEPOSIT_RECEIVED emission failed for deposit ${deposit.id}:`, error);
@@ -351,7 +355,8 @@ async function emitReturnedEvents(): Promise<void> {
         timestamp: new Date().toISOString()
       };
       await enqueueForManager(WebhookEventType.DEPOSIT_RETURNED, managerProfileId, payload);
-      await deposit.update({ returnedEventAt: new Date() });
+      // Silent: updated_at stays the refunded transition, which dates refundedAt.
+      await deposit.update({ returnedEventAt: new Date() }, { silent: true });
     } catch (error) {
       logger.error(`monerium-b2b: DEPOSIT_RETURNED emission failed for deposit ${deposit.id}:`, error);
     }

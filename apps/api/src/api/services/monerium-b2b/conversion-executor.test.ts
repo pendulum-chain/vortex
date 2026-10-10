@@ -217,10 +217,17 @@ describe("planAction", () => {
 
   it("does nothing for a sub-minimum remainder or an empty queue", () => {
     expect(planAction([withSwaps(deposit("a", MoneriumFiatDepositStatus.Minted, 10n * EUR), [])], base)).toMatchObject({
-      kind: "none",
-      reason: expect.stringContaining("below the minimum swap")
+      kind: "none"
     });
     expect(planAction([], base)).toMatchObject({ kind: "none" });
+  });
+
+  it("never lets a deposit below the minimum hold back a younger one", () => {
+    // The contract arms no batch below MIN_SWAP_FLOOR, so the small payment may never reach
+    // `recover`: waiting for it would stall every later payment of the account.
+    const small = withSwaps(deposit("small", MoneriumFiatDepositStatus.Minted, 10n * EUR), []);
+    const young = withSwaps(deposit("young", MoneriumFiatDepositStatus.Minted, 100n * EUR), []);
+    expect(planAction([small, young], base)).toMatchObject({ amountIn: 100n * EUR, deposit: young.deposit, kind: "swap" });
   });
 });
 
@@ -644,7 +651,7 @@ describe("pricePlannedSwap", () => {
     spyOn(chain, "readEnabledRoutes").mockResolvedValue(overrides.routes ?? routes);
     spyOn(chain, "readSubsidyVaultState").mockResolvedValue(vault);
     const quotes = overrides.quotes ?? { "0xaa": 1_138_400_000n, "0xbb": 1_139_000_000n };
-    spyOn(chain, "quoteRouteOutput").mockImplementation(async path => {
+    const quoteSpy = spyOn(chain, "quoteRouteOutput").mockImplementation(async (_quoter, path) => {
       const quote = quotes[path];
       if (quote instanceof Error) throw quote;
       return quote;
@@ -656,6 +663,7 @@ describe("pricePlannedSwap", () => {
     } else {
       fetchSpy.mockResolvedValue(fetched);
     }
+    return { quoteSpy };
   }
 
   const price = (maxSubsidyBps = 50) => pricePlannedSwap(FORWARDER, FACTORY, 1_000n * EUR, maxSubsidyBps);
@@ -688,9 +696,16 @@ describe("pricePlannedSwap", () => {
     expect(await price()).toEqual({ code: "no_route", kind: "defer", reason: "the factory has no enabled swap route" });
   });
 
-  it("uses the first enabled route unprojected off mainnet, still carrying the tier cap", async () => {
-    arrange({ chainId: 11_155_111 });
+  it("quotes on the Sepolia QuoterV2 and defers on its projection like mainnet", async () => {
+    const { quoteSpy } = arrange({ chainId: 11_155_111, quotes: { "0xaa": 1_130n * USDC, "0xbb": new Error("no pool") } });
+    expect(await price(100)).toMatchObject({ code: "below_floor", kind: "defer", reason: expect.stringContaining("per-swap cap") });
+    expect(quoteSpy).toHaveBeenCalledWith("0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3", "0xaa", 1_000n * EUR);
+  });
+
+  it("uses the first enabled route unquoted on a chain without a known quoter, still carrying the tier cap", async () => {
+    const { quoteSpy } = arrange({ chainId: 31_337 });
     expect(await price()).toEqual({ kind: "ready", maxSubsidyRaw: 5_700_000n, reference, routeIndex: 0 });
+    expect(quoteSpy).not.toHaveBeenCalled();
   });
 
   it("defers when no route can be quoted", async () => {
@@ -698,14 +713,15 @@ describe("pricePlannedSwap", () => {
     expect(await price()).toEqual({ code: "no_route", kind: "defer", reason: "no enabled swap route could be quoted" });
   });
 
-  it("picks the route with the highest quote", async () => {
-    arrange();
+  it("picks the route with the highest quote on the mainnet QuoterV2", async () => {
+    const { quoteSpy } = arrange();
     expect(await price()).toEqual({
       kind: "ready",
       maxSubsidyRaw: 5_700_000n, // 50 bps of the 1140 USDC reference value
       reference,
       routeIndex: 1
     });
+    expect(quoteSpy).toHaveBeenCalledWith("0x61fFE014bA17989E743c5F6cB21bF9697530B21e", "0xbb", 1_000n * EUR);
   });
 
   it("defers with the route, quote and shortfall when the projection defers", async () => {
@@ -890,16 +906,19 @@ describe("runConversionExecutor activation gate", () => {
     config.moneriumB2b.forwarderFactoryAddress = saved.factory;
   });
 
+  let reads: Record<string, unknown>;
+
   beforeEach(async () => {
     await resetTestDatabase();
     // A clone holding a deposit below the minimum swap: nothing is sent either way, so the
     // cycle exercises only the gate's partner-visible reason.
-    const reads: Record<string, unknown> = {
+    reads = {
       batchOpenedAt: 1n,
       floorPpm: 1_500,
       latestRoundData: [1n, 0n, 0n, 0n, 1n], // Chainlink down: a planned swap defers before sending anything
       MIN_SWAP_FLOOR: 1n,
       minSwapAmount: 25n * EUR,
+      pendingFeePolicyEffectiveAt: 0n,
       perSwapCap: 10_000n * EUR,
       subsidyVault: "0x0000000000000000000000000000000000000000",
       targetPpm: 1_250
@@ -965,13 +984,15 @@ describe("runConversionExecutor activation gate", () => {
     await runConversionExecutor(accountId);
     await deposit.reload();
     expect(deposit.waitingReason).toBe("account_not_active");
-    expect(deposit.waitingSince).toBeInstanceOf(Date);
+    const activationWait = deposit.waitingSince;
+    expect(activationWait).toBeInstanceOf(Date);
 
     await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
     await runConversionExecutor(accountId);
     await deposit.reload();
-    expect(deposit.waitingReason).toBeNull();
-    expect(deposit.waitingSince).toBeNull();
+    // The activation wait is over; what holds this small deposit now is the minimum swap.
+    expect(deposit.waitingReason).toBe("below_minimum");
+    expect(deposit.waitingSince?.getTime()).not.toBe(activationWait?.getTime());
   });
 
   it("clears the reason on every queued deposit once the account converts, not only the next one", async () => {
@@ -988,6 +1009,52 @@ describe("runConversionExecutor activation gate", () => {
     expect((await queued.reload()).waitingReason).toBeNull();
   });
 
+  it("tells the partner a payment below the minimum swap waits, and converts the next payment meanwhile", async () => {
+    const { accountId, deposits } = await accountWithDeposit(null, [10n, 100n]);
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+
+    await runConversionExecutor(accountId);
+    const [small, next] = deposits;
+    await small.reload();
+    expect(small.waitingReason).toBe("below_minimum");
+    expect(small.waitingSince).toBeInstanceOf(Date);
+    // The later payment is priced (and defers only because Chainlink is down here).
+    expect((await next.reload()).waitingReason).toBe("oracle_unavailable");
+  });
+
+  it("clears below_minimum on a queued deposit once the guardian lowers the minimum swap", async () => {
+    const { accountId, deposits } = await accountWithDeposit(null, [100n, 10n]);
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    const [older, small] = deposits;
+
+    await runConversionExecutor(accountId);
+    expect((await small.reload()).waitingReason).toBe("below_minimum");
+
+    reads.minSwapAmount = 5n * EUR;
+    await runConversionExecutor(accountId);
+    // The older deposit is still the one planned; the small one no longer waits for the refund path.
+    expect((await older.reload()).waitingReason).toBe("oracle_unavailable");
+    await small.reload();
+    expect(small.waitingReason).toBeNull();
+    expect(small.waitingSince).toBeNull();
+  });
+
+  it("starts a fresh wait when a deposit cleared from below_minimum defers in the same cycle", async () => {
+    const { accountId, deposit } = await accountWithDeposit(null, [10n]);
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    await runConversionExecutor(accountId);
+    expect((await deposit.reload()).waitingReason).toBe("below_minimum");
+    const belowMinimumSince = new Date(Date.now() - 60 * 60_000);
+    await MoneriumFiatDeposit.update({ waitingSince: belowMinimumSince }, { where: { id: deposit.id } });
+
+    reads.minSwapAmount = 5n * EUR;
+    await runConversionExecutor(accountId);
+    await deposit.reload();
+    expect(deposit.waitingReason).toBe("oracle_unavailable");
+    expect(deposit.waitingSince).toBeInstanceOf(Date);
+    expect(deposit.waitingSince?.getTime()).toBeGreaterThan(belowMinimumSince.getTime());
+  });
+
   it("replaces an earlier hold reason and keeps when the wait started", async () => {
     const { accountId, deposit, since } = await accountWithDeposit("oracle_unavailable");
     await MoneriumAccount.update({ status: MoneriumAccountStatus.Suspended }, { where: { id: accountId } });
@@ -996,6 +1063,273 @@ describe("runConversionExecutor activation gate", () => {
     await deposit.reload();
     expect(deposit.waitingReason).toBe("account_not_active");
     expect(deposit.waitingSince?.getTime()).toBe(since.getTime());
+  });
+});
+
+// The batch marker starts the RECOVERY_DELAY clock, so a cycle that sends no swap must
+// still arm it: otherwise a deposit whose every attempt fails waits a whole extra delay
+// for its refund.
+describe("runConversionExecutor batch marker", () => {
+  const FACTORY = "0x2222222222222222222222222222222222222222" as Address;
+  const EURE = "0x4444444444444444444444444444444444444444" as Address;
+  const saved = { factory: config.moneriumB2b.forwarderFactoryAddress, rpcUrl: config.moneriumB2b.rpcUrl };
+
+  beforeAll(async () => {
+    config.moneriumB2b.rpcUrl = undefined; // provisioning skips the on-chain clone check
+    config.moneriumB2b.forwarderFactoryAddress = FACTORY;
+    await setupTestDatabase();
+  });
+
+  afterAll(() => {
+    config.moneriumB2b.rpcUrl = saved.rpcUrl;
+    config.moneriumB2b.forwarderFactoryAddress = saved.factory;
+  });
+
+  beforeEach(() => resetTestDatabase());
+  afterEach(() => mock.restore());
+
+  /** A funded clone with a ready-priced 100 EURe swap; returns every keeper write as `fn:nonce`. */
+  function arrange(options: { batchOpenedAt: bigint; failPokeWrite?: boolean; swapReverts?: boolean }) {
+    const writes: string[] = [];
+    const reads: Record<string, unknown> = {
+      batchOpenedAt: options.batchOpenedAt,
+      floorPpm: 1_500,
+      latestRoundData: [1n, 114_000_000n, 0n, 0n, 1n],
+      MIN_SWAP_FLOOR: 1n,
+      minSwapAmount: 25n * EUR,
+      pendingFeePolicyEffectiveAt: 0n,
+      perSwapCap: 10_000n * EUR,
+      subsidyVault: "0x0000000000000000000000000000000000000000",
+      targetPpm: 1_250
+    };
+    spyOn(chain, "getForwarderImmutables").mockResolvedValue({
+      eure: EURE,
+      factory: FACTORY,
+      maxReferenceDeviationBps: 100,
+      oracle: "0x5555555555555555555555555555555555555555",
+      oracleDecimals: 8,
+      recoveryDelaySeconds: 7_200,
+      usdc: "0x6666666666666666666666666666666666666666"
+    } as unknown as chain.ForwarderImmutables);
+    spyOn(chain, "getChainId").mockResolvedValue(31_337); // no pinned quoter: the swap prices ready unprojected
+    spyOn(chain, "readEnabledRoutes").mockResolvedValue([{ index: 0, path: "0xaa" as Hex }]);
+    spyOn(referenceRate, "fetchCoinbaseReference").mockResolvedValue({
+      price: "1.14000000",
+      rateRaw: 114_000_000n,
+      source: "test",
+      time: new Date(0)
+    });
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      getBlockNumber: async () => 100n,
+      getTransactionCount: async () => 7,
+      readContract: async ({ address, functionName }: { address: Address; functionName: string }) =>
+        functionName === "balanceOf" ? (address === EURE ? 100n * EUR : 0n) : reads[functionName],
+      simulateContract: async ({ functionName }: { functionName: string }) => {
+        if (functionName === "swap" && options.swapReverts) throw new Error("execution reverted");
+        return {};
+      },
+      waitForTransactionReceipt: async () => {
+        throw new Error("receipt timeout");
+      }
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+    spyOn(chain, "getKeeperWalletClient").mockReturnValue({
+      account: { address: "0x9999999999999999999999999999999999999999" },
+      writeContract: async ({ functionName, nonce }: { functionName: string; nonce?: number }) => {
+        writes.push(`${functionName}:${nonce ?? "auto"}`);
+        if (functionName === "poke" && options.failPokeWrite) throw new Error("poke rejected");
+        return `0x${writes.length.toString(16).padStart(64, "0")}`;
+      }
+    } as unknown as ReturnType<typeof chain.getKeeperWalletClient>);
+    return writes;
+  }
+
+  async function activeAccountWithDeposit() {
+    const manager = await createTestUser();
+    await ManagedProfileManager.create({
+      allowedCorridors: ["EU"],
+      allowedCustomerTypes: ["business"],
+      isActive: true,
+      profileId: manager.id
+    });
+    const { accountId } = await provisionMoneriumB2bAccount({
+      contactEmail: "ops@client.example.com",
+      destination: "0x5555555555555555555555555555555555555555",
+      externalSubjectId: "client-1",
+      forwarderAddress: "0x1111111111111111111111111111111111111111",
+      managerProfileId: manager.id,
+      moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
+    });
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId,
+      amountRaw: (100n * EUR).toString(),
+      blockNumber: 100,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      mintedAt: new Date(),
+      moneriumOrderId: "order-1",
+      payerIban: "DE89370400440532013000",
+      payerName: "Payer GmbH",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xorder1"
+    });
+    return { accountId, deposit };
+  }
+
+  const executions = (accountId: string) => MoneriumConversionExecution.findAll({ where: { accountId } });
+
+  async function failedAttempt(accountId: string, depositId: string, kind = MoneriumConversionExecutionKind.Swap) {
+    await MoneriumConversionExecution.create({
+      accountId,
+      depositId,
+      destination: "0x5555555555555555555555555555555555555555",
+      eureInRaw: (100n * EUR).toString(),
+      error: "attempt 1: execution reverted",
+      kind,
+      status: MoneriumConversionExecutionStatus.Failed,
+      usdcNetRaw: kind === MoneriumConversionExecutionKind.Recover ? "0" : null
+    });
+  }
+
+  /** Marks the deposit recovering on a batch armed long enough ago for `recover`. */
+  async function eligibleRecovery(depositId: string) {
+    await MoneriumFiatDeposit.update(
+      { refundStartedAt: new Date(), status: MoneriumFiatDepositStatus.Recovering },
+      { where: { id: depositId } }
+    );
+    return BigInt(Math.floor(Date.now() / 1000) - 7_200 - 120);
+  }
+
+  it("holds a swap back on failed executions of any kind", async () => {
+    const writes = arrange({ batchOpenedAt: 1n });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    await failedAttempt(accountId, deposit.id, MoneriumConversionExecutionKind.Recover);
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual([]);
+    expect(await executions(accountId)).toHaveLength(1);
+  });
+
+  it("recovers an eligible deposit on time however often its swaps failed", async () => {
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    for (let i = 0; i < 5; i++) await failedAttempt(accountId, deposit.id);
+    const writes = arrange({ batchOpenedAt: await eligibleRecovery(deposit.id) });
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["recover:7"]);
+  });
+
+  it("still backs a recover off on its own failed recovers", async () => {
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    await failedAttempt(accountId, deposit.id, MoneriumConversionExecutionKind.Recover);
+    const writes = arrange({ batchOpenedAt: await eligibleRecovery(deposit.id) });
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual([]);
+    expect(await executions(accountId)).toHaveLength(1);
+  });
+
+  it("pokes once when the swap attempt fails before sending", async () => {
+    const writes = arrange({ batchOpenedAt: 0n, swapReverts: true });
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["poke:auto"]);
+    expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Failed]);
+  });
+
+  it("pokes during the retry backoff without starting an attempt", async () => {
+    const writes = arrange({ batchOpenedAt: 0n });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    await failedAttempt(accountId, deposit.id);
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["poke:auto"]);
+    expect(await executions(accountId)).toHaveLength(1);
+  });
+
+  it("never pokes an armed batch, on a failed attempt or during backoff", async () => {
+    const writes = arrange({ batchOpenedAt: 1n, swapReverts: true });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId); // fails the attempt
+    await failedAttempt(accountId, deposit.id);
+    await runConversionExecutor(accountId); // backoff
+
+    expect(writes).toEqual([]);
+    expect(await executions(accountId)).toHaveLength(2); // no third attempt: the backoff held
+  });
+
+  it("pokes when a crashed pre-send reservation expires into a backoff", async () => {
+    const writes = arrange({ batchOpenedAt: 0n });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    await MoneriumConversionExecution.create({
+      accountId,
+      createdAt: new Date(Date.now() - 10 * 60_000),
+      depositId: deposit.id,
+      destination: "0x5555555555555555555555555555555555555555",
+      eureInRaw: (100n * EUR).toString(),
+      kind: MoneriumConversionExecutionKind.Swap,
+      status: MoneriumConversionExecutionStatus.Pending
+    });
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["poke:auto"]);
+    expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Failed]);
+  });
+
+  it("leaves the poke to another executor whose execution appears mid-cycle", async () => {
+    const writes = arrange({ batchOpenedAt: 0n });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    // Another process reserves its execution after this cycle's first pending check.
+    spyOn(referenceRate, "fetchCoinbaseReference").mockImplementation(async () => {
+      await MoneriumConversionExecution.create({
+        accountId,
+        depositId: deposit.id,
+        destination: "0x5555555555555555555555555555555555555555",
+        eureInRaw: (100n * EUR).toString(),
+        kind: MoneriumConversionExecutionKind.Swap,
+        status: MoneriumConversionExecutionStatus.Pending
+      });
+      return { price: "1.14000000", rateRaw: 114_000_000n, source: "test", time: new Date(0) };
+    });
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual([]);
+    expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Pending]);
+  });
+
+  it("does not poke again after the sequenced poke was attempted, and pokes in the next cycle's backoff", async () => {
+    const writes = arrange({ batchOpenedAt: 0n, failPokeWrite: true });
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["poke:7"]);
+    expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Failed]);
+
+    // The write may have reached the relay; the marker is re-armed one cycle later at most.
+    await runConversionExecutor(accountId);
+    expect(writes).toEqual(["poke:7", "poke:auto"]);
+    expect(await executions(accountId)).toHaveLength(1);
+  });
+
+  it("keeps the poke-then-swap sequence on a sent attempt, with no extra poke", async () => {
+    const writes = arrange({ batchOpenedAt: 0n });
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId); // the receipt wait times out: the row stays pending
+
+    expect(writes).toEqual(["poke:7", "swap:8"]);
+    expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Pending]);
   });
 });
 
@@ -1295,5 +1629,249 @@ describe("runConversionExecutor reserved-nonce re-send", () => {
     const { sent, updates } = await cycle({ latest: 7, latestInLock: 8 });
     expect(sent).toHaveLength(0);
     expect(updates).toEqual([]);
+  });
+});
+
+// P11: an announced fee increase only takes effect once someone calls the permissionless
+// applyFeePolicy() after the timelock; the keeper does so in the account's cycle.
+describe("runConversionExecutor fee-policy apply", () => {
+  const FACTORY = "0x2222222222222222222222222222222222222222" as Address;
+  const EURE = "0x4444444444444444444444444444444444444444" as Address;
+  const NOW = 1_800_000_000n;
+  const saved = { factory: config.moneriumB2b.forwarderFactoryAddress, rpcUrl: config.moneriumB2b.rpcUrl };
+  let reads: Record<string, unknown>;
+  let writes: string[];
+  let writeError: Error | null;
+  let nonces: { latest: number; pending: number };
+  let receiptTimesOut: boolean;
+  /** Keeper writes go through a private relay: the public pending nonce never sees them. */
+  let privateTransport: boolean;
+  let receiptStatus: "success" | "reverted";
+  let simulateError: Error | null;
+  /** This test's apply hashes (unique per write: the keeper remembers applies across cycles). */
+  let sentHashes: Set<string>;
+
+  beforeAll(async () => {
+    config.moneriumB2b.rpcUrl = undefined;
+    config.moneriumB2b.forwarderFactoryAddress = FACTORY;
+    await setupTestDatabase();
+  });
+
+  afterAll(() => {
+    config.moneriumB2b.rpcUrl = saved.rpcUrl;
+    config.moneriumB2b.forwarderFactoryAddress = saved.factory;
+  });
+
+  beforeEach(async () => {
+    await resetTestDatabase();
+    writes = [];
+    writeError = null;
+    nonces = { latest: 0, pending: 0 };
+    receiptTimesOut = false;
+    privateTransport = false;
+    receiptStatus = "success";
+    simulateError = null;
+    sentHashes = new Set();
+    reads = {
+      batchOpenedAt: 1n,
+      floorPpm: 1_500,
+      latestRoundData: [1n, 0n, 0n, 0n, 1n], // Chainlink down: the planned swap defers, nothing else is sent
+      MIN_SWAP_FLOOR: 1n,
+      minSwapAmount: 25n * EUR,
+      pendingFeePolicyEffectiveAt: 0n,
+      perSwapCap: 10_000n * EUR,
+      subsidyVault: "0x0000000000000000000000000000000000000000",
+      targetPpm: 1_250
+    };
+    spyOn(chain, "getForwarderImmutables").mockResolvedValue({
+      eure: EURE,
+      factory: FACTORY,
+      usdc: "0x6666666666666666666666666666666666666666",
+      recoveryDelaySeconds: 7_200
+    } as unknown as chain.ForwarderImmutables);
+    spyOn(chain, "getPublicClient").mockReturnValue({
+      getBlock: async () => ({ timestamp: NOW }),
+      getTransactionCount: async ({ blockTag }: { blockTag: "latest" | "pending" }) => nonces[blockTag],
+      readContract: async ({ address, functionName }: { address: Address; functionName: string }) => {
+        if (functionName === "targetPpm") writes.push("read targetPpm");
+        return functionName === "balanceOf" ? (address === EURE ? 100n * EUR : 0n) : reads[functionName];
+      },
+      getTransactionReceipt: async ({ hash }: { hash: Hex }) => {
+        if (receiptTimesOut && sentHashes.has(hash)) throw new TransactionReceiptNotFoundError({ hash });
+        return { status: receiptStatus };
+      },
+      simulateContract: async () => {
+        if (simulateError) throw simulateError;
+        return {};
+      },
+      waitForTransactionReceipt: async () => {
+        if (receiptTimesOut) throw new Error("WaitForTransactionReceiptTimeoutError");
+        nonces.latest = nonces.pending;
+        return { status: receiptStatus };
+      }
+    } as unknown as ReturnType<typeof chain.getPublicClient>);
+    spyOn(chain, "getKeeperWalletClient").mockReturnValue({
+      account: { address: "0x9999999999999999999999999999999999999999" },
+      writeContract: async ({ functionName }: { functionName: string }) => {
+        if (writeError) throw writeError;
+        writes.push(functionName);
+        if (!privateTransport) nonces.pending += 1;
+        const hash = `0x${crypto.randomUUID().replaceAll("-", "")}${"0".repeat(32)}`;
+        sentHashes.add(hash);
+        return hash;
+      }
+    } as unknown as ReturnType<typeof chain.getKeeperWalletClient>);
+  });
+
+  afterEach(() => mock.restore());
+
+  async function activeAccountWithDeposit() {
+    const manager = await createTestUser();
+    await ManagedProfileManager.create({
+      allowedCorridors: ["EU"],
+      allowedCustomerTypes: ["business"],
+      isActive: true,
+      profileId: manager.id
+    });
+    const { accountId } = await provisionMoneriumB2bAccount({
+      contactEmail: "ops@client.example.com",
+      destination: "0x5555555555555555555555555555555555555555",
+      externalSubjectId: "client-1",
+      forwarderAddress: "0x1111111111111111111111111111111111111111",
+      managerProfileId: manager.id,
+      moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
+    });
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId,
+      amountRaw: (100n * EUR).toString(),
+      blockNumber: 100,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      mintedAt: new Date(),
+      moneriumOrderId: "order-1",
+      payerIban: "DE89370400440532013000",
+      payerName: "Payer GmbH",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xorder1"
+    });
+    return { accountId, deposit };
+  }
+
+  it("applies a due increase once, before the cycle prices its swap", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW;
+    const { accountId, deposit } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["applyFeePolicy", "read targetPpm"]);
+    expect((await deposit.reload()).waitingReason).toBe("oracle_unavailable"); // the cycle went on
+  });
+
+  it("does not re-send while an earlier apply is still unmined", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW;
+    receiptTimesOut = true;
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId); // sent, receipt wait times out
+    await runConversionExecutor(accountId); // still looks pending on chain
+
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual(["applyFeePolicy"]);
+  });
+
+  it("does not re-send an unmined apply the public pool cannot see (private transport) until the relay bound", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW - 60n;
+    receiptTimesOut = true;
+    privateTransport = true;
+    const info = spyOn(logger, "info");
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId); // sent, receipt wait times out
+    await runConversionExecutor(accountId); // public latest == pending: only the remembered apply holds it
+    await runConversionExecutor(accountId);
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual(["applyFeePolicy"]);
+    const skips = info.mock.calls.filter(([message]) => String(message).includes("still unmined"));
+    expect(skips).toHaveLength(1); // logged once, not every cycle
+    expect(String(skips[0][0])).toContain("is due for 60s but not sent");
+
+    const later = Date.now() + 16 * 60_000;
+    spyOn(Date, "now").mockReturnValue(later);
+    await runConversionExecutor(accountId); // past the bound: the relay dropped it, send again
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual(["applyFeePolicy", "applyFeePolicy"]);
+  });
+
+  it("does not apply while any keeper transaction is unmined in the public pool, and says so once", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW;
+    nonces = { latest: 3, pending: 4 }; // e.g. another account's swap
+    const info = spyOn(logger, "info");
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+    await runConversionExecutor(accountId);
+
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual([]);
+    expect(info.mock.calls.filter(([message]) => String(message).includes("of any account"))).toHaveLength(1);
+  });
+
+  it("sends nothing and carries on when the apply's simulation reverts", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW;
+    simulateError = new Error("NoPendingFeePolicy()");
+    const warn = spyOn(logger, "warn");
+    const { accountId, deposit } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["read targetPpm"]);
+    expect(warn.mock.calls.some(([message]) => String(message).includes("NoPendingFeePolicy"))).toBe(true);
+    expect((await deposit.reload()).waitingReason).toBe("oracle_unavailable");
+  });
+
+  it("logs a mined but reverted apply as failed, never as applied", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW;
+    receiptStatus = "reverted";
+    const info = spyOn(logger, "info");
+    const warn = spyOn(logger, "warn");
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual(["applyFeePolicy"]);
+    expect(warn.mock.calls.some(([message]) => /applyFeePolicy .* failed: transaction 0x[0-9a-f]+ reverted/.test(String(message)))).toBe(true);
+    expect(info.mock.calls.some(([message]) => String(message).includes("applied the pending fee policy"))).toBe(false);
+  });
+
+  it("sends nothing while no increase is pending or its timelock still runs", async () => {
+    const { accountId } = await activeAccountWithDeposit();
+    await runConversionExecutor(accountId);
+    reads.pendingFeePolicyEffectiveAt = NOW + 1n;
+    await runConversionExecutor(accountId);
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual([]);
+  });
+
+  it("carries on with the cycle when the pending fee policy cannot be read", async () => {
+    Object.defineProperty(reads, "pendingFeePolicyEffectiveAt", {
+      get: () => Promise.reject(new Error("execution reverted"))
+    });
+    const warn = spyOn(logger, "warn");
+    const { accountId, deposit } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(warn.mock.calls.some(([message]) => String(message).includes("applyFeePolicy"))).toBe(true);
+    expect(writes).toEqual(["read targetPpm"]); // the swap was still planned and priced
+    expect((await deposit.reload()).waitingReason).toBe("oracle_unavailable");
+  });
+
+  it("logs a reverted apply and carries on with the cycle", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW - 60n;
+    writeError = new Error("NoPendingFeePolicy()");
+    const warn = spyOn(logger, "warn");
+    const { accountId, deposit } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(warn.mock.calls.some(([message]) => String(message).includes("applyFeePolicy"))).toBe(true);
+    expect((await deposit.reload()).waitingReason).toBe("oracle_unavailable");
   });
 });

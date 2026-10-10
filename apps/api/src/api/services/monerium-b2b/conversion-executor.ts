@@ -30,6 +30,7 @@ import {
   getKeeperWalletClient,
   getPublicClient,
   quoteRouteOutput,
+  quoterV2ForChainId,
   readEnabledRoutes,
   readSubsidyVaultState,
   recoveredEvent,
@@ -51,7 +52,8 @@ import { fetchCoinbaseReference, isWithinReferenceBand, ReferenceQuote } from ".
  *     to the client's destination in one transfer;
  *   - `recover(eure, usdc)`: a deposit marked `recovering` is moved to the recovery
  *     wallet once the clone's batch has been open for RECOVERY_DELAY.
- * One transaction per account per cycle; a pending row of any kind blocks the next.
+ * At most one value-moving transaction per account per cycle, plus the permissionless
+ * `poke` and `applyFeePolicy`; a pending row of any kind holds the account's cycle until it resolves.
  *
  * Serialization: every database mutation runs inside the per-forwarder advisory lock
  * (withForwarderLock). The chain send/wait itself deliberately happens OUTSIDE a lock —
@@ -472,7 +474,12 @@ async function settleDeposit(
 
 // ------------------------------------------------------------------ pending resolution + backoff
 
-type PreparationResult = { kind: "proceed"; attempt: number } | { kind: "skip"; reason: string };
+// "backoff" (no pending execution left, waiting out failures) is the one wait whose poke this
+// executor owes; a "skip" waits on a pending execution, whose own sequence carries the poke.
+type PreparationResult =
+  | { kind: "proceed"; attempt: number }
+  | { kind: "skip"; reason: string }
+  | { kind: "backoff"; reason: string };
 
 export type HashlessPendingClassification =
   | { kind: "fail"; reason: string }
@@ -590,7 +597,9 @@ function isReplayable(pending: MoneriumConversionExecution, account: MoneriumAcc
  * closed or dormant) is treated the same way (its call must not run), while a recover is
  * exempt from that gate: it is the refund path. When
  * the mined nonce is below the row's (a swap or forward reserves nonce+1 behind a poke that
- * was dropped), the gap is first filled with no-ops so the row's nonce can be mined. The keeper lock covers the
+ * was dropped), the gap is first filled with no-ops so the row's nonce can be mined; the
+ * re-sent swap or forward arms an unarmed marker itself, and after a no-op the next cycle
+ * pokes, so a dropped poke delays the clock by about the idle deadline. The keeper lock covers the
  * re-check and the send, so a live owner still about to send is waited for. Lock order is
  * forwarder, then keeper; the send path never takes the forwarder lock. This is the one
  * send made while the forwarder lock is held; the caller checks the grace first so a live
@@ -716,9 +725,14 @@ async function findMatchingTxHashes(
 
 /**
  * Under the forwarder lock: resolve leftover pending executions (crash/timeout
- * recovery), then decide whether a new execution may start (retry backoff).
+ * recovery), then decide whether a new execution may start (retry backoff). A planned
+ * recover backs off only on failed recovers: failed swaps must not delay the refund.
  */
-async function prepareExecutionSlot(account: MoneriumAccount, transaction: Transaction): Promise<PreparationResult> {
+async function prepareExecutionSlot(
+  account: MoneriumAccount,
+  transaction: Transaction,
+  plannedKind?: MoneriumConversionExecutionKind
+): Promise<PreparationResult> {
   const pendings = await MoneriumConversionExecution.findAll({
     order: [["created_at", "ASC"]],
     transaction,
@@ -804,6 +818,7 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
     where: {
       accountId: account.id,
       status: MoneriumConversionExecutionStatus.Failed,
+      ...(plannedKind === MoneriumConversionExecutionKind.Recover ? { kind: plannedKind } : {}),
       ...(lastConfirmed ? { createdAt: { [Op.gt]: lastConfirmed.createdAt } } : {})
     }
   });
@@ -811,7 +826,7 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
     const backoffMs = Math.min(RETRY_BASE_MS * 2 ** (failedSince.length - 1), RETRY_MAX_MS);
     const nextAttemptAt = failedSince[0].updatedAt.getTime() + backoffMs;
     if (Date.now() < nextAttemptAt) {
-      return { kind: "skip", reason: `retry backoff until ${new Date(nextAttemptAt).toISOString()}` };
+      return { kind: "backoff", reason: `retry backoff until ${new Date(nextAttemptAt).toISOString()}` };
     }
   }
   return { attempt: failedSince.length + 1, kind: "proceed" };
@@ -833,15 +848,16 @@ function deferSwap(code: DepositWaitingReason, reason: string): PlannedSwap {
   return { code, kind: "defer", reason };
 }
 
-/** Quotes every enabled route on the mainnet QuoterV2; a route that cannot be quoted is skipped with a warning. */
+/** Quotes every enabled route on the chain's QuoterV2; a route that cannot be quoted is skipped with a warning. */
 async function quoteRoutes(
+  quoter: Address,
   routes: Array<{ index: number; path: Hex }>,
   amountIn: bigint
 ): Promise<Array<{ index: number; quotedOut: bigint }>> {
   const quotes: Array<{ index: number; quotedOut: bigint }> = [];
   for (const route of routes) {
     try {
-      quotes.push({ index: route.index, quotedOut: await quoteRouteOutput(route.path, amountIn) });
+      quotes.push({ index: route.index, quotedOut: await quoteRouteOutput(quoter, route.path, amountIn) });
     } catch (error) {
       logger.warn(`monerium-b2b: route ${route.index} could not be quoted: ${errorText(error)}`);
     }
@@ -853,8 +869,8 @@ async function quoteRoutes(
  * Reference, route, tier cap and projection for a swap of `amountIn`
  * (docs/architecture-monerium-b2b-onramp.md, fees section). `maxSubsidyBps` is the
  * keeper's tier for the chunk's waiting time; the cap it yields is passed into the swap
- * and binds on chain. Outside Ethereum mainnet there is no quoter pin: the first enabled
- * route is used unprojected and the contract's own checks remain the only gate.
+ * and binds on chain. On a chain without a pinned QuoterV2 (quoterV2ForChainId) the first
+ * enabled route is used unprojected and the contract's own checks remain the only gate.
  */
 export async function pricePlannedSwap(
   forwarder: Address,
@@ -895,10 +911,11 @@ export async function pricePlannedSwap(
   if (routes.length === 0) {
     return deferSwap("no_route", "the factory has no enabled swap route");
   }
-  if ((await getChainId()) !== 1) {
+  const quoter = quoterV2ForChainId(await getChainId());
+  if (!quoter) {
     return { kind: "ready", maxSubsidyRaw, reference, routeIndex: routes[0].index };
   }
-  const quotes = await quoteRoutes(routes, amountIn);
+  const quotes = await quoteRoutes(quoter, routes, amountIn);
   if (quotes.length === 0) {
     return deferSwap("no_route", "no enabled swap route could be quoted");
   }
@@ -952,6 +969,7 @@ export function canConvert(account: Pick<MoneriumAccount, "dormantSince" | "stat
 }
 
 const NOT_ACTIVE: DepositWaitingReason = "account_not_active";
+const BELOW_MINIMUM: DepositWaitingReason = "below_minimum";
 
 /**
  * Partner-visible hold reason for deposits the activation gate holds (canConvert): set
@@ -995,7 +1013,8 @@ export interface ActionPlanningInput {
  * the clone's batch has been open for RECOVERY_DELAY and no other refund of this account is
  * in flight (a refund wallet takes one payment at a time); else it waits without blocking
  * younger deposits. Then the oldest convertible deposit is forwarded when all of its
- * EURe is converted, or swapped in its next chunk.
+ * EURe is converted, or swapped in its next chunk; one whose remainder is below the minimum
+ * swap is passed over.
  */
 export function planAction(
   deposits: Array<{ deposit: MoneriumFiatDeposit; state: DepositSettlementState }>,
@@ -1020,35 +1039,33 @@ export function planAction(
   if (!input.convertible) {
     return { kind: "none", reason: "account is not convertible" };
   }
-  const next = deposits.find(({ deposit }) => deposit.status !== MoneriumFiatDepositStatus.Recovering);
-  if (!next) {
-    return { kind: "none", reason: "no settling deposit" };
-  }
-  if (next.state.remainingEureRaw === 0n) {
-    if (next.state.usdcNetRaw === 0n) {
-      return { kind: "none", reason: `deposit ${next.deposit.id} has nothing to forward` };
+  for (const { deposit, state } of deposits) {
+    if (deposit.status === MoneriumFiatDepositStatus.Recovering) continue;
+    if (state.remainingEureRaw === 0n) {
+      if (state.usdcNetRaw === 0n) {
+        return { kind: "none", reason: `deposit ${deposit.id} has nothing to forward` };
+      }
+      return { deposit, kind: "forward", usdcRaw: state.usdcNetRaw };
     }
-    return { deposit: next.deposit, kind: "forward", usdcRaw: next.state.usdcNetRaw };
-  }
-  const amountIn = planChunk(next.state.remainingEureRaw, input.minSwapAmount, input.perSwapCap);
-  if (amountIn === null) {
+    const amountIn = planChunk(state.remainingEureRaw, input.minSwapAmount, input.perSwapCap);
+    // Below the minimum swap: it waits for the refund path and holds back no younger deposit
+    // (below MIN_SWAP_FLOOR the contract may never let the keeper recover it).
+    if (amountIn === null) continue;
     return {
-      kind: "none",
-      reason: `deposit ${next.deposit.id} has ${next.state.remainingEureRaw} raw EURe left, below the minimum swap`
+      amountIn,
+      deposit,
+      elapsedSeconds: chunkElapsedSeconds(deposit, state.lastSwapAt, input.nowMs),
+      kind: "swap"
     };
   }
-  return {
-    amountIn,
-    deposit: next.deposit,
-    elapsedSeconds: chunkElapsedSeconds(next.deposit, next.state.lastSwapAt, input.nowMs),
-    kind: "swap"
-  };
+  return { kind: "none", reason: "no deposit to convert" };
 }
 
 // ------------------------------------------------------------------ executor
 
 /**
- * Runs one keeper cycle for an account: at most one transaction. Safe to call for
+ * Runs one keeper cycle for an account: at most one value-moving transaction (plus the
+ * permissionless poke and applyFeePolicy). Safe to call for
  * accounts with nothing to do (cheap chain reads, then returns).
  */
 export async function runConversionExecutor(accountId: string): Promise<void> {
@@ -1066,6 +1083,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
     const recovery = await withForwarderLock(account.forwarderAddress, transaction =>
       prepareExecutionSlot(account, transaction)
     );
+    // A backoff falls through: the slot check below pokes for it.
     if (recovery.kind === "skip") {
       logger.info(`monerium-b2b: skipping conversion for account ${account.id}: ${recovery.reason}`);
       return;
@@ -1096,6 +1114,9 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
     client.readContract({ abi: factoryAbi, address: factory, functionName: "perSwapCap" })
   ]);
 
+  // Before pricing, so a swap this cycle is projected under the policy it will settle at.
+  await applyDueFeePolicy(forwarder);
+
   // Arm the batch marker whenever funds are present, even below the (guardian-tunable)
   // minSwapAmount: the recovery and trigger clocks must run regardless of whether a swap
   // is currently possible.
@@ -1121,6 +1142,38 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
       });
       if (recovered > 0) continue;
       withState.push({ deposit, state });
+    }
+    // Partner-visible: what planAction passes over below the minimum swap (never shadowing NOT_ACTIVE).
+    const belowMinimum = withState
+      .filter(
+        ({ deposit, state }) =>
+          convertible &&
+          deposit.status !== MoneriumFiatDepositStatus.Recovering &&
+          deposit.waitingReason !== BELOW_MINIMUM &&
+          state.remainingEureRaw > 0n &&
+          state.remainingEureRaw < minSwapAmount
+      )
+      .map(({ deposit }) => deposit.id);
+    if (belowMinimum.length > 0) {
+      await MoneriumFiatDeposit.update(
+        {
+          waitingReason: BELOW_MINIMUM,
+          waitingSince: sequelize.fn("COALESCE", sequelize.col("waiting_since"), sequelize.fn("NOW"))
+        },
+        { transaction, where: { id: { [Op.in]: belowMinimum } } }
+      );
+    }
+    // A lowered minimum ends that wait even for a deposit queued behind the one planned.
+    const nowAboveMinimum = withState
+      .filter(({ deposit, state }) => deposit.waitingReason === BELOW_MINIMUM && state.remainingEureRaw >= minSwapAmount)
+      .map(({ deposit }) => deposit);
+    if (nowAboveMinimum.length > 0) {
+      await MoneriumFiatDeposit.update(
+        { waitingReason: null, waitingSince: null },
+        { transaction, where: { id: { [Op.in]: nowAboveMinimum.map(deposit => deposit.id) } } }
+      );
+      // In step with the row, so a deferral below starts a fresh wait instead of writing back the old start.
+      for (const deposit of nowAboveMinimum) deposit.set({ waitingReason: null, waitingSince: null });
     }
     return planAction(withState, {
       batchOpenedAtSec: batchOpenedAt,
@@ -1172,8 +1225,8 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   // Pending-check and execution-row create under ONE lock acquisition: split across two
   // transactions, two concurrent executors could both pass the check and both broadcast.
   const slot = await withForwarderLock(account.forwarderAddress, async transaction => {
-    const preparation = await prepareExecutionSlot(account, transaction);
-    if (preparation.kind === "skip") {
+    const preparation = await prepareExecutionSlot(account, transaction, call.kind);
+    if (preparation.kind !== "proceed") {
       return preparation;
     }
     // Execution-before-send record: committed before any broadcast so a crash leaves an
@@ -1203,11 +1256,18 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
     }
     return { attempt: preparation.attempt, execution, kind: "proceed" as const };
   });
-  if (slot.kind === "skip") {
+  if (slot.kind !== "proceed") {
     logger.info(`monerium-b2b: skipping conversion for account ${account.id}: ${slot.reason}`);
+    if (slot.kind === "backoff" && pokeNeeded) {
+      await sendPoke(forwarder);
+    }
     return;
   }
   const { attempt, execution } = slot;
+  // Cleared once the sequenced poke is attempted: a poke write that throws may still have
+  // reached the relay, and the failed row's backoff pokes an unarmed marker on the next
+  // cycle anyway, so a compensating poke here would buy one cycle for a possible duplicate.
+  let pokeOutstanding = pokeNeeded;
 
   try {
     const keeper = getKeeperWalletClient();
@@ -1246,6 +1306,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
         },
         send: nonce => writeCall(keeper, forwarder, call.request, nonce),
         sendPoke: async nonce => {
+          pokeOutstanding = false;
           await keeper.writeContract({
             abi: forwarderAbi,
             account: keeper.account,
@@ -1284,6 +1345,10 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
       status: MoneriumConversionExecutionStatus.Failed
     });
     logger.error(`monerium-b2b: ${call.kind} for account ${account.id} failed (attempt ${attempt}):`, error);
+    // Nothing was sent: still arm the marker, or the recovery clock waits for the next cycle.
+    if (pokeOutstanding) {
+      await sendPoke(forwarder);
+    }
   }
 }
 
@@ -1365,7 +1430,7 @@ function executionCall(
   }
 }
 
-/** Standalone batch-marker poke for funds the keeper cannot act on yet. */
+/** Standalone batch-marker poke for funds the keeper does not act on this cycle. */
 async function sendPoke(forwarder: Address): Promise<void> {
   try {
     const client = getPublicClient();
@@ -1386,6 +1451,96 @@ async function sendPoke(forwarder: Address): Promise<void> {
     // Best-effort: poke is also permissionless on-chain, so a missed poke only delays
     // the batch clocks until the next cycle.
     logger.warn(`monerium-b2b: poke for forwarder ${forwarder} failed: ${errorText(error)}`);
+  }
+}
+
+/**
+ * How long an unmined applyFeePolicy is left alone before it is sent again: longer than a
+ * private relay keeps a transaction. A dropped apply only delays a fee increase, which never
+ * costs the client.
+ */
+const FEE_APPLY_RESEND_AFTER_MS = 15 * 60_000;
+
+/** The last applyFeePolicy sent per forwarder (lower-cased address). */
+// ponytail: in-process memory; a restart, or another keeper process on the same database, does not
+// know an unmined apply and may send it once more (the duplicate reverts NoPendingFeePolicy or is
+// dropped). Persist it if that ever costs more than gas.
+const sentFeeApplies = new Map<string, { hash: Hex; sentAtMs: number }>();
+/** The skip reason last logged per forwarder, so a skip is logged once, not every cycle. */
+const loggedFeeApplySkips = new Map<string, string>();
+
+/**
+ * P11: finalizes a guardian fee increase whose timelock has elapsed (`applyFeePolicy` is
+ * permissionless; nothing else would ever apply it). Waits for the receipt so the cycle
+ * then reads the applied policy. A timed-out apply is not re-sent every cycle: the forwarder's
+ * last apply is remembered and nothing is sent while it has no receipt and is younger than
+ * FEE_APPLY_RESEND_AFTER_MS (keeper writes go through the private transport on mainnet, which
+ * the public nonce counts never show), nor while the public pool holds any keeper transaction,
+ * of any account. A skip is logged once per reason. Best-effort like sendPoke: a failed read, a
+ * revert (applied by someone else, clock skew) or a timeout is logged and the cycle goes on,
+ * since the contract always settles under its current on-chain policy. The monitor's config
+ * reconciliation mirrors the applied values into the account row.
+ */
+async function applyDueFeePolicy(forwarder: Address): Promise<void> {
+  const key = forwarder.toLowerCase();
+  try {
+    const client = getPublicClient();
+    // Read here, not with the cycle's state: a failed read must not stop the cycle's recover or poke.
+    const effectiveAt = await client.readContract({
+      abi: forwarderAbi,
+      address: forwarder,
+      functionName: "pendingFeePolicyEffectiveAt"
+    });
+    if (effectiveAt === 0n) {
+      loggedFeeApplySkips.delete(key);
+      return;
+    }
+    const { timestamp } = await client.getBlock();
+    if (timestamp < effectiveAt) return;
+    const skip = (reason: string) => {
+      if (loggedFeeApplySkips.get(key) === reason) return;
+      loggedFeeApplySkips.set(key, reason);
+      logger.info(
+        `monerium-b2b: applyFeePolicy on forwarder ${forwarder} is due for ${timestamp - effectiveAt}s but not sent: ${reason}`
+      );
+    };
+    const earlier = sentFeeApplies.get(key);
+    if (earlier && Date.now() - earlier.sentAtMs < FEE_APPLY_RESEND_AFTER_MS) {
+      const mined = await client.getTransactionReceipt({ hash: earlier.hash }).then(
+        () => true,
+        (error: unknown) => {
+          if (error instanceof TransactionReceiptNotFoundError) return false;
+          throw error;
+        }
+      );
+      if (!mined) {
+        skip(`its earlier apply ${earlier.hash} is still unmined`);
+        return;
+      }
+    }
+    const keeper = getKeeperWalletClient();
+    const call = { abi: forwarderAbi, account: keeper.account, address: forwarder, functionName: "applyFeePolicy" } as const;
+    await client.simulateContract(call);
+    const hash = await withKeeperSendLock(async () => {
+      const [latest, pending] = await Promise.all([
+        client.getTransactionCount({ address: keeper.account.address, blockTag: "latest" }),
+        client.getTransactionCount({ address: keeper.account.address, blockTag: "pending" })
+      ]);
+      // Any keeper send still unmined in the public pool: an apply now would only stack behind it.
+      if (pending !== latest) return null;
+      return keeper.writeContract({ ...call, chain: null });
+    });
+    if (hash === null) {
+      skip("a keeper transaction (of any account) is still unmined in the public pool");
+      return;
+    }
+    sentFeeApplies.set(key, { hash, sentAtMs: Date.now() });
+    loggedFeeApplySkips.delete(key);
+    const receipt = await client.waitForTransactionReceipt({ hash, timeout: RECEIPT_TIMEOUT_MS });
+    if (receipt.status !== "success") throw new Error(`transaction ${hash} reverted`);
+    logger.info(`monerium-b2b: applied the pending fee policy on forwarder ${forwarder} (${hash})`);
+  } catch (error) {
+    logger.warn(`monerium-b2b: applyFeePolicy on forwarder ${forwarder} failed: ${errorText(error)}`);
   }
 }
 

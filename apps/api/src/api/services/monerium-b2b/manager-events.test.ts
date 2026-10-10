@@ -17,6 +17,7 @@ import { provisionMoneriumB2bAccount } from "./account-provisioning";
 import { NOTIFY_CONFIRMATION_DEPTH } from "./chain";
 import { markDepositForRecovery } from "./conversion-executor";
 import { emitMoneriumDepositEvents, maskIban } from "./manager-events";
+import { runRecoveryOrchestrator, setDepositStatus } from "./recovery";
 
 const FORWARDER = "0x1111111111111111111111111111111111111111";
 const DESTINATION = "0x2222222222222222222222222222222222222222";
@@ -333,6 +334,89 @@ describe("monerium b2b manager events", () => {
     await deposit.reload();
     expect(deposit.returnedEventAt).not.toBeNull();
     expect(maskIban("EE08 7224 5745 6244 9516")).toBe("EE08…9516");
+  });
+
+  it("reports a refund closed by hand as refunded at its refunded transition", async () => {
+    const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_RETURNED, WebhookEventType.DEPOSIT_UPDATED]);
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "500000000000000000",
+      blockNumber: 999,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      moneriumOrderId: "order-1",
+      payerIban: "DE89370400440532013000",
+      receivedEventAt: new Date(),
+      refundReason: "window_missed",
+      refundStartedAt: new Date(),
+      status: MoneriumFiatDepositStatus.Recovering,
+      txHash: "0xmint"
+    });
+    // The admin PATCH path: no recover execution, no MoneriumRecovery row.
+    expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded)).toBeNull();
+    await deposit.reload();
+    const refundedAt = deposit.updatedAt.toISOString();
+    await new Promise(resolve => setTimeout(resolve, 5));
+
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    const updates = (await WebhookDelivery.findAll())
+      .map(delivery => delivery.payload as unknown as { eventType: string; payload: Record<string, unknown> })
+      .filter(payload => payload.eventType === WebhookEventType.DEPOSIT_UPDATED);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].payload).toMatchObject({
+      refund: { recoverTxHash: null, redeemOrderId: null, refundedAt },
+      status: "refunded"
+    });
+  });
+
+  it("dates a failed refund closed by hand at its refunded transition, not at the failure or the row's close", async () => {
+    const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_RETURNED, WebhookEventType.DEPOSIT_UPDATED]);
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "500000000000000000",
+      blockNumber: 999,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      moneriumOrderId: "order-1",
+      payerIban: "DE89370400440532013000",
+      receivedEventAt: new Date(),
+      refundReason: "window_missed",
+      refundStartedAt: new Date(),
+      status: MoneriumFiatDepositStatus.RecoveryFailed,
+      txHash: "0xmint"
+    });
+    // The orchestrator parked the refund at topping_up: the row's last write is the failure.
+    const recovery = await MoneriumRecovery.create({
+      depositId: deposit.id,
+      error: "float top-up reverted",
+      eureRecoveredRaw: deposit.amountRaw,
+      phase: MoneriumRecoveryPhase.ToppingUp,
+      usdcRecoveredRaw: "0"
+    });
+    await new Promise(resolve => setTimeout(resolve, 5));
+    // The operator refunds by hand and closes it through the admin PATCH (recovery_failed -> refunded).
+    expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded)).toBeNull();
+    await deposit.reload();
+    expect(deposit.updatedAt.getTime()).toBeGreaterThan(recovery.updatedAt.getTime());
+    await new Promise(resolve => setTimeout(resolve, 5));
+    // The next keeper cycle closes the parked row before the events run.
+    await runRecoveryOrchestrator(() => Promise.reject(new Error("a refunded head never needs deps")));
+    await recovery.reload();
+    expect(recovery.phase).toBe(MoneriumRecoveryPhase.Redeemed);
+    expect(recovery.updatedAt.getTime()).toBeGreaterThan(deposit.updatedAt.getTime());
+
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    const updates = (await WebhookDelivery.findAll())
+      .map(delivery => delivery.payload as unknown as { eventType: string; payload: Record<string, unknown> })
+      .filter(payload => payload.eventType === WebhookEventType.DEPOSIT_UPDATED);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].payload).toMatchObject({
+      refund: { refundedAt: deposit.updatedAt.toISOString() },
+      status: "refunded"
+    });
   });
 
   it("only enqueues to the controlling manager's webhooks", async () => {

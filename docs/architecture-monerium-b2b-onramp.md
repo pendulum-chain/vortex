@@ -204,8 +204,16 @@ Vortex learns about a deposit through two complementary channels, which converge
 same per-forwarder advisory lock: the **webhooks** carry the provider order accounting
 (amount, order id, compliance holds), while the **mint watcher** proves the on-chain
 mint identity. Only a settled, chain-indexed mint makes an account a conversion
-candidate. A live balance by itself is deliberately insufficient: this prevents a swap
-from outrunning the watcher's reorg window and becoming impossible to attribute safely.
+candidate (an `unattr:` row, such as a refund top-up left on the clone, keeps none
+after the cycle it lands in). A live balance by itself is deliberately insufficient:
+this prevents a swap from outrunning the watcher's reorg window and becoming
+impossible to attribute safely. An account with a pending execution stays a candidate
+until the executor resolves that row, even after an operator closed its deposit.
+An orphan inflow (an `unattr:` row whose order never arrives) gets a single
+best-effort poke in the cycle its mint lands in; if that poke fails, the batch marker
+stays unarmed, the stranded-balance check never escalates, and the one-time
+"unattributed EURe mint" warning is the only signal; later cycles do not retry the
+poke, because the account is no longer a candidate.
 
 A payer can name a chain and address in the SEPA memo; when that address is linked to the
 client's profile, Monerium mints there instead of to the IBAN's default address. Besides
@@ -322,7 +330,9 @@ threw, or a private relay dropped the transaction) would block the account and i
 refund path forever, so once the row has been idle for the same five minutes and the
 nonce is not yet mined and nothing is pending at the keeper's next nonce, the keeper
 (first filling with zero-value self-transfers any gap below the row's nonce, which a
-dropped `poke()` leaves because a swap or forward reserves nonce+1 behind it)
+dropped `poke()` leaves because a swap or forward reserves nonce+1 behind it; the
+re-sent swap or forward arms an unarmed marker itself and after a no-op the next cycle
+pokes, so a dropped poke delays the recovery clock by about the five idle minutes)
 re-sends the row's exact calldata at that nonce under the keeper send lock. Whichever
 copy is mined is the expected call and the exact recovery below adopts it. If the call
 no longer executes (the gas estimate reverts; a transport error or an unfunded keeper
@@ -344,7 +354,8 @@ protective stranding marker still arms).
 ## Chunking, forwarding and the refund path
 
 The keeper serves **one deposit at a time** per account, oldest chain-indexed mint first,
-and sends at most one transaction per account per cycle:
+and sends at most one value-moving transaction per account per cycle (plus the
+permissionless `poke` and `applyFeePolicy`):
 
 - **A large deposit is chunked; the client still gets one transfer.** `swap` takes an
   explicit `amountIn`: at most `perSwapCap`, and never leaving a sub-minimum dust
@@ -361,16 +372,59 @@ and sends at most one transaction per account per cycle:
   per deposit after the forward is deep enough, with `conversions[]` per chunk and
   `forwardTxHash`.
 - **A remainder below `minSwapAmount`** (registry P6) cannot be swapped; it waits for
-  the refund path rather than merging with the next deposit.
+  the refund path (`waiting.reason` `below_minimum`) rather than merging with the next
+  deposit, and the keeper passes over it, so it holds back no younger deposit. A payment
+  below the immutable `MIN_SWAP_FLOOR` never arms the batch marker (`poke` refuses, by
+  design against dust), so `recover` cannot move it unless a larger balance keeps the
+  marker open for `RECOVERY_DELAY`; once marked `recovering` on a clone below the floor,
+  the stranded-balance monitor raises REFUND NEEDS OPERATOR with the exact top-up:
+  `MIN_SWAP_FLOOR - clone EURe + 1 wei` of EURe (one wei more when that is a whole
+  number of cents), which operations send, exactly as printed, to the clone from any
+  wallet (e.g. the float; internal B2B runbook §2.7). The clone then holds the floor,
+  `poke` arms the marker, and after `RECOVERY_DELAY` the keeper's normal
+  `recover(remaining EURe, 0)` and refund pipeline below refund the payer exactly, from
+  the payer's own EURe, with the full record (`recover` transaction, redeem order,
+  `refundedAt`); with `MONERIUM_B2B_AUTO_RECOVERY=auto` the deposit is never refunded
+  by hand. That refund pipeline runs only in `auto`; in `alert` or `off` the keeper's `recover`
+  still moves the payment to the client's refund wallet, and the alert points to the
+  manual redeem from that wallet instead. The top-up stays on the clone
+  below the floor, so `recover` switches the marker off by itself: no follow-up step. The
+  top-up is never a whole number of cents, even with an earlier top-up's odd wei on the
+  clone, so the mint watcher can never match it to a Monerium order; it is recorded as
+  an `unattr:` Minted row (one warn) that the keeper never converts. Leftover top-ups are Vortex EURe and stay below EUR 1 per clone; a
+  later sub-floor payment on that clone that reaches the floor with them arms the marker
+  and is refunded with no operator step. The top-up may also be sent early, as soon as
+  the payment shows `below_minimum`: the marker then arms at once and the refund lands at
+  about the normal deadline instead of a `RECOVERY_DELAY` after the alert. Monerium's
+  minimum redeem order is EUR 0.01, so a sub-EUR-1 refund is allowed (not yet rehearsed
+  end to end). Passing over trades ordering for liveness: a younger payment converts
+  and forwards before the older passed-over one is refunded, and every `forward`
+  resyncs the marker (`_syncBatch(true)`). A clone left below the floor with no USDC
+  switches the marker off, so the older payment needs the top-up above even where the
+  younger balance, had it been held back, would have kept the marker armed for it.
+  While the clone stays funded (a passed-over remainder at or above the floor, possible
+  only once `minSwapAmount` is raised above `MIN_SWAP_FLOOR`, or a remainder left after
+  chunk swaps, whose USDC is still on the clone), each younger `forward` re-times the
+  marker instead, so the passed-over deposit becomes recoverable only after a
+  forward-free `RECOVERY_DELAY`; the stranded-balance monitor reports it as REFUND
+  OVERDUE once it runs late.
 - **The refund path.** A deposit marked `recovering` — by an operator through the admin
   endpoint, or once automated by the missed window — is moved off the clone with
   `recover(eureRemaining, usdcConverted)`: keeper-only, explicit amounts, only to the
   clone's fixed `recoveryAddress` (the client's refund wallet), and only once the clone's `batchOpenedAt` marker is older
-  than `RECOVERY_DELAY` (2 h). The marker opens when funds first arrive, is never
+  than `RECOVERY_DELAY` (2 h). The marker opens when funds first arrive (the keeper
+  sends the permissionless `poke()` ahead of the first swap, and on its own in a cycle
+  that sends no swap: nothing to do, a deferral, a retry backoff or a failed attempt, so
+  the marker arms on time however the swaps fare; a cycle waiting on a pending execution
+  leaves the poke to that execution's own sequence), is never
   re-timed by a chunk swap, and is re-timed for whatever remains after a forward or a
   recovery, so a younger payment sharing the clone gets its own clock. The keeper
   recovers before it converts anything else, and still does so on suspended or dormant
-  accounts (`recover` ignores the guardian pause). Off the clone, `recovery.ts` drives
+  accounts (`recover` ignores the guardian pause). The account's retry backoff (1 min,
+  doubling per failure since its last confirmed execution, at most 60 min) holds a swap
+  or forward back on failures of any kind, but a planned `recover` only on failed
+  recovers, so a deposit whose every swap attempt fails is still recovered as soon as
+  its marker is old enough. Off the clone, `recovery.ts` drives
   the refund when `MONERIUM_B2B_AUTO_RECOVERY=auto` (`alert` only reports deposits past
   the window; `off` leaves everything to runbook §2.7): once the `recover` is confirmed
   a `monerium_recoveries` row walks `moved → swapping → swapped → topping_up →
@@ -431,6 +485,15 @@ contract settles every fill into three bands against that reference (decisions:
   (permissionlessly) only after the 24 h `FEE_INCREASE_TIMELOCK`, so a client whose
   SEPA transfer is already in flight cannot be swapped under a silently worse policy;
   lowering is immediate (registry P11). Swaps always use the currently applied policy.
+  Once an increase is due, the keeper sends `applyFeePolicy()` in the account's next
+  cycle, before pricing, and waits for it; a failed read of the pending policy, a revert
+  or a timeout is logged and the cycle goes on. A timed-out apply is not re-sent while it
+  has no receipt and is younger than 15 minutes (remembered per forwarder in process
+  memory, since a private relay's pending transactions are invisible to the public nonce
+  counts; a restart or another keeper process does not know it and may send one
+  duplicate, which reverts `NoPendingFeePolicy` or is dropped), and no apply is sent while the public pool holds any keeper transaction, of
+  any account; each skip reason is logged once. The executor only runs for accounts
+  with a settling deposit, so an idle clone's increase is applied before its next swap.
 - **Subsidy vault (`VortexSubsidyVault`)**: one contract shared by every clone, funded
   from the treasury. It pays only when called by a factory-registered clone, to the
   clone itself (the subsidy is forwarded with the payment), within a guardian-settable
@@ -452,8 +515,9 @@ contract settles every fill into three bands against that reference (decisions:
 - **Routes**: the factory holds a guardian-managed whitelist of packed Uniswap v3 paths,
   validated on chain to touch only EURe, EURC and USDC on the immutable router, with at
   most two hops on Uniswap's four fee tiers; entries are disabled, never removed, so
-  indices stay stable. The keeper quotes every enabled route on the mainnet QuoterV2
-  and passes the best index. A poor pick costs Vortex fee or subsidy, never the client.
+  indices stay stable. The keeper quotes every enabled route on the chain's pinned
+  QuoterV2 (Ethereum mainnet and the Sepolia sandbox; elsewhere it takes the first
+  enabled route unprojected) and passes the best index. A poor pick costs Vortex fee or subsidy, never the client.
 - **Subsidy ladder and per-swap cap.** How much of a shortfall Vortex pays depends on
   how long the chunk has waited: `MONERIUM_B2B_SUBSIDY_LADDER` maps seconds waited to a
   maximum subsidy in bps of the reference value (launch: nothing for six minutes, then
@@ -498,11 +562,31 @@ read-only — no keys, no transactions:
    whitelabel credentials can change associations at Monerium: those changes cannot be
    prevented client-side, only detected fast.
 2. **Executable-depth monitor.** QuoterV2 quotes on every enabled route vs Chainlink;
-   the best route's impact past the floor is an alert before clients feel it.
+   the best route's impact past the floor is an alert before clients feel it. It runs
+   on the Sepolia sandbox too, so a sandbox pool priced away from the Sepolia oracle logs
+   the same line every pass (and the keeper defers sandbox swaps as below the floor), but
+   off mainnet at warn level with a sandbox hint: re-centre the sandbox pool rather than
+   treating it as a production incident.
 3. **Stranded-balance monitor.** Forwarders holding EURe or USDC whose batch marker has
    been open longer than `RECOVERY_DELAY` warn (the promised window was missed: forward
    or recover) and longer than `TRIGGER_DELAY` error (the permissionless path is live —
-   a keeper-outage signal; funds are never at risk).
+   a keeper-outage signal; funds are never at risk). An unswapped deposit marked
+   `recovering` without a pending or confirmed `recover`, on a clone below
+   `MIN_SWAP_FLOOR` that still holds all the EURe the ledger places there (every
+   deposit's unswapped, unrecovered rest, a legacy hand refund's EURe and `unattr:`
+   top-ups included), raises REFUND NEEDS OPERATOR with the exact EURe top-up that lets
+   the keeper recover it (the refund path above, internal B2B runbook §2.7); a landed
+   top-up lifts the clone to the floor and quiets it. Otherwise part or all of its funds
+   may have left the clone by an unrecorded path, so it warns "reconcile before
+   refunding; do not refund and do not top up the clone". The pass skips that account
+   while any of its `recover` executions is still pending: a mined `recover` not yet
+   confirmed would make the ledger overstate the clone. A `recover` still pending an
+   hour after it was created warns RECOVER STUCK PENDING (an error after four hours), on
+   any clone, so one the keeper cannot resolve never keeps the account silent. On a clone at or above the floor
+   (or holding USDC), a `recovering` deposit with no pending or confirmed `recover` more
+   than `RECOVERY_DELAY` plus an hour after it was marked warns REFUND OVERDUE (an error past
+   `TRIGGER_DELAY`): younger forwards keep re-timing its marker, or another refund of the
+   client is stuck.
 4. **Config reconciliation.** Re-reads per-clone config and bytecode: guardian-authorized
    fee-policy changes (timelocked) are reconciled into the DB with a version bump; a
    destination change (no setter exists), bytecode or registration drift is a

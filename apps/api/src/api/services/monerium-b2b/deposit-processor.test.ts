@@ -495,6 +495,35 @@ describe("order-event inbox processing (end to end)", () => {
     expect(await MoneriumWebhookEvent.count({ where: { processedAt: null } })).toBe(0);
   });
 
+  it("leaves a refunded deposit untouched when a later delivery carries the payer", async () => {
+    const account = await createAccount();
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: account.id,
+      amountRaw: (1005n * 10n ** 17n).toString(),
+      currency: "eur",
+      moneriumOrderId: ORDER_ID,
+      status: Refunded,
+      txHash: "0xmint"
+    });
+    const refundedAt = deposit.updatedAt;
+    await MoneriumWebhookEvent.create({
+      eventId: "evt-late-payer",
+      payload: orderEvent("processed", {
+        counterpart: {
+          details: { name: "Payer GmbH" },
+          identifier: { iban: "DE89370400440532013000", standard: "iban" }
+        }
+      })
+    });
+
+    expect(await processMoneriumWebhookInbox(PROCESSOR_DEPS)).toBe(1);
+    await deposit.reload();
+    // updated_at dates refundedAt, so a late fill would re-date the refund.
+    expect(deposit.updatedAt).toEqual(refundedAt);
+    expect(deposit.payerIban).toBeNull();
+    expect(deposit.payerName).toBeNull();
+  });
+
   it("terminally discards malformed amounts without delaying later orders", async () => {
     await createAccount();
     await MoneriumWebhookEvent.create({

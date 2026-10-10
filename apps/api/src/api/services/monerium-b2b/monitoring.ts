@@ -3,6 +3,11 @@ import { Address, formatUnits, Hex, parseAbi } from "viem";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
+import MoneriumConversionExecution, {
+  MoneriumConversionExecutionKind,
+  MoneriumConversionExecutionStatus
+} from "../../../models/moneriumConversionExecution.model";
+import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
 import MoneriumRecovery, { MoneriumRecoveryPhase } from "../../../models/moneriumRecovery.model";
 import {
   chainlinkAbi,
@@ -15,10 +20,12 @@ import {
   getPublicClient,
   moneriumChainForChainId,
   quoteRouteOutput,
+  quoterV2ForChainId,
   readEnabledRoutes,
   readSubsidyVaultState,
   SubsidyVaultState
 } from "./chain";
+import { settlementState } from "./conversion-executor";
 import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
 import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProductStatus } from "./reference-rate";
 import { refundAccountFor } from "./refund-wallet";
@@ -31,12 +38,17 @@ import { refundAccountFor } from "./refund-wallet";
  *    every enabled factory route at perSwapCap and minSwapAmount sizes vs the Chainlink
  *    EUR/USD rate. Raw impact of the best route above SLIPPAGE_BPS at minSwapAmount size
  *    means every keeper swap draws a subsidy and the permissionless path would revert
- *    (error-level DEPTH BELOW FLOOR line, triage per the runbook); at perSwapCap size it
- *    is an early warning. Mainnet-only (QuoterV2 pin).
+ *    (error-level DEPTH BELOW FLOOR line, triage per the runbook; a warning off mainnet);
+ *    at perSwapCap size it is an early warning. Only on chains with a pinned QuoterV2 (mainnet, Sepolia).
  * 2. Stranded-balance monitor: forwarders whose on-chain batch marker has been open
  *    longer than RECOVERY_DELAY (the promised window, registry P3) warn — the deposit
  *    should be forwarded or recovering by then; past TRIGGER_DELAY (the
  *    permissionless-trigger delay, registry P4) they error — a keeper-outage signal.
+ *    An unswapped payment marked for recovery whose EURe is still on a clone below
+ *    MIN_SWAP_FLOOR errors too: the contract cannot recover it until the operator tops the
+ *    clone up to the floor (one whose funds already left the clone only warns: reconcile).
+ *    A marked deposit left unrecovered RECOVERY_DELAY plus an hour after marking warns
+ *    (REFUND OVERDUE), and errors past TRIGGER_DELAY.
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
  *    (docs/architecture-monerium-b2b-onramp.md, fees section); a vault that cannot cover a
  *    below-floor swap makes the keeper defer, so runway problems surface here first.
@@ -283,10 +295,12 @@ async function monitoredAccounts(statuses: MoneriumAccountStatus[]): Promise<Mon
 /**
  * Executable-depth check (PRD §7.4): QuoterV2 static quotes at minSwapAmount and
  * perSwapCap on every enabled factory route vs Chainlink; the best route decides.
- * Runs only against Ethereum mainnet — MAINNET_QUOTER_V2 is a mainnet pin.
+ * Skipped on a chain without a pinned QuoterV2 (quoterV2ForChainId).
  */
 export async function runExecutableDepthCheck(): Promise<void> {
-  if ((await getChainId()) !== 1) {
+  const chainId = await getChainId();
+  const quoter = quoterV2ForChainId(chainId);
+  if (!quoter) {
     return;
   }
   const accounts = await monitoredAccounts([MoneriumAccountStatus.Onboarding, MoneriumAccountStatus.Active]);
@@ -321,8 +335,8 @@ export async function runExecutableDepthCheck(): Promise<void> {
   for (const route of routes) {
     try {
       const [minOut, capOut] = await Promise.all([
-        quoteRouteOutput(route.path, minSwapAmount),
-        quoteRouteOutput(route.path, perSwapCap)
+        quoteRouteOutput(quoter, route.path, minSwapAmount),
+        quoteRouteOutput(quoter, route.path, perSwapCap)
       ]);
       quoted.push({
         capImpactBps: computeQuoteImpactBps(perSwapCap, capOut, answer, oracleDecimals),
@@ -343,8 +357,14 @@ export async function runExecutableDepthCheck(): Promise<void> {
     quoted.map(route => `#${route.index} min=${route.minImpactBps}bps cap=${route.capImpactBps}bps`).join(", ");
 
   const verdict = classifyExecutableDepth(best.minImpactBps, best.capImpactBps, slippageBps);
-  if (verdict.severity === "error") {
+  if (verdict.severity === "error" && chainId === 1) {
     logger.error(`monerium-b2b: DEPTH BELOW FLOOR — ${verdict.reason}; triage per the B2B operations runbook §3. ${detail}`);
+  } else if (verdict.severity === "error") {
+    // Off mainnet a thin pool drifting from the oracle is a calibration signal, not an incident.
+    logger.warn(
+      `monerium-b2b: DEPTH BELOW FLOOR on sandbox chain ${chainId} — ${verdict.reason}; re-centre the sandbox pool on ` +
+        `the oracle rate (not a production incident). ${detail}`
+    );
   } else if (verdict.severity === "warn") {
     logger.warn(`monerium-b2b: ${verdict.reason}. ${detail}`);
   } else {
@@ -376,6 +396,30 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
   for (const account of accounts) {
     try {
       const forwarder = account.forwarderAddress as Address;
+      // The checks below take a pending `recover` for progress; one pending past the refund
+      // monitor's linger margin is stuck (the keeper's info log says why), so it alerts here,
+      // before the chain reads a failing RPC would make throw.
+      const stuckRecovers = await MoneriumConversionExecution.findAll({
+        attributes: ["createdAt", "depositId", "id"],
+        order: [["created_at", "ASC"]],
+        where: {
+          accountId: account.id,
+          createdAt: { [Op.lt]: new Date(now - RECOVERY_LINGER_MS) },
+          kind: MoneriumConversionExecutionKind.Recover,
+          status: MoneriumConversionExecutionStatus.Pending
+        }
+      });
+      if (stuckRecovers.length > 0) {
+        const ageMs = now - stuckRecovers[0].createdAt.getTime();
+        const message =
+          "monerium-b2b: RECOVER STUCK PENDING — recover execution(s) " +
+          `${stuckRecovers.map(e => `${e.id} (deposit ${e.depositId})`).join(", ")} on forwarder ${forwarder} ` +
+          `(account ${account.id}) pending for up to ${Math.floor(ageMs / 3_600_000)}h: the keeper cannot resolve it ` +
+          "(see its 'remains pending' or 'lookup failed' info log), and refund alerts for it wait; check " +
+          "the transaction and the keeper's RPC (the internal B2B runbook §2.7)";
+        if (classifyRefundQueue(stuckRecovers[0].createdAt, false, now) === "error") logger.error(message);
+        else logger.warn(message);
+      }
       const { eure, usdc } = await getForwarderImmutables(forwarder);
       const [eureBalance, usdcBalance, batchOpenedAt] = await Promise.all([
         client.readContract({ abi: erc20Abi, address: eure, args: [forwarder], functionName: "balanceOf" }),
@@ -383,7 +427,134 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "batchOpenedAt" })
       ]);
       if (eureBalance < minSwapFloor && usdcBalance === 0n) {
+        // Below MIN_SWAP_FLOOR the contract arms no batch, so `recover` can never run for a
+        // payment marked for the refund path (one already recovered is the refund monitor's).
+        const marked = await MoneriumFiatDeposit.count({
+          where: { accountId: account.id, status: MoneriumFiatDepositStatus.Recovering }
+        });
+        if (marked === 0) continue;
+        // Every deposit whose EURe the ledger may still place on the clone: settling, marked, or
+        // refunded (a manual refund leaves its EURe there; a confirmed `recover` took it away).
+        // An operator top-up is an unattributed Minted row and stays on the clone too.
+        const deposits = await MoneriumFiatDeposit.findAll({
+          attributes: ["id", "amountRaw", "status"],
+          where: {
+            accountId: account.id,
+            status: {
+              [Op.in]: [
+                MoneriumFiatDepositStatus.Minted,
+                MoneriumFiatDepositStatus.Converting,
+                MoneriumFiatDepositStatus.Recovering,
+                MoneriumFiatDepositStatus.Refunded
+              ]
+            }
+          }
+        });
+        const executions = await MoneriumConversionExecution.findAll({
+          attributes: ["depositId", "eureInRaw", "kind", "status"],
+          where: {
+            depositId: { [Op.in]: deposits.map(deposit => deposit.id) },
+            [Op.or]: [
+              {
+                kind: MoneriumConversionExecutionKind.Recover,
+                status: { [Op.in]: [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed] }
+              },
+              { kind: MoneriumConversionExecutionKind.Swap, status: MoneriumConversionExecutionStatus.Confirmed }
+            ]
+          }
+        });
+        const swapsOf = (deposit: MoneriumFiatDeposit) =>
+          executions.filter(e => e.depositId === deposit.id && e.kind === MoneriumConversionExecutionKind.Swap);
+        const recoverOf = (deposit: MoneriumFiatDeposit, statuses: MoneriumConversionExecutionStatus[]) =>
+          executions.some(
+            e => e.depositId === deposit.id && e.kind === MoneriumConversionExecutionKind.Recover && statuses.includes(e.status)
+          );
+        // A mined `recover` whose row is still Pending already took its EURe, which the ledger
+        // below would still count: wait for the keeper to confirm it before judging the rest.
+        if (deposits.some(deposit => recoverOf(deposit, [MoneriumConversionExecutionStatus.Pending]))) continue;
+        const stuck = deposits.filter(
+          deposit =>
+            deposit.status === MoneriumFiatDepositStatus.Recovering &&
+            !recoverOf(deposit, [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed])
+        );
+        // Only an unswapped payment gets the top-up remedy, and only while the clone still holds
+        // all the EURe the ledger places there (every payment's unswapped, unrecovered rest);
+        // anything less means EURe left by a path the ledger does not record (the permissionless
+        // swap/forwardAll), so refunding could pay twice. A top-up that landed lifts the clone to
+        // the floor, so this branch is skipped until the keeper's `recover` took the payer's EURe.
+        const unswapped = stuck.filter(deposit => swapsOf(deposit).length === 0);
+        const ledgerEure = deposits
+          .filter(deposit => !recoverOf(deposit, [MoneriumConversionExecutionStatus.Confirmed]))
+          .reduce((sum, deposit) => sum + settlementState(deposit, swapsOf(deposit)).remainingEureRaw, 0n);
+        const onClone = ledgerEure <= eureBalance ? unswapped : [];
+        const elsewhere = stuck.filter(deposit => !onClone.includes(deposit));
+        if (onClone.length > 0) {
+          // A top-up to just above the floor lets `poke` arm the marker, and the keeper's
+          // normal `recover` then refunds the payer's own EURe; the top-up stays on the clone
+          // below the floor. Deposits and the floor are whole cents, so an amount off a whole cent
+          // can never match an order in the mint watcher; a leftover top-up's odd wei on the
+          // clone would make the plain `+ 1n` land on a whole cent, hence the second wei.
+          let topUpRaw = minSwapFloor - eureBalance + 1n;
+          if (topUpRaw % 10n ** 16n === 0n) topUpRaw += 1n; // 10^16 raw = one cent
+          // Only the `auto` mode runs the refund pipeline after the keeper's `recover`.
+          const autoRefund = config.moneriumB2b.autoRecovery === "auto";
+          logger.error(
+            `monerium-b2b: REFUND NEEDS OPERATOR — deposit(s) ${onClone.map(deposit => deposit.id).join(", ")} on forwarder ` +
+              `${forwarder} (account ${account.id}) are marked for recovery, but the clone holds ${formatUnits(eureBalance, 18)} ` +
+              `EURe, below MIN_SWAP_FLOOR, so the contract cannot recover them: send exactly ${formatUnits(topUpRaw, 18)} EURe ` +
+              `(${topUpRaw} raw) of EURe ${eure} to the clone from any wallet (e.g. the float). The keeper then arms the marker ` +
+              `and ${autoRefund ? "refunds through" : "moves the payment to the client's refund wallet with"} the normal ` +
+              "recover path after RECOVERY_DELAY, one deposit at a time (this alert returns with a new amount for any left " +
+              "below the floor); the top-up stays on the clone as Vortex EURe; expect one unattributed-mint warn; " +
+              (autoRefund
+                ? "never refund this deposit by hand"
+                : `MONERIUM_B2B_AUTO_RECOVERY is ${config.moneriumB2b.autoRecovery}, so no automatic refund follows: once ` +
+                  "the recover is confirmed, redeem it from the refund wallet under the manual procedure") +
+              " (the internal B2B runbook §2.7)"
+          );
+        }
+        if (elsewhere.length > 0) {
+          logger.warn(
+            `monerium-b2b: deposit(s) ${elsewhere.map(deposit => deposit.id).join(", ")} on forwarder ${forwarder} ` +
+              `(account ${account.id}) are marked for recovery, but part or all of their funds left the clone: reconcile ` +
+              "before refunding; do not refund and do not top up the clone"
+          );
+        }
         continue;
+      }
+      // A marked deposit still unrecovered RECOVERY_DELAY plus the refund monitor's linger
+      // margin after it was marked: e.g. younger forwards keep re-timing the marker. The
+      // sub-floor case never gets here (REFUND NEEDS OPERATOR above).
+      const overdue = await MoneriumFiatDeposit.findAll({
+        attributes: ["id", "refundStartedAt"],
+        where: {
+          accountId: account.id,
+          refundStartedAt: { [Op.lt]: new Date(now - recoveryDelaySeconds * 1000 - RECOVERY_LINGER_MS) },
+          status: MoneriumFiatDepositStatus.Recovering
+        }
+      });
+      if (overdue.length > 0) {
+        const recovers = await MoneriumConversionExecution.findAll({
+          attributes: ["depositId"],
+          where: {
+            depositId: { [Op.in]: overdue.map(deposit => deposit.id) },
+            kind: MoneriumConversionExecutionKind.Recover,
+            status: { [Op.in]: [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed] }
+          }
+        });
+        const late = overdue.filter(deposit => !recovers.some(e => e.depositId === deposit.id));
+        if (late.length > 0) {
+          const ageMs = now - Math.min(...late.map(deposit => (deposit.refundStartedAt as Date).getTime()));
+          const message =
+            `monerium-b2b: REFUND OVERDUE — deposit(s) ${late.map(deposit => deposit.id).join(", ")} on forwarder ${forwarder} ` +
+            `(account ${account.id}) were marked for recovery up to ${Math.floor(ageMs / 3_600_000)}h ago and no recover ` +
+            `has been sent (eure=${formatUnits(eureBalance, 18)}, usdc=${formatUnits(usdcBalance, 6)}, ` +
+            `batchOpenedAt=${batchOpenedAt}): check whether younger forwards keep re-timing the batch marker or another ` +
+            "refund of this client is stuck; after an operator top-up this clears once the keeper recovers (the internal " +
+            "B2B runbook §2.7)";
+          if (ageMs >= Number(triggerDelay) * 1000) logger.error(message);
+          else logger.warn(message);
+        }
       }
       const severity = classifyStranding(batchOpenedAt, BigInt(recoveryDelaySeconds), triggerDelay, now);
       if (severity === "ok") {
