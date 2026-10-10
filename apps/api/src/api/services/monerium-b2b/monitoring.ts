@@ -472,14 +472,21 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
           // clone would make the plain `+ 1n` land on a whole cent, hence the second wei.
           let topUpRaw = minSwapFloor - eureBalance + 1n;
           if (topUpRaw % 10n ** 16n === 0n) topUpRaw += 1n; // 10^16 raw = one cent
+          // Only the `auto` mode runs the refund pipeline after the keeper's `recover`.
+          const autoRefund = config.moneriumB2b.autoRecovery === "auto";
           logger.error(
             `monerium-b2b: REFUND NEEDS OPERATOR — deposit(s) ${onClone.map(deposit => deposit.id).join(", ")} on forwarder ` +
               `${forwarder} (account ${account.id}) are marked for recovery, but the clone holds ${formatUnits(eureBalance, 18)} ` +
               `EURe, below MIN_SWAP_FLOOR, so the contract cannot recover them: send exactly ${formatUnits(topUpRaw, 18)} EURe ` +
               `(${topUpRaw} raw) of EURe ${eure} to the clone from any wallet (e.g. the float). The keeper then arms the marker ` +
-              "and refunds through the normal recover path after RECOVERY_DELAY, one deposit at a time (this alert returns " +
-              "with a new amount for any left below the floor); the top-up stays on the clone as Vortex EURe; expect one " +
-              "unattributed-mint warn; never refund this deposit by hand (the internal B2B runbook §2.7)"
+              `and ${autoRefund ? "refunds through" : "moves the payment to the client's refund wallet with"} the normal ` +
+              "recover path after RECOVERY_DELAY, one deposit at a time (this alert returns with a new amount for any left " +
+              "below the floor); the top-up stays on the clone as Vortex EURe; expect one unattributed-mint warn; " +
+              (autoRefund
+                ? "never refund this deposit by hand"
+                : `MONERIUM_B2B_AUTO_RECOVERY is ${config.moneriumB2b.autoRecovery}, so no automatic refund follows: once ` +
+                  "the recover is confirmed, redeem it from the refund wallet under the manual procedure") +
+              " (the internal B2B runbook §2.7)"
           );
         }
         if (elsewhere.length > 0) {

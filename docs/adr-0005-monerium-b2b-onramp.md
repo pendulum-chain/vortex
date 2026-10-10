@@ -298,7 +298,8 @@ the promised window. Decisions:
   runbook §2.7). The marker then arms and the keeper's normal `recover`
   and refund pipeline refund the payer's own EURe after `RECOVERY_DELAY`, with the full
   refund record and the one-refund-per-client gate; such a payment is never refunded by
-  hand. The top-up stays on the clone below the floor as Vortex EURe (never a whole
+  hand (with `MONERIUM_B2B_AUTO_RECOVERY=auto`; in `alert` or `off` the operator redeems
+  it from the client's refund wallet after the keeper's `recover`, as the alert says). The top-up stays on the clone below the floor as Vortex EURe (never a whole
   number of cents, so the mint watcher never attributes it to an order), and a later
   sub-floor payment that reaches the floor with it is refunded with no operator step. Sending the top-up as
   soon as the payment shows `below_minimum` lands the refund at about the normal

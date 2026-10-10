@@ -376,7 +376,10 @@ permissionless `poke` and `applyFeePolicy`):
   `poke` arms the marker, and after `RECOVERY_DELAY` the keeper's normal
   `recover(remaining EURe, 0)` and refund pipeline below refund the payer exactly, from
   the payer's own EURe, with the full record (`recover` transaction, redeem order,
-  `refundedAt`); the deposit is never refunded by hand. The top-up stays on the clone
+  `refundedAt`); the deposit is never refunded by hand. That refund pipeline runs only
+  with `MONERIUM_B2B_AUTO_RECOVERY=auto`; in `alert` or `off` the keeper's `recover`
+  still moves the payment to the client's refund wallet, and the alert points to the
+  manual redeem from that wallet instead. The top-up stays on the clone
   below the floor, so `recover` switches the marker off by itself: no follow-up step. The
   top-up is never a whole number of cents, even with an earlier top-up's odd wei on the
   clone, so the mint watcher can never match it to a Monerium order; it is recorded as

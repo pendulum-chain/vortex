@@ -340,7 +340,11 @@ describe("runExecutableDepthCheck", () => {
 describe("runStrandedBalanceMonitor below the swap floor", () => {
   const FACTORY = "0x2222222222222222222222222222222222222222" as Address;
   const EURE = "0x4444444444444444444444444444444444444444" as Address;
-  const saved = { factory: config.moneriumB2b.forwarderFactoryAddress, rpcUrl: config.moneriumB2b.rpcUrl };
+  const saved = {
+    autoRecovery: config.moneriumB2b.autoRecovery,
+    factory: config.moneriumB2b.forwarderFactoryAddress,
+    rpcUrl: config.moneriumB2b.rpcUrl
+  };
   let errors: string[];
   let warnings: string[];
   let eureOnClone: bigint;
@@ -355,10 +359,12 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
   afterAll(() => {
     config.moneriumB2b.rpcUrl = saved.rpcUrl;
     config.moneriumB2b.forwarderFactoryAddress = saved.factory;
+    config.moneriumB2b.autoRecovery = saved.autoRecovery;
   });
 
   beforeEach(async () => {
     await resetTestDatabase();
+    config.moneriumB2b.autoRecovery = "auto";
     errors = [];
     warnings = [];
     eureOnClone = EUR / 2n;
@@ -455,6 +461,20 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     expect(errors[0]).toContain("never refund this deposit by hand");
     expect(errors[0]).toContain("the internal B2B runbook §2.7");
   });
+
+  for (const mode of ["alert", "off"] as const) {
+    it(`points to the manual redeem instead of the automatic refund with auto recovery ${mode}`, async () => {
+      config.moneriumB2b.autoRecovery = mode;
+      await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+      await runStrandedBalanceMonitor();
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("send exactly 0.500000000000000001 EURe");
+      expect(errors[0]).toContain("moves the payment to the client's refund wallet");
+      expect(errors[0]).toContain(`MONERIUM_B2B_AUTO_RECOVERY is ${mode}, so no automatic refund follows`);
+      expect(errors[0]).toContain("redeem it from the refund wallet under the manual procedure");
+      expect(errors[0]).not.toContain("never refund this deposit by hand");
+    });
+  }
 
   it("asks for the top-up when the keeper's recover failed, since the funds stayed on the clone", async () => {
     const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
