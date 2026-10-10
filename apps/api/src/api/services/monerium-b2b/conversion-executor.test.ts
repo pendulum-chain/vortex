@@ -1039,6 +1039,22 @@ describe("runConversionExecutor activation gate", () => {
     expect(small.waitingSince).toBeNull();
   });
 
+  it("starts a fresh wait when a deposit cleared from below_minimum defers in the same cycle", async () => {
+    const { accountId, deposit } = await accountWithDeposit(null, [10n]);
+    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+    await runConversionExecutor(accountId);
+    expect((await deposit.reload()).waitingReason).toBe("below_minimum");
+    const belowMinimumSince = new Date(Date.now() - 60 * 60_000);
+    await MoneriumFiatDeposit.update({ waitingSince: belowMinimumSince }, { where: { id: deposit.id } });
+
+    reads.minSwapAmount = 5n * EUR;
+    await runConversionExecutor(accountId);
+    await deposit.reload();
+    expect(deposit.waitingReason).toBe("oracle_unavailable");
+    expect(deposit.waitingSince).toBeInstanceOf(Date);
+    expect(deposit.waitingSince?.getTime()).toBeGreaterThan(belowMinimumSince.getTime());
+  });
+
   it("replaces an earlier hold reason and keeps when the wait started", async () => {
     const { accountId, deposit, since } = await accountWithDeposit("oracle_unavailable");
     await MoneriumAccount.update({ status: MoneriumAccountStatus.Suspended }, { where: { id: accountId } });
