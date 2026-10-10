@@ -293,13 +293,14 @@ the promised window. Decisions:
   never arms its batch marker, so `recover` reverts for such a payment and the keeper
   cannot refund it on its own. Once it is marked `recovering`, the stranded-balance
   monitor raises REFUND NEEDS OPERATOR with the exact top-up (`MIN_SWAP_FLOOR - clone
-  EURe + 1 wei`), which an operator sends to the clone from any wallet, e.g. the float
-  (internal B2B runbook §2.7). The marker then arms and the keeper's normal `recover`
+  EURe + 1 wei`, one wei more when that is a whole number of cents), which an operator
+  sends exactly as printed to the clone from any wallet, e.g. the float (internal B2B
+  runbook §2.7). The marker then arms and the keeper's normal `recover`
   and refund pipeline refund the payer's own EURe after `RECOVERY_DELAY`, with the full
   refund record and the one-refund-per-client gate; such a payment is never refunded by
-  hand. The top-up stays on the clone below the floor as Vortex EURe (the odd wei keeps
-  the mint watcher from attributing it to an order), and a later sub-floor payment that
-  reaches the floor with it is refunded with no operator step. Sending the top-up as
+  hand. The top-up stays on the clone below the floor as Vortex EURe (never a whole
+  number of cents, so the mint watcher never attributes it to an order), and a later
+  sub-floor payment that reaches the floor with it is refunded with no operator step. Sending the top-up as
   soon as the payment shows `below_minimum` lands the refund at about the normal
   deadline; otherwise it lands `RECOVERY_DELAY` after the top-up.
 

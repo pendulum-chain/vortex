@@ -485,6 +485,31 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     expect(warnings).toEqual([]);
   });
 
+  it("keeps a later top-up off a whole cent when an earlier top-up's odd wei is on the clone", async () => {
+    // D1 (0.3) was recovered with top-up T1 = 0.3 EURe + 1 wei; D2 (0.4) and T1 stay on the clone.
+    const recovered = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 3n) / 10n);
+    await execution(recovered, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Confirmed);
+    const stuck = await addDeposit(recovered.accountId, MoneriumFiatDepositStatus.Recovering, (EUR * 4n) / 10n);
+    await MoneriumFiatDeposit.create({
+      accountId: recovered.accountId,
+      amountRaw: ((EUR * 3n) / 10n + 1n).toString(),
+      blockNumber: 101,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 99,
+      mintedAt: new Date(),
+      moneriumOrderId: "unattr:topup",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xtopup"
+    });
+    eureOnClone = (EUR * 7n) / 10n + 1n;
+    await runStrandedBalanceMonitor();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(stuck.id);
+    // FLOOR - balance + 1 would be exactly 0.30 EUR, the amount of D1: matchable to a pending 0.30 order.
+    expect(errors[0]).toContain("send exactly 0.300000000000000001 EURe (300000000000000001 raw)");
+  });
+
   for (const status of [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed]) {
     it(`stays quiet while the keeper's recover is ${status} (the automatic refund is under way)`, async () => {
       const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);

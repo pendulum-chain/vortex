@@ -370,16 +370,17 @@ permissionless `poke` and `applyFeePolicy`):
   design against dust), so `recover` cannot move it unless a larger balance keeps the
   marker open for `RECOVERY_DELAY`; once marked `recovering` on a clone below the floor,
   the stranded-balance monitor raises REFUND NEEDS OPERATOR with the exact top-up:
-  `MIN_SWAP_FLOOR - clone EURe + 1 wei` of EURe, which operations send to the clone from
-  any wallet (e.g. the float; internal B2B runbook §2.7). The clone then holds the floor,
+  `MIN_SWAP_FLOOR - clone EURe + 1 wei` of EURe (one wei more when that is a whole
+  number of cents), which operations send, exactly as printed, to the clone from any
+  wallet (e.g. the float; internal B2B runbook §2.7). The clone then holds the floor,
   `poke` arms the marker, and after `RECOVERY_DELAY` the keeper's normal
   `recover(remaining EURe, 0)` and refund pipeline below refund the payer exactly, from
   the payer's own EURe, with the full record (`recover` transaction, redeem order,
   `refundedAt`); the deposit is never refunded by hand. The top-up stays on the clone
   below the floor, so `recover` switches the marker off by itself: no follow-up step. The
-  odd wei makes it a non-whole-cent amount the mint watcher can never match to a
-  Monerium order, so it is recorded as an `unattr:` Minted row (one warn) that the keeper
-  never converts. Leftover top-ups are Vortex EURe and stay below EUR 1 per clone; a
+  top-up is never a whole number of cents, even with an earlier top-up's odd wei on the
+  clone, so the mint watcher can never match it to a Monerium order; it is recorded as
+  an `unattr:` Minted row (one warn) that the keeper never converts. Leftover top-ups are Vortex EURe and stay below EUR 1 per clone; a
   later sub-floor payment on that clone that reaches the floor with them arms the marker
   and is refunded with no operator step. The top-up may also be sent early, as soon as
   the payment shows `below_minimum`: the marker then arms at once and the refund lands at

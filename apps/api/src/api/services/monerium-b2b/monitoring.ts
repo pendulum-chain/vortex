@@ -465,10 +465,13 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         const onClone = ledgerEure <= eureBalance ? unswapped : [];
         const elsewhere = stuck.filter(deposit => !onClone.includes(deposit));
         if (onClone.length > 0) {
-          // A top-up to one wei above the floor lets `poke` arm the marker, and the keeper's
+          // A top-up to just above the floor lets `poke` arm the marker, and the keeper's
           // normal `recover` then refunds the payer's own EURe; the top-up stays on the clone
-          // below the floor. The odd wei keeps the mint watcher from matching it to an order.
-          const topUpRaw = minSwapFloor - eureBalance + 1n;
+          // below the floor. Deposits and the floor are whole cents, so an amount off a whole cent
+          // can never match an order in the mint watcher; a leftover top-up's odd wei on the
+          // clone would make the plain `+ 1n` land on a whole cent, hence the second wei.
+          let topUpRaw = minSwapFloor - eureBalance + 1n;
+          if (topUpRaw % 10n ** 16n === 0n) topUpRaw += 1n; // 10^16 raw = one cent
           logger.error(
             `monerium-b2b: REFUND NEEDS OPERATOR — deposit(s) ${onClone.map(deposit => deposit.id).join(", ")} on forwarder ` +
               `${forwarder} (account ${account.id}) are marked for recovery, but the clone holds ${formatUnits(eureBalance, 18)} ` +
