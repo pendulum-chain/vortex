@@ -349,6 +349,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
   let warnings: string[];
   let eureOnClone: bigint;
   let batchOpenedAt: bigint;
+  let cloneReadsFail: boolean;
 
   beforeAll(async () => {
     config.moneriumB2b.rpcUrl = undefined; // provisioning skips the on-chain clone check
@@ -369,6 +370,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     warnings = [];
     eureOnClone = EUR / 2n;
     batchOpenedAt = 0n;
+    cloneReadsFail = false;
     const reads: Record<string, unknown> = { MIN_SWAP_FLOOR: 1n * EUR, TRIGGER_DELAY: 86_400n };
     spyOn(chain, "getForwarderImmutables").mockResolvedValue({
       eure: EURE,
@@ -377,14 +379,16 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
       usdc: "0x6666666666666666666666666666666666666666"
     } as unknown as chain.ForwarderImmutables);
     spyOn(chain, "getPublicClient").mockReturnValue({
-      readContract: async ({ address, functionName }: { address: Address; functionName: string }) =>
-        functionName === "balanceOf"
+      readContract: async ({ address, functionName }: { address: Address; functionName: string }) => {
+        if (cloneReadsFail && functionName === "balanceOf") throw new Error("rpc down");
+        return functionName === "balanceOf"
           ? address === EURE
             ? eureOnClone
             : 0n
           : functionName === "batchOpenedAt"
             ? batchOpenedAt
-            : reads[functionName]
+            : reads[functionName];
+      }
     } as unknown as ReturnType<typeof chain.getPublicClient>);
     spyOn(logger, "error").mockImplementation(((message: string) => {
       errors.push(message);
@@ -570,6 +574,20 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
       expect(alerts[0]).not.toContain(stuck.id);
     });
   }
+
+  it("still errors on a stuck recover while the clone's balance reads fail", async () => {
+    const recovering = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    await execution(
+      recovering,
+      MoneriumConversionExecutionKind.Recover,
+      MoneriumConversionExecutionStatus.Pending,
+      new Date(Date.now() - 5 * 3_600_000)
+    );
+    cloneReadsFail = true; // the RPC failure that keeps the keeper from resolving the row
+    await runStrandedBalanceMonitor();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("RECOVER STUCK PENDING");
+  });
 
   it("waits for a sibling's mined recover to confirm before judging the clone's EURe", async () => {
     // D2's recover is mined (the clone holds only D1's 0.5 EURe) but its row is still Pending.
