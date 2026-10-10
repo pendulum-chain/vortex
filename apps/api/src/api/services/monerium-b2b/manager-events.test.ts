@@ -17,6 +17,7 @@ import { provisionMoneriumB2bAccount } from "./account-provisioning";
 import { NOTIFY_CONFIRMATION_DEPTH } from "./chain";
 import { markDepositForRecovery } from "./conversion-executor";
 import { emitMoneriumDepositEvents, maskIban } from "./manager-events";
+import { setDepositStatus } from "./recovery";
 
 const FORWARDER = "0x1111111111111111111111111111111111111111";
 const DESTINATION = "0x2222222222222222222222222222222222222222";
@@ -333,6 +334,41 @@ describe("monerium b2b manager events", () => {
     await deposit.reload();
     expect(deposit.returnedEventAt).not.toBeNull();
     expect(maskIban("EE08 7224 5745 6244 9516")).toBe("EE08…9516");
+  });
+
+  it("reports a refund closed by hand as refunded at its refunded transition", async () => {
+    const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_RETURNED, WebhookEventType.DEPOSIT_UPDATED]);
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "500000000000000000",
+      blockNumber: 999,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      moneriumOrderId: "order-1",
+      payerIban: "DE89370400440532013000",
+      receivedEventAt: new Date(),
+      refundReason: "window_missed",
+      refundStartedAt: new Date(),
+      status: MoneriumFiatDepositStatus.Recovering,
+      txHash: "0xmint"
+    });
+    // The admin PATCH path: no recover execution, no MoneriumRecovery row.
+    expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded)).toBeNull();
+    await deposit.reload();
+    const refundedAt = deposit.updatedAt.toISOString();
+    await new Promise(resolve => setTimeout(resolve, 5));
+
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    const updates = (await WebhookDelivery.findAll())
+      .map(delivery => delivery.payload as unknown as { eventType: string; payload: Record<string, unknown> })
+      .filter(payload => payload.eventType === WebhookEventType.DEPOSIT_UPDATED);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].payload).toMatchObject({
+      refund: { recoverTxHash: null, redeemOrderId: null, refundedAt },
+      status: "refunded"
+    });
   });
 
   it("only enqueues to the controlling manager's webhooks", async () => {
