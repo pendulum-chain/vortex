@@ -1462,8 +1462,9 @@ async function sendPoke(forwarder: Address): Promise<void> {
 const FEE_APPLY_RESEND_AFTER_MS = 15 * 60_000;
 
 /** The last applyFeePolicy sent per forwarder (lower-cased address). */
-// ponytail: in-process memory; a restart forgets an unmined apply and may send it once more (the
-// duplicate reverts NoPendingFeePolicy or is dropped). Persist it if that ever costs more than gas.
+// ponytail: in-process memory; a restart, or another keeper process on the same database, does not
+// know an unmined apply and may send it once more (the duplicate reverts NoPendingFeePolicy or is
+// dropped). Persist it if that ever costs more than gas.
 const sentFeeApplies = new Map<string, { hash: Hex; sentAtMs: number }>();
 /** The skip reason last logged per forwarder, so a skip is logged once, not every cycle. */
 const loggedFeeApplySkips = new Map<string, string>();

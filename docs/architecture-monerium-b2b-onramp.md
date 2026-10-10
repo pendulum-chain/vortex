@@ -484,7 +484,8 @@ contract settles every fill into three bands against that reference (decisions:
   or a timeout is logged and the cycle goes on. A timed-out apply is not re-sent while it
   has no receipt and is younger than 15 minutes (remembered per forwarder in process
   memory, since a private relay's pending transactions are invisible to the public nonce
-  counts), and no apply is sent while the public pool holds any keeper transaction, of
+  counts; a restart or another keeper process does not know it and may send one
+  duplicate, which reverts `NoPendingFeePolicy` or is dropped), and no apply is sent while the public pool holds any keeper transaction, of
   any account; each skip reason is logged once. The executor only runs for accounts
   with a settling deposit, so an idle clone's increase is applied before its next swap.
 - **Subsidy vault (`VortexSubsidyVault`)**: one contract shared by every clone, funded
