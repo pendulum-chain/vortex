@@ -38,8 +38,8 @@ import { refundAccountFor } from "./refund-wallet";
  *    every enabled factory route at perSwapCap and minSwapAmount sizes vs the Chainlink
  *    EUR/USD rate. Raw impact of the best route above SLIPPAGE_BPS at minSwapAmount size
  *    means every keeper swap draws a subsidy and the permissionless path would revert
- *    (error-level DEPTH BELOW FLOOR line, triage per the runbook); at perSwapCap size it
- *    is an early warning. Only on chains with a pinned QuoterV2 (mainnet, Sepolia).
+ *    (error-level DEPTH BELOW FLOOR line, triage per the runbook; a warning off mainnet);
+ *    at perSwapCap size it is an early warning. Only on chains with a pinned QuoterV2 (mainnet, Sepolia).
  * 2. Stranded-balance monitor: forwarders whose on-chain batch marker has been open
  *    longer than RECOVERY_DELAY (the promised window, registry P3) warn — the deposit
  *    should be forwarded or recovering by then; past TRIGGER_DELAY (the
@@ -298,7 +298,8 @@ async function monitoredAccounts(statuses: MoneriumAccountStatus[]): Promise<Mon
  * Skipped on a chain without a pinned QuoterV2 (quoterV2ForChainId).
  */
 export async function runExecutableDepthCheck(): Promise<void> {
-  const quoter = quoterV2ForChainId(await getChainId());
+  const chainId = await getChainId();
+  const quoter = quoterV2ForChainId(chainId);
   if (!quoter) {
     return;
   }
@@ -356,8 +357,14 @@ export async function runExecutableDepthCheck(): Promise<void> {
     quoted.map(route => `#${route.index} min=${route.minImpactBps}bps cap=${route.capImpactBps}bps`).join(", ");
 
   const verdict = classifyExecutableDepth(best.minImpactBps, best.capImpactBps, slippageBps);
-  if (verdict.severity === "error") {
+  if (verdict.severity === "error" && chainId === 1) {
     logger.error(`monerium-b2b: DEPTH BELOW FLOOR — ${verdict.reason}; triage per the B2B operations runbook §3. ${detail}`);
+  } else if (verdict.severity === "error") {
+    // Off mainnet a thin pool drifting from the oracle is a calibration signal, not an incident.
+    logger.warn(
+      `monerium-b2b: DEPTH BELOW FLOOR on sandbox chain ${chainId} — ${verdict.reason}; re-centre the sandbox pool on ` +
+        `the oracle rate (not a production incident). ${detail}`
+    );
   } else if (verdict.severity === "warn") {
     logger.warn(`monerium-b2b: ${verdict.reason}. ${detail}`);
   } else {

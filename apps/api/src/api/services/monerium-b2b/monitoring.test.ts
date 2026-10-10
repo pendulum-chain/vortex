@@ -304,6 +304,29 @@ describe("runExecutableDepthCheck", () => {
     expect(quoteSpy).toHaveBeenCalledWith("0x61fFE014bA17989E743c5F6cB21bF9697530B21e", "0xaa", 10_000n * EUR);
   });
 
+  for (const [chainId, level] of [
+    [1, "error"],
+    [11_155_111, "warn"]
+  ] as const) {
+    it(`logs DEPTH BELOW FLOOR at ${level} on chain ${chainId}`, async () => {
+      const { quoteSpy } = arrange(chainId);
+      quoteSpy.mockImplementation(async (_quoter, _path, amountIn) => (amountIn * 100n) / (100n * 10n ** 12n)); // ~12% impact
+      const lines: Record<string, string[]> = { error: [], warn: [] };
+      for (const name of ["error", "warn"] as const) {
+        spyOn(logger, name).mockImplementation(((message: string) => {
+          lines[name].push(message);
+        }) as unknown as typeof logger.error);
+      }
+      await runExecutableDepthCheck();
+      const other = level === "error" ? "warn" : "error";
+      expect(lines[level]).toHaveLength(1);
+      expect(lines[level][0]).toContain("DEPTH BELOW FLOOR");
+      expect(lines[other]).toEqual([]);
+      if (level === "warn") expect(lines.warn[0]).toContain("re-centre the sandbox pool");
+      else expect(lines.error[0]).toContain("triage per the B2B operations runbook §3");
+    });
+  }
+
   it("skips a chain without a known quoter", async () => {
     const { findAll, quoteSpy } = arrange(31_337);
     await runExecutableDepthCheck();
