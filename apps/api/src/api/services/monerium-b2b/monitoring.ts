@@ -47,6 +47,8 @@ import { refundAccountFor } from "./refund-wallet";
  *    An unswapped payment marked for recovery whose EURe is still on a clone below
  *    MIN_SWAP_FLOOR errors too: the contract cannot recover it until the operator tops the
  *    clone up to the floor (one whose funds already left the clone only warns: reconcile).
+ *    A marked deposit left unrecovered RECOVERY_DELAY plus an hour after marking warns
+ *    (REFUND OVERDUE), and errors past TRIGGER_DELAY.
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
  *    (docs/architecture-monerium-b2b-onramp.md, fees section); a vault that cannot cover a
  *    below-floor swap makes the keeper defer, so runway problems surface here first.
@@ -478,6 +480,40 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
           );
         }
         continue;
+      }
+      // A marked deposit still unrecovered RECOVERY_DELAY plus the refund monitor's linger
+      // margin after it was marked: e.g. younger forwards keep re-timing the marker. The
+      // sub-floor case never gets here (REFUND NEEDS OPERATOR above).
+      const overdue = await MoneriumFiatDeposit.findAll({
+        attributes: ["id", "refundStartedAt"],
+        where: {
+          accountId: account.id,
+          refundStartedAt: { [Op.lt]: new Date(now - recoveryDelaySeconds * 1000 - RECOVERY_LINGER_MS) },
+          status: MoneriumFiatDepositStatus.Recovering
+        }
+      });
+      if (overdue.length > 0) {
+        const recovers = await MoneriumConversionExecution.findAll({
+          attributes: ["depositId"],
+          where: {
+            depositId: { [Op.in]: overdue.map(deposit => deposit.id) },
+            kind: MoneriumConversionExecutionKind.Recover,
+            status: { [Op.in]: [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed] }
+          }
+        });
+        const late = overdue.filter(deposit => !recovers.some(e => e.depositId === deposit.id));
+        if (late.length > 0) {
+          const ageMs = now - Math.min(...late.map(deposit => (deposit.refundStartedAt as Date).getTime()));
+          const message =
+            `monerium-b2b: REFUND OVERDUE — deposit(s) ${late.map(deposit => deposit.id).join(", ")} on forwarder ${forwarder} ` +
+            `(account ${account.id}) were marked for recovery up to ${Math.floor(ageMs / 3_600_000)}h ago and no recover ` +
+            `has been sent (eure=${formatUnits(eureBalance, 18)}, usdc=${formatUnits(usdcBalance, 6)}, ` +
+            `batchOpenedAt=${batchOpenedAt}): check whether younger forwards keep re-timing the batch marker or another ` +
+            "refund of this client is stuck; after an operator top-up this clears once the keeper recovers (the internal " +
+            "B2B runbook §2.7)";
+          if (ageMs >= Number(triggerDelay) * 1000) logger.error(message);
+          else logger.warn(message);
+        }
       }
       const severity = classifyStranding(batchOpenedAt, BigInt(recoveryDelaySeconds), triggerDelay, now);
       if (severity === "ok") {

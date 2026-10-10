@@ -321,6 +321,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
   let errors: string[];
   let warnings: string[];
   let eureOnClone: bigint;
+  let batchOpenedAt: bigint;
 
   beforeAll(async () => {
     config.moneriumB2b.rpcUrl = undefined; // provisioning skips the on-chain clone check
@@ -338,7 +339,8 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     errors = [];
     warnings = [];
     eureOnClone = EUR / 2n;
-    const reads: Record<string, unknown> = { batchOpenedAt: 0n, MIN_SWAP_FLOOR: 1n * EUR, TRIGGER_DELAY: 86_400n };
+    batchOpenedAt = 0n;
+    const reads: Record<string, unknown> = { MIN_SWAP_FLOOR: 1n * EUR, TRIGGER_DELAY: 86_400n };
     spyOn(chain, "getForwarderImmutables").mockResolvedValue({
       eure: EURE,
       factory: FACTORY,
@@ -347,7 +349,13 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     } as unknown as chain.ForwarderImmutables);
     spyOn(chain, "getPublicClient").mockReturnValue({
       readContract: async ({ address, functionName }: { address: Address; functionName: string }) =>
-        functionName === "balanceOf" ? (address === EURE ? eureOnClone : 0n) : reads[functionName]
+        functionName === "balanceOf"
+          ? address === EURE
+            ? eureOnClone
+            : 0n
+          : functionName === "batchOpenedAt"
+            ? batchOpenedAt
+            : reads[functionName]
     } as unknown as ReturnType<typeof chain.getPublicClient>);
     spyOn(logger, "error").mockImplementation(((message: string) => {
       errors.push(message);
@@ -520,5 +528,68 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     await accountWithDeposit(MoneriumFiatDepositStatus.Minted);
     await runStrandedBalanceMonitor();
     expect(errors).toEqual([]);
+  });
+
+  // At or above the floor the contract can recover, but younger forwards may keep re-timing
+  // the marker so the deposit never becomes eligible (minSwapAmount raised above the floor).
+  describe("a marked deposit the keeper never recovers", () => {
+    const now = 1_800_000_000_000;
+    const HOUR = 3_600_000;
+
+    async function markedHoursAgo(hours: number) {
+      const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, 10n * EUR);
+      await deposit.update({ refundStartedAt: new Date(now - hours * HOUR) });
+      return deposit;
+    }
+
+    beforeEach(() => {
+      eureOnClone = 10n * EUR;
+      batchOpenedAt = BigInt(Math.floor((now - 10 * 60_000) / 1000)); // freshly re-timed by a forward
+    });
+
+    it("warns once RECOVERY_DELAY plus the margin has passed since it was marked", async () => {
+      const deposit = await markedHoursAgo(4);
+      await runStrandedBalanceMonitor(now);
+      expect(errors).toEqual([]);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("REFUND OVERDUE");
+      expect(warnings[0]).toContain(deposit.id);
+      expect(warnings[0]).toContain("eure=10,");
+    });
+
+    it("errors once it has waited past TRIGGER_DELAY", async () => {
+      const deposit = await markedHoursAgo(25);
+      await runStrandedBalanceMonitor(now);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("REFUND OVERDUE");
+      expect(errors[0]).toContain(deposit.id);
+    });
+
+    it("stays quiet before the bound", async () => {
+      await markedHoursAgo(2);
+      await runStrandedBalanceMonitor(now);
+      expect(errors).toEqual([]);
+      expect(warnings).toEqual([]);
+    });
+
+    for (const status of [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed]) {
+      it(`stays quiet while its recover is ${status}`, async () => {
+        const deposit = await markedHoursAgo(4);
+        await execution(deposit, MoneriumConversionExecutionKind.Recover, status);
+        await runStrandedBalanceMonitor(now);
+        expect(warnings).toEqual([]);
+      });
+    }
+
+    it("leaves a clone below the floor to REFUND NEEDS OPERATOR alone", async () => {
+      eureOnClone = EUR / 2n;
+      batchOpenedAt = 0n;
+      const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+      await deposit.update({ refundStartedAt: new Date(now - 4 * HOUR) });
+      await runStrandedBalanceMonitor(now);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("REFUND NEEDS OPERATOR");
+      expect([...errors, ...warnings].some(message => message.includes("REFUND OVERDUE"))).toBe(false);
+    });
   });
 });

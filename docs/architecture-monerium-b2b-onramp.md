@@ -387,7 +387,7 @@ permissionless `poke` and `applyFeePolicy`):
   keeps the marker armed. Every younger deposit's `forward` re-times the marker, so a
   passed-over remainder at or above the floor (possible only once `minSwapAmount` is
   raised above `MIN_SWAP_FLOOR`) becomes recoverable only after a forward-free
-  `RECOVERY_DELAY`.
+  `RECOVERY_DELAY`; the stranded-balance monitor reports it as REFUND OVERDUE.
 - **The refund path.** A deposit marked `recovering` — by an operator through the admin
   endpoint, or once automated by the missed window — is moved off the clone with
   `recover(eureRemaining, usdcConverted)`: keeper-only, explicit amounts, only to the
@@ -551,7 +551,11 @@ read-only — no keys, no transactions:
    may have left the clone by an unrecorded path, so it warns "reconcile before
    refunding; do not refund and do not top up the clone". The pass skips that account
    while any of its `recover` executions is still pending: a mined `recover` not yet
-   confirmed would make the ledger overstate the clone.
+   confirmed would make the ledger overstate the clone. On a clone at or above the floor, a
+   `recovering` deposit with no pending or confirmed `recover` more than
+   `RECOVERY_DELAY` plus an hour after it was marked warns REFUND OVERDUE (an error past
+   `TRIGGER_DELAY`): younger forwards keep re-timing its marker, or another refund of the
+   client is stuck.
 4. **Config reconciliation.** Re-reads per-clone config and bytecode: guardian-authorized
    fee-policy changes (timelocked) are reconciled into the DB with a version bump; a
    destination change (no setter exists), bytecode or registration drift is a
