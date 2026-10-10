@@ -417,7 +417,7 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
       if (stuckRecovers.length > 0) {
         const ageMs = now - stuckRecovers[0].createdAt.getTime();
         const message =
-          `monerium-b2b: RECOVER STUCK PENDING — recover execution(s) ` +
+          "monerium-b2b: RECOVER STUCK PENDING — recover execution(s) " +
           `${stuckRecovers.map(e => `${e.id} (deposit ${e.depositId})`).join(", ")} on forwarder ${forwarder} ` +
           `(account ${account.id}) pending for up to ${Math.floor(ageMs / 3_600_000)}h: the keeper cannot resolve it ` +
           "(see its 'remains pending' or 'lookup failed' info log), and this account's refund alerts wait for it; check " +
