@@ -17,7 +17,7 @@ import { provisionMoneriumB2bAccount } from "./account-provisioning";
 import { NOTIFY_CONFIRMATION_DEPTH } from "./chain";
 import { markDepositForRecovery } from "./conversion-executor";
 import { emitMoneriumDepositEvents, maskIban } from "./manager-events";
-import { setDepositStatus } from "./recovery";
+import { runRecoveryOrchestrator, setDepositStatus } from "./recovery";
 
 const FORWARDER = "0x1111111111111111111111111111111111111111";
 const DESTINATION = "0x2222222222222222222222222222222222222222";
@@ -371,7 +371,7 @@ describe("monerium b2b manager events", () => {
     });
   });
 
-  it("dates a failed refund closed by hand at its refunded transition, not at the failure", async () => {
+  it("dates a failed refund closed by hand at its refunded transition, not at the failure or the row's close", async () => {
     const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_RETURNED, WebhookEventType.DEPOSIT_UPDATED]);
     const deposit = await MoneriumFiatDeposit.create({
       accountId: mapped.accountId,
@@ -401,6 +401,12 @@ describe("monerium b2b manager events", () => {
     expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded)).toBeNull();
     await deposit.reload();
     expect(deposit.updatedAt.getTime()).toBeGreaterThan(recovery.updatedAt.getTime());
+    await new Promise(resolve => setTimeout(resolve, 5));
+    // The next keeper cycle closes the parked row before the events run.
+    await runRecoveryOrchestrator(() => Promise.reject(new Error("a refunded head never needs deps")));
+    await recovery.reload();
+    expect(recovery.phase).toBe(MoneriumRecoveryPhase.Redeemed);
+    expect(recovery.updatedAt.getTime()).toBeGreaterThan(deposit.updatedAt.getTime());
 
     await emitMoneriumDepositEvents(depsAtBlock(null));
     const updates = (await WebhookDelivery.findAll())

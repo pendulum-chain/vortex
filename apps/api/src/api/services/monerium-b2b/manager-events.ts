@@ -21,7 +21,7 @@ import MoneriumConversionExecution, {
   MoneriumConversionExecutionStatus
 } from "../../../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
-import MoneriumRecovery, { MoneriumRecoveryPhase } from "../../../models/moneriumRecovery.model";
+import MoneriumRecovery from "../../../models/moneriumRecovery.model";
 import webhookService from "../webhook/webhook.service";
 import { enqueueWebhookDeliveries } from "../webhook/webhook-outbox.service";
 import { getPublicClient, NOTIFY_CONFIRMATION_DEPTH } from "./chain";
@@ -177,13 +177,10 @@ export async function depositSnapshots(
               reason: deposit.refundReason as DepositRefundReason | null,
               recoverTxHash: recover?.txHash ?? null,
               redeemOrderId: recovery?.redeemOrderId ?? null,
-              // The recovery row dates the refund only once it is redeemed; a refund closed by hand
-              // (no row, or one parked at its failure) is dated by the deposit's refunded transition,
-              // its last write (the received/returned markers are silent, the status is terminal).
-              refundedAt:
-                deposit.status === MoneriumFiatDepositStatus.Refunded
-                  ? iso(recovery?.phase === MoneriumRecoveryPhase.Redeemed ? recovery.updatedAt : deposit.updatedAt)
-                  : null,
+              // Dated by the deposit's refunded transition, its last write (the received/returned markers
+              // are silent, the status is terminal): the orchestrator closes the recovery row after it, or
+              // a cycle later for a refund closed by hand, so that row's time would drift between snapshots.
+              refundedAt: deposit.status === MoneriumFiatDepositStatus.Refunded ? iso(deposit.updatedAt) : null,
               startedAt: iso(deposit.refundStartedAt)
             }
           : null,
