@@ -212,9 +212,8 @@ until the executor resolves that row, even after an operator closed its deposit.
 An orphan inflow (an `unattr:` row whose order never arrives) gets a single
 best-effort poke in the cycle its mint lands in; if that poke fails, the batch marker
 stays unarmed, the stranded-balance check never escalates, and the one-time
-"unattributed EURe mint" warning is the only signal. Arming the marker on unattributed
-funds would also start the permissionless swap and forward clocks, so the keeper does
-not retry it.
+"unattributed EURe mint" warning is the only signal; later cycles do not retry the
+poke, because the account is no longer a candidate.
 
 A payer can name a chain and address in the SEPA memo; when that address is linked to the
 client's profile, Monerium mints there instead of to the IBAN's default address. Besides
