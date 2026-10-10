@@ -395,12 +395,16 @@ permissionless `poke` and `applyFeePolicy`):
   than `RECOVERY_DELAY` (2 h). The marker opens when funds first arrive (the keeper
   sends the permissionless `poke()` ahead of the first swap, and on its own in a cycle
   that sends no swap: nothing to do, a deferral, a retry backoff or a failed attempt, so
-  a deposit whose every attempt fails is still refundable on time; a cycle waiting on a
-  pending execution leaves the poke to that execution's own sequence), is never
+  the marker arms on time however the swaps fare; a cycle waiting on a pending execution
+  leaves the poke to that execution's own sequence), is never
   re-timed by a chunk swap, and is re-timed for whatever remains after a forward or a
   recovery, so a younger payment sharing the clone gets its own clock. The keeper
   recovers before it converts anything else, and still does so on suspended or dormant
-  accounts (`recover` ignores the guardian pause). Off the clone, `recovery.ts` drives
+  accounts (`recover` ignores the guardian pause). The account's retry backoff (1 min,
+  doubling per failure since its last confirmed execution, at most 60 min) holds a swap
+  or forward back on failures of any kind, but a planned `recover` only on failed
+  recovers, so a deposit whose every swap attempt fails is still recovered as soon as
+  its marker is old enough. Off the clone, `recovery.ts` drives
   the refund when `MONERIUM_B2B_AUTO_RECOVERY=auto` (`alert` only reports deposits past
   the window; `off` leaves everything to runbook §2.7): once the `recover` is confirmed
   a `monerium_recoveries` row walks `moved → swapping → swapped → topping_up →

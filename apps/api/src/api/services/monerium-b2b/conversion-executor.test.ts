@@ -1179,17 +1179,59 @@ describe("runConversionExecutor batch marker", () => {
 
   const executions = (accountId: string) => MoneriumConversionExecution.findAll({ where: { accountId } });
 
-  async function failedAttempt(accountId: string, depositId: string) {
+  async function failedAttempt(accountId: string, depositId: string, kind = MoneriumConversionExecutionKind.Swap) {
     await MoneriumConversionExecution.create({
       accountId,
       depositId,
       destination: "0x5555555555555555555555555555555555555555",
       eureInRaw: (100n * EUR).toString(),
       error: "attempt 1: execution reverted",
-      kind: MoneriumConversionExecutionKind.Swap,
-      status: MoneriumConversionExecutionStatus.Failed
+      kind,
+      status: MoneriumConversionExecutionStatus.Failed,
+      usdcNetRaw: kind === MoneriumConversionExecutionKind.Recover ? "0" : null
     });
   }
+
+  /** Marks the deposit recovering on a batch armed long enough ago for `recover`. */
+  async function eligibleRecovery(depositId: string) {
+    await MoneriumFiatDeposit.update(
+      { refundStartedAt: new Date(), status: MoneriumFiatDepositStatus.Recovering },
+      { where: { id: depositId } }
+    );
+    return BigInt(Math.floor(Date.now() / 1000) - 7_200 - 120);
+  }
+
+  it("holds a swap back on failed executions of any kind", async () => {
+    const writes = arrange({ batchOpenedAt: 1n });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    await failedAttempt(accountId, deposit.id, MoneriumConversionExecutionKind.Recover);
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual([]);
+    expect(await executions(accountId)).toHaveLength(1);
+  });
+
+  it("recovers an eligible deposit on time however often its swaps failed", async () => {
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    for (let i = 0; i < 5; i++) await failedAttempt(accountId, deposit.id);
+    const writes = arrange({ batchOpenedAt: await eligibleRecovery(deposit.id) });
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["recover:7"]);
+  });
+
+  it("still backs a recover off on its own failed recovers", async () => {
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    await failedAttempt(accountId, deposit.id, MoneriumConversionExecutionKind.Recover);
+    const writes = arrange({ batchOpenedAt: await eligibleRecovery(deposit.id) });
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual([]);
+    expect(await executions(accountId)).toHaveLength(1);
+  });
 
   it("pokes once when the swap attempt fails before sending", async () => {
     const writes = arrange({ batchOpenedAt: 0n, swapReverts: true });

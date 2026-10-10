@@ -722,9 +722,14 @@ async function findMatchingTxHashes(
 
 /**
  * Under the forwarder lock: resolve leftover pending executions (crash/timeout
- * recovery), then decide whether a new execution may start (retry backoff).
+ * recovery), then decide whether a new execution may start (retry backoff). A planned
+ * recover backs off only on failed recovers: failed swaps must not delay the refund.
  */
-async function prepareExecutionSlot(account: MoneriumAccount, transaction: Transaction): Promise<PreparationResult> {
+async function prepareExecutionSlot(
+  account: MoneriumAccount,
+  transaction: Transaction,
+  plannedKind?: MoneriumConversionExecutionKind
+): Promise<PreparationResult> {
   const pendings = await MoneriumConversionExecution.findAll({
     order: [["created_at", "ASC"]],
     transaction,
@@ -810,6 +815,7 @@ async function prepareExecutionSlot(account: MoneriumAccount, transaction: Trans
     where: {
       accountId: account.id,
       status: MoneriumConversionExecutionStatus.Failed,
+      ...(plannedKind === MoneriumConversionExecutionKind.Recover ? { kind: plannedKind } : {}),
       ...(lastConfirmed ? { createdAt: { [Op.gt]: lastConfirmed.createdAt } } : {})
     }
   });
@@ -1217,7 +1223,7 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
   // Pending-check and execution-row create under ONE lock acquisition: split across two
   // transactions, two concurrent executors could both pass the check and both broadcast.
   const slot = await withForwarderLock(account.forwarderAddress, async transaction => {
-    const preparation = await prepareExecutionSlot(account, transaction);
+    const preparation = await prepareExecutionSlot(account, transaction, call.kind);
     if (preparation.kind !== "proceed") {
       return preparation;
     }
