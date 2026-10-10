@@ -1307,7 +1307,7 @@ describe("runConversionExecutor batch marker", () => {
     expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Pending]);
   });
 
-  it("does not poke again after the sequenced poke was attempted", async () => {
+  it("does not poke again after the sequenced poke was attempted, and pokes in the next cycle's backoff", async () => {
     const writes = arrange({ batchOpenedAt: 0n, failPokeWrite: true });
     const { accountId } = await activeAccountWithDeposit();
 
@@ -1315,6 +1315,11 @@ describe("runConversionExecutor batch marker", () => {
 
     expect(writes).toEqual(["poke:7"]);
     expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Failed]);
+
+    // The write may have reached the relay; the marker is re-armed one cycle later at most.
+    await runConversionExecutor(accountId);
+    expect(writes).toEqual(["poke:7", "poke:auto"]);
+    expect(await executions(accountId)).toHaveLength(1);
   });
 
   it("keeps the poke-then-swap sequence on a sent attempt, with no extra poke", async () => {

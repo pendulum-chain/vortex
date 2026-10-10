@@ -1261,7 +1261,9 @@ export async function runConversionExecutor(accountId: string): Promise<void> {
     return;
   }
   const { attempt, execution } = slot;
-  // Cleared once the sequenced poke is attempted, so a failed attempt never pokes twice.
+  // Cleared once the sequenced poke is attempted: a poke write that throws may still have
+  // reached the relay, and the failed row's backoff pokes an unarmed marker on the next
+  // cycle anyway, so a compensating poke here would buy one cycle for a possible duplicate.
   let pokeOutstanding = pokeNeeded;
 
   try {
