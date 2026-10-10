@@ -285,6 +285,24 @@ the promised window. Decisions:
   share a wallet. `MONERIUM_B2B_RECOVERY_PRIVATE_KEY` is replaced by
   `MONERIUM_B2B_REFUND_SEED`, required whenever the module is enabled.
 
+## Amendment 2026-10-10: refunds below the swap floor
+
+- **Payments below `MIN_SWAP_FLOOR` are refunded through an operator top-up, not
+  automatically.** The 2026-09-17 refund triggers include remainders below
+  `minSwapAmount`, but a clone holding less than `MIN_SWAP_FLOOR` (€1) EURe and no USDC
+  never arms its batch marker, so `recover` reverts for such a payment and the keeper
+  cannot refund it on its own. Once it is marked `recovering`, the stranded-balance
+  monitor raises REFUND NEEDS OPERATOR with the exact top-up (`MIN_SWAP_FLOOR - clone
+  EURe + 1 wei`), which an operator sends to the clone from any wallet, e.g. the float
+  (internal B2B runbook §2.7). The marker then arms and the keeper's normal `recover`
+  and refund pipeline refund the payer's own EURe after `RECOVERY_DELAY`, with the full
+  refund record and the one-refund-per-client gate; such a payment is never refunded by
+  hand. The top-up stays on the clone below the floor as Vortex EURe (the odd wei keeps
+  the mint watcher from attributing it to an order), and a later sub-floor payment that
+  reaches the floor with it is refunded with no operator step. Sending the top-up as
+  soon as the payment shows `below_minimum` lands the refund at about the normal
+  deadline; otherwise it lands `RECOVERY_DELAY` after the top-up.
+
 ## Final parameters (decided 2026-08-26 unless noted)
 
 | ID | Parameter | Value |

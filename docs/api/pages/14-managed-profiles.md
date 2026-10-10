@@ -199,7 +199,7 @@ X-Managed-Profile-Id: <payload.profileId from ACCOUNT_UPDATED>
 **Sandbox specifics**
 
 - **Network.** Sandbox converts and delivers on Ethereum Sepolia; production uses Ethereum mainnet. The destination must be an Ethereum address the client controls, and it is fixed for the life of the account.
-- **Minimum.** Payments from EUR 1 are converted. A smaller payment is not converted and never holds back later payments; its `waiting.reason` is `below_minimum`. After the refund window it enters the refund path (`recovering`), but the forwarding contract cannot move an amount below EUR 1 on its own, so operations usually refund it by hand and it can take longer than other refunds.
+- **Minimum.** As in production, payments from EUR 1 are converted; a smaller payment is refunded later than the normal window, after a step by Vortex operations (see [Register A Business EUR Client](#register-a-business-eur-client)).
 - **Refund window.** A payment that is not converted within 15 minutes of its mint (two hours by default in production), for example because the account was not active yet, is refunded in full to the account it came from (operations process the refund by hand where automatic refunds are off). The EUR provider pays refunds out only for profiles it has approved.
 - **Webhook signatures.** Sandbox signs deliveries with its own key: verify them against `https://api-sandbox.vortexfinance.co/v1/public-key`, not the production key. See [Webhooks](https://api-docs.vortexfinance.co/webhooks).
 
@@ -259,6 +259,8 @@ The destination is fixed for the life of the account, so an identical replay (sa
 | `503 MONERIUM_B2B_PROVIDER_UNAVAILABLE` | The provider failed, timed out, rate-limited the request or refused the profile check. Nothing was recorded: retry the identical request later. |
 
 An account converts payments only once it is `active`, and its IBAN can be issued before that: `iban` is set while `status` is still `onboarding`. A payment that reaches the IBAN earlier is not converted. The deposit waits with `waiting.reason` `account_not_active` and is refunded once the promised conversion window has passed (two hours by default, 15 minutes in sandbox; operations process the refund by hand where automatic refunds are off). A `suspended` account, or one paused for dormancy, converts nothing either, and Vortex suspends an account whose destination check fails even if it was never active. So hand a client its IBAN only once an `ACCOUNT_UPDATED` event or `GET /v1/monerium-b2b/account` reports `status: "active"`. The gate is Vortex's policy, applied by its conversion service rather than locked on chain, so treat the IBAN as unusable until then. In sandbox, accounts activate on their own once the IBAN is issued; in production, Vortex operations activate an account after checking its destination.
+
+Vortex converts payments from EUR 1. A smaller payment is not converted and never holds back later payments; its `waiting.reason` is `below_minimum`. It is refunded in full to the account it came from, but later than the normal window: the conversion contract cannot return an amount below EUR 1 on its own, so Vortex operations take one step first, after which the refund runs like any other and `DEPOSIT_RETURNED` reports it. Expect it a few hours after the window rather than at it.
 
 ## Common Errors
 
