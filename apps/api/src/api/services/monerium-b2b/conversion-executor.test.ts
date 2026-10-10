@@ -1639,6 +1639,12 @@ describe("runConversionExecutor fee-policy apply", () => {
   let writeError: Error | null;
   let nonces: { latest: number; pending: number };
   let receiptTimesOut: boolean;
+  /** Keeper writes go through a private relay: the public pending nonce never sees them. */
+  let privateTransport: boolean;
+  let receiptStatus: "success" | "reverted";
+  let simulateError: Error | null;
+  /** This test's apply hashes (unique per write: the keeper remembers applies across cycles). */
+  let sentHashes: Set<string>;
 
   beforeAll(async () => {
     config.moneriumB2b.rpcUrl = undefined;
@@ -1657,6 +1663,10 @@ describe("runConversionExecutor fee-policy apply", () => {
     writeError = null;
     nonces = { latest: 0, pending: 0 };
     receiptTimesOut = false;
+    privateTransport = false;
+    receiptStatus = "success";
+    simulateError = null;
+    sentHashes = new Set();
     reads = {
       batchOpenedAt: 1n,
       floorPpm: 1_500,
@@ -1681,11 +1691,18 @@ describe("runConversionExecutor fee-policy apply", () => {
         if (functionName === "targetPpm") writes.push("read targetPpm");
         return functionName === "balanceOf" ? (address === EURE ? 100n * EUR : 0n) : reads[functionName];
       },
-      simulateContract: async () => ({}),
+      getTransactionReceipt: async ({ hash }: { hash: Hex }) => {
+        if (receiptTimesOut && sentHashes.has(hash)) throw new TransactionReceiptNotFoundError({ hash });
+        return { status: receiptStatus };
+      },
+      simulateContract: async () => {
+        if (simulateError) throw simulateError;
+        return {};
+      },
       waitForTransactionReceipt: async () => {
         if (receiptTimesOut) throw new Error("WaitForTransactionReceiptTimeoutError");
         nonces.latest = nonces.pending;
-        return { status: "success" };
+        return { status: receiptStatus };
       }
     } as unknown as ReturnType<typeof chain.getPublicClient>);
     spyOn(chain, "getKeeperWalletClient").mockReturnValue({
@@ -1693,8 +1710,10 @@ describe("runConversionExecutor fee-policy apply", () => {
       writeContract: async ({ functionName }: { functionName: string }) => {
         if (writeError) throw writeError;
         writes.push(functionName);
-        nonces.pending += 1;
-        return "0xapply";
+        if (!privateTransport) nonces.pending += 1;
+        const hash = `0x${crypto.randomUUID().replaceAll("-", "")}${"0".repeat(32)}`;
+        sentHashes.add(hash);
+        return hash;
       }
     } as unknown as ReturnType<typeof chain.getKeeperWalletClient>);
   });
@@ -1754,6 +1773,67 @@ describe("runConversionExecutor fee-policy apply", () => {
     await runConversionExecutor(accountId); // still looks pending on chain
 
     expect(writes.filter(write => write === "applyFeePolicy")).toEqual(["applyFeePolicy"]);
+  });
+
+  it("does not re-send an unmined apply the public pool cannot see (private transport) until the relay bound", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW - 60n;
+    receiptTimesOut = true;
+    privateTransport = true;
+    const info = spyOn(logger, "info");
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId); // sent, receipt wait times out
+    await runConversionExecutor(accountId); // public latest == pending: only the remembered apply holds it
+    await runConversionExecutor(accountId);
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual(["applyFeePolicy"]);
+    const skips = info.mock.calls.filter(([message]) => String(message).includes("still unmined"));
+    expect(skips).toHaveLength(1); // logged once, not every cycle
+    expect(String(skips[0][0])).toContain("is due for 60s but not sent");
+
+    const later = Date.now() + 16 * 60_000;
+    spyOn(Date, "now").mockReturnValue(later);
+    await runConversionExecutor(accountId); // past the bound: the relay dropped it, send again
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual(["applyFeePolicy", "applyFeePolicy"]);
+  });
+
+  it("does not apply while any keeper transaction is unmined in the public pool, and says so once", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW;
+    nonces = { latest: 3, pending: 4 }; // e.g. another account's swap
+    const info = spyOn(logger, "info");
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+    await runConversionExecutor(accountId);
+
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual([]);
+    expect(info.mock.calls.filter(([message]) => String(message).includes("of any account"))).toHaveLength(1);
+  });
+
+  it("sends nothing and carries on when the apply's simulation reverts", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW;
+    simulateError = new Error("NoPendingFeePolicy()");
+    const warn = spyOn(logger, "warn");
+    const { accountId, deposit } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["read targetPpm"]);
+    expect(warn.mock.calls.some(([message]) => String(message).includes("NoPendingFeePolicy"))).toBe(true);
+    expect((await deposit.reload()).waitingReason).toBe("oracle_unavailable");
+  });
+
+  it("logs a mined but reverted apply as failed, never as applied", async () => {
+    reads.pendingFeePolicyEffectiveAt = NOW;
+    receiptStatus = "reverted";
+    const info = spyOn(logger, "info");
+    const warn = spyOn(logger, "warn");
+    const { accountId } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes.filter(write => write === "applyFeePolicy")).toEqual(["applyFeePolicy"]);
+    expect(warn.mock.calls.some(([message]) => /applyFeePolicy .* failed: transaction 0x[0-9a-f]+ reverted/.test(String(message)))).toBe(true);
+    expect(info.mock.calls.some(([message]) => String(message).includes("applied the pending fee policy"))).toBe(false);
   });
 
   it("sends nothing while no increase is pending or its timelock still runs", async () => {

@@ -467,9 +467,12 @@ contract settles every fill into three bands against that reference (decisions:
   lowering is immediate (registry P11). Swaps always use the currently applied policy.
   Once an increase is due, the keeper sends `applyFeePolicy()` in the account's next
   cycle, before pricing, and waits for it; a failed read of the pending policy, a revert
-  or a timeout is logged and the cycle goes on, and no apply is re-sent while a keeper transaction is still unmined. The
-  executor only runs for accounts with a settling deposit, so an idle clone's increase
-  is applied before its next swap.
+  or a timeout is logged and the cycle goes on. A timed-out apply is not re-sent while it
+  has no receipt and is younger than 15 minutes (remembered per forwarder in process
+  memory, since a private relay's pending transactions are invisible to the public nonce
+  counts), and no apply is sent while the public pool holds any keeper transaction, of
+  any account; each skip reason is logged once. The executor only runs for accounts
+  with a settling deposit, so an idle clone's increase is applied before its next swap.
 - **Subsidy vault (`VortexSubsidyVault`)**: one contract shared by every clone, funded
   from the treasury. It pays only when called by a factory-registered clone, to the
   clone itself (the subsidy is forwarded with the payment), within a guardian-settable

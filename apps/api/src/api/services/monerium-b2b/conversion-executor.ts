@@ -1450,15 +1450,33 @@ async function sendPoke(forwarder: Address): Promise<void> {
 }
 
 /**
+ * How long an unmined applyFeePolicy is left alone before it is sent again: longer than a
+ * private relay keeps a transaction. A dropped apply only delays a fee increase, which never
+ * costs the client.
+ */
+const FEE_APPLY_RESEND_AFTER_MS = 15 * 60_000;
+
+/** The last applyFeePolicy sent per forwarder (lower-cased address). */
+// ponytail: in-process memory; a restart forgets an unmined apply and may send it once more (the
+// duplicate reverts NoPendingFeePolicy or is dropped). Persist it if that ever costs more than gas.
+const sentFeeApplies = new Map<string, { hash: Hex; sentAtMs: number }>();
+/** The skip reason last logged per forwarder, so a skip is logged once, not every cycle. */
+const loggedFeeApplySkips = new Map<string, string>();
+
+/**
  * P11: finalizes a guardian fee increase whose timelock has elapsed (`applyFeePolicy` is
  * permissionless; nothing else would ever apply it). Waits for the receipt so the cycle
- * then reads the applied policy, and skips while any keeper transaction is still unmined so
- * a timed-out apply is not re-sent every cycle. Best-effort like sendPoke: a failed read, a revert (applied
- * by someone else, clock skew) or a timeout is logged and the cycle goes on, since the
- * contract always settles under its current on-chain policy. The monitor's config reconciliation mirrors
- * the applied values into the account row.
+ * then reads the applied policy. A timed-out apply is not re-sent every cycle: the forwarder's
+ * last apply is remembered and nothing is sent while it has no receipt and is younger than
+ * FEE_APPLY_RESEND_AFTER_MS (keeper writes go through the private transport on mainnet, which
+ * the public nonce counts never show), nor while the public pool holds any keeper transaction,
+ * of any account. A skip is logged once per reason. Best-effort like sendPoke: a failed read, a
+ * revert (applied by someone else, clock skew) or a timeout is logged and the cycle goes on,
+ * since the contract always settles under its current on-chain policy. The monitor's config
+ * reconciliation mirrors the applied values into the account row.
  */
 async function applyDueFeePolicy(forwarder: Address): Promise<void> {
+  const key = forwarder.toLowerCase();
   try {
     const client = getPublicClient();
     // Read here, not with the cycle's state: a failed read must not stop the cycle's recover or poke.
@@ -1467,9 +1485,33 @@ async function applyDueFeePolicy(forwarder: Address): Promise<void> {
       address: forwarder,
       functionName: "pendingFeePolicyEffectiveAt"
     });
-    if (effectiveAt === 0n) return;
+    if (effectiveAt === 0n) {
+      loggedFeeApplySkips.delete(key);
+      return;
+    }
     const { timestamp } = await client.getBlock();
     if (timestamp < effectiveAt) return;
+    const skip = (reason: string) => {
+      if (loggedFeeApplySkips.get(key) === reason) return;
+      loggedFeeApplySkips.set(key, reason);
+      logger.info(
+        `monerium-b2b: applyFeePolicy on forwarder ${forwarder} is due for ${timestamp - effectiveAt}s but not sent: ${reason}`
+      );
+    };
+    const earlier = sentFeeApplies.get(key);
+    if (earlier && Date.now() - earlier.sentAtMs < FEE_APPLY_RESEND_AFTER_MS) {
+      const mined = await client.getTransactionReceipt({ hash: earlier.hash }).then(
+        () => true,
+        (error: unknown) => {
+          if (error instanceof TransactionReceiptNotFoundError) return false;
+          throw error;
+        }
+      );
+      if (!mined) {
+        skip(`its earlier apply ${earlier.hash} is still unmined`);
+        return;
+      }
+    }
     const keeper = getKeeperWalletClient();
     const call = { abi: forwarderAbi, account: keeper.account, address: forwarder, functionName: "applyFeePolicy" } as const;
     await client.simulateContract(call);
@@ -1478,11 +1520,16 @@ async function applyDueFeePolicy(forwarder: Address): Promise<void> {
         client.getTransactionCount({ address: keeper.account.address, blockTag: "latest" }),
         client.getTransactionCount({ address: keeper.account.address, blockTag: "pending" })
       ]);
-      // An earlier apply (or any keeper send) still unmined: re-sending would only stack nonces.
+      // Any keeper send still unmined in the public pool: an apply now would only stack behind it.
       if (pending !== latest) return null;
       return keeper.writeContract({ ...call, chain: null });
     });
-    if (hash === null) return;
+    if (hash === null) {
+      skip("a keeper transaction (of any account) is still unmined in the public pool");
+      return;
+    }
+    sentFeeApplies.set(key, { hash, sentAtMs: Date.now() });
+    loggedFeeApplySkips.delete(key);
     const receipt = await client.waitForTransactionReceipt({ hash, timeout: RECEIPT_TIMEOUT_MS });
     if (receipt.status !== "success") throw new Error(`transaction ${hash} reverted`);
     logger.info(`monerium-b2b: applied the pending fee policy on forwarder ${forwarder} (${hash})`);
