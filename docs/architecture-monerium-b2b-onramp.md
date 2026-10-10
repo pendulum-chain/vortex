@@ -549,7 +549,9 @@ read-only — no keys, no transactions:
    the keeper recover it (the refund path above, internal B2B runbook §2.7); a landed
    top-up lifts the clone to the floor and quiets it. Otherwise part or all of its funds
    may have left the clone by an unrecorded path, so it warns "reconcile before
-   refunding; do not refund and do not top up the clone".
+   refunding; do not refund and do not top up the clone". The pass skips that account
+   while any of its `recover` executions is still pending: a mined `recover` not yet
+   confirmed would make the ledger overstate the clone.
 4. **Config reconciliation.** Re-reads per-clone config and bytecode: guardian-authorized
    fee-policy changes (timelocked) are reconciled into the DB with a version bump; a
    destination change (no setter exists), bytecode or registration drift is a

@@ -436,6 +436,9 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
           executions.some(
             e => e.depositId === deposit.id && e.kind === MoneriumConversionExecutionKind.Recover && statuses.includes(e.status)
           );
+        // A mined `recover` whose row is still Pending already took its EURe, which the ledger
+        // below would still count: wait for the keeper to confirm it before judging the rest.
+        if (deposits.some(deposit => recoverOf(deposit, [MoneriumConversionExecutionStatus.Pending]))) continue;
         const stuck = deposits.filter(
           deposit =>
             deposit.status === MoneriumFiatDepositStatus.Recovering &&

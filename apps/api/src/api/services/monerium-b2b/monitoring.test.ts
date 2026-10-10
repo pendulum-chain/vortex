@@ -463,6 +463,16 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     });
   }
 
+  it("waits for a sibling's mined recover to confirm before judging the clone's EURe", async () => {
+    // D2's recover is mined (the clone holds only D1's 0.5 EURe) but its row is still Pending.
+    const stuck = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    const recovering = await addDeposit(stuck.accountId, MoneriumFiatDepositStatus.Recovering, (EUR * 3n) / 10n);
+    await execution(recovering, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Pending);
+    await runStrandedBalanceMonitor();
+    expect(warnings.filter(message => message.includes(stuck.id))).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
   it("never asks to refund a payment whose funds already left the clone", async () => {
     // A 100 EUR payment converted and forwarded on the permissionless path, unseen by the ledger.
     const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, 100n * EUR);
