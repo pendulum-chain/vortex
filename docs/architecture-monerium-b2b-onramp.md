@@ -466,8 +466,8 @@ contract settles every fill into three bands against that reference (decisions:
   SEPA transfer is already in flight cannot be swapped under a silently worse policy;
   lowering is immediate (registry P11). Swaps always use the currently applied policy.
   Once an increase is due, the keeper sends `applyFeePolicy()` in the account's next
-  cycle, before pricing, and waits for it; a revert or timeout is logged and the cycle
-  goes on, and no apply is re-sent while a keeper transaction is still unmined. The
+  cycle, before pricing, and waits for it; a failed read of the pending policy, a revert
+  or a timeout is logged and the cycle goes on, and no apply is re-sent while a keeper transaction is still unmined. The
   executor only runs for accounts with a settling deposit, so an idle clone's increase
   is applied before its next swap.
 - **Subsidy vault (`VortexSubsidyVault`)**: one contract shared by every clone, funded

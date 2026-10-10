@@ -1764,6 +1764,20 @@ describe("runConversionExecutor fee-policy apply", () => {
     expect(writes.filter(write => write === "applyFeePolicy")).toEqual([]);
   });
 
+  it("carries on with the cycle when the pending fee policy cannot be read", async () => {
+    Object.defineProperty(reads, "pendingFeePolicyEffectiveAt", {
+      get: () => Promise.reject(new Error("execution reverted"))
+    });
+    const warn = spyOn(logger, "warn");
+    const { accountId, deposit } = await activeAccountWithDeposit();
+
+    await runConversionExecutor(accountId);
+
+    expect(warn.mock.calls.some(([message]) => String(message).includes("applyFeePolicy"))).toBe(true);
+    expect(writes).toEqual(["read targetPpm"]); // the swap was still planned and priced
+    expect((await deposit.reload()).waitingReason).toBe("oracle_unavailable");
+  });
+
   it("logs a reverted apply and carries on with the cycle", async () => {
     reads.pendingFeePolicyEffectiveAt = NOW - 60n;
     writeError = new Error("NoPendingFeePolicy()");
