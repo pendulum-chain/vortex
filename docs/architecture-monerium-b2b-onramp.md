@@ -322,7 +322,9 @@ threw, or a private relay dropped the transaction) would block the account and i
 refund path forever, so once the row has been idle for the same five minutes and the
 nonce is not yet mined and nothing is pending at the keeper's next nonce, the keeper
 (first filling with zero-value self-transfers any gap below the row's nonce, which a
-dropped `poke()` leaves because a swap or forward reserves nonce+1 behind it)
+dropped `poke()` leaves because a swap or forward reserves nonce+1 behind it; the
+re-sent swap or forward arms an unarmed marker itself and after a no-op the next cycle
+pokes, so a dropped poke delays the recovery clock by about the five idle minutes)
 re-sends the row's exact calldata at that nonce under the keeper send lock. Whichever
 copy is mined is the expected call and the exact recovery below adopts it. If the call
 no longer executes (the gas estimate reverts; a transport error or an unfunded keeper

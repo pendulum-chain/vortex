@@ -597,7 +597,9 @@ function isReplayable(pending: MoneriumConversionExecution, account: MoneriumAcc
  * closed or dormant) is treated the same way (its call must not run), while a recover is
  * exempt from that gate: it is the refund path. When
  * the mined nonce is below the row's (a swap or forward reserves nonce+1 behind a poke that
- * was dropped), the gap is first filled with no-ops so the row's nonce can be mined. The keeper lock covers the
+ * was dropped), the gap is first filled with no-ops so the row's nonce can be mined; the
+ * re-sent swap or forward arms an unarmed marker itself, and after a no-op the next cycle
+ * pokes, so a dropped poke delays the clock by about the idle deadline. The keeper lock covers the
  * re-check and the send, so a live owner still about to send is waited for. Lock order is
  * forwarder, then keeper; the send path never takes the forwarder lock. This is the one
  * send made while the forwarder lock is held; the caller checks the grace first so a live
