@@ -45,8 +45,8 @@ import { refundAccountFor } from "./refund-wallet";
  *    should be forwarded or recovering by then; past TRIGGER_DELAY (the
  *    permissionless-trigger delay, registry P4) they error — a keeper-outage signal.
  *    An unswapped payment marked for recovery whose EURe is still on a clone below
- *    MIN_SWAP_FLOOR errors too: the contract cannot recover it, so the operator refunds
- *    it by hand (one whose funds already left the clone only warns: reconcile).
+ *    MIN_SWAP_FLOOR errors too: the contract cannot recover it until the operator tops the
+ *    clone up to the floor (one whose funds already left the clone only warns: reconcile).
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
  *    (docs/architecture-monerium-b2b-onramp.md, fees section); a vault that cannot cover a
  *    below-floor swap makes the keeper defer, so runway problems surface here first.
@@ -402,6 +402,7 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         if (marked === 0) continue;
         // Every deposit whose EURe the ledger may still place on the clone: settling, marked, or
         // refunded (a manual refund leaves its EURe there; a confirmed `recover` took it away).
+        // An operator top-up is an unattributed Minted row and stays on the clone too.
         const deposits = await MoneriumFiatDeposit.findAll({
           attributes: ["id", "amountRaw", "status"],
           where: {
@@ -440,10 +441,11 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
             deposit.status === MoneriumFiatDepositStatus.Recovering &&
             !recoverOf(deposit, [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed])
         );
-        // Only an unswapped payment is refunded by hand, and only while the clone still holds
+        // Only an unswapped payment gets the top-up remedy, and only while the clone still holds
         // all the EURe the ledger places there (every payment's unswapped, unrecovered rest);
         // anything less means EURe left by a path the ledger does not record (the permissionless
-        // swap/forwardAll), so refunding could pay twice.
+        // swap/forwardAll), so refunding could pay twice. A top-up that landed lifts the clone to
+        // the floor, so this branch is skipped until the keeper's `recover` took the payer's EURe.
         const unswapped = stuck.filter(deposit => swapsOf(deposit).length === 0);
         const ledgerEure = deposits
           .filter(deposit => !recoverOf(deposit, [MoneriumConversionExecutionStatus.Confirmed]))
@@ -451,17 +453,25 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         const onClone = ledgerEure <= eureBalance ? unswapped : [];
         const elsewhere = stuck.filter(deposit => !onClone.includes(deposit));
         if (onClone.length > 0) {
+          // A top-up to one wei above the floor lets `poke` arm the marker, and the keeper's
+          // normal `recover` then refunds the payer's own EURe; the top-up stays on the clone
+          // below the floor. The odd wei keeps the mint watcher from matching it to an order.
+          const topUpRaw = minSwapFloor - eureBalance + 1n;
           logger.error(
             `monerium-b2b: REFUND NEEDS OPERATOR — deposit(s) ${onClone.map(deposit => deposit.id).join(", ")} on forwarder ` +
-              `${forwarder} (account ${account.id}) are marked for recovery, but the clone holds ${eureBalance} EURe, below ` +
-              "MIN_SWAP_FLOOR, so the contract cannot recover them: refund each by hand as a redeem from the client's refund " +
-              "wallet with memo vortex-refund:<depositId>, then close it as refunded at once (runbook §2.7)"
+              `${forwarder} (account ${account.id}) are marked for recovery, but the clone holds ${formatUnits(eureBalance, 18)} ` +
+              `EURe, below MIN_SWAP_FLOOR, so the contract cannot recover them: send exactly ${formatUnits(topUpRaw, 18)} EURe ` +
+              `(${topUpRaw} raw) of EURe ${eure} to the clone from any wallet (e.g. the float). The keeper then arms the marker ` +
+              "and refunds through the normal recover path after RECOVERY_DELAY, one deposit at a time (this alert returns " +
+              "with a new amount for any left below the floor); the top-up stays on the clone as Vortex EURe; expect one " +
+              "unattributed-mint warn; never refund this deposit by hand (the internal B2B runbook §2.7)"
           );
         }
         if (elsewhere.length > 0) {
           logger.warn(
             `monerium-b2b: deposit(s) ${elsewhere.map(deposit => deposit.id).join(", ")} on forwarder ${forwarder} ` +
-              `(account ${account.id}) are marked for recovery but their funds are no longer on the clone: reconcile, do not refund`
+              `(account ${account.id}) are marked for recovery, but part or all of their funds left the clone: reconcile ` +
+              "before refunding; do not refund and do not top up the clone"
           );
         }
         continue;

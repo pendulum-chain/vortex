@@ -367,10 +367,23 @@ permissionless `poke` and `applyFeePolicy`):
   below the immutable `MIN_SWAP_FLOOR` never arms the batch marker (`poke` refuses, by
   design against dust), so `recover` cannot move it unless a larger balance keeps the
   marker open for `RECOVERY_DELAY`; once marked `recovering` on a clone below the floor,
-  the stranded-balance monitor raises REFUND NEEDS OPERATOR and operations refund it by
-  hand from the client's refund wallet under the memo `vortex-refund:<depositId>` (so a
-  later keeper `recover` cannot pay it twice) and close it `refunded` (internal B2B
-  runbook §2.7). A remainder left after chunk swaps is recoverable as usual: its USDC
+  the stranded-balance monitor raises REFUND NEEDS OPERATOR with the exact top-up:
+  `MIN_SWAP_FLOOR - clone EURe + 1 wei` of EURe, which operations send to the clone from
+  any wallet (e.g. the float; internal B2B runbook §2.7). The clone then holds the floor,
+  `poke` arms the marker, and after `RECOVERY_DELAY` the keeper's normal
+  `recover(remaining EURe, 0)` and refund pipeline below refund the payer exactly, from
+  the payer's own EURe, with the full record (`recover` transaction, redeem order,
+  `refundedAt`); the deposit is never refunded by hand. The top-up stays on the clone
+  below the floor, so `recover` switches the marker off by itself: no follow-up step. The
+  odd wei makes it a non-whole-cent amount the mint watcher can never match to a
+  Monerium order, so it is recorded as an `unattr:` Minted row (one warn) that the keeper
+  never converts. Leftover top-ups are Vortex EURe and stay below EUR 1 per clone; a
+  later sub-floor payment on that clone that reaches the floor with them arms the marker
+  and is refunded with no operator step. The top-up may also be sent early, as soon as
+  the payment shows `below_minimum`: the marker then arms at once and the refund lands at
+  about the normal deadline instead of a `RECOVERY_DELAY` after the alert. Monerium's
+  minimum redeem order is EUR 0.01, so a sub-EUR-1 refund is allowed (not yet rehearsed
+  end to end). A remainder left after chunk swaps is recoverable as usual: its USDC
   keeps the marker armed. Every younger deposit's `forward` re-times the marker, so a
   passed-over remainder at or above the floor (possible only once `minSwapAmount` is
   raised above `MIN_SWAP_FLOOR`) becomes recoverable only after a forward-free
@@ -531,10 +544,12 @@ read-only — no keys, no transactions:
    a keeper-outage signal; funds are never at risk). An unswapped deposit marked
    `recovering` without a pending or confirmed `recover`, on a clone below
    `MIN_SWAP_FLOOR` that still holds all the EURe the ledger places there (every
-   deposit's unswapped, unrecovered rest, a manual refund's EURe included), raises REFUND
-   NEEDS OPERATOR (manual refund under its memo, then close it `refunded`, internal B2B
-   runbook §2.7); otherwise its funds may have left the clone by an unrecorded path, so
-   it warns "reconcile, do not refund".
+   deposit's unswapped, unrecovered rest, a legacy hand refund's EURe and `unattr:`
+   top-ups included), raises REFUND NEEDS OPERATOR with the exact EURe top-up that lets
+   the keeper recover it (the refund path above, internal B2B runbook §2.7); a landed
+   top-up lifts the clone to the floor and quiets it. Otherwise part or all of its funds
+   may have left the clone by an unrecorded path, so it warns "reconcile before
+   refunding; do not refund and do not top up the clone".
 4. **Config reconciliation.** Re-reads per-clone config and bytecode: guardian-authorized
    fee-policy changes (timelocked) are reconciled into the DB with a version bump; a
    destination change (no setter exists), bytecode or registration drift is a

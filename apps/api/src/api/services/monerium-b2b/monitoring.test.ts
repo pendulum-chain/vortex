@@ -320,6 +320,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
   const saved = { factory: config.moneriumB2b.forwarderFactoryAddress, rpcUrl: config.moneriumB2b.rpcUrl };
   let errors: string[];
   let warnings: string[];
+  let eureOnClone: bigint;
 
   beforeAll(async () => {
     config.moneriumB2b.rpcUrl = undefined; // provisioning skips the on-chain clone check
@@ -336,6 +337,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     await resetTestDatabase();
     errors = [];
     warnings = [];
+    eureOnClone = EUR / 2n;
     const reads: Record<string, unknown> = { batchOpenedAt: 0n, MIN_SWAP_FLOOR: 1n * EUR, TRIGGER_DELAY: 86_400n };
     spyOn(chain, "getForwarderImmutables").mockResolvedValue({
       eure: EURE,
@@ -345,7 +347,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     } as unknown as chain.ForwarderImmutables);
     spyOn(chain, "getPublicClient").mockReturnValue({
       readContract: async ({ address, functionName }: { address: Address; functionName: string }) =>
-        functionName === "balanceOf" ? (address === EURE ? EUR / 2n : 0n) : reads[functionName]
+        functionName === "balanceOf" ? (address === EURE ? eureOnClone : 0n) : reads[functionName]
     } as unknown as ReturnType<typeof chain.getPublicClient>);
     spyOn(logger, "error").mockImplementation(((message: string) => {
       errors.push(message);
@@ -408,13 +410,48 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     });
   }
 
-  it("asks the operator to refund a payment marked for recovery that the contract cannot recover", async () => {
+  it("asks the operator for the exact top-up that lets the keeper recover a payment below the floor", async () => {
     const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
     await runStrandedBalanceMonitor();
     expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("REFUND NEEDS OPERATOR");
     expect(errors[0]).toContain(deposit.id);
-    expect(errors[0]).toContain("refund each by hand");
-    expect(errors[0]).toContain("vortex-refund:<depositId>");
+    expect(errors[0]).toContain("0x1111111111111111111111111111111111111111");
+    expect(errors[0]).toContain("the clone holds 0.5 EURe");
+    // MIN_SWAP_FLOOR - balance + 1 wei: arms the marker, and never matches an order by amount.
+    expect(errors[0]).toContain("send exactly 0.500000000000000001 EURe (500000000000000001 raw)");
+    expect(errors[0]).toContain(EURE);
+    expect(errors[0]).toContain("never refund this deposit by hand");
+    expect(errors[0]).toContain("the internal B2B runbook §2.7");
+  });
+
+  it("asks for the top-up when the keeper's recover failed, since the funds stayed on the clone", async () => {
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    await execution(deposit, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Failed);
+    await runStrandedBalanceMonitor();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(deposit.id);
+  });
+
+  it("goes quiet once the top-up landed, without calling the clone's EURe unrecorded", async () => {
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    // The mint watcher records the top-up as an unattributed Minted row.
+    await MoneriumFiatDeposit.create({
+      accountId: deposit.accountId,
+      amountRaw: (EUR / 2n + 1n).toString(),
+      blockNumber: 101,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 99,
+      mintedAt: new Date(),
+      moneriumOrderId: "unattr:topup",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xtopup"
+    });
+    eureOnClone = EUR + 1n;
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
   });
 
   for (const status of [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed]) {
@@ -440,7 +477,11 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     await execution(deposit, MoneriumConversionExecutionKind.Swap, MoneriumConversionExecutionStatus.Confirmed);
     await runStrandedBalanceMonitor();
     expect(errors).toEqual([]);
-    expect(warnings.some(message => message.includes(deposit.id) && message.includes("do not refund"))).toBe(true);
+    // Its EURe remainder may still be on the clone: the warning must not claim all of it left.
+    const warning = warnings.find(message => message.includes(deposit.id));
+    expect(warning).toContain("part or all of their funds left the clone: reconcile before refunding");
+    expect(warning).toContain("do not top up the clone");
+    expect(warning).not.toContain("are no longer on the clone");
   });
 
   // EURe the ledger places on the clone for other payments: a younger one still settling, or
