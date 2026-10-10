@@ -385,11 +385,17 @@ permissionless `poke` and `applyFeePolicy`):
   the payment shows `below_minimum`: the marker then arms at once and the refund lands at
   about the normal deadline instead of a `RECOVERY_DELAY` after the alert. Monerium's
   minimum redeem order is EUR 0.01, so a sub-EUR-1 refund is allowed (not yet rehearsed
-  end to end). A remainder left after chunk swaps is recoverable as usual: its USDC
-  keeps the marker armed. Every younger deposit's `forward` re-times the marker, so a
-  passed-over remainder at or above the floor (possible only once `minSwapAmount` is
-  raised above `MIN_SWAP_FLOOR`) becomes recoverable only after a forward-free
-  `RECOVERY_DELAY`; the stranded-balance monitor reports it as REFUND OVERDUE.
+  end to end). Passing over trades ordering for liveness: a younger payment converts
+  and forwards before the older passed-over one is refunded, and every `forward`
+  resyncs the marker (`_syncBatch(true)`). A clone left below the floor with no USDC
+  switches the marker off, so the older payment needs the top-up above even where the
+  younger balance, had it been held back, would have kept the marker armed for it.
+  While the clone stays funded (a passed-over remainder at or above the floor, possible
+  only once `minSwapAmount` is raised above `MIN_SWAP_FLOOR`, or a remainder left after
+  chunk swaps, whose USDC is still on the clone), each younger `forward` re-times the
+  marker instead, so the passed-over deposit becomes recoverable only after a
+  forward-free `RECOVERY_DELAY`; the stranded-balance monitor reports it as REFUND
+  OVERDUE once it runs late.
 - **The refund path.** A deposit marked `recovering` — by an operator through the admin
   endpoint, or once automated by the missed window — is moved off the clone with
   `recover(eureRemaining, usdcConverted)`: keeper-only, explicit amounts, only to the
