@@ -435,9 +435,15 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     });
   }
 
-  function execution(deposit: MoneriumFiatDeposit, kind: MoneriumConversionExecutionKind, status: MoneriumConversionExecutionStatus) {
+  function execution(
+    deposit: MoneriumFiatDeposit,
+    kind: MoneriumConversionExecutionKind,
+    status: MoneriumConversionExecutionStatus,
+    createdAt = new Date()
+  ) {
     return MoneriumConversionExecution.create({
       accountId: deposit.accountId,
+      createdAt,
       depositId: deposit.id,
       destination: "0x5555555555555555555555555555555555555555",
       eureInRaw: deposit.amountRaw,
@@ -536,6 +542,32 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
       await execution(deposit, MoneriumConversionExecutionKind.Recover, status);
       await runStrandedBalanceMonitor();
       expect(errors).toEqual([]);
+    });
+  }
+
+  // A recover the keeper keeps skipping (failing receipt lookups, an unresolvable hashless row)
+  // would otherwise keep the account silent, since the checks take a pending recover for progress.
+  for (const [hours, level] of [
+    [2, "warn"],
+    [5, "error"]
+  ] as const) {
+    it(`${level}s on a recover still pending ${hours}h after it was sent`, async () => {
+      const recovering = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 3n) / 10n);
+      const stuck = await addDeposit(recovering.accountId, MoneriumFiatDepositStatus.Recovering, EUR / 2n);
+      const recover = await execution(
+        recovering,
+        MoneriumConversionExecutionKind.Recover,
+        MoneriumConversionExecutionStatus.Pending,
+        new Date(Date.now() - hours * 3_600_000)
+      );
+      await runStrandedBalanceMonitor();
+      const alerts = [...errors, ...warnings];
+      expect(alerts).toHaveLength(1);
+      expect((level === "error" ? errors : warnings)[0]).toContain("RECOVER STUCK PENDING");
+      expect(alerts[0]).toContain(`${recover.id} (deposit ${recovering.id})`);
+      expect(alerts[0]).toContain(`pending for up to ${hours}h`);
+      // The sibling's sub-floor alert still waits for the recover, as for a young one.
+      expect(alerts[0]).not.toContain(stuck.id);
     });
   }
 
@@ -643,7 +675,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     for (const status of [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed]) {
       it(`stays quiet while its recover is ${status}`, async () => {
         const deposit = await markedHoursAgo(4);
-        await execution(deposit, MoneriumConversionExecutionKind.Recover, status);
+        await execution(deposit, MoneriumConversionExecutionKind.Recover, status, new Date(now - 10 * 60_000));
         await runStrandedBalanceMonitor(now);
         expect(warnings).toEqual([]);
       });

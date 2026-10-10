@@ -402,6 +402,29 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         client.readContract({ abi: erc20Abi, address: usdc, args: [forwarder], functionName: "balanceOf" }),
         client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "batchOpenedAt" })
       ]);
+      // The checks below take a pending `recover` for progress; one pending past the refund
+      // monitor's linger margin is stuck (the keeper's info log says why), so it alerts here.
+      const stuckRecovers = await MoneriumConversionExecution.findAll({
+        attributes: ["createdAt", "depositId", "id"],
+        order: [["created_at", "ASC"]],
+        where: {
+          accountId: account.id,
+          createdAt: { [Op.lt]: new Date(now - RECOVERY_LINGER_MS) },
+          kind: MoneriumConversionExecutionKind.Recover,
+          status: MoneriumConversionExecutionStatus.Pending
+        }
+      });
+      if (stuckRecovers.length > 0) {
+        const ageMs = now - stuckRecovers[0].createdAt.getTime();
+        const message =
+          `monerium-b2b: RECOVER STUCK PENDING — recover execution(s) ` +
+          `${stuckRecovers.map(e => `${e.id} (deposit ${e.depositId})`).join(", ")} on forwarder ${forwarder} ` +
+          `(account ${account.id}) pending for up to ${Math.floor(ageMs / 3_600_000)}h: the keeper cannot resolve it ` +
+          "(see its 'remains pending' or 'lookup failed' info log), and this account's refund alerts wait for it; check " +
+          "the transaction and the keeper's RPC (the internal B2B runbook §2.7)";
+        if (classifyRefundQueue(stuckRecovers[0].createdAt, false, now) === "error") logger.error(message);
+        else logger.warn(message);
+      }
       if (eureBalance < minSwapFloor && usdcBalance === 0n) {
         // Below MIN_SWAP_FLOOR the contract arms no batch, so `recover` can never run for a
         // payment marked for the refund path (one already recovered is the refund monitor's).

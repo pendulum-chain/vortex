@@ -574,7 +574,9 @@ read-only — no keys, no transactions:
    may have left the clone by an unrecorded path, so it warns "reconcile before
    refunding; do not refund and do not top up the clone". The pass skips that account
    while any of its `recover` executions is still pending: a mined `recover` not yet
-   confirmed would make the ledger overstate the clone. On a clone at or above the floor
+   confirmed would make the ledger overstate the clone. A `recover` still pending an
+   hour after it was created warns RECOVER STUCK PENDING (an error after four hours), on
+   any clone, so one the keeper cannot resolve never keeps the account silent. On a clone at or above the floor
    (or holding USDC), a `recovering` deposit with no pending or confirmed `recover` more
    than `RECOVERY_DELAY` plus an hour after it was marked warns REFUND OVERDUE (an error past
    `TRIGGER_DELAY`): younger forwards keep re-timing its marker, or another refund of the
