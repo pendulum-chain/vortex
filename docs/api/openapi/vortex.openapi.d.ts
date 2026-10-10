@@ -3034,7 +3034,7 @@ export interface components {
                 redeemOrderId: string | null;
                 /**
                  * Format: date-time
-                 * @description When the provider processed the refund; null until then.
+                 * @description When Vortex recorded the refund as paid out: the provider processed the redeem order, or operations closed a refund made by hand. Null until then.
                  */
                 refundedAt: string | null;
                 /**
