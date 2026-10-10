@@ -191,7 +191,8 @@ export interface DepositReturnedWebhookPayload {
  * account cannot convert (not activated yet, suspended, or paused for dormancy),
  * `below_minimum` while the unconverted amount is below the minimum swap (it waits for the
  * refund path and holds back no later deposit), otherwise the reason the keeper is holding
- * the next conversion chunk.
+ * the next conversion chunk. New reasons may be added; clients treat an unknown one as a
+ * generic wait.
  */
 export type DepositWaitingReason =
   | "monerium_pending"
