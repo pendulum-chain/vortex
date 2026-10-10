@@ -567,9 +567,9 @@ read-only — no keys, no transactions:
    may have left the clone by an unrecorded path, so it warns "reconcile before
    refunding; do not refund and do not top up the clone". The pass skips that account
    while any of its `recover` executions is still pending: a mined `recover` not yet
-   confirmed would make the ledger overstate the clone. On a clone at or above the floor, a
-   `recovering` deposit with no pending or confirmed `recover` more than
-   `RECOVERY_DELAY` plus an hour after it was marked warns REFUND OVERDUE (an error past
+   confirmed would make the ledger overstate the clone. On a clone at or above the floor
+   (or holding USDC), a `recovering` deposit with no pending or confirmed `recover` more
+   than `RECOVERY_DELAY` plus an hour after it was marked warns REFUND OVERDUE (an error past
    `TRIGGER_DELAY`): younger forwards keep re-timing its marker, or another refund of the
    client is stuck.
 4. **Config reconciliation.** Re-reads per-clone config and bytecode: guardian-authorized
