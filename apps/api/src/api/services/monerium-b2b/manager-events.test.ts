@@ -371,6 +371,48 @@ describe("monerium b2b manager events", () => {
     });
   });
 
+  it("dates a failed refund closed by hand at its refunded transition, not at the failure", async () => {
+    const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_RETURNED, WebhookEventType.DEPOSIT_UPDATED]);
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "500000000000000000",
+      blockNumber: 999,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      moneriumOrderId: "order-1",
+      payerIban: "DE89370400440532013000",
+      receivedEventAt: new Date(),
+      refundReason: "window_missed",
+      refundStartedAt: new Date(),
+      status: MoneriumFiatDepositStatus.RecoveryFailed,
+      txHash: "0xmint"
+    });
+    // The orchestrator parked the refund at topping_up: the row's last write is the failure.
+    const recovery = await MoneriumRecovery.create({
+      depositId: deposit.id,
+      error: "float top-up reverted",
+      eureRecoveredRaw: deposit.amountRaw,
+      phase: MoneriumRecoveryPhase.ToppingUp,
+      usdcRecoveredRaw: "0"
+    });
+    await new Promise(resolve => setTimeout(resolve, 5));
+    // The operator refunds by hand and closes it through the admin PATCH (recovery_failed -> refunded).
+    expect(await setDepositStatus(deposit, MoneriumFiatDepositStatus.Refunded)).toBeNull();
+    await deposit.reload();
+    expect(deposit.updatedAt.getTime()).toBeGreaterThan(recovery.updatedAt.getTime());
+
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    const updates = (await WebhookDelivery.findAll())
+      .map(delivery => delivery.payload as unknown as { eventType: string; payload: Record<string, unknown> })
+      .filter(payload => payload.eventType === WebhookEventType.DEPOSIT_UPDATED);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].payload).toMatchObject({
+      refund: { refundedAt: deposit.updatedAt.toISOString() },
+      status: "refunded"
+    });
+  });
+
   it("only enqueues to the controlling manager's webhooks", async () => {
     const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_RECEIVED]);
     const otherManager = await createTestUser();

@@ -21,7 +21,7 @@ import MoneriumConversionExecution, {
   MoneriumConversionExecutionStatus
 } from "../../../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
-import MoneriumRecovery from "../../../models/moneriumRecovery.model";
+import MoneriumRecovery, { MoneriumRecoveryPhase } from "../../../models/moneriumRecovery.model";
 import webhookService from "../webhook/webhook.service";
 import { enqueueWebhookDeliveries } from "../webhook/webhook-outbox.service";
 import { getPublicClient, NOTIFY_CONFIRMATION_DEPTH } from "./chain";
@@ -177,10 +177,13 @@ export async function depositSnapshots(
               reason: deposit.refundReason as DepositRefundReason | null,
               recoverTxHash: recover?.txHash ?? null,
               redeemOrderId: recovery?.redeemOrderId ?? null,
-              // A refund closed by hand has no recovery row; the deposit's last write is then
-              // its refunded transition (the received/returned markers are silent, the status is terminal).
+              // The recovery row dates the refund only once it is redeemed; a refund closed by hand
+              // (no row, or one parked at its failure) is dated by the deposit's refunded transition,
+              // its last write (the received/returned markers are silent, the status is terminal).
               refundedAt:
-                deposit.status === MoneriumFiatDepositStatus.Refunded ? iso(recovery?.updatedAt ?? deposit.updatedAt) : null,
+                deposit.status === MoneriumFiatDepositStatus.Refunded
+                  ? iso(recovery?.phase === MoneriumRecoveryPhase.Redeemed ? recovery.updatedAt : deposit.updatedAt)
+                  : null,
               startedAt: iso(deposit.refundStartedAt)
             }
           : null,
