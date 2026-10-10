@@ -207,7 +207,8 @@ mint identity. Only a settled, chain-indexed mint makes an account a conversion
 candidate (an `unattr:` row, such as a refund top-up left on the clone, keeps none
 after the cycle it lands in). A live balance by itself is deliberately insufficient:
 this prevents a swap from outrunning the watcher's reorg window and becoming
-impossible to attribute safely.
+impossible to attribute safely. An account with a pending execution stays a candidate
+until the executor resolves that row, even after an operator closed its deposit.
 
 A payer can name a chain and address in the SEPA memo; when that address is linked to the
 client's profile, Monerium mints there instead of to the IBAN's default address. Besides

@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { config } from "../../config/vars";
 import ManagedProfileManager from "../../models/managedProfileManager.model";
+import MoneriumConversionExecution, {
+  MoneriumConversionExecutionKind,
+  MoneriumConversionExecutionStatus
+} from "../../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../models/moneriumFiatDeposit.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestUser } from "../../test-utils/factories";
@@ -67,5 +71,24 @@ describe("MoneriumB2bWorker conversion candidates", () => {
     expect(await candidates()).toEqual([]);
     // The mint watcher's touched accounts still get the run in which the top-up lands.
     expect(await candidates([accountId])).toEqual([accountId]);
+  });
+
+  it("keeps an account a candidate while it has a pending execution, even after its deposit left settling", async () => {
+    const accountId = await accountWithMintedRow("order-1");
+    const deposit = (await MoneriumFiatDeposit.findOne({ where: { accountId } })) as MoneriumFiatDeposit;
+    await deposit.update({ status: MoneriumFiatDepositStatus.Refunded }); // closed by hand
+    const recover = await MoneriumConversionExecution.create({
+      accountId,
+      depositId: deposit.id,
+      destination: "0x5555555555555555555555555555555555555555",
+      eureInRaw: deposit.amountRaw,
+      kind: MoneriumConversionExecutionKind.Recover,
+      status: MoneriumConversionExecutionStatus.Pending,
+      txHash: "0xrecover"
+    });
+    expect(await candidates()).toEqual([accountId]);
+
+    await recover.update({ status: MoneriumConversionExecutionStatus.Confirmed });
+    expect(await candidates()).toEqual([]);
   });
 });
