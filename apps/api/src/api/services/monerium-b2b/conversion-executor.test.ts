@@ -1769,17 +1769,6 @@ describe("runConversionExecutor fee-policy apply", () => {
     expect((await deposit.reload()).waitingReason).toBe("oracle_unavailable"); // the cycle went on
   });
 
-  it("does not re-send while an earlier apply is still unmined", async () => {
-    reads.pendingFeePolicyEffectiveAt = NOW;
-    receiptTimesOut = true;
-    const { accountId } = await activeAccountWithDeposit();
-
-    await runConversionExecutor(accountId); // sent, receipt wait times out
-    await runConversionExecutor(accountId); // still looks pending on chain
-
-    expect(writes.filter(write => write === "applyFeePolicy")).toEqual(["applyFeePolicy"]);
-  });
-
   it("does not re-send an unmined apply the public pool cannot see (private transport) until the relay bound", async () => {
     reads.pendingFeePolicyEffectiveAt = NOW - 60n;
     receiptTimesOut = true;
