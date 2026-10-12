@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import express, { Request, Response } from "express";
 import { config } from "../../config/vars";
 import ProfileRole from "../../models/profileRole.model";
@@ -39,6 +39,7 @@ describe("requireVortexAdmin", () => {
   });
 
   afterEach(() => {
+    mock.restore();
     config.impersonationEnabled = originalImpersonationEnabled;
   });
 

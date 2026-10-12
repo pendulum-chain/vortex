@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import crypto from "crypto";
 import { config } from "../../config/vars";
 import AdminImpersonationSession from "../../models/adminImpersonationSession.model";
@@ -28,6 +28,7 @@ describe("impersonation.service", () => {
   });
 
   afterEach(() => {
+    mock.restore();
     config.impersonationEnabled = originalImpersonationEnabled;
   });
 
