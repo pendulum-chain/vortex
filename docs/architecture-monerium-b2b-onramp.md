@@ -382,16 +382,16 @@ permissionless `poke` and `applyFeePolicy`):
   `poke` arms the marker, and after `RECOVERY_DELAY` the keeper's normal
   `recover(remaining EURe, 0)` and refund pipeline below refund the payer exactly, from
   the payer's own EURe, with the full record (`recover` transaction, redeem order,
-  `refundedAt`); with `MONERIUM_B2B_AUTO_RECOVERY=auto` the deposit is never refunded
-  by hand. That refund pipeline runs only in `auto`; in `alert` or `off` the keeper's `recover`
-  still moves the payment to the client's refund wallet, and the alert points to the
-  manual redeem from that wallet instead. The top-up stays on the clone
-  below the floor, so `recover` switches the marker off by itself: no follow-up step. The
-  top-up is never a whole number of cents, even with an earlier top-up's odd wei on the
-  clone, so the mint watcher can never match it to a Monerium order; it is recorded as
-  an `unattr:` Minted row (one warn) that the keeper never converts. Leftover top-ups are Vortex EURe and stay below EUR 1 per clone; a
-  later sub-floor payment on that clone that reaches the floor with them arms the marker
-  and is refunded with no operator step. The top-up may also be sent early, as soon as
+  `refundedAt`); with `MONERIUM_B2B_AUTO_RECOVERY=auto` the deposit is never refunded by
+  hand; in `alert` or `off` the keeper's `recover` still moves the payment to the
+  client's refund wallet, and the alert points to the manual redeem from that wallet
+  instead. Leftover top-ups stay on the clone as Vortex EURe, below EUR 1 per clone, so
+  `recover` switches the marker off by itself (no follow-up step), and a later sub-floor
+  payment on that clone that reaches the floor with them arms the marker and is refunded
+  with no operator step. The top-up is never a whole number of cents, even with an
+  earlier top-up's odd wei on the clone, so the mint watcher can never match it to a
+  Monerium order; it is recorded as an `unattr:` Minted row (one warn) that the keeper
+  never converts. The top-up may also be sent early, as soon as
   the payment shows `below_minimum`: the marker then arms at once and the refund lands at
   about the normal deadline instead of a `RECOVERY_DELAY` after the alert. Monerium's
   minimum redeem order is EUR 0.01, so a sub-EUR-1 refund is allowed (not yet rehearsed

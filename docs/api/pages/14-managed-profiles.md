@@ -199,7 +199,7 @@ X-Managed-Profile-Id: <payload.profileId from ACCOUNT_UPDATED>
 **Sandbox specifics**
 
 - **Network.** Sandbox converts and delivers on Ethereum Sepolia; production uses Ethereum mainnet. The destination must be an Ethereum address the client controls, and it is fixed for the life of the account.
-- **Minimum.** As in production, payments from EUR 1 are converted; a smaller payment is refunded later than the normal window, after a step by Vortex operations (see [Register A Business EUR Client](#register-a-business-eur-client)).
+- **Minimum.** As in production (see [Register A Business EUR Client](#register-a-business-eur-client)).
 - **Refund window.** A payment that is not converted within 15 minutes of its mint (two hours by default in production), for example because the account was not active yet, is refunded in full to the account it came from (operations process the refund by hand where automatic refunds are off). The EUR provider pays refunds out only for profiles it has approved.
 - **Webhook signatures.** Sandbox signs deliveries with its own key: verify them against `https://api-sandbox.vortexfinance.co/v1/public-key`, not the production key. See [Webhooks](https://api-docs.vortexfinance.co/webhooks).
 
