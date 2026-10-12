@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import express from "express";
 import { config } from "../../../../config/vars";
 import AdminImpersonationSession from "../../../../models/adminImpersonationSession.model";
@@ -42,6 +42,7 @@ describe("admin-console routes", () => {
   });
 
   afterEach(() => {
+    mock.restore();
     config.impersonationEnabled = originalImpersonationEnabled;
   });
 
