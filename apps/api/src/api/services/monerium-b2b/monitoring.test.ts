@@ -292,23 +292,11 @@ describe("runExecutableDepthCheck", () => {
     return { findAll, quoteSpy };
   }
 
-  it("quotes on the Sepolia QuoterV2 on the sandbox chain", async () => {
-    const { quoteSpy } = arrange(11_155_111);
-    await runExecutableDepthCheck();
-    expect(quoteSpy).toHaveBeenCalledWith("0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3", "0xaa", 1n * EUR);
-  });
-
-  it("quotes on the mainnet QuoterV2 on Ethereum", async () => {
-    const { quoteSpy } = arrange(1);
-    await runExecutableDepthCheck();
-    expect(quoteSpy).toHaveBeenCalledWith("0x61fFE014bA17989E743c5F6cB21bF9697530B21e", "0xaa", 10_000n * EUR);
-  });
-
-  for (const [chainId, level] of [
-    [1, "error"],
-    [11_155_111, "warn"]
+  for (const [chainId, level, quoter] of [
+    [1, "error", "0x61fFE014bA17989E743c5F6cB21bF9697530B21e"],
+    [11_155_111, "warn", "0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3"]
   ] as const) {
-    it(`logs DEPTH BELOW FLOOR at ${level} on chain ${chainId}`, async () => {
+    it(`quotes on chain ${chainId}'s QuoterV2 and logs DEPTH BELOW FLOOR at ${level}`, async () => {
       const { quoteSpy } = arrange(chainId);
       quoteSpy.mockImplementation(async (_quoter, _path, amountIn) => (amountIn * 100n) / (100n * 10n ** 12n)); // ~12% impact
       const lines: Record<string, string[]> = { error: [], warn: [] };
@@ -318,6 +306,8 @@ describe("runExecutableDepthCheck", () => {
         }) as unknown as typeof logger.error);
       }
       await runExecutableDepthCheck();
+      expect(quoteSpy).toHaveBeenCalledWith(quoter, "0xaa", 1n * EUR);
+      expect(quoteSpy).toHaveBeenCalledWith(quoter, "0xaa", 10_000n * EUR);
       const other = level === "error" ? "warn" : "error";
       expect(lines[level]).toHaveLength(1);
       expect(lines[level][0]).toContain("DEPTH BELOW FLOOR");
