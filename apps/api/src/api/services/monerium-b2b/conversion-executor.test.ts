@@ -125,6 +125,40 @@ function swapRow(eureInRaw: bigint, usdcNetRaw: bigint): MoneriumConversionExecu
   } as unknown as MoneriumConversionExecution;
 }
 
+async function activeAccountWithDeposit() {
+  const manager = await createTestUser();
+  await ManagedProfileManager.create({
+    allowedCorridors: ["EU"],
+    allowedCustomerTypes: ["business"],
+    isActive: true,
+    profileId: manager.id
+  });
+  const { accountId } = await provisionMoneriumB2bAccount({
+    contactEmail: "ops@client.example.com",
+    destination: "0x5555555555555555555555555555555555555555",
+    externalSubjectId: "client-1",
+    forwarderAddress: "0x1111111111111111111111111111111111111111",
+    managerProfileId: manager.id,
+    moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
+  });
+  await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
+  const deposit = await MoneriumFiatDeposit.create({
+    accountId,
+    amountRaw: (100n * EUR).toString(),
+    blockNumber: 100,
+    chainId: 11155111,
+    currency: "eur",
+    logIndex: 1,
+    mintedAt: new Date(),
+    moneriumOrderId: "order-1",
+    payerIban: "DE89370400440532013000",
+    payerName: "Payer GmbH",
+    status: MoneriumFiatDepositStatus.Minted,
+    txHash: "0xorder1"
+  });
+  return { accountId, deposit };
+}
+
 describe("settlementState", () => {
   it("aggregates the confirmed chunks of a deposit", () => {
     const state = settlementState({ amountRaw: (100n * EUR).toString() }, [
@@ -1143,40 +1177,6 @@ describe("runConversionExecutor batch marker", () => {
     return writes;
   }
 
-  async function activeAccountWithDeposit() {
-    const manager = await createTestUser();
-    await ManagedProfileManager.create({
-      allowedCorridors: ["EU"],
-      allowedCustomerTypes: ["business"],
-      isActive: true,
-      profileId: manager.id
-    });
-    const { accountId } = await provisionMoneriumB2bAccount({
-      contactEmail: "ops@client.example.com",
-      destination: "0x5555555555555555555555555555555555555555",
-      externalSubjectId: "client-1",
-      forwarderAddress: "0x1111111111111111111111111111111111111111",
-      managerProfileId: manager.id,
-      moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
-    });
-    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
-    const deposit = await MoneriumFiatDeposit.create({
-      accountId,
-      amountRaw: (100n * EUR).toString(),
-      blockNumber: 100,
-      chainId: 11155111,
-      currency: "eur",
-      logIndex: 1,
-      mintedAt: new Date(),
-      moneriumOrderId: "order-1",
-      payerIban: "DE89370400440532013000",
-      payerName: "Payer GmbH",
-      status: MoneriumFiatDepositStatus.Minted,
-      txHash: "0xorder1"
-    });
-    return { accountId, deposit };
-  }
-
   const executions = (accountId: string) => MoneriumConversionExecution.findAll({ where: { accountId } });
 
   async function failedAttempt(accountId: string, depositId: string, kind = MoneriumConversionExecutionKind.Swap) {
@@ -1724,40 +1724,6 @@ describe("runConversionExecutor fee-policy apply", () => {
   });
 
   afterEach(() => mock.restore());
-
-  async function activeAccountWithDeposit() {
-    const manager = await createTestUser();
-    await ManagedProfileManager.create({
-      allowedCorridors: ["EU"],
-      allowedCustomerTypes: ["business"],
-      isActive: true,
-      profileId: manager.id
-    });
-    const { accountId } = await provisionMoneriumB2bAccount({
-      contactEmail: "ops@client.example.com",
-      destination: "0x5555555555555555555555555555555555555555",
-      externalSubjectId: "client-1",
-      forwarderAddress: "0x1111111111111111111111111111111111111111",
-      managerProfileId: manager.id,
-      moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
-    });
-    await MoneriumAccount.update({ iban: "EE08 7224 5745 6244 9516", status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
-    const deposit = await MoneriumFiatDeposit.create({
-      accountId,
-      amountRaw: (100n * EUR).toString(),
-      blockNumber: 100,
-      chainId: 11155111,
-      currency: "eur",
-      logIndex: 1,
-      mintedAt: new Date(),
-      moneriumOrderId: "order-1",
-      payerIban: "DE89370400440532013000",
-      payerName: "Payer GmbH",
-      status: MoneriumFiatDepositStatus.Minted,
-      txHash: "0xorder1"
-    });
-    return { accountId, deposit };
-  }
 
   it("applies a due increase once, before the cycle prices its swap", async () => {
     reads.pendingFeePolicyEffectiveAt = NOW;
