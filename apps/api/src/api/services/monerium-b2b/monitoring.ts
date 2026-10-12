@@ -465,27 +465,25 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         });
         const swapsOf = (deposit: MoneriumFiatDeposit) =>
           executions.filter(e => e.depositId === deposit.id && e.kind === MoneriumConversionExecutionKind.Swap);
-        const recoverOf = (deposit: MoneriumFiatDeposit, statuses: MoneriumConversionExecutionStatus[]) =>
+        const recoverOf = (deposit: MoneriumFiatDeposit, status: MoneriumConversionExecutionStatus) =>
           executions.some(
-            e => e.depositId === deposit.id && e.kind === MoneriumConversionExecutionKind.Recover && statuses.includes(e.status)
+            e => e.depositId === deposit.id && e.kind === MoneriumConversionExecutionKind.Recover && e.status === status
           );
         // A mined `recover` whose row is still Pending already took its EURe, which the ledger
         // below would still count: wait for the keeper to confirm it before judging the rest.
-        if (deposits.some(deposit => recoverOf(deposit, [MoneriumConversionExecutionStatus.Pending]))) continue;
-        const stuck = deposits.filter(
-          deposit =>
-            deposit.status === MoneriumFiatDepositStatus.Recovering &&
-            !recoverOf(deposit, [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed])
-        );
+        if (deposits.some(deposit => recoverOf(deposit, MoneriumConversionExecutionStatus.Pending))) continue;
+        const unrecovered = deposits.filter(deposit => !recoverOf(deposit, MoneriumConversionExecutionStatus.Confirmed));
+        const stuck = unrecovered.filter(deposit => deposit.status === MoneriumFiatDepositStatus.Recovering);
         // Only an unswapped payment gets the top-up remedy, and only while the clone still holds
         // all the EURe the ledger places there (every payment's unswapped, unrecovered rest);
         // anything less means EURe left by a path the ledger does not record (the permissionless
         // swap/forwardAll), so refunding could pay twice. A top-up that landed lifts the clone to
         // the floor, so this branch is skipped until the keeper's `recover` took the payer's EURe.
         const unswapped = stuck.filter(deposit => swapsOf(deposit).length === 0);
-        const ledgerEure = deposits
-          .filter(deposit => !recoverOf(deposit, [MoneriumConversionExecutionStatus.Confirmed]))
-          .reduce((sum, deposit) => sum + settlementState(deposit, swapsOf(deposit)).remainingEureRaw, 0n);
+        const ledgerEure = unrecovered.reduce(
+          (sum, deposit) => sum + settlementState(deposit, swapsOf(deposit)).remainingEureRaw,
+          0n
+        );
         const onClone = ledgerEure <= eureBalance ? unswapped : [];
         const elsewhere = stuck.filter(deposit => !onClone.includes(deposit));
         if (onClone.length > 0) {
