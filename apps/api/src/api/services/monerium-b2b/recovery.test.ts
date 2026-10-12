@@ -1229,6 +1229,7 @@ describe("refund deadlines and orchestration", () => {
         balanceOf: 100n * EUR,
         batchOpenedAt: 1_000n, // long past the recovery delay
         minSwapAmount: 25n * EUR,
+        pendingFeePolicyEffectiveAt: 0n,
         perSwapCap: 10_000n * EUR
       };
       spies.push(

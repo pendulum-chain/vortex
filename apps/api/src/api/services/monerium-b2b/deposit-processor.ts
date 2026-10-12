@@ -384,9 +384,11 @@ async function processInboxRow(row: MoneriumWebhookEvent, deps: DepositProcessor
         status?: MoneriumFiatDepositStatus;
         txHash?: string;
       } = {};
-      // The refund target: filled once, never overwritten by a later delivery.
-      if (event.payerIban && !existing.payerIban) updates.payerIban = event.payerIban;
-      if (event.payerName && !existing.payerName) updates.payerName = event.payerName;
+      // The refund target: filled once, never overwritten by a later delivery, and never
+      // after the refund (the write would move updated_at, which dates refundedAt).
+      const fillPayer = existing.status !== MoneriumFiatDepositStatus.Refunded;
+      if (fillPayer && event.payerIban && !existing.payerIban) updates.payerIban = event.payerIban;
+      if (fillPayer && event.payerName && !existing.payerName) updates.payerName = event.payerName;
       const alreadyPastMint = targetStatus === MoneriumFiatDepositStatus.Minted && PAST_MINT_STATUSES.includes(existing.status);
       if (targetStatus && targetStatus !== existing.status && !alreadyPastMint) {
         if (isForwardTransition(existing.status, targetStatus)) {
