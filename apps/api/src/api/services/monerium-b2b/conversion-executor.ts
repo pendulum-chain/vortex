@@ -1465,21 +1465,17 @@ const loggedFeeApplySkips = new Map<string, string>();
 
 /**
  * P11: finalizes a guardian fee increase whose timelock has elapsed (`applyFeePolicy` is
- * permissionless; nothing else would ever apply it). Waits for the receipt so the cycle
- * then reads the applied policy. A timed-out apply is not re-sent every cycle: the forwarder's
- * last apply is remembered and nothing is sent while it has no receipt and is younger than
- * FEE_APPLY_RESEND_AFTER_MS (keeper writes go through the private transport on mainnet, which
- * the public nonce counts never show), nor while the public pool holds any keeper transaction,
- * of any account. A skip is logged once per reason. Best-effort like sendPoke: a failed read, a
- * revert (applied by someone else, clock skew) or a timeout is logged and the cycle goes on,
- * since the contract always settles under its current on-chain policy. The monitor's config
+ * permissionless; nothing else would ever apply it) and waits for the receipt, so the cycle
+ * reads the applied policy. It remembers the last apply because keeper writes go through the
+ * private transport on mainnet, which the public nonce counts never show. Best-effort like
+ * sendPoke: a failed read, a revert or a timeout is logged and the cycle goes on, since the
+ * contract always settles under its current on-chain policy. The monitor's config
  * reconciliation mirrors the applied values into the account row.
  */
 async function applyDueFeePolicy(forwarder: Address): Promise<void> {
   const key = forwarder.toLowerCase();
   try {
     const client = getPublicClient();
-    // Read here, not with the cycle's state: a failed read must not stop the cycle's recover or poke.
     const effectiveAt = await client.readContract({
       abi: forwarderAbi,
       address: forwarder,
