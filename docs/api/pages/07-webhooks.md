@@ -272,7 +272,7 @@ Fired whenever anything about a deposit changes: the payment arrives at the EUR 
 
 ### `ACCOUNT_UPDATED`
 
-Fired whenever an onramp account's snapshot changes: when it is set up, when its IBAN is issued, and when its status (activated, suspended) or dormancy changes. An IBAN is not payable when it first appears: an account converts payments only once `status` is `active`, so the IBAN can arrive with `status` still `onboarding`, and a payment made to it before the event that reports `active` waits (`account_not_active`) and is refunded after the promised conversion window instead of being converted. Hand the IBAN to a client only after an event or `GET /v1/monerium-b2b/account` reports `active`. The payload is the account object returned by `GET /v1/monerium-b2b/account` and `GET /v1/monerium-b2b/accounts`.
+Fired whenever an onramp account's snapshot changes: when it is set up, when its IBAN is issued, when its status (activated, suspended) or dormancy changes, and when it starts or stops waiting on you or Vortex (`waitingReason`, for example `monerium_profile_has_iban` while the client's EUR provider profile already has an IBAN; see [Managed Profiles](https://api-docs.vortexfinance.co/managed-profiles)). An IBAN is not payable when it first appears: an account converts payments only once `status` is `active`, so the IBAN can arrive with `status` still `onboarding`, and a payment made to it before the event that reports `active` waits (`account_not_active`) and is refunded after the promised conversion window instead of being converted. Hand the IBAN to a client only after an event or `GET /v1/monerium-b2b/account` reports `active`. The payload is the account object returned by `GET /v1/monerium-b2b/account` and `GET /v1/monerium-b2b/accounts`.
 
 ```json
 {
@@ -291,6 +291,7 @@ Fired whenever an onramp account's snapshot changes: when it is set up, when its
     "targetPpm": 1250,
     "floorPpm": 1500,
     "dormantSince": null,
+    "waitingReason": null,
     "createdAt": "2025-01-14T09:00:00.000Z"
   }
 }

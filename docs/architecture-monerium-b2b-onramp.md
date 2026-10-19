@@ -149,7 +149,12 @@ Steps in prose:
 4. **Keeper automation** links the forwarder (attestor signature) and the client's refund
    wallet (its own signature), then requests the IBAN for the forwarder, each
    exactly-once through the profile-scoped `financial_operations` ledger; the
-   `iban.updated` webhook records the IBAN.
+   `iban.updated` webhook records the IBAN. Monerium issues one IBAN per profile: if the
+   client's profile already has an IBAN on another address, the keeper sends no request,
+   the account shows `waitingReason: monerium_profile_has_iban`, and one error line gives
+   the operator the existing IBAN and the remedy (the internal B2B runbook §1.5): move that
+   IBAN to the forwarder, after which every euro sent to it converts, or onboard the client
+   with a profile that has no IBAN. The keeper's per-cycle IBAN read adopts a moved IBAN.
 5. **Activation** via the admin status endpoint, then the optional penny test: only an
    active account converts.
 
