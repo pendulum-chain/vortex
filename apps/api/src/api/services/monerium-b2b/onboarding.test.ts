@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { MoneriumApiError } from "@vortexfi/shared";
+import { MoneriumApiError, type MoneriumIban } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import FinancialOperation from "../../../models/financialOperation.model";
@@ -34,9 +34,15 @@ interface FakeDeps extends OnboardingDeps {
     signLinkAttestation: unknown[][];
     signRefundLink: unknown[][];
   };
-  /** IBANs on the client's profile, by address; listIbans also returns another client's IBAN. */
+  /** IBANs on the client's profile on Ethereum, by address; listIbans appends `otherIbans`. */
   ibanByAddress: Map<string, string>;
+  /** Listed as-is; starts with another client's IBAN, which must never block this one. */
+  otherIbans: MoneriumIban[];
   linkedAddresses: Set<string>;
+}
+
+function profileIban(entry: Partial<MoneriumIban> & Pick<MoneriumIban, "address" | "iban">): MoneriumIban {
+  return { bic: "BIC", chain: "ethereum", name: "Client", profile: MONERIUM_PROFILE, ...entry };
 }
 
 function fakeDeps(): FakeDeps {
@@ -67,11 +73,10 @@ function fakeDeps(): FakeDeps {
     linkedAddresses: new Set([REFUND_WALLET]),
     async listIbans() {
       deps.calls.listIbans += 1;
-      const ibans = [...deps.ibanByAddress].map(([address, iban]) => ({ address, iban, profile: MONERIUM_PROFILE }));
-      return [...ibans, { address: PARTNER_WALLET, iban: "EE00 1111 2222 3333 4444", profile: crypto.randomUUID() }].map(
-        entry => ({ ...entry, bic: "BIC", chain: "ethereum" as const, name: "Client" })
-      );
+      const ibans = [...deps.ibanByAddress].map(([address, iban]) => profileIban({ address, iban }));
+      return [...ibans, ...deps.otherIbans];
     },
+    otherIbans: [profileIban({ address: PARTNER_WALLET, iban: "EE00 1111 2222 3333 4444", profile: crypto.randomUUID() })],
     async requestIban(...args: unknown[]) {
       deps.calls.requestIban.push(args);
       return {};
@@ -314,7 +319,9 @@ describe("monerium b2b onboarding automation", () => {
     // One operator line per occurrence, not one per cycle.
     const alerts = error.mock.calls.filter(([message]) => String(message).includes("cannot get an IBAN"));
     expect(alerts).toHaveLength(1);
-    expect(String(alerts[0][0])).toContain(`already has IBAN ${PARTNER_IBAN} on ethereum address ${PARTNER_WALLET}`);
+    expect(String(alerts[0][0])).toContain(`already has IBAN ${PARTNER_IBAN} on address ${PARTNER_WALLET} on ethereum`);
+    expect(String(alerts[0][0])).toContain("operator decision taken with the partner");
+    expect(String(alerts[0][0])).toContain(`${PARTNER_WALLET} stays linked to the profile`);
     expect(String(alerts[0][0])).toContain("runbook §1.5");
 
     deps.ibanByAddress.delete(PARTNER_WALLET);
@@ -341,6 +348,23 @@ describe("monerium b2b onboarding automation", () => {
     expect(account.iban).toBe(PARTNER_IBAN);
     expect(account.waitingReason).toBeNull();
     expect(deps.calls.requestIban).toHaveLength(0);
+  });
+
+  it("waits without requesting while the profile's IBAN sits on the forwarder's address on another chain", async () => {
+    const account = await createMappedAccount();
+    const deps = fakeDeps();
+    deps.linkedAddresses.add(FORWARDER);
+    deps.otherIbans.push(profileIban({ address: FORWARDER, chain: "gnosis", iban: PARTNER_IBAN }));
+    const error = spyOn(logger, "error");
+
+    await advanceOnboardingAccounts(deps);
+
+    expect(deps.calls.requestIban).toHaveLength(0);
+    expect((await account.reload()).waitingReason).toBe("monerium_profile_has_iban");
+    const alert = String(error.mock.calls.find(([message]) => String(message).includes("cannot get an IBAN"))?.[0]);
+    expect(alert).toContain(`already has IBAN ${PARTNER_IBAN} on the forwarder's address on gnosis`);
+    expect(alert).toContain("Moving it to the forwarder on ethereum");
+    expect(alert).not.toContain("stays linked");
   });
 
   it("leaves no wait next to an IBAN the webhook records during the cycle", async () => {

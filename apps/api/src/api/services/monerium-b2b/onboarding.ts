@@ -119,7 +119,8 @@ async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainN
   }
   // Monerium issues one IBAN per profile and refuses a second one (400). Moving the profile's
   // IBAN to the forwarder makes every euro sent to it convert, which can break what the partner
-  // uses it for, so that stays a human decision; the read above adopts the IBAN once it is moved.
+  // uses it for, and leaves its old address linked (no unlink), which the association monitor
+  // then reports: an operator decision taken with the partner. The read above adopts a moved IBAN.
   const existing = ibans.find(entry => entry.profile === account.profileId);
   if (existing) {
     if (account.waitingReason !== "monerium_profile_has_iban") {
@@ -130,11 +131,17 @@ async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainN
         { where: { iban: null, id: account.id } }
       );
       if (recorded > 0) {
+        const onForwarder = existing.address.toLowerCase() === account.forwarderAddress.toLowerCase();
         logger.error(
           `monerium-b2b: account ${account.id} cannot get an IBAN: Monerium profile ${account.profileId} already has ` +
-            `IBAN ${existing.iban} on ${existing.chain} address ${existing.address}. Move that IBAN to the forwarder ` +
-            `${account.forwarderAddress} (every euro sent to it converts from then on), or have the partner register ` +
-            "a profile without an IBAN (the internal B2B runbook §1.5)"
+            `IBAN ${existing.iban} on ${onForwarder ? "the forwarder's address" : `address ${existing.address}`} ` +
+            `on ${existing.chain}. Moving it to the forwarder on ${chainName} is an operator decision taken with the ` +
+            "partner: every euro sent to that IBAN converts from then on" +
+            (onForwarder
+              ? ""
+              : `, and ${existing.address} stays linked to the profile, so where that link covers ${chainName} the ` +
+                "association monitor reports it on every pass once the account is active") +
+            " (the internal B2B runbook §1.5)"
         );
       }
     }
