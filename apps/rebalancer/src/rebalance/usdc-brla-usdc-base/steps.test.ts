@@ -177,7 +177,20 @@ describe("USDC Base SquidRouter steps", () => {
     expect(savedStates).toEqual([{ squidRouterQuoteUsdc: "999040000" }]);
   });
 
-  test("does not recover SquidRouter output when Base USDC delta is below tolerance", async () => {
+  test("recovers a SquidRouter fill below the quote but within the route slippage", async () => {
+    // Production run of 2026-10-09: quoted 1001.046291 USDC, filled 995.188613 USDC on top of 103.860411 USDC.
+    const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.SquidRouterApproveAndSwap);
+    state.squidRouterQuoteUsdc = "1001046291";
+
+    const stateManager = { saveState: async () => {} };
+
+    await expect(
+      recoverSquidUsdcOutputFromBaseBalance("1001046291", "103860411", state, stateManager, async () => "1099049024")
+    ).resolves.toBe("995188613");
+    expect(state.squidRouterQuoteUsdc).toBe("995188613");
+  });
+
+  test("does not recover SquidRouter output when Base USDC delta is below the route slippage floor", async () => {
     const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.SquidRouterApproveAndSwap);
     state.squidRouterQuoteUsdc = "999000000";
 
@@ -193,7 +206,7 @@ describe("USDC Base SquidRouter steps", () => {
         "1000000",
         state,
         stateManager,
-        async () => "997000000"
+        async () => "950000000"
       )
     ).resolves.toBeNull();
     expect(state.squidRouterQuoteUsdc).toBe("999000000");

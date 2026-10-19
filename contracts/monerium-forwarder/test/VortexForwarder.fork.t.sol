@@ -11,6 +11,10 @@ interface IUniswapV3Factory {
     function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address);
 }
 
+interface IUniswapV3Pool {
+    function liquidity() external view returns (uint128);
+}
+
 interface IERC20Meta {
     function balanceOf(address) external view returns (uint256);
     function decimals() external view returns (uint8);
@@ -29,8 +33,10 @@ contract VortexForwarderForkTest is Test {
     address constant UNIV3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     // Chainlink EUR/USD proxy — verify against data.chain.link before deploy (registry P8).
     address constant CHAINLINK_EUR_USD = 0xb49f677943BC038e9857d61E7d053CaA2C1734C1;
-    // Initial whitelisted route: EURe -> EURC -> USDC on the 5 bps tiers (registry P10).
-    uint24 constant POOL_FEE_EURE_EURC = 500;
+    // Initial whitelisted route: EURe -> EURC on the 1 bp tier, EURC -> USDC on the 5 bps
+    // tier (registry P10). Re-verified 2026-10-12 at block 26176624: the EURe/EURC liquidity
+    // moved from the 5 bps pool, which holds none in range any more, to the 1 bp pool.
+    uint24 constant POOL_FEE_EURE_EURC = 100;
     uint24 constant POOL_FEE_EURC_USDC = 500;
 
     VortexForwarderFactory factory;
@@ -116,6 +122,9 @@ contract VortexForwarderForkTest is Test {
         assertTrue(hop2 != address(0), "EURC/USDC pool missing at pinned fee tier");
         // The V2 pool must actually hold V2 tokens (stale-pool trap check).
         assertGt(IERC20Meta(EURE_V2).balanceOf(hop1), 0, "pinned hop1 pool holds no V2 EURe");
+        // A drained pool keeps dust balances, so require liquidity in range at the fork block.
+        assertGt(IUniswapV3Pool(hop1).liquidity(), 0, "pinned hop1 pool has no liquidity in range");
+        assertGt(IUniswapV3Pool(hop2).liquidity(), 0, "pinned hop2 pool has no liquidity in range");
     }
 
     function test_fork_swapThenForward_executesWithinOracleBounds() public onlyForked {

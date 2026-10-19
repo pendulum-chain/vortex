@@ -3034,7 +3034,7 @@ export interface components {
                 redeemOrderId: string | null;
                 /**
                  * Format: date-time
-                 * @description When the provider processed the refund; null until then.
+                 * @description When Vortex recorded the refund as paid out: the provider processed the redeem order, or operations closed a refund made by hand. Null until then.
                  */
                 refundedAt: string | null;
                 /**
@@ -3054,10 +3054,10 @@ export interface components {
             txHash: string | null;
             /** @description Sum of the confirmed chunks' net USDC in 6-decimal base units: what the deposit's single transfer delivers once forwarded. */
             usdcNetRaw: string;
-            /** @description Present while the deposit waits. `monerium_pending` until the EUR provider mints it: minting or a compliance review, which the provider does not tell apart. After the mint, `account_not_active` while the client's account cannot convert (it is not `active` yet, is suspended, or is paused for dormancy; the reason clears once it can convert, and a payment still waiting when the promised conversion window ends is refunded), otherwise the reason Vortex is holding the next conversion chunk: `oracle_unavailable`, `reference_unavailable`, `reference_out_of_band`, `no_route`, or `below_floor` (the market is below the client's floor by more than the subsidy currently allows). Null otherwise. */
+            /** @description Present while the deposit waits. `monerium_pending` until the EUR provider mints it: minting or a compliance review, which the provider does not tell apart. After the mint, `account_not_active` while the client's account cannot convert (it is not `active` yet, is suspended, or is paused for dormancy; the reason clears once it can convert, and a payment still waiting when the promised conversion window ends is refunded), `below_minimum` while the amount still to convert is below the minimum swap (the payment waits for the refund path and holds back no later payment), otherwise the reason Vortex is holding the next conversion chunk: `oracle_unavailable`, `reference_unavailable`, `reference_out_of_band`, `no_route`, or `below_floor` (the market is below the client's floor by more than the subsidy currently allows). Null otherwise. New reasons may be added; treat an unknown reason as a generic wait. */
             waiting: {
                 /** @enum {string} */
-                reason: "monerium_pending" | "account_not_active" | "oracle_unavailable" | "reference_unavailable" | "reference_out_of_band" | "no_route" | "below_floor";
+                reason: "monerium_pending" | "account_not_active" | "oracle_unavailable" | "reference_unavailable" | "reference_out_of_band" | "no_route" | "below_floor" | "below_minimum";
                 /** Format: date-time */
                 since: string;
             } | null;
@@ -3091,7 +3091,7 @@ export interface components {
              */
             status: "requested" | "mapped" | "rejected";
             /**
-             * @description What a `requested` registration waits for; null while Vortex has not checked it yet (as in the 202 response) and in every other status. `monerium_profile_pending`: the provider has not approved the profile yet (created, incomplete, pending or in review); finish its KYB in your provider app. `monerium_profile_not_visible`: the provider no longer shows the profile to your app; check the profile ID. `deployment_pending`: Vortex is deploying the client's conversion contract or waiting for it to confirm. `deployer_not_ready`: Vortex's deployment wallet lacks its role or gas; Vortex fixes it, nothing to do on your side. `manager_inactive`: your manager profile is not active for business EUR clients; contact Vortex. `temporary_error`: a temporary failure at Vortex or the provider, retried automatically.
+             * @description What a `requested` registration waits for; null while Vortex has not checked it yet (as in the 202 response) and in every other status. `monerium_profile_pending`: the provider has not approved the profile yet (created, incomplete, pending or in review; in sandbox, a pending profile does not wait); finish its KYB in your provider app. `monerium_profile_not_visible`: the provider no longer shows the profile to your app; check the profile ID. `deployment_pending`: Vortex is deploying the client's conversion contract or waiting for it to confirm. `deployer_not_ready`: Vortex's deployment wallet lacks its role or gas; Vortex fixes it, nothing to do on your side. `manager_inactive`: your manager profile is not active for business EUR clients; contact Vortex. `temporary_error`: a temporary failure at Vortex or the provider, retried automatically.
              * @enum {string|null}
              */
             waitingReason: "monerium_profile_pending" | "monerium_profile_not_visible" | "deployment_pending" | "deployer_not_ready" | "manager_inactive" | "temporary_error" | null;

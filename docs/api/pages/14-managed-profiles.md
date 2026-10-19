@@ -141,7 +141,7 @@ The business EUR onramp is open for testing in sandbox as a preliminary release;
 
 1. Sign up at <https://dashboard-sandbox.vortexfinance.co> with your email, open **API keys**, and create a credential. Keep the secret key (`sk_test_...`) on your backend.
 2. Email <support@vortexfinance.co> the address you signed up with. The dashboard does not show your profile ID; Vortex looks it up from the email.
-3. Vortex enables your profile as a manager for the `EU` corridor and business customers, binds it to the EUR provider app as the manager that registers clients (until then `POST /v1/monerium-b2b/accounts` returns `403 MANAGED_PROFILE_ACCESS_DENIED`), and sends you the EUR provider's sandbox profile IDs of the test companies you can register. Currently those companies live in Vortex's own provider app, and the provider approves each profile in its sandbox before Vortex deploys anything for it.
+3. Vortex enables your profile as a manager for the `EU` corridor and business customers, binds it to the EUR provider app as the manager that registers clients (until then `POST /v1/monerium-b2b/accounts` returns `403 MANAGED_PROFILE_ACCESS_DENIED`), and sends you the EUR provider's sandbox profile IDs of the test companies you can register. Currently those companies live in Vortex's own provider app.
 
 **Integrate**
 
@@ -173,7 +173,7 @@ Content-Type: application/json
 }
 ```
 
-3. Follow the registration (`registrations[0].status` in the response) until it is `mapped`. It reports `waitingReason: null` until Vortex first checks it, `monerium_profile_pending` until the provider approves the profile, then `deployment_pending` while Vortex deploys the client's conversion contract. Currently the provider approves the test profiles, not you: if a registration stays at `monerium_profile_pending`, or `POST` returns `422 MONERIUM_B2B_PROFILE_UNAVAILABLE`, check the profile ID against the one Vortex sent and contact Vortex.
+3. Follow the registration (`registrations[0].status` in the response) until it is `mapped`. It reports `waitingReason: null` until Vortex first checks it, `monerium_profile_pending` until the provider approves the profile (in sandbox, a pending profile does not wait for the approval; see **Sandbox specifics**), then `deployment_pending` while Vortex deploys the client's conversion contract. Currently Vortex prepares the test profiles, not you: if a registration stays at `monerium_profile_pending`, or `POST` returns `422 MONERIUM_B2B_PROFILE_UNAVAILABLE`, check the profile ID against the one Vortex sent and contact Vortex.
 
 ```http
 GET /v1/monerium-b2b/registrations?moneriumProfileId=<profile ID from Vortex>
@@ -199,7 +199,8 @@ X-Managed-Profile-Id: <payload.profileId from ACCOUNT_UPDATED>
 **Sandbox specifics**
 
 - **Network.** Sandbox converts and delivers on Ethereum Sepolia; production uses Ethereum mainnet. The destination must be an Ethereum address the client controls, and it is fixed for the life of the account.
-- **Minimum.** Payments from EUR 1 are converted; a smaller payment is refunded after the refund window.
+- **Minimum.** As in production (see [Register A Business EUR Client](#register-a-business-eur-client)).
+- **Profile approval.** Sandbox does not wait for the EUR provider to approve a profile: a registration proceeds once the provider reports the profile as pending (its KYB submitted), while a profile that is created, incomplete or in review still waits with `monerium_profile_pending`. The provider may still refuse payouts for the profile, such as refunds, until it approves it. Production always waits for the approval.
 - **Refund window.** A payment that is not converted within 15 minutes of its mint (two hours by default in production), for example because the account was not active yet, is refunded in full to the account it came from (operations process the refund by hand where automatic refunds are off). The EUR provider pays refunds out only for profiles it has approved.
 - **Webhook signatures.** Sandbox signs deliveries with its own key: verify them against `https://api-sandbox.vortexfinance.co/v1/public-key`, not the production key. See [Webhooks](https://api-docs.vortexfinance.co/webhooks).
 
@@ -239,7 +240,7 @@ Vortex waits for the provider to approve the profile, deploys the client's conve
 
 | `waitingReason` | Meaning |
 |---|---|
-| `monerium_profile_pending` | The provider has not approved the profile yet (created, incomplete, pending or in review). Finish its KYB in your provider app. |
+| `monerium_profile_pending` | The provider has not approved the profile yet (created, incomplete, pending or in review; in sandbox, a pending profile does not wait). Finish its KYB in your provider app. |
 | `monerium_profile_not_visible` | The provider no longer shows the profile to your app. Check the profile ID. |
 | `deployment_pending` | Vortex is deploying the client's conversion contract or waiting for it to confirm. |
 | `deployer_not_ready` | Vortex's deployment wallet lacks its role or gas. Vortex fixes it; nothing to do on your side. |
@@ -259,6 +260,8 @@ The destination is fixed for the life of the account, so an identical replay (sa
 | `503 MONERIUM_B2B_PROVIDER_UNAVAILABLE` | The provider failed, timed out, rate-limited the request or refused the profile check. Nothing was recorded: retry the identical request later. |
 
 An account converts payments only once it is `active`, and its IBAN can be issued before that: `iban` is set while `status` is still `onboarding`. A payment that reaches the IBAN earlier is not converted. The deposit waits with `waiting.reason` `account_not_active` and is refunded once the promised conversion window has passed (two hours by default, 15 minutes in sandbox; operations process the refund by hand where automatic refunds are off). A `suspended` account, or one paused for dormancy, converts nothing either, and Vortex suspends an account whose destination check fails even if it was never active. So hand a client its IBAN only once an `ACCOUNT_UPDATED` event or `GET /v1/monerium-b2b/account` reports `status: "active"`. The gate is Vortex's policy, applied by its conversion service rather than locked on chain, so treat the IBAN as unusable until then. In sandbox, accounts activate on their own once the IBAN is issued; in production, Vortex operations activate an account after checking its destination.
+
+Vortex converts payments from EUR 1. A smaller payment is not converted and never holds back later payments; its `waiting.reason` is `below_minimum`. It is refunded in full to the account it came from, but later than the normal window: the conversion contract cannot return an amount below EUR 1 on its own, so Vortex operations take one step first, after which the refund runs like any other and `DEPOSIT_RETURNED` reports it. Expect it a few hours after the window rather than at it.
 
 ## Common Errors
 

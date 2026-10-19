@@ -26,7 +26,13 @@ import { UsdcBaseRebalanceState, UsdcBaseStateManager, type WinningRoute } from 
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
-import { calculateMinimumDelta, calculateTargetBalanceRaw, DEFAULT_ARRIVAL_TOLERANCE } from "./guards.ts";
+import {
+  calculateMinimumDelta,
+  calculateTargetBalanceRaw,
+  DEFAULT_ARRIVAL_TOLERANCE,
+  SQUID_ROUTER_ARRIVAL_TOLERANCE,
+  SQUID_ROUTER_SLIPPAGE_PERCENT
+} from "./guards.ts";
 
 export const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 export const BRLA_POLYGON: `0x${string}` = brlaMoonbeamTokenDetails.polygonErc20Address as `0x${string}`;
@@ -547,7 +553,7 @@ export async function fetchSquidRouterQuote(brlaAmountDecimal: Big): Promise<str
       fromAmount: brlaAmountRaw,
       fromChain: getNetworkId(Networks.Polygon).toString(),
       fromToken: BRLA_POLYGON,
-      slippage: 4,
+      slippage: SQUID_ROUTER_SLIPPAGE_PERCENT,
       toAddress: baseAddress,
       toChain: getNetworkId(Networks.Base).toString(),
       toToken: USDC_BASE
@@ -722,7 +728,7 @@ export async function recoverSquidUsdcOutputFromBaseBalance(
 
   const currentBaseUsdcRaw = Big(await getCurrentBaseUsdcRaw());
   const receivedDeltaRaw = currentBaseUsdcRaw.minus(Big(startingUsdcBalanceRaw));
-  const minimumReceivedRaw = calculateMinimumDelta(Big(recoveryExpectedUsdcRaw), DEFAULT_ARRIVAL_TOLERANCE);
+  const minimumReceivedRaw = calculateMinimumDelta(Big(recoveryExpectedUsdcRaw), SQUID_ROUTER_ARRIVAL_TOLERANCE);
 
   if (receivedDeltaRaw.lt(minimumReceivedRaw)) return null;
 
@@ -796,7 +802,7 @@ export async function squidRouterApproveAndSwap(
       fromAmount: brlaAmountRaw,
       fromChain: getNetworkId(Networks.Polygon).toString(),
       fromToken: BRLA_POLYGON,
-      slippage: 4,
+      slippage: SQUID_ROUTER_SLIPPAGE_PERCENT,
       toAddress: baseReceiverAddress,
       toChain: getNetworkId(Networks.Base).toString(),
       toToken: USDC_BASE
@@ -879,10 +885,14 @@ export async function squidRouterApproveAndSwap(
   return { swapHash, toAmountRaw, toAmountUsd };
 }
 
-export async function waitUsdcOnBase(expectedUsdcRaw: string, startingUsdcBalanceRaw: string): Promise<string> {
+export async function waitUsdcOnBase(
+  expectedUsdcRaw: string,
+  startingUsdcBalanceRaw: string,
+  tolerance = DEFAULT_ARRIVAL_TOLERANCE
+): Promise<string> {
   const { walletClient } = getBaseEvmClients();
   const baseAddress = walletClient.account.address;
-  const targetBalanceRaw = calculateTargetBalanceRaw(startingUsdcBalanceRaw, expectedUsdcRaw, DEFAULT_ARRIVAL_TOLERANCE);
+  const targetBalanceRaw = calculateTargetBalanceRaw(startingUsdcBalanceRaw, expectedUsdcRaw, tolerance);
 
   console.log(`Waiting for USDC delta to arrive on Base (${baseAddress})...`);
 

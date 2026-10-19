@@ -9,7 +9,7 @@ import {
 import { checkTicketStatusPaid, RetryableAveniaTicketStatusError } from "../../utils/brla.ts";
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
-import { evaluateFallbackRoutePolicy } from "./guards.ts";
+import { evaluateFallbackRoutePolicy, SQUID_ROUTER_ARRIVAL_TOLERANCE } from "./guards.ts";
 import { formatBaseRebalanceCompletionMessage, type RebalancePolicySummary } from "./notifications.ts";
 import {
   aveniaCreateSwapToUsdcBaseTicket,
@@ -431,7 +431,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
         throw new Error("State corrupted: baseUsdcBalanceBeforeSquidSwapRaw missing for squid step 4");
       }
 
-      state.squidRouterQuoteUsdc = await waitUsdcOnBase(state.squidRouterQuoteUsdc, state.baseUsdcBalanceBeforeSquidSwapRaw);
+      state.squidRouterQuoteUsdc = await waitUsdcOnBase(
+        state.squidRouterQuoteUsdc,
+        state.baseUsdcBalanceBeforeSquidSwapRaw,
+        SQUID_ROUTER_ARRIVAL_TOLERANCE
+      );
 
       console.log("USDC from SquidRouter confirmed on Base.");
       state.currentPhase = UsdcBaseRebalancePhase.VerifyFinalBalance;

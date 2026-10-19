@@ -419,6 +419,9 @@ interface CycleState {
   deploymentSent: boolean;
 }
 
+/** Registrations the sandbox let through with a pending profile, so each is logged once (per process). */
+const sandboxPendingLogged = new Set<string>();
+
 /**
  * Drives one registration a step. Returns what it now waits for, or null once it is mapped or
  * rejected. A thrown error is transient: the caller records it and retries next cycle.
@@ -456,7 +459,16 @@ async function advanceRegistration(
   if (state === null) return "monerium_profile_not_visible";
   if (state === "rejected") return reject(registration, "Monerium rejected the profile");
   if (state === "closed") return reject(registration, "Monerium closed the profile");
-  if (state !== "approved") return "monerium_profile_pending"; // created, incomplete, pending, review
+  // Monerium's sandbox does not approve white-label profiles, so the sandbox takes a pending one as approved.
+  const sandboxPending = config.sandboxEnabled && state === "pending";
+  if (state !== "approved" && !sandboxPending) return "monerium_profile_pending"; // created, incomplete, pending, review
+  if (sandboxPending && !sandboxPendingLogged.has(registration.id)) {
+    sandboxPendingLogged.add(registration.id);
+    logger.info(
+      `monerium-b2b: registration for profile ${registration.moneriumProfileId} proceeds: ` +
+        "Monerium reports the profile pending, which the sandbox treats as approved"
+    );
+  }
 
   const conflict = await clientConflict(registration.managerProfileId, registration);
   if (conflict) return reject(registration, conflict);

@@ -285,6 +285,30 @@ the promised window. Decisions:
   share a wallet. `MONERIUM_B2B_RECOVERY_PRIVATE_KEY` is replaced by
   `MONERIUM_B2B_REFUND_SEED`, required whenever the module is enabled.
 
+## Amendment 2026-10-10: refunds below the swap floor
+
+- **Payments below `MIN_SWAP_FLOOR` are refunded through an operator top-up, not
+  automatically.** The 2026-09-17 refund triggers include remainders below
+  `minSwapAmount`, but a clone holding less than `MIN_SWAP_FLOOR` (€1) EURe and no USDC
+  never arms its batch marker, so `recover` reverts for such a payment. Once it is
+  marked `recovering`, the stranded-balance monitor raises REFUND NEEDS OPERATOR with
+  the exact top-up (`MIN_SWAP_FLOOR - clone EURe + 1 wei`, one wei more when that is a
+  whole number of cents, so the mint watcher never attributes it to an order), which an
+  operator sends exactly as printed to the clone from any wallet, e.g. the float
+  (internal B2B runbook §2.7). The marker then arms and the keeper's normal `recover`
+  and refund pipeline refund the payer's own EURe after `RECOVERY_DELAY`, with the full
+  refund record and the one-refund-per-client gate; such a payment is never refunded by
+  hand (with `MONERIUM_B2B_AUTO_RECOVERY=auto`; in `alert` or `off` the operator redeems
+  it from the client's refund wallet after the keeper's `recover`). The top-up stays on
+  the clone below the floor as Vortex EURe, and a later sub-floor payment that reaches
+  the floor with it is refunded with no operator step. Sending the top-up as soon as the
+  payment shows `below_minimum` lands the refund at about the normal deadline, but not
+  while the client's refund queue is busy: while another refund of the client is open
+  the keeper sends no `recover`, so an armed clone could wait into the permissionless
+  window, and the alert holds the top-up back, naming that refund's deposit, until it
+  is redeemed and closed (in `alert` or `off` the operator closes it once the manual
+  redeem went out).
+
 ## Final parameters (decided 2026-08-26 unless noted)
 
 | ID | Parameter | Value |
@@ -304,7 +328,7 @@ the promised window. Decisions:
 | P7 | `perSwapCap` | operational **€10k** / ceiling €50k (amended 2026-09-29; €25k before; re-measure liquidity at the deploy block before raising) |
 | P8 | `MAX_ORACLE_AGE` | **52 h** (observed Chainlink EUR/USD weekend gaps up to 48 h; applied to configs 2026-08-26) |
 | P9 | Notification confirmation depth | 32 blocks (implemented) |
-| P10 | Router pin and routes | SwapRouter02 immutable; routes are a guardian-managed, on-chain validated whitelist (EURe/EURC/USDC, four tiers, ≤ 2 hops); initial route EURe→EURC→USDC at the 5 bps tiers, re-verify at the deploy block (amended 2026-09-15) |
+| P10 | Router pin and routes | SwapRouter02 immutable; routes are a guardian-managed, on-chain validated whitelist (EURe/EURC/USDC, four tiers, ≤ 2 hops); initial route **EURe→EURC on the 1 bp tier, EURC→USDC on the 5 bps tier**, re-verify at the deploy block (amended 2026-09-15; re-verified 2026-10-12 at block 26176624: the EURe/EURC liquidity moved from the 5 bps pool, which no longer holds any in range, to the 1 bp pool; the new path quoted 9 to 12 bps below Chainlink for €1k to €25k, and the 5 bps path no longer quoted at all) |
 | P11 | Fee adjustability | Guardian `setFeePolicy(target, floor)` within `MAX_FEE_PPM`; raising either value is announced and applies after 24 h, lowering is immediate (amended 2026-09-15) |
 | P12 | Reference rate | **Coinbase Exchange EURC-USDC bid/ask midpoint read just before the swap, deferring on a spread above 50 bps** (amended 2026-09-18; from 2026-09-15 a five-minute VWAP over one-minute candles widened to 60 min on no volume), keeper-computed per swap; `MAX_REFERENCE_DEVIATION_BPS` **100** (immutable, to confirm before deploy: must tolerate a weekend Chainlink gap); permissionless path uses Chainlink (2026-09-15). The floor on the net binds first: with `floorPpm` 15 bps and `SLIPPAGE_BPS` 40 bps, a reference more than `SLIPPAGE_BPS − floorPpm` ≈ 25 bps below Chainlink makes every normal fill (fee band or subsidized) revert on chain and defer off chain, so ~25 bps is the working downside margin against a stale round; the 100 bps band is the outlier ceiling for a keeper-supplied value, not the operating tolerance (2026-09-16) |
 | P14 | Subsidy ladder | **`MONERIUM_B2B_SUBSIDY_LADDER` = `0:0,360:10,480:20,600:30,720:40,840:50,960:100`** (2026-09-18; keeper policy, tunable from deferral logs); per-chunk clock; the vault's per-swap cap must be at least the ladder's top |
