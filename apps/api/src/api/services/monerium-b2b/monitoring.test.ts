@@ -689,6 +689,48 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     expect(errors).toEqual([]);
   });
 
+  // With auto recovery off nothing marks or reports a payment past its window, and below the
+  // floor no batch arms, so the marker-age alert never fires for it either.
+  it("reports a payment past its window below the floor when auto recovery is off", async () => {
+    config.moneriumB2b.autoRecovery = "off";
+    const late = new Date(Date.now() - config.moneriumB2b.recoveryDeadlineMinutes * 60_000 - 60_000);
+    const due = await accountWithDeposit(MoneriumFiatDepositStatus.Minted);
+    await due.update({ mintedAt: late });
+    const fresh = await addDeposit(due.accountId, MoneriumFiatDepositStatus.Minted, EUR / 4n);
+    const orphan = await MoneriumFiatDeposit.create({
+      accountId: due.accountId,
+      amountRaw: "1",
+      blockNumber: 101,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 99,
+      mintedAt: late,
+      moneriumOrderId: "unattr:orphan",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xorphan"
+    });
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("REFUND DUE BELOW FLOOR");
+    expect(warnings[0]).toContain(due.id);
+    expect(warnings[0]).not.toContain(fresh.id);
+    expect(warnings[0]).not.toContain(orphan.id);
+    expect(warnings[0]).toContain(
+      "mark each via POST /v1/admin/monerium-b2b/deposits/:id/recover, then follow REFUND NEEDS OPERATOR"
+    );
+  });
+
+  for (const mode of ["auto", "alert"] as const) {
+    it(`leaves a payment past its window to the deadline pass with auto recovery ${mode}`, async () => {
+      config.moneriumB2b.autoRecovery = mode;
+      const due = await accountWithDeposit(MoneriumFiatDepositStatus.Minted);
+      await due.update({ mintedAt: new Date(Date.now() - config.moneriumB2b.recoveryDeadlineMinutes * 60_000 - 60_000) });
+      await runStrandedBalanceMonitor();
+      expect([...errors, ...warnings]).toEqual([]);
+    });
+  }
+
   // A migration can leave clones of two factories live: each clone's own floor and delays
   // apply, and a clone off the trusted factory, which the keeper refuses, gets no advice.
   describe("on clones of different factories", () => {

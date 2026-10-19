@@ -26,8 +26,9 @@ import {
   SubsidyVaultState
 } from "./chain";
 import { settlementState } from "./conversion-executor";
+import { UNATTRIBUTED_ORDER_PREFIX } from "./mint-watcher";
 import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
-import { activeRecoveryExists } from "./recovery";
+import { activeRecoveryExists, isPastDeadline } from "./recovery";
 import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProductStatus } from "./reference-rate";
 import { refundAccountFor } from "./refund-wallet";
 
@@ -48,7 +49,8 @@ import { refundAccountFor } from "./refund-wallet";
  *    An unswapped payment marked for recovery whose EURe is still on a clone below
  *    MIN_SWAP_FLOOR errors too: the contract cannot recover it until the operator tops the
  *    clone up to the floor (one whose funds already left the clone only warns: reconcile; the
- *    others' top-up waits for that, and for the client's open refund).
+ *    others' top-up waits for that, and for the client's open refund). With auto recovery off,
+ *    a payment there past its window that nobody marked warns, since nothing else reports it.
  *    A marked deposit left unrecovered RECOVERY_DELAY plus an hour after marking warns
  *    (REFUND OVERDUE), and errors past TRIGGER_DELAY.
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
@@ -441,6 +443,30 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         const marked = await MoneriumFiatDeposit.count({
           where: { accountId: account.id, status: MoneriumFiatDepositStatus.Recovering }
         });
+        if (marked === 0 && config.moneriumB2b.autoRecovery === "off") {
+          // In `off` mode nothing marks or reports a payment past its window, and no batch arms
+          // below the floor, so the marker-age alert below never fires for it either.
+          const deadlineMs = config.moneriumB2b.recoveryDeadlineMinutes * 60_000;
+          const settling = await MoneriumFiatDeposit.findAll({
+            attributes: ["createdAt", "id", "mintedAt"],
+            where: {
+              accountId: account.id,
+              blockNumber: { [Op.ne]: null },
+              moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` },
+              status: { [Op.in]: [MoneriumFiatDepositStatus.Minted, MoneriumFiatDepositStatus.Converting] }
+            }
+          });
+          const due = settling.filter(deposit => isPastDeadline(deposit, deadlineMs, now));
+          if (due.length > 0) {
+            logger.warn(
+              `monerium-b2b: REFUND DUE BELOW FLOOR — deposit(s) ${due.map(deposit => deposit.id).join(", ")} on forwarder ` +
+                `${forwarder} (account ${account.id}) are past the ${config.moneriumB2b.recoveryDeadlineMinutes} min refund ` +
+                `window on a clone holding ${formatUnits(eureBalance, 18)} EURe, below MIN_SWAP_FLOOR, and ` +
+                "MONERIUM_B2B_AUTO_RECOVERY is off, so nothing marks them: mark each via POST " +
+                "/v1/admin/monerium-b2b/deposits/:id/recover, then follow REFUND NEEDS OPERATOR (the internal B2B runbook §2.7)"
+            );
+          }
+        }
         if (marked === 0) continue;
         // Every deposit whose EURe the ledger may still place on the clone: settling, marked, or
         // refunded (a manual refund leaves its EURe there; a confirmed `recover` took it away).
