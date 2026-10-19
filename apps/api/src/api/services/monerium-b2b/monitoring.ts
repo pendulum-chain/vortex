@@ -362,7 +362,7 @@ export async function runExecutableDepthCheck(): Promise<void> {
 
   const verdict = classifyExecutableDepth(best.minImpactBps, best.capImpactBps, slippageBps);
   if (verdict.severity === "error" && chainId === 1) {
-    logger.error(`monerium-b2b: DEPTH BELOW FLOOR — ${verdict.reason}; triage per the B2B operations runbook §3. ${detail}`);
+    logger.error(`monerium-b2b: DEPTH BELOW FLOOR — ${verdict.reason}; triage per the internal B2B runbook §3. ${detail}`);
   } else if (verdict.severity === "error") {
     // Off mainnet a thin pool drifting from the oracle is a calibration signal, not an incident.
     logger.warn(

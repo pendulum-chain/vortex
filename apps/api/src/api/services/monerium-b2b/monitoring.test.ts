@@ -314,7 +314,7 @@ describe("runExecutableDepthCheck", () => {
       expect(lines[level][0]).toContain("DEPTH BELOW FLOOR");
       expect(lines[other]).toEqual([]);
       if (level === "warn") expect(lines.warn[0]).toContain("re-centre the sandbox pool");
-      else expect(lines.error[0]).toContain("triage per the B2B operations runbook §3");
+      else expect(lines.error[0]).toContain("triage per the internal B2B runbook §3");
     });
   }
 
