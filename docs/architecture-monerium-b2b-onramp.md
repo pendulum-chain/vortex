@@ -387,7 +387,9 @@ permissionless `poke` and `applyFeePolicy`):
   client's refund wallet, and the alert points to the manual redeem from that wallet
   instead. While another refund of the client is open, the keeper sends no `recover`
   (one refund per client), so the alert holds the top-up back and only warns that the
-  payment waits; it returns with the amount once that refund is redeemed. Leftover
+  payment waits, naming that refund's deposit; it returns with the amount once that
+  refund is redeemed and closed (in `alert` or `off`, once the operator sets that deposit
+  `refunded`). Leftover
   top-ups stay on the clone as Vortex EURe, below EUR 1 per clone, so
   `recover` switches the marker off by itself (no follow-up step), and a later sub-floor
   payment on that clone that reaches the floor with them arms the marker and is refunded

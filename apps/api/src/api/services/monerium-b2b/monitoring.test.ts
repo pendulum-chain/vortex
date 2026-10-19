@@ -630,8 +630,10 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     expect(errors).toEqual([]);
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain(deposit.id);
-    expect(warnings[0]).toContain("another refund of this client is still open");
-    expect(warnings[0]).toContain("do not top up the clone before that; REFUND NEEDS OPERATOR then returns");
+    expect(warnings[0]).toContain(`another refund of this client (deposit ${earlier.id}) is still open`);
+    expect(warnings[0]).toContain(
+      "until it is redeemed and closed; do not top up the clone before that; REFUND NEEDS OPERATOR then returns"
+    );
     expect(warnings[0]).not.toContain("send exactly");
 
     await refund.update({ phase: MoneriumRecoveryPhase.Redeemed });

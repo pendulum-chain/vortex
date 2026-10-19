@@ -28,7 +28,7 @@ import {
 import { settlementState } from "./conversion-executor";
 import { UNATTRIBUTED_ORDER_PREFIX } from "./mint-watcher";
 import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
-import { activeRecoveryExists, isPastDeadline } from "./recovery";
+import { activeRecoveryDepositIds, isPastDeadline } from "./recovery";
 import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProductStatus } from "./reference-rate";
 import { refundAccountFor } from "./refund-wallet";
 
@@ -523,6 +523,7 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         );
         const onClone = ledgerEure <= eureBalance ? unswapped : [];
         const elsewhere = stuck.filter(deposit => !onClone.includes(deposit));
+        const openRefunds = onClone.length > 0 ? await activeRecoveryDepositIds(account.id) : [];
         if (onClone.length > 0 && elsewhere.length > 0) {
           // A top-up would arm the marker for those payments too, whose `recover` cannot succeed
           // before they are reconciled (a swapped one's always reverts on this USDC-less clone),
@@ -534,14 +535,16 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
               "arm the marker, so the keeper could retry that payment's recover ahead of these; do not top up the clone " +
               "before it is reconciled; REFUND NEEDS OPERATOR then returns with the amount (the internal B2B runbook §2.7)"
           );
-        } else if (onClone.length > 0 && (await activeRecoveryExists(account.id))) {
+        } else if (openRefunds.length > 0) {
           // The keeper sends no second `recover` meanwhile (its own gate), so a top-up now would
-          // only leave the clone armed, past TRIGGER_DELAY open to the permissionless swap.
+          // only leave the clone armed, past TRIGGER_DELAY open to the permissionless swap. In
+          // `alert` and `off` the gate opens only once the operator closes the redeemed refund.
           logger.warn(
             `monerium-b2b: deposit(s) ${onClone.map(deposit => deposit.id).join(", ")} on forwarder ${forwarder} ` +
               `(account ${account.id}) are marked for recovery below MIN_SWAP_FLOOR but wait: another refund of this ` +
-              "client is still open, and the keeper sends no second recover until it is redeemed; do not top up the " +
-              "clone before that; REFUND NEEDS OPERATOR then returns with the amount (the internal B2B runbook §2.7)"
+              `client (deposit ${openRefunds.join(", ")}) is still open, and the keeper sends no second recover until ` +
+              "it is redeemed and closed; do not top up the clone before that; REFUND NEEDS OPERATOR then returns with " +
+              "the amount (the internal B2B runbook §2.7)"
           );
         } else if (onClone.length > 0) {
           // A top-up to just above the floor lets `poke` arm the marker, and the keeper's

@@ -305,7 +305,9 @@ the promised window. Decisions:
   payment shows `below_minimum` lands the refund at about the normal deadline, but not
   while the client's refund queue is busy: while another refund of the client is open
   the keeper sends no `recover`, so an armed clone could wait into the permissionless
-  window, and the alert holds the top-up back until that refund is redeemed.
+  window, and the alert holds the top-up back, naming that refund's deposit, until it
+  is redeemed and closed (in `alert` or `off` the operator closes it once the manual
+  redeem went out).
 
 ## Final parameters (decided 2026-08-26 unless noted)
 
