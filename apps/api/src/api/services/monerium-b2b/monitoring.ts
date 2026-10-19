@@ -562,23 +562,28 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
       });
       if (overdue.length > 0) {
         const recovers = await MoneriumConversionExecution.findAll({
-          attributes: ["depositId"],
-          where: {
-            depositId: { [Op.in]: overdue.map(deposit => deposit.id) },
-            kind: MoneriumConversionExecutionKind.Recover,
-            status: { [Op.in]: [MoneriumConversionExecutionStatus.Pending, MoneriumConversionExecutionStatus.Confirmed] }
-          }
+          attributes: ["depositId", "error", "status"],
+          order: [["created_at", "DESC"]],
+          where: { depositId: { [Op.in]: overdue.map(deposit => deposit.id) }, kind: MoneriumConversionExecutionKind.Recover }
         });
-        const late = overdue.filter(deposit => !recovers.some(e => e.depositId === deposit.id));
+        const late = overdue.filter(
+          deposit => !recovers.some(e => e.depositId === deposit.id && e.status !== MoneriumConversionExecutionStatus.Failed)
+        );
         if (late.length > 0) {
           const ageMs = now - Math.min(...late.map(deposit => (deposit.refundStartedAt as Date).getTime()));
+          // The latest failed attempt, if any: a `recover` that reverts may mean the funds left by
+          // a path the ledger does not record, where a hand refund would pay twice.
+          const failure = recovers.find(e => late.some(deposit => deposit.id === e.depositId));
+          const state = `eure=${formatUnits(eureBalance, 18)}, usdc=${formatUnits(usdcBalance, 6)}, batchOpenedAt=${batchOpenedAt}`;
           const message =
             `monerium-b2b: REFUND OVERDUE — deposit(s) ${late.map(deposit => deposit.id).join(", ")} on forwarder ${forwarder} ` +
-            `(account ${account.id}) were marked for recovery up to ${Math.floor(ageMs / 3_600_000)}h ago and no recover ` +
-            `has been sent (eure=${formatUnits(eureBalance, 18)}, usdc=${formatUnits(usdcBalance, 6)}, ` +
-            `batchOpenedAt=${batchOpenedAt}): check whether younger forwards keep re-timing the batch marker or another ` +
-            "refund of this client is stuck; after an operator top-up this clears once the keeper recovers (the internal " +
-            "B2B runbook §2.7)";
+            `(account ${account.id}) were marked for recovery up to ${Math.floor(ageMs / 3_600_000)}h ago and ` +
+            (failure
+              ? `no recover has succeeded (${state}; latest error: ${failure.error}): reconcile the clone's balances ` +
+                "against the ledger before any refund; do not refund by hand"
+              : `no recover has been sent (${state}): check whether younger forwards keep re-timing the batch marker or ` +
+                "another refund of this client is stuck; after an operator top-up this clears once the keeper recovers") +
+            " (the internal B2B runbook §2.7)";
           if (ageMs >= Number(triggerDelay) * 1000) logger.error(message);
           else logger.warn(message);
         }

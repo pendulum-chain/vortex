@@ -781,6 +781,24 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
       expect(errors[0]).toContain(deposit.id);
     });
 
+    it("asks to reconcile, not to check the marker, when the recover attempts failed", async () => {
+      const deposit = await markedHoursAgo(4);
+      const recover = MoneriumConversionExecutionKind.Recover;
+      const failed = MoneriumConversionExecutionStatus.Failed;
+      await (await execution(deposit, recover, failed, new Date(now - 2 * HOUR))).update({ error: "attempt 1: timeout" });
+      await (await execution(deposit, recover, failed, new Date(now - HOUR))).update({ error: "attempt 3: InvalidAmount()" });
+      await runStrandedBalanceMonitor(now);
+      expect(errors).toEqual([]);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("REFUND OVERDUE");
+      expect(warnings[0]).toContain(deposit.id);
+      expect(warnings[0]).toContain("no recover has succeeded");
+      expect(warnings[0]).toContain("latest error: attempt 3: InvalidAmount()");
+      expect(warnings[0]).toContain("reconcile the clone's balances against the ledger before any refund; do not refund by hand");
+      expect(warnings[0]).not.toContain("no recover has been sent");
+      expect(warnings[0]).not.toContain("re-timing");
+    });
+
     it("stays quiet before the bound", async () => {
       await markedHoursAgo(2);
       await runStrandedBalanceMonitor(now);

@@ -596,7 +596,10 @@ read-only — no keys, no transactions:
    (or holding USDC), a `recovering` deposit with no pending or confirmed `recover` more
    than `RECOVERY_DELAY` plus an hour after it was marked warns REFUND OVERDUE (an error past
    `TRIGGER_DELAY`): younger forwards keep re-timing its marker, or another refund of the
-   client is stuck.
+   client is stuck. Once its `recover` attempts have failed, the line names the latest
+   error and asks to reconcile the clone's balances against the ledger before any refund,
+   never a hand refund: a `recover` that keeps reverting may mean the funds left by an
+   unrecorded path.
 4. **Config reconciliation.** Re-reads per-clone config and bytecode: guardian-authorized
    fee-policy changes (timelocked) are reconciled into the DB with a version bump; a
    destination change (no setter exists), bytecode or registration drift is a
