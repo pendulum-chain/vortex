@@ -530,7 +530,7 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
               `(account ${account.id}) are marked for recovery below MIN_SWAP_FLOOR but wait: another marked payment on ` +
               `this clone (${elsewhere.map(deposit => deposit.id).join(", ")}) needs reconciling first, and a top-up would ` +
               "arm the marker, so the keeper could retry that payment's recover ahead of these; do not top up the clone " +
-              "until it is reconciled (this alert then returns with the top-up amount; the internal B2B runbook §2.7)"
+              "before it is reconciled; REFUND NEEDS OPERATOR then returns with the amount (the internal B2B runbook §2.7)"
           );
         } else if (onClone.length > 0 && (await activeRecoveryExists(account.id))) {
           // The keeper sends no second `recover` meanwhile (its own gate), so a top-up now would
@@ -539,7 +539,7 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
             `monerium-b2b: deposit(s) ${onClone.map(deposit => deposit.id).join(", ")} on forwarder ${forwarder} ` +
               `(account ${account.id}) are marked for recovery below MIN_SWAP_FLOOR but wait: another refund of this ` +
               "client is still open, and the keeper sends no second recover until it is redeemed; do not top up the " +
-              "clone until then (this alert then returns with the top-up amount; the internal B2B runbook §2.7)"
+              "clone before that; REFUND NEEDS OPERATOR then returns with the amount (the internal B2B runbook §2.7)"
           );
         } else if (onClone.length > 0) {
           // A top-up to just above the floor lets `poke` arm the marker, and the keeper's

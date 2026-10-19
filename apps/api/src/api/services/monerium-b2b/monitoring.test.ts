@@ -631,6 +631,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain(deposit.id);
     expect(warnings[0]).toContain("another refund of this client is still open");
+    expect(warnings[0]).toContain("do not top up the clone before that; REFUND NEEDS OPERATOR then returns");
     expect(warnings[0]).not.toContain("send exactly");
 
     await refund.update({ phase: MoneriumRecoveryPhase.Redeemed });
@@ -654,7 +655,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     const wait = warnings.filter(message => message.includes(unswapped.id));
     expect(wait).toHaveLength(1);
     expect(wait[0]).toContain(`another marked payment on this clone (${swapped.id}) needs reconciling first`);
-    expect(wait[0]).toContain("do not top up the clone until it is reconciled");
+    expect(wait[0]).toContain("do not top up the clone before it is reconciled; REFUND NEEDS OPERATOR then returns");
     expect(wait[0]).not.toContain("left the clone");
     const reconcile = warnings.filter(message => message.includes("part or all of their funds left the clone"));
     expect(reconcile).toHaveLength(1);
