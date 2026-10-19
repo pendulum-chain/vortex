@@ -614,6 +614,25 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     expect(warning).not.toContain("are no longer on the clone");
   });
 
+  it("holds the top-up while another marked payment on the clone needs reconciling", async () => {
+    // The swapped payment's USDC left on an unrecorded forwardAll, so its recover reverts on this
+    // USDC-less clone; a top-up would arm the marker and let the keeper retry it.
+    const swapped = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, 5n * EUR);
+    const swap = await execution(swapped, MoneriumConversionExecutionKind.Swap, MoneriumConversionExecutionStatus.Confirmed);
+    await swap.update({ usdcNetRaw: ((57n * USDC) / 10n).toString() });
+    const unswapped = await addDeposit(swapped.accountId, MoneriumFiatDepositStatus.Recovering, EUR / 2n);
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+    const wait = warnings.filter(message => message.includes(unswapped.id));
+    expect(wait).toHaveLength(1);
+    expect(wait[0]).toContain(`another marked payment on this clone (${swapped.id}) needs reconciling first`);
+    expect(wait[0]).toContain("do not top up the clone until it is reconciled");
+    expect(wait[0]).not.toContain("left the clone");
+    const reconcile = warnings.filter(message => message.includes("part or all of their funds left the clone"));
+    expect(reconcile).toHaveLength(1);
+    expect(reconcile[0]).toContain(swapped.id);
+  });
+
   // EURe the ledger places on the clone for other payments: a younger one still settling, or
   // one refunded by hand (its EURe never left the clone).
   for (const other of [MoneriumFiatDepositStatus.Minted, MoneriumFiatDepositStatus.Refunded]) {

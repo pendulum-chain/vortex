@@ -46,7 +46,8 @@ import { refundAccountFor } from "./refund-wallet";
  *    permissionless-trigger delay, registry P4) they error — a keeper-outage signal.
  *    An unswapped payment marked for recovery whose EURe is still on a clone below
  *    MIN_SWAP_FLOOR errors too: the contract cannot recover it until the operator tops the
- *    clone up to the floor (one whose funds already left the clone only warns: reconcile).
+ *    clone up to the floor (one whose funds already left the clone only warns: reconcile, and
+ *    the others' top-up waits for that).
  *    A marked deposit left unrecovered RECOVERY_DELAY plus an hour after marking warns
  *    (REFUND OVERDUE), and errors past TRIGGER_DELAY.
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
@@ -493,7 +494,18 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         );
         const onClone = ledgerEure <= eureBalance ? unswapped : [];
         const elsewhere = stuck.filter(deposit => !onClone.includes(deposit));
-        if (onClone.length > 0) {
+        if (onClone.length > 0 && elsewhere.length > 0) {
+          // A top-up would arm the marker for those payments too, whose `recover` cannot succeed
+          // before they are reconciled (a swapped one's always reverts on this USDC-less clone),
+          // so the keeper could keep retrying it instead of refunding these.
+          logger.warn(
+            `monerium-b2b: deposit(s) ${onClone.map(deposit => deposit.id).join(", ")} on forwarder ${forwarder} ` +
+              `(account ${account.id}) are marked for recovery below MIN_SWAP_FLOOR but wait: another marked payment on ` +
+              `this clone (${elsewhere.map(deposit => deposit.id).join(", ")}) needs reconciling first, and a top-up would ` +
+              "arm the marker, so the keeper could retry that payment's recover ahead of these; do not top up the clone " +
+              "until it is reconciled (this alert then returns with the top-up amount; the internal B2B runbook §2.7)"
+          );
+        } else if (onClone.length > 0) {
           // A top-up to just above the floor lets `poke` arm the marker, and the keeper's
           // normal `recover` then refunds the payer's own EURe; the top-up stays on the clone
           // below the floor. Deposits and the floor are whole cents, so an amount off a whole cent

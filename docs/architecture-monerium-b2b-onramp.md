@@ -578,7 +578,10 @@ read-only — no keys, no transactions:
    the keeper recover it (the refund path above, internal B2B runbook §2.7); a landed
    top-up lifts the clone to the floor and quiets it. Otherwise part or all of its funds
    may have left the clone by an unrecorded path, so it warns "reconcile before
-   refunding; do not refund and do not top up the clone". The pass skips that account
+   refunding; do not refund and do not top up the clone"; while such a payment is
+   flagged, the clone's unswapped marked payments only get a warning that they wait for
+   that reconcile, since a top-up would arm the marker for the flagged payment too, whose
+   `recover` cannot succeed. The pass skips that account
    while any of its `recover` executions is still pending: a mined `recover` not yet
    confirmed would make the ledger overstate the clone. A `recover` still pending an
    hour after it was created warns RECOVER STUCK PENDING (an error after four hours), on
