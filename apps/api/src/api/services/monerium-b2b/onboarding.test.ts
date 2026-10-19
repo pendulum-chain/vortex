@@ -1,4 +1,6 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { MoneriumApiError } from "@vortexfi/shared";
+import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import FinancialOperation from "../../../models/financialOperation.model";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
@@ -8,6 +10,7 @@ import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
 import { provisionManagedProfile } from "../managed-profile-provisioning.service";
 import { processMoneriumWebhookInbox } from "./deposit-processor";
+import { accountSnapshot } from "./manager-events";
 import { advanceOnboardingAccounts, type OnboardingDeps } from "./onboarding";
 
 const FORWARDER = "0x1111111111111111111111111111111111111111";
@@ -15,6 +18,8 @@ const DESTINATION = "0x2222222222222222222222222222222222222222";
 const MONERIUM_PROFILE = "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e";
 const IBAN = "EE08 7224 5745 6244 9516";
 const REFUND_WALLET = "0x9999999999999999999999999999999999999999";
+const PARTNER_WALLET = "0x3333333333333333333333333333333333333333";
+const PARTNER_IBAN = "EE52 1273 8426 8857 1285";
 const ETHEREUM_CHAIN = { getChainId: async () => 1 };
 
 const savedConfig = { ...config.moneriumB2b };
@@ -22,13 +27,14 @@ const savedConfig = { ...config.moneriumB2b };
 interface FakeDeps extends OnboardingDeps {
   calls: {
     getChainId: number;
-    getIbanForAddress: number;
     getProfileAddresses: number;
     linkAddress: unknown[][];
+    listIbans: number;
     requestIban: unknown[][];
     signLinkAttestation: unknown[][];
     signRefundLink: unknown[][];
   };
+  /** IBANs on the client's profile, by address; listIbans also returns another client's IBAN. */
   ibanByAddress: Map<string, string>;
   linkedAddresses: Set<string>;
 }
@@ -37,9 +43,9 @@ function fakeDeps(): FakeDeps {
   const deps: FakeDeps = {
     calls: {
       getChainId: 0,
-      getIbanForAddress: 0,
       getProfileAddresses: 0,
       linkAddress: [],
+      listIbans: 0,
       requestIban: [],
       signLinkAttestation: [],
       signRefundLink: []
@@ -47,11 +53,6 @@ function fakeDeps(): FakeDeps {
     async getChainId() {
       deps.calls.getChainId += 1;
       return 1;
-    },
-    async getIbanForAddress(address: string) {
-      deps.calls.getIbanForAddress += 1;
-      const iban = deps.ibanByAddress.get(address.toLowerCase());
-      return iban ? { iban } : null;
     },
     async getProfileAddresses() {
       deps.calls.getProfileAddresses += 1;
@@ -64,6 +65,13 @@ function fakeDeps(): FakeDeps {
     },
     // The refund wallet starts linked so most cases exercise only the forwarder link.
     linkedAddresses: new Set([REFUND_WALLET]),
+    async listIbans() {
+      deps.calls.listIbans += 1;
+      const ibans = [...deps.ibanByAddress].map(([address, iban]) => ({ address, iban, profile: MONERIUM_PROFILE }));
+      return [...ibans, { address: PARTNER_WALLET, iban: "EE00 1111 2222 3333 4444", profile: crypto.randomUUID() }].map(
+        entry => ({ ...entry, bic: "BIC", chain: "ethereum" as const, name: "Client" })
+      );
+    },
     async requestIban(...args: unknown[]) {
       deps.calls.requestIban.push(args);
       return {};
@@ -116,6 +124,8 @@ describe("monerium b2b onboarding automation", () => {
     config.moneriumB2b.refundSeed = `0x${"11".repeat(32)}`;
     // MONERIUM_WHITELABEL_CLIENT_ID/SECRET come from test-utils/preload.ts.
   });
+
+  afterEach(() => mock.restore());
 
   afterAll(() => {
     Object.assign(config.moneriumB2b, savedConfig);
@@ -272,7 +282,8 @@ describe("monerium b2b onboarding automation", () => {
     deps.requestIban = async (address, chain) => {
       if (failNext) {
         failNext = false;
-        throw new Error("Monerium request failed");
+        // A refusal while the profile has no other IBAN is not the one-IBAN-per-profile case.
+        throw new MoneriumApiError({ endpoint: "/ibans", method: "POST", status: 400 });
       }
       return workingRequestIban(address, chain);
     };
@@ -283,6 +294,53 @@ describe("monerium b2b onboarding automation", () => {
     await advanceOnboardingAccounts(deps);
     expect((await FinancialOperation.findOne({ where: { phase: "requestIban" } }))?.status).toBe("confirmed");
     expect(deps.calls.requestIban).toHaveLength(1);
+  });
+
+  it("waits without requesting while the profile has an IBAN elsewhere, and requests once it is gone", async () => {
+    const account = await createMappedAccount();
+    const deps = fakeDeps();
+    deps.linkedAddresses.add(FORWARDER);
+    deps.ibanByAddress.set(PARTNER_WALLET, PARTNER_IBAN);
+    const error = spyOn(logger, "error");
+
+    await advanceOnboardingAccounts(deps);
+    await advanceOnboardingAccounts(deps);
+
+    expect(deps.calls.requestIban).toHaveLength(0);
+    expect(deps.calls.listIbans).toBe(2);
+    await account.reload();
+    expect(account.iban).toBeNull();
+    expect(accountSnapshot(account, null).waitingReason).toBe("monerium_profile_has_iban");
+    // One operator line per occurrence, not one per cycle.
+    const alerts = error.mock.calls.filter(([message]) => String(message).includes("cannot get an IBAN"));
+    expect(alerts).toHaveLength(1);
+    expect(String(alerts[0][0])).toContain(`already has IBAN ${PARTNER_IBAN} on ethereum address ${PARTNER_WALLET}`);
+    expect(String(alerts[0][0])).toContain("runbook §1.5");
+
+    deps.ibanByAddress.delete(PARTNER_WALLET);
+    await advanceOnboardingAccounts(deps);
+
+    expect(deps.calls.requestIban).toEqual([[FORWARDER, "ethereum"]]);
+    expect((await account.reload()).waitingReason).toBeNull();
+  });
+
+  it("adopts the profile's IBAN once it is moved to the forwarder and clears the wait", async () => {
+    const account = await createMappedAccount();
+    const deps = fakeDeps();
+    deps.linkedAddresses.add(FORWARDER);
+    deps.ibanByAddress.set(PARTNER_WALLET, PARTNER_IBAN);
+    await advanceOnboardingAccounts(deps);
+    expect((await account.reload()).waitingReason).toBe("monerium_profile_has_iban");
+
+    // An operator moved the IBAN (PATCH /ibans/{iban}) to the forwarder.
+    deps.ibanByAddress.delete(PARTNER_WALLET);
+    deps.ibanByAddress.set(FORWARDER, PARTNER_IBAN);
+    await advanceOnboardingAccounts(deps);
+
+    await account.reload();
+    expect(account.iban).toBe(PARTNER_IBAN);
+    expect(account.waitingReason).toBeNull();
+    expect(deps.calls.requestIban).toHaveLength(0);
   });
 
   it("does nothing while the whitelabel credentials are not configured", async () => {
@@ -343,6 +401,24 @@ describe("iban.updated inbox recording", () => {
     expect(account.iban).toBe(IBAN);
 
     expect(await MoneriumWebhookEvent.count({ where: { processedAt: null } })).toBe(0);
+  });
+
+  it("clears the account's wait when the webhook records the moved IBAN", async () => {
+    const account = await createMappedAccount({ waitingReason: "monerium_profile_has_iban" });
+    await MoneriumWebhookEvent.create({
+      eventId: "evt-iban-moved",
+      payload: {
+        data: { address: FORWARDER, chain: "ethereum", iban: PARTNER_IBAN, profile: MONERIUM_PROFILE },
+        timestamp: "2026-10-19T12:00:00Z",
+        type: "iban.updated"
+      }
+    });
+
+    await processMoneriumWebhookInbox(ETHEREUM_CHAIN);
+
+    await account.reload();
+    expect(account.iban).toBe(PARTNER_IBAN);
+    expect(account.waitingReason).toBeNull();
   });
 
   it("acks iban events for unknown forwarders without failing the drain", async () => {
