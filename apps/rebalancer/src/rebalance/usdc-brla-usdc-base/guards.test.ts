@@ -10,6 +10,7 @@ import {
   getRebalancingUrgencyBand,
   isProjectedProfit,
   type RebalancingCostPolicyConfig,
+  SQUID_ROUTER_ARRIVAL_TOLERANCE,
   shouldTriggerOpportunisticUsdcToBrla,
   wouldExceedDailyBridgeLimit,
   wouldExceedUsdcPoolCoverage
@@ -37,6 +38,12 @@ describe("USDC Base rebalance guards", () => {
 
   test("allows small Base USDC arrival shortfalls with the default tolerance", () => {
     expect(calculateTargetBalanceRaw("13148408", "999225918", "0.998")).toBe("1010375874");
+  });
+
+  test("accepts a SquidRouter Base USDC fill below the quote but within the route slippage", () => {
+    // Production run of 2026-10-09: quoted 1001.046291 USDC, filled 995.188613 USDC on top of 103.860411 USDC.
+    const targetRaw = calculateTargetBalanceRaw("103860411", "1001046291", SQUID_ROUTER_ARRIVAL_TOLERANCE);
+    expect(Big(targetRaw).lte("1099049024")).toBe(true);
   });
 
   test("daily bridge limit includes the amount about to be rebalanced", () => {
