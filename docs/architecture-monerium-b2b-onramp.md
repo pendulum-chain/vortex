@@ -496,8 +496,10 @@ contract settles every fill into three bands against that reference (decisions:
   memory, since a private relay's pending transactions are invisible to the public nonce
   counts; a restart or another keeper process does not know it and may send one
   duplicate, which reverts `NoPendingFeePolicy` or is dropped), and no apply is sent while the public pool holds any keeper transaction, of
-  any account; each skip reason is logged once. The executor only runs for accounts
-  with a settling deposit, so an idle clone's increase is applied before its next swap.
+  any account; each skip reason is logged once. The executor runs only for conversion
+  candidates (a settling deposit, a transfer to the clone indexed that cycle, or a
+  pending execution; see the deposit-to-payout sequence), so an idle clone's increase is
+  applied before its next swap.
 - **Subsidy vault (`VortexSubsidyVault`)**: one contract shared by every clone, funded
   from the treasury. It pays only when called by a factory-registered clone, to the
   clone itself (the subsidy is forwarded with the payment), within a guardian-settable
