@@ -649,7 +649,7 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
  * Association monitor (S1 detective control): compares the Monerium-side linked
  * addresses + IBAN state per active account against the DB record and alerts on ANY
  * change. Error-level: an unexplained association change is an incident trigger
- * (B2B operations runbook).
+ * (the internal B2B runbook).
  */
 export async function runAssociationMonitor(): Promise<void> {
   const accounts = await monitoredAccounts([MoneriumAccountStatus.Active]);
