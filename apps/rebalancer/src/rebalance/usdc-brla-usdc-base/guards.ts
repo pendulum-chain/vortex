@@ -1,6 +1,9 @@
 import Big from "big.js";
 
 export const DEFAULT_ARRIVAL_TOLERANCE = "0.998";
+// SquidRouter may fill anywhere within the route slippage, so its USDC arrival checks accept the same floor.
+export const SQUID_ROUTER_SLIPPAGE_PERCENT = 4;
+export const SQUID_ROUTER_ARRIVAL_TOLERANCE = ((100 - SQUID_ROUTER_SLIPPAGE_PERCENT) / 100).toString();
 
 export type RebalancingPolicyMode = "auto" | "always" | "dry-run" | "off";
 export type RebalancingUrgencyBand = "mild" | "moderate" | "severe";

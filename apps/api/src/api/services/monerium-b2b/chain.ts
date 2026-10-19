@@ -129,6 +129,7 @@ export const forwarderAbi = [
     type: "function"
   },
   { inputs: [], name: "forwardAll", outputs: [], stateMutability: "nonpayable", type: "function" },
+  { inputs: [], name: "applyFeePolicy", outputs: [], stateMutability: "nonpayable", type: "function" },
   {
     inputs: [
       { name: "eureAmount", type: "uint256" },
@@ -166,7 +167,14 @@ export const forwarderAbi = [
     type: "function"
   },
   { inputs: [], name: "targetPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
-  { inputs: [], name: "floorPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" }
+  { inputs: [], name: "floorPpm", outputs: [{ name: "", type: "uint32" }], stateMutability: "view", type: "function" },
+  {
+    inputs: [],
+    name: "pendingFeePolicyEffectiveAt",
+    outputs: [{ name: "", type: "uint64" }],
+    stateMutability: "view",
+    type: "function"
+  }
 ] as const;
 
 export const factoryAbi = [
@@ -200,8 +208,19 @@ export const chainlinkAbi = parseAbi([
   "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)"
 ]);
 
-/** Uniswap V3 QuoterV2 on Ethereum mainnet (the pinned quoting contract, PRD §7.4). */
-export const MAINNET_QUOTER_V2: Address = "0x61fFE014bA17989E743c5F6cB21bF9697530B21e";
+/**
+ * Pinned Uniswap V3 QuoterV2 per chain id (PRD §7.4): Ethereum mainnet and the Sepolia
+ * sandbox, each on the same Uniswap v3 deployment as the chain's pools and router.
+ */
+const QUOTER_V2_BY_CHAIN_ID: Record<number, Address> = {
+  1: "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
+  11155111: "0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3"
+};
+
+/** The pinned QuoterV2 for `chainId`; null on a chain without one (no quoting there). */
+export function quoterV2ForChainId(chainId: number): Address | null {
+  return QUOTER_V2_BY_CHAIN_ID[chainId] ?? null;
+}
 
 export const quoterV2Abi = parseAbi([
   "function quoteExactInput(bytes path, uint256 amountIn) returns (uint256 amountOut, uint160[] sqrtPriceX96AfterList, uint32[] initializedTicksCrossedList, uint256 gasEstimate)"
@@ -419,11 +438,11 @@ export async function readEnabledRoutes(factory: Address): Promise<Array<{ index
   return routes.filter(route => route.enabled).map(({ index, path }) => ({ index, path }));
 }
 
-/** Static QuoterV2 quote for `amountIn` over a packed path. Mainnet only (MAINNET_QUOTER_V2 pin). */
-export async function quoteRouteOutput(path: Hex, amountIn: bigint): Promise<bigint> {
+/** Static quote for `amountIn` over a packed path on `quoter` (from quoterV2ForChainId). */
+export async function quoteRouteOutput(quoter: Address, path: Hex, amountIn: bigint): Promise<bigint> {
   const { result } = await getPublicClient().simulateContract({
     abi: quoterV2Abi,
-    address: MAINNET_QUOTER_V2,
+    address: quoter,
     args: [path, amountIn],
     functionName: "quoteExactInput"
   });
