@@ -316,8 +316,9 @@ describe("monerium b2b onboarding automation", () => {
     await account.reload();
     expect(account.iban).toBeNull();
     expect(accountSnapshot(account, null).waitingReason).toBe("monerium_profile_has_iban");
-    // One operator line per occurrence, not one per cycle.
-    const alerts = error.mock.calls.filter(([message]) => String(message).includes("cannot get an IBAN"));
+    // One operator line per occurrence, not one per cycle. Matched by account: spy call history
+    // can carry other files' calls in the full suite.
+    const alerts = error.mock.calls.filter(([message]) => String(message).includes(`account ${account.id} cannot get an IBAN`));
     expect(alerts).toHaveLength(1);
     expect(String(alerts[0][0])).toContain(`already has IBAN ${PARTNER_IBAN} on address ${PARTNER_WALLET} on ethereum`);
     expect(String(alerts[0][0])).toContain("operator decision taken with the partner");
@@ -361,7 +362,9 @@ describe("monerium b2b onboarding automation", () => {
 
     expect(deps.calls.requestIban).toHaveLength(0);
     expect((await account.reload()).waitingReason).toBe("monerium_profile_has_iban");
-    const alert = String(error.mock.calls.find(([message]) => String(message).includes("cannot get an IBAN"))?.[0]);
+    const alert = String(
+      error.mock.calls.find(([message]) => String(message).includes(`account ${account.id} cannot get an IBAN`))?.[0]
+    );
     expect(alert).toContain(`already has IBAN ${PARTNER_IBAN} on the forwarder's address on gnosis`);
     expect(alert).toContain("Moving it to the forwarder on ethereum");
     expect(alert).not.toContain("stays linked");
@@ -386,7 +389,7 @@ describe("monerium b2b onboarding automation", () => {
     await account.reload();
     expect(account.iban).toBe(PARTNER_IBAN);
     expect(account.waitingReason).toBeNull();
-    expect(error.mock.calls.some(([message]) => String(message).includes("cannot get an IBAN"))).toBe(false);
+    expect(error.mock.calls.some(([message]) => String(message).includes(`account ${account.id} cannot get an IBAN`))).toBe(false);
   });
 
   it("does nothing while the whitelabel credentials are not configured", async () => {
