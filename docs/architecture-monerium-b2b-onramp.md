@@ -157,12 +157,15 @@ Steps in prose:
 with `POST /v1/monerium-b2b/accounts`: the Monerium profile ID, the destination, its
 client reference and a contact email, under the manager key that
 `MONERIUM_B2B_PARTNER_MANAGER_PROFILE_ID` binds to the white-label app. The request is a
-row in `monerium_account_registrations` until Monerium reports the profile `approved`;
+row in `monerium_account_registrations` until Monerium reports the profile `approved`
+(in the sandbox, `pending` suffices: Monerium's sandbox does not approve white-label
+profiles, so the keeper treats a pending one as approved there and the KYB mirror records
+it as approved, while refund payouts still need Monerium's real approval);
 the keeper then deploys the clone with the factory deployer key at the CREATE2 salt
 `keccak256(abi.encode(moneriumProfileId, destination))` (a crash adopts the predicted
 clone, a deployment in flight is waited for) and, on the cycle that finds the clone, runs
-the same mapping as step 3 before that cycle's onboarding step. Outside production the account activates once its
-IBAN is recorded; in production step 5 stays an operator call, and only an active account
+the same mapping as step 3 before that cycle's onboarding step. In the sandbox the account activates once its
+IBAN is recorded; elsewhere step 5 stays an operator call, and only an active account
 converts: a payment before activation waits on the clone and the deadline refunds it. The
 partner follows its requests with `GET /v1/monerium-b2b/registrations`. The operator path remains
 for corrections and clients registered outside the API.
