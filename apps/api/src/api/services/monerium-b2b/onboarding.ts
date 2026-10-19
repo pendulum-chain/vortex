@@ -123,13 +123,20 @@ async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainN
   const existing = ibans.find(entry => entry.profile === account.profileId);
   if (existing) {
     if (account.waitingReason !== "monerium_profile_has_iban") {
-      await account.update({ waitingReason: "monerium_profile_has_iban" });
-      logger.error(
-        `monerium-b2b: account ${account.id} cannot get an IBAN: Monerium profile ${account.profileId} already has ` +
-          `IBAN ${existing.iban} on ${existing.chain} address ${existing.address}. Move that IBAN to the forwarder ` +
-          `${account.forwarderAddress} (every euro sent to it converts from then on), or have the partner register ` +
-          "a profile without an IBAN (the internal B2B runbook §1.5)"
+      // Only while the row has no IBAN: an iban.updated delivery can record the moved IBAN between
+      // the read above and this write, and must not end up next to a stale wait.
+      const [recorded] = await MoneriumAccount.update(
+        { waitingReason: "monerium_profile_has_iban" },
+        { where: { iban: null, id: account.id } }
       );
+      if (recorded > 0) {
+        logger.error(
+          `monerium-b2b: account ${account.id} cannot get an IBAN: Monerium profile ${account.profileId} already has ` +
+            `IBAN ${existing.iban} on ${existing.chain} address ${existing.address}. Move that IBAN to the forwarder ` +
+            `${account.forwarderAddress} (every euro sent to it converts from then on), or have the partner register ` +
+            "a profile without an IBAN (the internal B2B runbook §1.5)"
+        );
+      }
     }
     return;
   }

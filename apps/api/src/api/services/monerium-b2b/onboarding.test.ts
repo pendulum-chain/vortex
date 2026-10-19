@@ -343,6 +343,28 @@ describe("monerium b2b onboarding automation", () => {
     expect(deps.calls.requestIban).toHaveLength(0);
   });
 
+  it("leaves no wait next to an IBAN the webhook records during the cycle", async () => {
+    const account = await createMappedAccount();
+    const deps = fakeDeps();
+    deps.linkedAddresses.add(FORWARDER);
+    deps.ibanByAddress.set(PARTNER_WALLET, PARTNER_IBAN);
+    const listIbans = deps.listIbans.bind(deps);
+    deps.listIbans = async () => {
+      const ibans = await listIbans();
+      // iban.updated for the moved IBAN lands between the read and the wait write.
+      await MoneriumAccount.update({ iban: PARTNER_IBAN }, { where: { id: account.id } });
+      return ibans;
+    };
+    const error = spyOn(logger, "error");
+
+    await advanceOnboardingAccounts(deps);
+
+    await account.reload();
+    expect(account.iban).toBe(PARTNER_IBAN);
+    expect(account.waitingReason).toBeNull();
+    expect(error.mock.calls.some(([message]) => String(message).includes("cannot get an IBAN"))).toBe(false);
+  });
+
   it("does nothing while the whitelabel credentials are not configured", async () => {
     await createMappedAccount();
     const savedClientId = process.env.MONERIUM_WHITELABEL_CLIENT_ID;
