@@ -383,15 +383,10 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
     return;
   }
   const client = getPublicClient();
-  const { factory, recoveryDelaySeconds } = await getForwarderImmutables(accounts[0].forwarderAddress as Address);
-  const [minSwapFloor, triggerDelay] = await Promise.all([
-    client.readContract({ abi: factoryAbi, address: factory, functionName: "MIN_SWAP_FLOOR" }),
-    client.readContract({
-      abi: forwarderMonitoringAbi,
-      address: accounts[0].forwarderAddress as Address,
-      functionName: "TRIGGER_DELAY"
-    })
-  ]);
+  const trustedFactory = config.moneriumB2b.forwarderFactoryAddress;
+  // The trusted factory's MIN_SWAP_FLOOR, read at the first clone that passes the factory
+  // check below (every clone checked is that factory's).
+  let minSwapFloor: bigint | undefined;
 
   for (const account of accounts) {
     try {
@@ -420,11 +415,23 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         if (classifyRefundQueue(stuckRecovers[0].createdAt, false, now) === "error") logger.error(message);
         else logger.warn(message);
       }
-      const { eure, usdc } = await getForwarderImmutables(forwarder);
-      const [eureBalance, usdcBalance, batchOpenedAt] = await Promise.all([
+      // The clone's own immutables: during a migration, clones of another factory and
+      // implementation (another floor, other delays) can still be live.
+      const { eure, factory, recoveryDelaySeconds, usdc } = await getForwarderImmutables(forwarder);
+      if (!trustedFactory || factory.toLowerCase() !== trustedFactory.toLowerCase()) {
+        // The keeper refuses such a clone on every cycle, so no top-up or refund advice applies.
+        logger.error(
+          `monerium-b2b: stranded-balance check skipped for forwarder ${forwarder} (account ${account.id}): it ` +
+            `reports untrusted factory ${factory}, expected ${trustedFactory}, so the keeper cannot act on it`
+        );
+        continue;
+      }
+      minSwapFloor ??= await client.readContract({ abi: factoryAbi, address: factory, functionName: "MIN_SWAP_FLOOR" });
+      const [eureBalance, usdcBalance, batchOpenedAt, triggerDelay] = await Promise.all([
         client.readContract({ abi: erc20Abi, address: eure, args: [forwarder], functionName: "balanceOf" }),
         client.readContract({ abi: erc20Abi, address: usdc, args: [forwarder], functionName: "balanceOf" }),
-        client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "batchOpenedAt" })
+        client.readContract({ abi: forwarderAbi, address: forwarder, functionName: "batchOpenedAt" }),
+        client.readContract({ abi: forwarderMonitoringAbi, address: forwarder, functionName: "TRIGGER_DELAY" })
       ]);
       if (eureBalance < minSwapFloor && usdcBalance === 0n) {
         // Below MIN_SWAP_FLOOR the contract arms no batch, so `recover` can never run for a

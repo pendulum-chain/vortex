@@ -390,7 +390,11 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
 
   afterEach(() => mock.restore());
 
-  async function accountWithDeposit(status: MoneriumFiatDepositStatus, amountRaw = EUR / 2n) {
+  async function accountWithDeposit(
+    status: MoneriumFiatDepositStatus,
+    amountRaw = EUR / 2n,
+    forwarderAddress = "0x1111111111111111111111111111111111111111"
+  ) {
     const manager = await createTestUser();
     await ManagedProfileManager.create({
       allowedCorridors: ["EU"],
@@ -402,9 +406,9 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
       contactEmail: "ops@client.example.com",
       destination: "0x5555555555555555555555555555555555555555",
       externalSubjectId: "client-1",
-      forwarderAddress: "0x1111111111111111111111111111111111111111",
+      forwarderAddress,
       managerProfileId: manager.id,
-      moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
+      moneriumProfileId: crypto.randomUUID()
     });
     await MoneriumAccount.update({ status: MoneriumAccountStatus.Active }, { where: { id: accountId } });
     return addDeposit(accountId, status, amountRaw);
@@ -636,6 +640,63 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     await accountWithDeposit(MoneriumFiatDepositStatus.Minted);
     await runStrandedBalanceMonitor();
     expect(errors).toEqual([]);
+  });
+
+  // A migration can leave clones of two factories live: each clone's own floor and delays
+  // apply, and a clone off the trusted factory, which the keeper refuses, gets no advice.
+  describe("on clones of different factories", () => {
+    const OTHER_FACTORY = "0x3333333333333333333333333333333333333333" as Address;
+    const OTHER_CLONE = "0x7777777777777777777777777777777777777777";
+    const now = 1_800_000_000_000;
+
+    beforeEach(() => {
+      spyOn(chain, "getForwarderImmutables").mockImplementation(
+        async forwarder =>
+          ({
+            eure: EURE,
+            factory: forwarder === OTHER_CLONE ? OTHER_FACTORY : FACTORY,
+            recoveryDelaySeconds: forwarder === OTHER_CLONE ? 7_200 : 900,
+            usdc: "0x6666666666666666666666666666666666666666"
+          }) as unknown as chain.ForwarderImmutables
+      );
+      spyOn(chain, "getPublicClient").mockReturnValue({
+        readContract: async ({ address, functionName }: { address: Address; functionName: string }) => {
+          if (functionName === "balanceOf") return address === EURE ? eureOnClone : 0n;
+          if (functionName === "batchOpenedAt") return batchOpenedAt;
+          if (functionName === "MIN_SWAP_FLOOR") return address === OTHER_FACTORY ? 5n * EUR : 1n * EUR;
+          return address === OTHER_CLONE ? 86_400n : 3_600n; // TRIGGER_DELAY
+        }
+      } as unknown as ReturnType<typeof chain.getPublicClient>);
+    });
+
+    it("prescribes the top-up from the clone's own factory floor and skips a clone off the trusted factory", async () => {
+      // Created first, so the unordered account query tends to list it first.
+      const other = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, EUR / 2n, OTHER_CLONE);
+      const trusted = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+      await runStrandedBalanceMonitor(now);
+      const topUps = errors.filter(message => message.includes("REFUND NEEDS OPERATOR"));
+      expect(topUps).toHaveLength(1);
+      expect(topUps[0]).toContain(trusted.id);
+      expect(topUps[0]).toContain("send exactly 0.500000000000000001 EURe");
+      expect([...errors, ...warnings].filter(message => message.includes(other.id))).toEqual([]);
+      const skipped = errors.filter(message => message.includes(OTHER_CLONE));
+      expect(skipped).toHaveLength(1);
+      expect(skipped[0]).toContain(`untrusted factory ${OTHER_FACTORY}`);
+    });
+
+    it("times REFUND OVERDUE by the clone's own RECOVERY_DELAY and TRIGGER_DELAY", async () => {
+      eureOnClone = 10n * EUR;
+      batchOpenedAt = BigInt(Math.floor((now - 10 * 60_000) / 1000));
+      const other = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, 10n * EUR, OTHER_CLONE);
+      const trusted = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, 10n * EUR);
+      // 80 min ago: past the trusted clone's 15 min RECOVERY_DELAY plus the margin, and its 1 h TRIGGER_DELAY.
+      for (const deposit of [other, trusted]) await deposit.update({ refundStartedAt: new Date(now - 80 * 60_000) });
+      await runStrandedBalanceMonitor(now);
+      const overdue = errors.filter(message => message.includes("REFUND OVERDUE"));
+      expect(overdue).toHaveLength(1);
+      expect(overdue[0]).toContain(trusted.id);
+      expect(warnings.filter(message => message.includes("REFUND OVERDUE"))).toEqual([]);
+    });
   });
 
   // At or above the floor the contract can recover, but younger forwards may keep re-timing

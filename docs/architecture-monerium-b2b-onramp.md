@@ -568,7 +568,9 @@ read-only — no keys, no transactions:
 3. **Stranded-balance monitor.** Forwarders holding EURe or USDC whose batch marker has
    been open longer than `RECOVERY_DELAY` warn (the promised window was missed: forward
    or recover) and longer than `TRIGGER_DELAY` error (the permissionless path is live —
-   a keeper-outage signal; funds are never at risk). An unswapped deposit marked
+   a keeper-outage signal; funds are never at risk). Each clone is judged by its own
+   delays and its factory's floor; a clone off the configured trusted factory, which the
+   keeper refuses, is skipped with an error line. An unswapped deposit marked
    `recovering` without a pending or confirmed `recover`, on a clone below
    `MIN_SWAP_FLOOR` that still holds all the EURe the ledger places there (every
    deposit's unswapped, unrecovered rest, a legacy hand refund's EURe and `unattr:`
