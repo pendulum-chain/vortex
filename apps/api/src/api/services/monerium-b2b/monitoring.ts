@@ -50,7 +50,8 @@ import { refundAccountFor } from "./refund-wallet";
  *    MIN_SWAP_FLOOR errors too: the contract cannot recover it until the operator tops the
  *    clone up to the floor (one whose funds already left the clone only warns: reconcile; the
  *    others' top-up waits for that, and for the client's open refund). With auto recovery off,
- *    a payment there past its window that nobody marked warns, since nothing else reports it.
+ *    every unmarked payment there past its window warns, marked siblings or not, since nothing
+ *    else reports it.
  *    A marked deposit left unrecovered RECOVERY_DELAY plus an hour after marking warns
  *    (REFUND OVERDUE), and errors past TRIGGER_DELAY.
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
@@ -443,9 +444,10 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         const marked = await MoneriumFiatDeposit.count({
           where: { accountId: account.id, status: MoneriumFiatDepositStatus.Recovering }
         });
-        if (marked === 0 && config.moneriumB2b.autoRecovery === "off") {
+        if (config.moneriumB2b.autoRecovery === "off") {
           // In `off` mode nothing marks or reports a payment past its window, and no batch arms
-          // below the floor, so the marker-age alert below never fires for it either.
+          // below the floor, so the marker-age alert below never fires for it either. Marked
+          // siblings change nothing: the lines below name only marked deposits, never these.
           const deadlineMs = config.moneriumB2b.recoveryDeadlineMinutes * 60_000;
           const settling = await MoneriumFiatDeposit.findAll({
             attributes: ["createdAt", "id", "mintedAt"],

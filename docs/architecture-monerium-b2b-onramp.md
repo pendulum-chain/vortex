@@ -603,8 +603,9 @@ read-only — no keys, no transactions:
    never a hand refund: a `recover` that keeps reverting may mean the funds left by an
    unrecorded path. With `MONERIUM_B2B_AUTO_RECOVERY=off` nothing marks or reports a
    payment past its window, and below the floor no marker arms, so on a clone below the
-   floor with nothing marked a provider-attributed payment past the window warns REFUND
-   DUE BELOW FLOOR: mark it for recovery, then follow REFUND NEEDS OPERATOR.
+   floor every unmarked, provider-attributed payment past the window warns REFUND DUE
+   BELOW FLOOR, marked siblings or not: mark it for recovery, then follow REFUND NEEDS
+   OPERATOR.
 4. **Config reconciliation.** Re-reads per-clone config and bytecode: guardian-authorized
    fee-policy changes (timelocked) are reconciled into the DB with a version bump; a
    destination change (no setter exists), bytecode or registration drift is a

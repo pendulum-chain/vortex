@@ -722,6 +722,21 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     );
   });
 
+  it("reports a payment past its window below the floor beside a marked one when auto recovery is off", async () => {
+    config.moneriumB2b.autoRecovery = "off";
+    // D1's recover took its EURe off the clone; its manual redeem is still open.
+    const recovering = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, 2n * EUR);
+    await execution(recovering, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Confirmed);
+    const due = await addDeposit(recovering.accountId, MoneriumFiatDepositStatus.Minted, EUR / 2n);
+    await due.update({ mintedAt: new Date(Date.now() - config.moneriumB2b.recoveryDeadlineMinutes * 60_000 - 60_000) });
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("REFUND DUE BELOW FLOOR");
+    expect(warnings[0]).toContain(due.id);
+    expect(warnings[0]).not.toContain(recovering.id);
+  });
+
   for (const mode of ["auto", "alert"] as const) {
     it(`leaves a payment past its window to the deadline pass with auto recovery ${mode}`, async () => {
       config.moneriumB2b.autoRecovery = mode;
