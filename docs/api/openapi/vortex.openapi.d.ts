@@ -2938,6 +2938,11 @@ export interface components {
             status: "onboarding" | "active" | "suspended" | "closed";
             /** @description Fee policy target in parts per million below the reference rate: what the client receives whenever the swap allows it. */
             targetPpm: number;
+            /**
+             * @description Set while the account cannot get its IBAN until you or Vortex act; null otherwise. `monerium_profile_has_iban`: the client's EUR provider profile already has an IBAN bound to another address, and the provider issues one IBAN per profile. Contact Vortex: either that IBAN is moved to the account's `forwarderAddress`, after which every euro sent to it converts, or the client is set up with a profile that has no IBAN. New reasons may be added: treat an unknown one as a generic wait.
+             * @enum {string|null}
+             */
+            waitingReason: "monerium_profile_has_iban" | null;
         };
         MoneriumB2bAccountResponse: {
             account: components["schemas"]["MoneriumB2bAccount"];
