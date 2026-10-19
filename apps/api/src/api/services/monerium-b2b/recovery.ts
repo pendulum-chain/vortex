@@ -302,13 +302,13 @@ export async function runRecoveryDeadlines(now: number = Date.now()): Promise<vo
 // ------------------------------------------------------------------ orchestrator
 
 /**
- * True while a recovered payment is (or is about to be) on the account's refund wallet: a
- * `recover` execution that is pending or confirmed whose deposit has not left the refund
- * path. The executor refuses to send another `recover` for that account meanwhile.
+ * The deposits whose recovered payment is (or is about to be) on the account's refund wallet:
+ * a `recover` execution that is pending or confirmed whose deposit has not left the refund
+ * path. The executor refuses to send another `recover` for that account while there is one.
  */
-export async function activeRecoveryExists(accountId: string): Promise<boolean> {
-  const rows = await sequelize.query<{ id: string }>(
-    `SELECT e.id
+export async function activeRecoveryDepositIds(accountId: string): Promise<string[]> {
+  const rows = await sequelize.query<{ deposit_id: string }>(
+    `SELECT DISTINCT e.deposit_id
      FROM monerium_conversion_executions AS e
      JOIN monerium_fiat_deposits AS d ON d.id = e.deposit_id
      LEFT JOIN monerium_recoveries AS r ON r.deposit_id = e.deposit_id
@@ -316,11 +316,14 @@ export async function activeRecoveryExists(accountId: string): Promise<boolean> 
        AND e.kind = 'recover'
        AND e.status IN ('pending', 'confirmed')
        AND d.status IN ('recovering', 'recovery_failed')
-       AND (r.id IS NULL OR r.phase <> 'redeemed')
-     LIMIT 1`,
+       AND (r.id IS NULL OR r.phase <> 'redeemed')`,
     { replacements: { accountId }, type: QueryTypes.SELECT }
   );
-  return rows.length > 0;
+  return rows.map(row => row.deposit_id);
+}
+
+export async function activeRecoveryExists(accountId: string): Promise<boolean> {
+  return (await activeRecoveryDepositIds(accountId)).length > 0;
 }
 
 /** Forward-only status change under the forwarder lock: why it was refused, or null once the deposit has `status`. */
