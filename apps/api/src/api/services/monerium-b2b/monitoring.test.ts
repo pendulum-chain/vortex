@@ -712,6 +712,15 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
       status: MoneriumFiatDepositStatus.Minted,
       txHash: "0xorphan"
     });
+    // Reported by the webhook before the mint watcher indexed it: the admin recover route refuses it.
+    const unindexed = await MoneriumFiatDeposit.create({
+      accountId: due.accountId,
+      amountRaw: (EUR / 4n).toString(),
+      createdAt: late,
+      currency: "eur",
+      moneriumOrderId: "order-unindexed",
+      status: MoneriumFiatDepositStatus.Minted
+    });
     await runStrandedBalanceMonitor();
     expect(errors).toEqual([]);
     expect(warnings).toHaveLength(1);
@@ -719,6 +728,7 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     expect(warnings[0]).toContain(due.id);
     expect(warnings[0]).not.toContain(fresh.id);
     expect(warnings[0]).not.toContain(orphan.id);
+    expect(warnings[0]).not.toContain(unindexed.id);
     expect(warnings[0]).toContain(
       "mark each via POST /v1/admin/monerium-b2b/deposits/:id/recover, then follow REFUND NEEDS OPERATOR"
     );
