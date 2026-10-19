@@ -1122,14 +1122,20 @@ describe("runConversionExecutor batch marker", () => {
   beforeEach(() => resetTestDatabase());
   afterEach(() => mock.restore());
 
-  /** A funded clone with a ready-priced 100 EURe swap; returns every keeper write as `fn:nonce`. */
-  function arrange(options: { batchOpenedAt: bigint; failPokeWrite?: boolean; swapReverts?: boolean }) {
+  /** A funded clone (100 EURe unless `eureOnClone`) with a ready-priced swap; returns every keeper write as `fn:nonce`. */
+  function arrange(options: {
+    batchOpenedAt: bigint;
+    eureOnClone?: bigint;
+    failPokeWrite?: boolean;
+    minSwapFloor?: bigint;
+    swapReverts?: boolean;
+  }) {
     const writes: string[] = [];
     const reads: Record<string, unknown> = {
       batchOpenedAt: options.batchOpenedAt,
       floorPpm: 1_500,
       latestRoundData: [1n, 114_000_000n, 0n, 0n, 1n],
-      MIN_SWAP_FLOOR: 1n,
+      MIN_SWAP_FLOOR: options.minSwapFloor ?? 1n,
       minSwapAmount: 25n * EUR,
       pendingFeePolicyEffectiveAt: 0n,
       perSwapCap: 10_000n * EUR,
@@ -1157,7 +1163,7 @@ describe("runConversionExecutor batch marker", () => {
       getBlockNumber: async () => 100n,
       getTransactionCount: async () => 7,
       readContract: async ({ address, functionName }: { address: Address; functionName: string }) =>
-        functionName === "balanceOf" ? (address === EURE ? 100n * EUR : 0n) : reads[functionName],
+        functionName === "balanceOf" ? (address === EURE ? (options.eureOnClone ?? 100n * EUR) : 0n) : reads[functionName],
       simulateContract: async ({ functionName }: { functionName: string }) => {
         if (functionName === "swap" && options.swapReverts) throw new Error("execution reverted");
         return {};
@@ -1330,6 +1336,66 @@ describe("runConversionExecutor batch marker", () => {
 
     expect(writes).toEqual(["poke:7", "swap:8"]);
     expect((await executions(accountId)).map(row => row.status)).toEqual([MoneriumConversionExecutionStatus.Pending]);
+  });
+
+  // The keeper's side of a refund below the swap floor (REFUND NEEDS OPERATOR): the operator's
+  // top-up is an `unattr:` row it never converts; it only lifts the clone to the floor.
+  async function toppedUpRefund() {
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    await deposit.update({
+      amountRaw: (EUR / 2n).toString(),
+      refundStartedAt: new Date(),
+      status: MoneriumFiatDepositStatus.Recovering
+    });
+    const topUp = await MoneriumFiatDeposit.create({
+      accountId,
+      amountRaw: (EUR / 2n + 1n).toString(),
+      blockNumber: 101,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      mintedAt: new Date(),
+      moneriumOrderId: "unattr:topup",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xtopup"
+    });
+    return { accountId, deposit, topUp };
+  }
+
+  it("pokes a clone a top-up lifted to the floor, and never converts or flags the top-up", async () => {
+    const writes = arrange({ batchOpenedAt: 0n, eureOnClone: EUR + 1n, minSwapFloor: EUR });
+    const { accountId, topUp } = await toppedUpRefund();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["poke:auto"]);
+    expect(await executions(accountId)).toHaveLength(0);
+    expect((await topUp.reload()).waitingReason).toBeNull();
+  });
+
+  it("then recovers exactly the payer's EURe, leaving the top-up on the clone", async () => {
+    const eligible = BigInt(Math.floor(Date.now() / 1000) - 7_200 - 120);
+    const writes = arrange({ batchOpenedAt: eligible, eureOnClone: EUR + 1n, minSwapFloor: EUR });
+    const { accountId, deposit } = await toppedUpRefund();
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual(["recover:7"]);
+    const rows = await executions(accountId);
+    expect(rows.map(row => [row.kind, row.depositId, row.eureInRaw, row.usdcNetRaw])).toEqual([
+      [MoneriumConversionExecutionKind.Recover, deposit.id, (EUR / 2n).toString(), "0"]
+    ]);
+  });
+
+  it("never swaps an unattributed row, even one above the minimum swap", async () => {
+    const writes = arrange({ batchOpenedAt: 1n });
+    const { accountId, deposit } = await activeAccountWithDeposit();
+    await deposit.update({ moneriumOrderId: "unattr:orphan" }); // 100 EURe, the clone's whole balance
+
+    await runConversionExecutor(accountId);
+
+    expect(writes).toEqual([]);
+    expect(await executions(accountId)).toHaveLength(0);
   });
 });
 
