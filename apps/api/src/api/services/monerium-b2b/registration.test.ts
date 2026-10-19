@@ -8,6 +8,7 @@ import {
   InsufficientFundsError,
   parseAbi
 } from "viem";
+import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
 import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
@@ -179,6 +180,46 @@ describe("advanceRegistrations", () => {
         status: MoneriumAccountRegistrationStatus.Rejected,
         waitingReason: null
       });
+    }
+  });
+
+  it("treats a pending profile as approved in the sandbox, logging it once per registration", async () => {
+    config.sandboxEnabled = true;
+    const info = spyOn(logger, "info");
+    info.mockClear(); // another file's leaked logger mock can carry earlier calls into the spy
+    const registration = await requested();
+    const { deploys, deps } = fakeDeps({ state: "pending" });
+    await advanceRegistrations(deps); // deploys
+    await advanceRegistrations(deps); // maps
+
+    expect(deploys).toHaveLength(1);
+    await registration.reload();
+    expect(registration.status).toBe(MoneriumAccountRegistrationStatus.Mapped);
+    expect(await MoneriumAccount.findByPk(registration.accountId as string)).toMatchObject({
+      profileId: PROFILE,
+      status: MoneriumAccountStatus.Onboarding
+    });
+    const overrides = info.mock.calls.filter(([message]) => String(message).includes("which the sandbox treats as approved"));
+    expect(overrides).toHaveLength(1);
+  });
+
+  it("waits for the approval outside the sandbox, and in the sandbox for every state but pending", async () => {
+    for (const [sandboxEnabled, state] of [
+      [false, "pending"],
+      [true, "created"],
+      [true, "incomplete"],
+      [true, "review"]
+    ] as const) {
+      await resetTestDatabase();
+      config.sandboxEnabled = sandboxEnabled;
+      const registration = await requested();
+      const { deploys, deps } = fakeDeps({ state });
+      await advanceRegistrations(deps);
+      expect(await registration.reload()).toMatchObject({
+        status: MoneriumAccountRegistrationStatus.Requested,
+        waitingReason: "monerium_profile_pending"
+      });
+      expect(deploys).toHaveLength(0);
     }
   });
 
