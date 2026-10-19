@@ -125,7 +125,7 @@ function swapRow(eureInRaw: bigint, usdcNetRaw: bigint): MoneriumConversionExecu
   } as unknown as MoneriumConversionExecution;
 }
 
-async function activeAccountWithDeposit() {
+async function activeAccountWithDeposit(forwarderAddress = "0x1111111111111111111111111111111111111111") {
   const manager = await createTestUser();
   await ManagedProfileManager.create({
     allowedCorridors: ["EU"],
@@ -137,7 +137,7 @@ async function activeAccountWithDeposit() {
     contactEmail: "ops@client.example.com",
     destination: "0x5555555555555555555555555555555555555555",
     externalSubjectId: "client-1",
-    forwarderAddress: "0x1111111111111111111111111111111111111111",
+    forwarderAddress,
     managerProfileId: manager.id,
     moneriumProfileId: "0b8e7c2a-8f4e-4d43-9f2b-2f9f3c1d5a6e"
   });
@@ -1650,6 +1650,8 @@ describe("runConversionExecutor fee-policy apply", () => {
   let simulateError: Error | null;
   /** This test's apply hashes (unique per write: the keeper remembers applies across cycles). */
   let sentHashes: Set<string>;
+  /** This test's own clone: the keeper remembers applies and logged skips per forwarder for the process lifetime. */
+  let forwarder: string;
 
   beforeAll(async () => {
     config.moneriumB2b.rpcUrl = undefined;
@@ -1672,6 +1674,7 @@ describe("runConversionExecutor fee-policy apply", () => {
     receiptStatus = "success";
     simulateError = null;
     sentHashes = new Set();
+    forwarder = `0x${crypto.randomUUID().replaceAll("-", "")}${"0".repeat(8)}`;
     reads = {
       batchOpenedAt: 1n,
       floorPpm: 1_500,
@@ -1727,7 +1730,7 @@ describe("runConversionExecutor fee-policy apply", () => {
 
   it("applies a due increase once, before the cycle prices its swap", async () => {
     reads.pendingFeePolicyEffectiveAt = NOW;
-    const { accountId, deposit } = await activeAccountWithDeposit();
+    const { accountId, deposit } = await activeAccountWithDeposit(forwarder);
 
     await runConversionExecutor(accountId);
 
@@ -1740,7 +1743,7 @@ describe("runConversionExecutor fee-policy apply", () => {
     receiptTimesOut = true;
     privateTransport = true;
     const info = spyOn(logger, "info");
-    const { accountId } = await activeAccountWithDeposit();
+    const { accountId } = await activeAccountWithDeposit(forwarder);
 
     await runConversionExecutor(accountId); // sent, receipt wait times out
     await runConversionExecutor(accountId); // public latest == pending: only the remembered apply holds it
@@ -1760,7 +1763,7 @@ describe("runConversionExecutor fee-policy apply", () => {
     reads.pendingFeePolicyEffectiveAt = NOW;
     nonces = { latest: 3, pending: 4 }; // e.g. another account's swap
     const info = spyOn(logger, "info");
-    const { accountId } = await activeAccountWithDeposit();
+    const { accountId } = await activeAccountWithDeposit(forwarder);
 
     await runConversionExecutor(accountId);
     await runConversionExecutor(accountId);
@@ -1773,7 +1776,7 @@ describe("runConversionExecutor fee-policy apply", () => {
     reads.pendingFeePolicyEffectiveAt = NOW;
     simulateError = new Error("NoPendingFeePolicy()");
     const warn = spyOn(logger, "warn");
-    const { accountId, deposit } = await activeAccountWithDeposit();
+    const { accountId, deposit } = await activeAccountWithDeposit(forwarder);
 
     await runConversionExecutor(accountId);
 
@@ -1787,7 +1790,7 @@ describe("runConversionExecutor fee-policy apply", () => {
     receiptStatus = "reverted";
     const info = spyOn(logger, "info");
     const warn = spyOn(logger, "warn");
-    const { accountId } = await activeAccountWithDeposit();
+    const { accountId } = await activeAccountWithDeposit(forwarder);
 
     await runConversionExecutor(accountId);
 
@@ -1797,7 +1800,7 @@ describe("runConversionExecutor fee-policy apply", () => {
   });
 
   it("sends nothing while no increase is pending or its timelock still runs", async () => {
-    const { accountId } = await activeAccountWithDeposit();
+    const { accountId } = await activeAccountWithDeposit(forwarder);
     await runConversionExecutor(accountId);
     reads.pendingFeePolicyEffectiveAt = NOW + 1n;
     await runConversionExecutor(accountId);
@@ -1809,7 +1812,7 @@ describe("runConversionExecutor fee-policy apply", () => {
       get: () => Promise.reject(new Error("execution reverted"))
     });
     const warn = spyOn(logger, "warn");
-    const { accountId, deposit } = await activeAccountWithDeposit();
+    const { accountId, deposit } = await activeAccountWithDeposit(forwarder);
 
     await runConversionExecutor(accountId);
 
@@ -1822,7 +1825,7 @@ describe("runConversionExecutor fee-policy apply", () => {
     reads.pendingFeePolicyEffectiveAt = NOW - 60n;
     writeError = new Error("NoPendingFeePolicy()");
     const warn = spyOn(logger, "warn");
-    const { accountId, deposit } = await activeAccountWithDeposit();
+    const { accountId, deposit } = await activeAccountWithDeposit(forwarder);
 
     await runConversionExecutor(accountId);
 
