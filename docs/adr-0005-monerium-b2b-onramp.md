@@ -302,7 +302,10 @@ the promised window. Decisions:
   it from the client's refund wallet after the keeper's `recover`). The top-up stays on
   the clone below the floor as Vortex EURe, and a later sub-floor payment that reaches
   the floor with it is refunded with no operator step. Sending the top-up as soon as the
-  payment shows `below_minimum` lands the refund at about the normal deadline.
+  payment shows `below_minimum` lands the refund at about the normal deadline, but not
+  while the client's refund queue is busy: while another refund of the client is open
+  the keeper sends no `recover`, so an armed clone could wait into the permissionless
+  window, and the alert holds the top-up back until that refund is redeemed.
 
 ## Final parameters (decided 2026-08-26 unless noted)
 

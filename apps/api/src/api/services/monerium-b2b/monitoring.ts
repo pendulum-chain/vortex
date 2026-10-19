@@ -27,6 +27,7 @@ import {
 } from "./chain";
 import { settlementState } from "./conversion-executor";
 import { getProfileAddresses, isWhitelabelConfigured, listIbans } from "./monerium-api";
+import { activeRecoveryExists } from "./recovery";
 import { COINBASE_REFERENCE_PRODUCT, classifyReferenceVenue, fetchCoinbaseProductStatus } from "./reference-rate";
 import { refundAccountFor } from "./refund-wallet";
 
@@ -46,8 +47,8 @@ import { refundAccountFor } from "./refund-wallet";
  *    permissionless-trigger delay, registry P4) they error — a keeper-outage signal.
  *    An unswapped payment marked for recovery whose EURe is still on a clone below
  *    MIN_SWAP_FLOOR errors too: the contract cannot recover it until the operator tops the
- *    clone up to the floor (one whose funds already left the clone only warns: reconcile, and
- *    the others' top-up waits for that).
+ *    clone up to the floor (one whose funds already left the clone only warns: reconcile; the
+ *    others' top-up waits for that, and for the client's open refund).
  *    A marked deposit left unrecovered RECOVERY_DELAY plus an hour after marking warns
  *    (REFUND OVERDUE), and errors past TRIGGER_DELAY.
  * 5. Subsidy-vault monitor: balance, daily budget and pause state of the shared vault
@@ -504,6 +505,15 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
               `this clone (${elsewhere.map(deposit => deposit.id).join(", ")}) needs reconciling first, and a top-up would ` +
               "arm the marker, so the keeper could retry that payment's recover ahead of these; do not top up the clone " +
               "until it is reconciled (this alert then returns with the top-up amount; the internal B2B runbook §2.7)"
+          );
+        } else if (onClone.length > 0 && (await activeRecoveryExists(account.id))) {
+          // The keeper sends no second `recover` meanwhile (its own gate), so a top-up now would
+          // only leave the clone armed, past TRIGGER_DELAY open to the permissionless swap.
+          logger.warn(
+            `monerium-b2b: deposit(s) ${onClone.map(deposit => deposit.id).join(", ")} on forwarder ${forwarder} ` +
+              `(account ${account.id}) are marked for recovery below MIN_SWAP_FLOOR but wait: another refund of this ` +
+              "client is still open, and the keeper sends no second recover until it is redeemed; do not top up the " +
+              "clone until then (this alert then returns with the top-up amount; the internal B2B runbook §2.7)"
           );
         } else if (onClone.length > 0) {
           // A top-up to just above the floor lets `poke` arm the marker, and the keeper's

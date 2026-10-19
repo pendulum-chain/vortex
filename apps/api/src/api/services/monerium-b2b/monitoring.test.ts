@@ -9,6 +9,7 @@ import MoneriumConversionExecution, {
   MoneriumConversionExecutionStatus
 } from "../../../models/moneriumConversionExecution.model";
 import MoneriumFiatDeposit, { MoneriumFiatDepositStatus } from "../../../models/moneriumFiatDeposit.model";
+import MoneriumRecovery, { MoneriumRecoveryPhase } from "../../../models/moneriumRecovery.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestUser } from "../../../test-utils/factories";
 import { provisionMoneriumB2bAccount } from "./account-provisioning";
@@ -510,8 +511,8 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
   });
 
   it("keeps a later top-up off a whole cent when an earlier top-up's odd wei is on the clone", async () => {
-    // D1 (0.3) was recovered with top-up T1 = 0.3 EURe + 1 wei; D2 (0.4) and T1 stay on the clone.
-    const recovered = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering, (EUR * 3n) / 10n);
+    // D1 (0.3) was refunded with top-up T1 = 0.3 EURe + 1 wei; D2 (0.4) and T1 stay on the clone.
+    const recovered = await accountWithDeposit(MoneriumFiatDepositStatus.Refunded, (EUR * 3n) / 10n);
     await execution(recovered, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Confirmed);
     const stuck = await addDeposit(recovered.accountId, MoneriumFiatDepositStatus.Recovering, (EUR * 4n) / 10n);
     await MoneriumFiatDeposit.create({
@@ -612,6 +613,33 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     expect(warning).toContain("part or all of their funds left the clone: reconcile before refunding");
     expect(warning).toContain("do not top up the clone");
     expect(warning).not.toContain("are no longer on the clone");
+  });
+
+  it("holds the top-up while another refund of the client is open, and asks for it once that is redeemed", async () => {
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Recovering);
+    // The client's earlier refund: its recover took its EURe off the clone, its redeem is under way.
+    const earlier = await addDeposit(deposit.accountId, MoneriumFiatDepositStatus.Recovering, 2n * EUR);
+    await execution(earlier, MoneriumConversionExecutionKind.Recover, MoneriumConversionExecutionStatus.Confirmed);
+    const refund = await MoneriumRecovery.create({
+      depositId: earlier.id,
+      eureRecoveredRaw: (2n * EUR).toString(),
+      phase: MoneriumRecoveryPhase.Redeeming,
+      usdcRecoveredRaw: "0"
+    });
+    await runStrandedBalanceMonitor();
+    expect(errors).toEqual([]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain(deposit.id);
+    expect(warnings[0]).toContain("another refund of this client is still open");
+    expect(warnings[0]).not.toContain("send exactly");
+
+    await refund.update({ phase: MoneriumRecoveryPhase.Redeemed });
+    warnings = [];
+    await runStrandedBalanceMonitor();
+    expect(warnings).toEqual([]);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("REFUND NEEDS OPERATOR");
+    expect(errors[0]).toContain("send exactly 0.500000000000000001 EURe");
   });
 
   it("holds the top-up while another marked payment on the clone needs reconciling", async () => {

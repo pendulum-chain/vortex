@@ -385,7 +385,10 @@ permissionless `poke` and `applyFeePolicy`):
   `refundedAt`); with `MONERIUM_B2B_AUTO_RECOVERY=auto` the deposit is never refunded by
   hand; in `alert` or `off` the keeper's `recover` still moves the payment to the
   client's refund wallet, and the alert points to the manual redeem from that wallet
-  instead. Leftover top-ups stay on the clone as Vortex EURe, below EUR 1 per clone, so
+  instead. While another refund of the client is open, the keeper sends no `recover`
+  (one refund per client), so the alert holds the top-up back and only warns that the
+  payment waits; it returns with the amount once that refund is redeemed. Leftover
+  top-ups stay on the clone as Vortex EURe, below EUR 1 per clone, so
   `recover` switches the marker off by itself (no follow-up step), and a later sub-floor
   payment on that clone that reaches the floor with them arms the marker and is refunded
   with no operator step. The top-up is never a whole number of cents, even with an
@@ -393,7 +396,10 @@ permissionless `poke` and `applyFeePolicy`):
   Monerium order; it is recorded as an `unattr:` Minted row (one warn) that the keeper
   never converts. The top-up may also be sent early, as soon as
   the payment shows `below_minimum`: the marker then arms at once and the refund lands at
-  about the normal deadline instead of a `RECOVERY_DELAY` after the alert. Monerium's
+  about the normal deadline instead of a `RECOVERY_DELAY` after the alert. Not while
+  the client's refund queue is busy, though: a top-up that arms the marker while another
+  refund of the client is open can leave the clone open to the permissionless path after
+  `TRIGGER_DELAY` before the keeper may recover. Monerium's
   minimum redeem order is EUR 0.01, so a sub-EUR-1 refund is allowed (not yet rehearsed
   end to end). Passing over trades ordering for liveness: a younger payment converts
   and forwards before the older passed-over one is refunded, and every `forward`
@@ -575,7 +581,8 @@ read-only — no keys, no transactions:
    `MIN_SWAP_FLOOR` that still holds all the EURe the ledger places there (every
    deposit's unswapped, unrecovered rest, a legacy hand refund's EURe and `unattr:`
    top-ups included), raises REFUND NEEDS OPERATOR with the exact EURe top-up that lets
-   the keeper recover it (the refund path above, internal B2B runbook §2.7); a landed
+   the keeper recover it (the refund path above, internal B2B runbook §2.7), or, while
+   another refund of the client is open, a warning that it waits for that refund; a landed
    top-up lifts the clone to the floor and quiets it. Otherwise part or all of its funds
    may have left the clone by an unrecorded path, so it warns "reconcile before
    refunding; do not refund and do not top up the clone"; while such a payment is
