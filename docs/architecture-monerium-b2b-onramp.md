@@ -155,6 +155,10 @@ Steps in prose:
    the operator the existing IBAN and the remedy (the internal B2B runbook §1.5): move that
    IBAN to the forwarder, after which every euro sent to it converts, or onboard the client
    with a profile that has no IBAN. The keeper's per-cycle IBAN read adopts a moved IBAN.
+   Addresses linked to the profile before onboarding also raise the association monitor's
+   alert on every pass once the account is active (Monerium has no unlink, and an existing
+   link cannot be told apart from a later one), so a client profile must be dedicated to
+   Vortex.
 5. **Activation** via the admin status endpoint, then the optional penny test: only an
    active account converts.
 
