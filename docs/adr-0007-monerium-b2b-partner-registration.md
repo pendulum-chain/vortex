@@ -67,6 +67,11 @@ could deploy.
    operator withdrew it. Everything transient
    (Monerium or RPC errors, a missing deployer role, an unfunded deployer, an inactive
    manager) leaves it waiting with a reason; triage is in the runbook §1.
+
+   Note 2026-10-19: in the sandbox (`SANDBOX_ENABLED=true`) a profile Monerium reports
+   as `pending` counts as approved, because Monerium's sandbox does not approve
+   white-label profiles; everywhere else the keeper waits for `approved`, and refund
+   payouts still need Monerium's real approval.
 4. **Deployer role.** The factory gained a guardian-managed deployer role that can only
    deploy clones, so deploying needs no guardian signature. The backend deploys with its
    own deployer key, which must differ from the attestor, guardian, keeper and float keys:
