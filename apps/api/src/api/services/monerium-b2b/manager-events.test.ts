@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import { WebhookEventType } from "@vortexfi/shared";
 import { config } from "../../../config/vars";
 import ManagedProfileManager from "../../../models/managedProfileManager.model";
-import MoneriumAccount from "../../../models/moneriumAccount.model";
+import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/moneriumAccount.model";
 import MoneriumConversionExecution, {
   MoneriumConversionExecutionKind,
   MoneriumConversionExecutionStatus
@@ -585,5 +585,76 @@ describe("monerium b2b manager events", () => {
       profileId: mapped.profileId
     });
     expect((deliveries[1].payload as { payload: unknown }).payload).toMatchObject({ iban: "EE123456789012345678" });
+  });
+
+  it("sends DEPOSIT_UPDATED again when a deposit returns to an earlier snapshot", async () => {
+    const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_UPDATED]);
+    const since = new Date();
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "5000000000000000000",
+      blockNumber: 100,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      mintedAt: since,
+      moneriumOrderId: "order-1",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xmint",
+      waitingReason: "below_floor",
+      waitingSince: since
+    });
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    // One failed quote, then the market hold again: the keeper keeps waitingSince across reasons,
+    // so the third snapshot is byte-identical to the first.
+    await deposit.update({ waitingReason: "no_route" });
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    await deposit.update({ waitingReason: "below_floor" });
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+
+    const deliveries = await WebhookDelivery.findAll({ order: [["created_at", "ASC"]] });
+    const reasons = deliveries.map(
+      delivery => (delivery.payload as unknown as { payload: { waiting: { reason: string } } }).payload.waiting.reason
+    );
+    expect(reasons).toEqual(["below_floor", "no_route", "below_floor"]);
+    expect(new Set(deliveries.map(delivery => delivery.eventId)).size).toBe(3);
+  });
+
+  it("keeps the event id of an update re-emitted after its marker write was lost", async () => {
+    const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_UPDATED]);
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "5000000000000000000",
+      currency: "eur",
+      moneriumOrderId: "order-1",
+      status: MoneriumFiatDepositStatus.Pending
+    });
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    // A crash between the enqueue and the marker write leaves the old marker behind.
+    await deposit.update({ lifecycleEventHash: null }, { silent: true });
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+
+    expect(await WebhookDelivery.count()).toBe(1);
+  });
+
+  it("sends ACCOUNT_UPDATED for every status change, also when a status repeats", async () => {
+    const { mapped } = await setupAccountWithWebhook([WebhookEventType.ACCOUNT_UPDATED]);
+    const where = { id: mapped.accountId };
+    await MoneriumAccount.update({ iban: "EE123456789012345678", status: MoneriumAccountStatus.Active }, { where });
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    for (const status of [
+      MoneriumAccountStatus.Suspended,
+      MoneriumAccountStatus.Active,
+      MoneriumAccountStatus.Suspended,
+      MoneriumAccountStatus.Active
+    ]) {
+      await MoneriumAccount.update({ status }, { where });
+      await emitMoneriumDepositEvents(depsAtBlock(null));
+    }
+
+    const deliveries = await WebhookDelivery.findAll({ order: [["created_at", "ASC"]] });
+    const statuses = deliveries.map(delivery => (delivery.payload as unknown as { payload: { status: string } }).payload.status);
+    expect(statuses).toEqual(["active", "suspended", "active", "suspended", "active"]);
+    expect(new Set(deliveries.map(delivery => delivery.eventId)).size).toBe(5);
   });
 });
