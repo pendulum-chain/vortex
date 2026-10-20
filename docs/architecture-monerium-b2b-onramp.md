@@ -520,7 +520,10 @@ contract settles every fill into three bands against that reference (decisions:
   then lifts the net to Chainlink − 60 bps instead of the swap reverting. The router
   minimum is zero and the forwarder's post-condition is the guard; a depeg beyond what
   the tier and the vault cover still reverts (and, past the window, refunds), and the
-  permissionless path pays no subsidy and must clear the floor on its own. The 60 bps
+  permissionless path pays no subsidy and must clear the floor on its own. The route must
+  take exactly the swap's `amountIn` (`InputNotConsumed`): a pool that runs out of
+  liquidity stops early, and settling that partial fill as a fill of the whole chunk would
+  let the vault pay for EURe still on the clone. The 60 bps
   is therefore the hard line for what a compromised keeper can do to the client, while
   the ladder's top tier decides how much drift Vortex absorbs.
 - **Routes**: the factory holds a guardian-managed whitelist of packed Uniswap v3 paths,
@@ -528,7 +531,9 @@ contract settles every fill into three bands against that reference (decisions:
   most two hops on Uniswap's four fee tiers; entries are disabled, never removed, so
   indices stay stable. The keeper quotes every enabled route on the chain's pinned
   QuoterV2 (Ethereum mainnet and the Sepolia sandbox; elsewhere it takes the first
-  enabled route unprojected) and passes the best index. A poor pick costs Vortex fee or subsidy, never the client.
+  enabled route unprojected) and passes the best index. A quote whose hop ends at the
+  swap-limit price ran out of liquidity and counts as unquotable, so a chunk the pools
+  cannot take whole waits (`no_route`) instead of being sent as a partial fill. A poor pick costs Vortex fee or subsidy, never the client.
 - **Subsidy ladder and per-swap cap.** How much of a shortfall Vortex pays depends on
   how long the chunk has waited: `MONERIUM_B2B_SUBSIDY_LADDER` maps seconds waited to a
   maximum subsidy in bps of the reference value (launch: nothing for six minutes, then
