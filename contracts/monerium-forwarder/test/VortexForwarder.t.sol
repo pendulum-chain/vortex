@@ -67,6 +67,7 @@ contract MockRouter {
     MockERC20 public immutable eure;
     MockERC20 public immutable usdc;
     uint256 public nextOut;
+    uint256 public nextIn; // 0 = take the whole amountIn; otherwise a partial fill of this much
     bytes public lastPath;
 
     constructor(MockERC20 eure_, MockERC20 usdc_) {
@@ -78,8 +79,12 @@ contract MockRouter {
         nextOut = v;
     }
 
+    function setNextIn(uint256 v) external {
+        nextIn = v;
+    }
+
     function exactInput(ISwapRouter02.ExactInputParams calldata params) external payable returns (uint256) {
-        eure.transferFrom(msg.sender, address(this), params.amountIn);
+        eure.transferFrom(msg.sender, address(this), nextIn == 0 ? params.amountIn : nextIn);
         lastPath = params.path;
         require(nextOut >= params.amountOutMinimum, "Too little received");
         usdc.mint(params.recipient, nextOut);
@@ -943,6 +948,21 @@ contract VortexForwarderTest is Test {
         router.setNextOut(1_133e6); // below Chainlink - 60 bps, within the vault's per-swap cap
         _keeperSwap(1_000e18);
         assertEq(usdc.balanceOf(address(fwd)), FLOOR_1K);
+    }
+
+    /// A pool that runs out of liquidity takes only part of the chunk. Settled as a fill of
+    /// the whole chunk it would look like a bad price the subsidy can cover, and the vault
+    /// would pay for EURe still on the clone: the swap reverts instead.
+    function test_swap_partialFill_revertsInsteadOfSubsidizing() public {
+        _fund(1_000e18);
+        router.setNextIn(990e18);
+        router.setNextOut(1_133e6); // short of the floor for 1,000 EURe, within the vault's per-swap cap
+        uint256 vaultBefore = usdc.balanceOf(address(vault));
+        vm.prank(keeper);
+        vm.expectRevert(VortexForwarder.InputNotConsumed.selector);
+        fwd.swap(REF, 0, 1_000e18, NO_CAP);
+        assertEq(usdc.balanceOf(address(vault)), vaultBefore);
+        assertEq(eure.balanceOf(address(fwd)), 1_000e18);
     }
 
     /// A+: the keeper's tier binds at execution. A fill that needs more than the caller

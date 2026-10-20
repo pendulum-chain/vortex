@@ -198,7 +198,7 @@ contract VortexForwarder {
     error StalePrice();
     error InvalidPrice();
     error InsufficientOutput();
-    error Overspend();
+    error InputNotConsumed();
     error NoPendingFeePolicy();
     error ReferenceOutOfBand();
     error SubsidyUnavailable();
@@ -396,7 +396,10 @@ contract VortexForwarder {
     /// @dev Executes the whitelisted route and returns the USDC received. The router
     ///      minimum is deliberately 0: the router cannot see the fee and subsidy that
     ///      determine the client's net, so the floor is enforced by `swap` after
-    ///      settlement instead, and a failing floor reverts the whole call.
+    ///      settlement instead, and a failing floor reverts the whole call. The route
+    ///      must take exactly `amountIn`: a pool that runs out of liquidity stops early,
+    ///      and settling that partial fill as a fill of `amountIn` would subsidize EURe
+    ///      that never left this clone.
     function _swap(uint256 routeIndex, uint256 amountIn) internal returns (uint256 usdcReceived) {
         (bytes memory path, bool routeEnabled) = FACTORY.route(routeIndex);
         if (!routeEnabled) revert InvalidRoute();
@@ -413,7 +416,7 @@ contract VortexForwarder {
         _approve(EURE, address(ROUTER), 0);
 
         usdcReceived = USDC.balanceOf(address(this)) - usdcBefore;
-        if (eureBefore - EURE.balanceOf(address(this)) > amountIn) revert Overspend();
+        if (eureBefore - EURE.balanceOf(address(this)) != amountIn) revert InputNotConsumed();
     }
 
     /// @dev Applies the fee bands (docs/architecture-monerium-b2b-onramp.md, "Fees, reference rate and subsidy"),
