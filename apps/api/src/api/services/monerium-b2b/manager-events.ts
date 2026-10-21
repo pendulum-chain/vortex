@@ -201,10 +201,14 @@ const snapshotHash = (snapshot: AccountSnapshot | DepositSnapshot): string =>
 
 // Names the change, not the state: a row that returns to an earlier snapshot (a waiting reason
 // flipping back, a second suspend) needs a fresh id, because the outbox and partners deduplicate on
-// it. The write that brings the snapshot back moves updated_at; a re-emit after a crash before the
-// marker write sees the same row and is absorbed as before.
-const changeId = (hash: string, updatedAt: Date): string =>
-  createHash("sha256").update(`${hash}:${updatedAt.toISOString()}`).digest("hex").slice(0, 16);
+// it. A write to the row moves updated_at; a change from another table leaves it (a failed swap drops
+// out of conversions[]), but then the snapshot it replaces differs. A re-emit after a crash before
+// the marker write sees the same marker and row and is absorbed as before.
+const changeId = (previousHash: string | null, hash: string, updatedAt: Date): string =>
+  createHash("sha256")
+    .update(`${previousHash ?? ""}:${hash}:${updatedAt.toISOString()}`)
+    .digest("hex")
+    .slice(0, 16);
 
 async function enqueueForManager(
   eventType: WebhookEventType,
@@ -432,7 +436,7 @@ async function emitDepositUpdatedEvents(deps: ManagerEventDeps): Promise<void> {
       const hash = snapshotHash(snapshot);
       if (hash !== deposit.lifecycleEventHash) {
         await enqueueForManager(WebhookEventType.DEPOSIT_UPDATED, relationship?.managerProfileId ?? null, {
-          eventId: `deposit-updated:${deposit.id}:${changeId(hash, deposit.updatedAt)}`,
+          eventId: `deposit-updated:${deposit.id}:${changeId(deposit.lifecycleEventHash, hash, deposit.updatedAt)}`,
           eventType: WebhookEventType.DEPOSIT_UPDATED,
           payload: snapshot,
           timestamp: new Date().toISOString()
@@ -457,7 +461,7 @@ async function emitAccountUpdatedEvents(): Promise<void> {
       const hash = snapshotHash(snapshot);
       if (hash === account.lifecycleEventHash) continue;
       await enqueueForManager(WebhookEventType.ACCOUNT_UPDATED, relationship?.managerProfileId ?? null, {
-        eventId: `account-updated:${account.id}:${changeId(hash, account.updatedAt)}`,
+        eventId: `account-updated:${account.id}:${changeId(account.lifecycleEventHash, hash, account.updatedAt)}`,
         eventType: WebhookEventType.ACCOUNT_UPDATED,
         payload: snapshot,
         timestamp: new Date().toISOString()

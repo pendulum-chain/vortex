@@ -620,6 +620,43 @@ describe("monerium b2b manager events", () => {
     expect(new Set(deliveries.map(delivery => delivery.eventId)).size).toBe(3);
   });
 
+  it("sends DEPOSIT_UPDATED again when a failed swap brings back an earlier snapshot", async () => {
+    const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_UPDATED]);
+    const deposit = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "5000000000000000000",
+      blockNumber: 100,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 1,
+      mintedAt: new Date(),
+      moneriumOrderId: "order-1",
+      status: MoneriumFiatDepositStatus.Converting,
+      txHash: "0xmint"
+    });
+    // Two retries, each seen pending and then reverted. Only the execution rows change, so both returns
+    // to "converting, no conversions" happen at the same deposit updated_at.
+    for (const txHash of ["0xswap1", "0xswap2"]) {
+      const execution = await MoneriumConversionExecution.create({
+        accountId: mapped.accountId,
+        depositId: deposit.id,
+        destination: DESTINATION,
+        eureInRaw: "5000000000000000000",
+        txHash
+      });
+      await emitMoneriumDepositEvents(depsAtBlock(null));
+      await execution.update({ status: MoneriumConversionExecutionStatus.Failed });
+      await emitMoneriumDepositEvents(depsAtBlock(null));
+    }
+
+    const deliveries = await WebhookDelivery.findAll({ order: [["created_at", "ASC"]] });
+    const conversions = deliveries.map(
+      delivery => (delivery.payload as unknown as { payload: { conversions: unknown[] } }).payload.conversions.length
+    );
+    expect(conversions).toEqual([1, 0, 1, 0]);
+    expect(new Set(deliveries.map(delivery => delivery.eventId)).size).toBe(4);
+  });
+
   it("keeps the event id of an update re-emitted after its marker write was lost", async () => {
     const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_UPDATED]);
     const deposit = await MoneriumFiatDeposit.create({
@@ -630,11 +667,14 @@ describe("monerium b2b manager events", () => {
       status: MoneriumFiatDepositStatus.Pending
     });
     await emitMoneriumDepositEvents(depsAtBlock(null));
-    // A crash between the enqueue and the marker write leaves the old marker behind.
-    await deposit.update({ lifecycleEventHash: null }, { silent: true });
+    const { lifecycleEventHash } = await deposit.reload();
+    await deposit.update({ status: MoneriumFiatDepositStatus.Held });
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+    // A crash between the enqueue and the marker write leaves the previous marker behind.
+    await MoneriumFiatDeposit.update({ lifecycleEventHash }, { silent: true, where: { id: deposit.id } });
     await emitMoneriumDepositEvents(depsAtBlock(null));
 
-    expect(await WebhookDelivery.count()).toBe(1);
+    expect(await WebhookDelivery.count()).toBe(2);
   });
 
   it("sends ACCOUNT_UPDATED for every status change, also when a status repeats", async () => {
