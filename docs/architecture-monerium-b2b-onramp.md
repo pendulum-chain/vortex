@@ -595,7 +595,11 @@ read-only — no keys, no transactions:
 3. **Stranded-balance monitor.** Forwarders holding EURe or USDC whose batch marker has
    been open longer than `RECOVERY_DELAY` warn (the promised window was missed: forward
    or recover) and longer than `TRIGGER_DELAY` error (the permissionless path is live —
-   a keeper-outage signal; funds are never at risk). Each clone is judged by its own
+   a keeper-outage signal; funds are never at risk). A balance no settling deposit owns
+   (unsolicited funds) is named as such and points to the unattributed-balance procedure:
+   it re-arms the marker after every forward, so it is cleared (`recover` first, then
+   `forwardAll` for USDC sent on to the client) before `TRIGGER_DELAY` opens the client's
+   next payment to the permissionless swap. Each clone is judged by its own
    delays and its factory's floor; a clone off the configured trusted factory, which the
    keeper refuses, is skipped with an error line. An unswapped deposit marked
    `recovering` without a pending or confirmed `recover`, on a clone below
