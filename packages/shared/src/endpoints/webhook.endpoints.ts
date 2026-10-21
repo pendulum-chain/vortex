@@ -293,7 +293,7 @@ export interface AccountSnapshot {
 }
 
 export interface DepositUpdatedWebhookPayload {
-  /** Unique per snapshot and stable across delivery retries: consumers deduplicate on it. */
+  /** Unique per change (a repeated snapshot gets a new one) and stable across delivery retries: consumers deduplicate on it. */
   eventId: string;
   eventType: WebhookEventType.DEPOSIT_UPDATED;
   timestamp: string;
@@ -301,7 +301,7 @@ export interface DepositUpdatedWebhookPayload {
 }
 
 export interface AccountUpdatedWebhookPayload {
-  /** Unique per snapshot and stable across delivery retries: consumers deduplicate on it. */
+  /** Unique per change (a repeated snapshot gets a new one) and stable across delivery retries: consumers deduplicate on it. */
   eventId: string;
   eventType: WebhookEventType.ACCOUNT_UPDATED;
   timestamp: string;

@@ -268,7 +268,7 @@ Fired whenever anything about a deposit changes: the payment arrives at the EUR 
 - **Hold status:** `waiting` is set while the deposit waits. `monerium_pending` means the EUR provider has not minted it yet: it is minting or under a compliance review, which the provider does not tell apart. After the mint, `account_not_active` while the client's account cannot convert (it is not `active` yet, is suspended, or is paused for dormancy; the reason clears once it can, and a payment still waiting when the promised conversion window ends is refunded), `below_minimum` while the amount still to convert is below the minimum swap (the payment waits for the refund path and holds back no later payment), otherwise the reason Vortex is holding the next chunk: `oracle_unavailable`, `reference_unavailable`, `reference_out_of_band`, `no_route`, or `below_floor`, when the market is below the client's floor by more than the subsidy currently allows. New reasons may be added; treat an unknown reason as a generic wait.
 - **Failure status:** `rejectedReason` holds the provider's reason when it returned the payment before minting (`status` is then `returned`). `refund.reason` says why a deposit is refunded: `window_missed`, `compliance`, `incident`, or `operator`.
 
-`eventId` is unique per snapshot. If retries deliver an older snapshot after a newer one, keep the one with the later `timestamp`.
+`eventId` is unique per change: a deposit that returns to an earlier state (a waiting reason that flips back, for example) is sent again under a new `eventId`. If retries deliver an older snapshot after a newer one, keep the one with the later `timestamp`.
 
 ### `ACCOUNT_UPDATED`
 

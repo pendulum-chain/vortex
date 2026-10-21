@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { QueryTypes } from "sequelize";
 import sequelize from "../config/database";
-import { setupTestDatabase } from "../test-utils/db";
+import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { getExecutedMigrations, getPendingMigrations, revertLastMigration, revertMigration, runMigrations } from "./migrator";
 
 // Old-name/new-name pairs of the migrations renumbered to clear the duplicate-055 prefix.
@@ -25,6 +25,8 @@ async function metaNames(name: string): Promise<string[]> {
 describe("migration metadata reconciliation", () => {
   beforeAll(async () => {
     await setupTestDatabase();
+    // Reverting 066 refuses while any KYC case holds verification state, which earlier files leave behind.
+    await resetTestDatabase();
     // Self-heal: a previously aborted run of this suite may have left old-name rows behind.
     for (const [oldName] of RENAMED) {
       await sequelize.query(`DELETE FROM "SequelizeMeta" WHERE name = :oldName`, { replacements: { oldName } });
