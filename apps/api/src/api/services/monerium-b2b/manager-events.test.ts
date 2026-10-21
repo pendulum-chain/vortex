@@ -677,6 +677,41 @@ describe("monerium b2b manager events", () => {
     expect(await WebhookDelivery.count()).toBe(2);
   });
 
+  it("sends DEPOSIT_UPDATED for a deposit that settles while a pass is evaluating it", async () => {
+    const { mapped } = await setupAccountWithWebhook([WebhookEventType.DEPOSIT_UPDATED]);
+    // Evaluated first: its depth check is where the provider's return of the second deposit lands.
+    await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "5000000000000000000",
+      convertedEventAt: new Date(),
+      createdAt: new Date(Date.now() - 60_000),
+      currency: "eur",
+      moneriumOrderId: "order-1",
+      status: MoneriumFiatDepositStatus.Forwarded
+    });
+    const pending = await MoneriumFiatDeposit.create({
+      accountId: mapped.accountId,
+      amountRaw: "5000000000000000000",
+      currency: "eur",
+      moneriumOrderId: "order-2",
+      status: MoneriumFiatDepositStatus.Pending
+    });
+    await emitMoneriumDepositEvents({
+      async getBlockNumber() {
+        await MoneriumFiatDeposit.update(
+          { rejectedReason: "compliance", status: MoneriumFiatDepositStatus.Returned },
+          { where: { id: pending.id } }
+        );
+        return null;
+      }
+    });
+    await emitMoneriumDepositEvents(depsAtBlock(null));
+
+    const deliveries = await WebhookDelivery.findAll({ order: [["created_at", "ASC"]] });
+    const statuses = deliveries.map(delivery => (delivery.payload as unknown as { payload: { status: string } }).payload.status);
+    expect(statuses).toEqual(["pending", "returned"]);
+  });
+
   it("sends ACCOUNT_UPDATED for every status change, also when a status repeats", async () => {
     const { mapped } = await setupAccountWithWebhook([WebhookEventType.ACCOUNT_UPDATED]);
     const where = { id: mapped.accountId };

@@ -442,8 +442,9 @@ async function emitDepositUpdatedEvents(deps: ManagerEventDeps): Promise<void> {
           timestamp: new Date().toISOString()
         });
       }
-      // Silent: the marker must not bump updated_at, which is what re-queues a settled deposit.
-      await deposit.update({ lifecycleEventAt: new Date(), lifecycleEventHash: hash }, { silent: true });
+      // Silent: the marker must not bump updated_at, which is what re-queues a settled deposit. It records
+      // the row version evaluated, not the clock, so a write that lands during this pass re-queues it too.
+      await deposit.update({ lifecycleEventAt: deposit.updatedAt, lifecycleEventHash: hash }, { silent: true });
     } catch (error) {
       logger.error(`monerium-b2b: DEPOSIT_UPDATED emission failed for deposit ${deposit.id}:`, error);
     }
