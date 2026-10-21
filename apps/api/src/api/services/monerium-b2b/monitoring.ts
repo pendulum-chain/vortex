@@ -46,6 +46,8 @@ import { refundAccountFor } from "./refund-wallet";
  *    longer than RECOVERY_DELAY (the promised window, registry P3) warn — the deposit
  *    should be forwarded or recovering by then; past TRIGGER_DELAY (the
  *    permissionless-trigger delay, registry P4) they error — a keeper-outage signal.
+ *    When no settling deposit owns the balance (unsolicited funds), the line says so and
+ *    points to the unattributed-balance procedure instead of the refund one.
  *    An unswapped payment marked for recovery whose EURe is still on a clone below
  *    MIN_SWAP_FLOOR errors too: the contract cannot recover it until the operator tops the
  *    clone up to the floor (one whose funds already left the clone only warns: reconcile; the
@@ -624,13 +626,33 @@ export async function runStrandedBalanceMonitor(now: number = Date.now()): Promi
         continue;
       }
       const openMs = now - Number(batchOpenedAt) * 1000;
-      const hours = Math.floor(openMs / 3_600_000);
+      // A balance no settling deposit owns (unsolicited EURe from EUR 1, any unsolicited USDC) is no missed
+      // window: every forward re-arms the marker for it, and past TRIGGER_DELAY the client's next payment is
+      // open to the permissionless swap, so it must be cleared rather than forwarded or refunded.
+      const owned = await MoneriumFiatDeposit.count({
+        where: {
+          accountId: account.id,
+          moneriumOrderId: { [Op.notLike]: `${UNATTRIBUTED_ORDER_PREFIX}%` },
+          status: {
+            [Op.in]: [
+              MoneriumFiatDepositStatus.Minted,
+              MoneriumFiatDepositStatus.Converting,
+              MoneriumFiatDepositStatus.Recovering
+            ]
+          }
+        }
+      });
+      const unattributed =
+        "no settling deposit owns this balance (unsolicited funds): clear it before the client's next payment " +
+        "(the internal B2B runbook §2.8)";
       const message =
         `monerium-b2b: stranded funds on forwarder ${forwarder} (account ${account.id}): eure=${eureBalance}, usdc=${usdcBalance}, ` +
-        `batch open for ${hours}h${
+        `batch open for ${(openMs / 3_600_000).toFixed(1)}h${
           severity === "error"
-            ? " — past TRIGGER_DELAY, permissionless trigger is live"
-            : " — past RECOVERY_DELAY, the promised window was missed: forward or recover (runbook §2.7)"
+            ? ` — past TRIGGER_DELAY, permissionless trigger is live${owned === 0 ? `; ${unattributed}` : ""}`
+            : owned === 0
+              ? ` — past RECOVERY_DELAY; ${unattributed}`
+              : " — past RECOVERY_DELAY, the promised window was missed: forward or recover (the internal B2B runbook §2.7)"
         }`;
       if (severity === "error") {
         logger.error(message);
