@@ -265,6 +265,13 @@ export interface DepositSnapshot {
   } | null;
 }
 
+/**
+ * Why an account without its IBAN cannot progress: `monerium_profile_has_iban` while the client's
+ * Monerium profile already has an IBAN bound to another address (Monerium issues one IBAN per
+ * profile). New reasons may be added; clients treat an unknown one as a generic wait.
+ */
+export type AccountWaitingReason = "monerium_profile_has_iban";
+
 /** The state of one onramp account, as sent by ACCOUNT_UPDATED and returned by the account endpoints. */
 export interface AccountSnapshot {
   accountId: string;
@@ -275,6 +282,8 @@ export interface AccountSnapshot {
   status: string;
   /** Null until Monerium issued it. */
   iban: string | null;
+  /** Set while the account cannot get its IBAN until the partner or Vortex acts; null otherwise. */
+  waitingReason: AccountWaitingReason | null;
   destination: string;
   forwarderAddress: string;
   targetPpm: number;

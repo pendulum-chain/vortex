@@ -149,7 +149,21 @@ Steps in prose:
 4. **Keeper automation** links the forwarder (attestor signature) and the client's refund
    wallet (its own signature), then requests the IBAN for the forwarder, each
    exactly-once through the profile-scoped `financial_operations` ledger; the
-   `iban.updated` webhook records the IBAN.
+   `iban.updated` webhook records the IBAN. Monerium issues one IBAN per profile: if the
+   client's profile already has an IBAN on another address or chain, the keeper sends no
+   request, the account shows `waitingReason: monerium_profile_has_iban`, and one error line
+   gives the operator the existing IBAN (the internal B2B runbook §1.5). Moving that IBAN to
+   the forwarder is an operator decision taken with the partner: every euro sent to it
+   converts from then on, and its old address stays linked, so where that link covers the
+   configured chain the association monitor reports the address on every pass once the
+   account is active, an alert the operator then expects for the account. The keeper's per-cycle IBAN read adopts a moved IBAN.
+   A fresh profile has no supported flow: the waiting account cannot leave `onboarding`
+   (activation and suspension both need an IBAN), and registering the same client
+   reference or email with another profile is a client conflict (409).
+   Addresses linked to the profile before onboarding also raise the association monitor's
+   alert on every pass once the account is active (Monerium has no unlink, and an existing
+   link cannot be told apart from a later one), so a client profile must be dedicated to
+   Vortex.
 5. **Activation** via the admin status endpoint, then the optional penny test: only an
    active account converts.
 

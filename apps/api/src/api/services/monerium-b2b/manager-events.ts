@@ -98,7 +98,8 @@ export function accountSnapshot(account: MoneriumAccount, relationship: ManagedP
     moneriumProfileId: account.profileId,
     profileId: account.vortexProfileId,
     status: account.status,
-    targetPpm: account.targetPpm
+    targetPpm: account.targetPpm,
+    waitingReason: account.waitingReason
   };
 }
 

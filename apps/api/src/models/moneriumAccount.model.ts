@@ -1,3 +1,4 @@
+import type { AccountWaitingReason } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
@@ -29,6 +30,8 @@ export interface MoneriumAccountAttributes {
   activatedAt: Date | null;
   /** Hash of the last ACCOUNT_UPDATED snapshot sent to the partner. */
   lifecycleEventHash: string | null;
+  /** Why the account cannot get its IBAN, shown to the partner; null while nothing blocks it. */
+  waitingReason: AccountWaitingReason | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +48,7 @@ type MoneriumAccountCreationAttributes = Optional<
   | "dormantSince"
   | "activatedAt"
   | "lifecycleEventHash"
+  | "waitingReason"
   | "createdAt"
   | "updatedAt"
 >;
@@ -66,6 +70,7 @@ class MoneriumAccount
   declare dormantSince: Date | null;
   declare activatedAt: Date | null;
   declare lifecycleEventHash: string | null;
+  declare waitingReason: AccountWaitingReason | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -153,6 +158,11 @@ MoneriumAccount.init(
       allowNull: true,
       field: "vortex_profile_id",
       type: DataTypes.UUID
+    },
+    waitingReason: {
+      allowNull: true,
+      field: "waiting_reason",
+      type: DataTypes.STRING(64)
     }
   },
   {
