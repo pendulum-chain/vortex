@@ -1,4 +1,4 @@
-import { MONERIUM_ADDRESS_OWNERSHIP_MESSAGE, type MoneriumChain } from "@vortexfi/shared";
+import { MONERIUM_ADDRESS_OWNERSHIP_MESSAGE, type MoneriumChain, type MoneriumIban } from "@vortexfi/shared";
 import { Op } from "sequelize";
 import type { Address } from "viem";
 import logger from "../../../config/logger";
@@ -7,16 +7,23 @@ import MoneriumAccount, { MoneriumAccountStatus } from "../../../models/monerium
 import { FinancialOperationRejectedError, runFinancialOperation } from "../phases/blocks/core/financial-operation";
 import { signLinkAttestation } from "./attestor";
 import { getChainId, moneriumChainForChainId } from "./chain";
-import { getIbanForAddress, getProfileAddresses, isWhitelabelConfigured, linkAddress, requestIban } from "./monerium-api";
+import {
+  getProfileAddresses,
+  isWhitelabelConfigured,
+  linkAddress,
+  listIbans,
+  requestIban,
+  selectAccountIban
+} from "./monerium-api";
 import { refundAccountFor } from "./refund-wallet";
 
 const ONBOARDING_FLOW = { id: "monerium-b2b-onboarding", version: 1 } as const;
 
 export interface OnboardingDeps {
   getChainId(): Promise<number>;
-  getIbanForAddress(address: string, chain: MoneriumChain, profileId: string): Promise<{ iban: string } | null>;
   getProfileAddresses(profileId: string, chain: MoneriumChain): Promise<string[]>;
   linkAddress(profileId: string, address: string, chain: MoneriumChain, signature: string): Promise<unknown>;
+  listIbans(): Promise<MoneriumIban[]>;
   requestIban(address: string, chain: MoneriumChain): Promise<unknown>;
   signLinkAttestation(chainId: bigint, forwarderAddress: Address): Promise<{ signature: string }>;
   /** The client's refund wallet and its signature over Monerium's ownership message. */
@@ -25,9 +32,9 @@ export interface OnboardingDeps {
 
 const defaultDeps: OnboardingDeps = {
   getChainId,
-  getIbanForAddress,
   getProfileAddresses,
   linkAddress,
+  listIbans,
   requestIban,
   signLinkAttestation,
   async signRefundLink(moneriumProfileId) {
@@ -103,12 +110,44 @@ async function ensureLinked(
 
 async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainName: MoneriumChain): Promise<void> {
   if (account.iban) return;
-  const issued = await deps.getIbanForAddress(account.forwarderAddress, chainName, account.profileId);
+  const ibans = await deps.listIbans();
+  const issued = selectAccountIban(ibans, account.forwarderAddress, chainName, account.profileId);
   if (issued) {
-    await account.update({ iban: issued.iban });
+    await account.update({ iban: issued.iban, waitingReason: null });
     logger.info(`monerium-b2b: account ${account.id} has its IBAN and awaits activation`);
     return;
   }
+  // Monerium issues one IBAN per profile and refuses a second one (400). Moving the profile's
+  // IBAN to the forwarder makes every euro sent to it convert, which can break what the partner
+  // uses it for, and leaves its old address linked (no unlink), which the association monitor
+  // then reports: an operator decision taken with the partner. The read above adopts a moved IBAN.
+  const existing = ibans.find(entry => entry.profile === account.profileId);
+  if (existing) {
+    if (account.waitingReason !== "monerium_profile_has_iban") {
+      // Only while the row has no IBAN: an iban.updated delivery can record the moved IBAN between
+      // the read above and this write, and must not end up next to a stale wait.
+      const [recorded] = await MoneriumAccount.update(
+        { waitingReason: "monerium_profile_has_iban" },
+        { where: { iban: null, id: account.id } }
+      );
+      if (recorded > 0) {
+        const onForwarder = existing.address.toLowerCase() === account.forwarderAddress.toLowerCase();
+        logger.error(
+          `monerium-b2b: account ${account.id} cannot get an IBAN: Monerium profile ${account.profileId} already has ` +
+            `IBAN ${existing.iban} on ${onForwarder ? "the forwarder's address" : `address ${existing.address}`} ` +
+            `on ${existing.chain}. Moving it to the forwarder on ${chainName} is an operator decision taken with the ` +
+            "partner: every euro sent to that IBAN converts from then on" +
+            (onForwarder
+              ? ""
+              : `, and ${existing.address} stays linked to the profile, so where that link covers ${chainName} the ` +
+                "association monitor reports it on every pass once the account is active") +
+            " (the internal B2B runbook §1.5)"
+        );
+      }
+    }
+    return;
+  }
+  if (account.waitingReason) await account.update({ waitingReason: null });
   await runFinancialOperation({
     attemptClass: "provider-iban-request",
     flow: ONBOARDING_FLOW,
@@ -128,7 +167,9 @@ async function ensureIban(deps: OnboardingDeps, account: MoneriumAccount, chainN
     phase: "requestIban",
     provider: "monerium",
     reconcile: async () =>
-      (await deps.getIbanForAddress(account.forwarderAddress, chainName, account.profileId)) ? { requested: true } : null,
+      selectAccountIban(await deps.listIbans(), account.forwarderAddress, chainName, account.profileId)
+        ? { requested: true }
+        : null,
     request: { address: account.forwarderAddress.toLowerCase(), chain: chainName },
     retryFailed: true,
     scopeId: account.vortexProfileId as string,

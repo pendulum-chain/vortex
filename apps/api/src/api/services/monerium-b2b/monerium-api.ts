@@ -65,15 +65,6 @@ export function selectAccountIban(
   return matches[0] ?? null;
 }
 
-/** GET /ibans — the IBAN issued for this exact profile/chain/address tuple. */
-export async function getIbanForAddress(
-  address: string,
-  chain: MoneriumChain,
-  profileId: string
-): Promise<MoneriumIban | null> {
-  return selectAccountIban(await listIbans(), address, chain, profileId);
-}
-
 /**
  * GET /addresses?profile={id} — the addresses linked to a profile. Used by the
  * association monitor (S1 detective control): any address linked to a client profile
