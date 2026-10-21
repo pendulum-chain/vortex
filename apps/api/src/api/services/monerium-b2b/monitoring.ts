@@ -19,6 +19,7 @@ import {
   getForwarderImmutables,
   getPublicClient,
   moneriumChainForChainId,
+  PartialFillError,
   quoteRouteOutput,
   quoterV2ForChainId,
   readEnabledRoutes,
@@ -336,18 +337,24 @@ export async function runExecutableDepthCheck(): Promise<void> {
     return;
   }
 
+  // A size the route cannot take whole is thin depth at that size (unbounded impact), not a failed quote.
+  const impactBps = (path: Hex, amountIn: bigint) =>
+    quoteRouteOutput(quoter, path, amountIn).then(
+      out => computeQuoteImpactBps(amountIn, out, answer, oracleDecimals),
+      error => {
+        if (error instanceof PartialFillError) return Number.POSITIVE_INFINITY;
+        throw error;
+      }
+    );
+  const formatImpact = (bps: number) => (Number.isFinite(bps) ? `${bps}bps` : "partial fill");
   const quoted: Array<{ capImpactBps: number; index: number; minImpactBps: number }> = [];
   for (const route of routes) {
     try {
-      const [minOut, capOut] = await Promise.all([
-        quoteRouteOutput(quoter, route.path, minSwapAmount),
-        quoteRouteOutput(quoter, route.path, perSwapCap)
+      const [minImpactBps, capImpactBps] = await Promise.all([
+        impactBps(route.path, minSwapAmount),
+        impactBps(route.path, perSwapCap)
       ]);
-      quoted.push({
-        capImpactBps: computeQuoteImpactBps(perSwapCap, capOut, answer, oracleDecimals),
-        index: route.index,
-        minImpactBps: computeQuoteImpactBps(minSwapAmount, minOut, answer, oracleDecimals)
-      });
+      quoted.push({ capImpactBps, index: route.index, minImpactBps });
     } catch (error) {
       logger.warn(`monerium-b2b: depth check could not quote route ${route.index}:`, error);
     }
@@ -359,7 +366,9 @@ export async function runExecutableDepthCheck(): Promise<void> {
   const best = quoted.reduce((leader, route) => (route.minImpactBps < leader.minImpactBps ? route : leader));
   const detail =
     `oracle=${answer} (updatedAt=${updatedAt}), SLIPPAGE_BPS=${slippageBps}, best route ${best.index}; per route: ` +
-    quoted.map(route => `#${route.index} min=${route.minImpactBps}bps cap=${route.capImpactBps}bps`).join(", ");
+    quoted
+      .map(route => `#${route.index} min=${formatImpact(route.minImpactBps)} cap=${formatImpact(route.capImpactBps)}`)
+      .join(", ");
 
   const verdict = classifyExecutableDepth(best.minImpactBps, best.capImpactBps, slippageBps);
   if (verdict.severity === "error" && chainId === 1) {
