@@ -328,7 +328,7 @@ describe("runExecutableDepthCheck", () => {
 
 // A refund the keeper can never send: the clone holds less than MIN_SWAP_FLOOR, so the
 // contract arms no batch and `recover` reverts. Only the operator can refund it.
-describe("runStrandedBalanceMonitor below the swap floor", () => {
+describe("runStrandedBalanceMonitor", () => {
   const FACTORY = "0x2222222222222222222222222222222222222222" as Address;
   const EURE = "0x4444444444444444444444444444444444444444" as Address;
   const saved = {
@@ -465,6 +465,50 @@ describe("runStrandedBalanceMonitor below the swap floor", () => {
     expect(errors[0]).toContain(EURE);
     expect(errors[0]).toContain("never refund this deposit by hand");
     expect(errors[0]).toContain("the internal B2B runbook §2.7");
+  });
+
+  it("names a stranded balance no settling deposit owns as unsolicited funds, not a missed window", async () => {
+    const deposit = await accountWithDeposit(MoneriumFiatDepositStatus.Forwarded);
+    // The unsolicited EURe's own row is minted but attributed to no order, so it owns nothing either.
+    await MoneriumFiatDeposit.create({
+      accountId: deposit.accountId,
+      amountRaw: (2n * EUR + 7n).toString(),
+      blockNumber: 101,
+      chainId: 11155111,
+      currency: "eur",
+      logIndex: 99,
+      mintedAt: new Date(),
+      moneriumOrderId: "unattr:unsolicited",
+      status: MoneriumFiatDepositStatus.Minted,
+      txHash: "0xunsolicited"
+    });
+    eureOnClone = 2n * EUR + 7n;
+    const now = Date.now();
+    batchOpenedAt = BigInt(Math.floor(now / 1000) - 3 * 3600);
+    await runStrandedBalanceMonitor(now);
+    expect(errors).toEqual([]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("batch open for 3.0h — past RECOVERY_DELAY; no settling deposit owns this balance");
+    expect(warnings[0]).toContain("the internal B2B runbook §2.8");
+    expect(warnings[0]).not.toContain("promised window");
+
+    warnings = [];
+    batchOpenedAt = BigInt(Math.floor(now / 1000) - 25 * 3600);
+    await runStrandedBalanceMonitor(now);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("past TRIGGER_DELAY, permissionless trigger is live; no settling deposit owns this balance");
+    expect(errors[0]).toContain("the internal B2B runbook §2.8");
+  });
+
+  it("keeps the missed-window wording while a deposit is still settling", async () => {
+    await accountWithDeposit(MoneriumFiatDepositStatus.Converting, 2n * EUR);
+    eureOnClone = 2n * EUR;
+    const now = Date.now();
+    batchOpenedAt = BigInt(Math.floor(now / 1000) - 3 * 3600);
+    await runStrandedBalanceMonitor(now);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("the promised window was missed: forward or recover (the internal B2B runbook §2.7)");
+    expect(warnings[0]).not.toContain("§2.8");
   });
 
   for (const mode of ["alert", "off"] as const) {
