@@ -318,6 +318,43 @@ describe("runExecutableDepthCheck", () => {
     });
   }
 
+  function captureLogs() {
+    const lines: Record<string, string[]> = { error: [], warn: [] };
+    for (const name of ["error", "warn"] as const) {
+      spyOn(logger, name).mockImplementation(((message: string) => {
+        lines[name].push(message);
+      }) as unknown as typeof logger.error);
+    }
+    return lines;
+  }
+
+  for (const chainId of [1, 11_155_111]) {
+    it(`warns on chain ${chainId} when the route cannot take a perSwapCap swap whole`, async () => {
+      const { quoteSpy } = arrange(chainId);
+      quoteSpy.mockImplementation(async (_quoter, _path, amountIn) => {
+        if (amountIn === 10_000n * EUR) throw new chain.PartialFillError();
+        return (amountIn * 114n) / (100n * 10n ** 12n);
+      });
+      const lines = captureLogs();
+      await runExecutableDepthCheck();
+      expect(lines.error).toEqual([]);
+      expect(lines.warn).toHaveLength(1);
+      expect(lines.warn[0]).toContain("impact at perSwapCap exceeds SLIPPAGE_BPS");
+      expect(lines.warn[0]).toContain("#0 min=0bps cap=partial fill");
+    });
+  }
+
+  it("logs DEPTH BELOW FLOOR when the route cannot take even a minSwapAmount swap whole", async () => {
+    const { quoteSpy } = arrange(1);
+    quoteSpy.mockRejectedValue(new chain.PartialFillError());
+    const lines = captureLogs();
+    await runExecutableDepthCheck();
+    expect(lines.warn).toEqual([]);
+    expect(lines.error).toHaveLength(1);
+    expect(lines.error[0]).toContain("DEPTH BELOW FLOOR");
+    expect(lines.error[0]).toContain("#0 min=partial fill cap=partial fill");
+  });
+
   it("skips a chain without a known quoter", async () => {
     const { findAll, quoteSpy } = arrange(31_337);
     await runExecutableDepthCheck();

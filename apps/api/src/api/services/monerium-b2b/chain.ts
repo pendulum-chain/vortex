@@ -446,8 +446,14 @@ const SWAP_LIMIT_SQRT_PRICES = new Set([4295128740n, 146144670348521010328727305
 export const isPartialFill = (sqrtPriceX96AfterList: readonly bigint[]): boolean =>
   sqrtPriceX96AfterList.some(price => SWAP_LIMIT_SQRT_PRICES.has(price));
 
+export class PartialFillError extends Error {
+  constructor() {
+    super("the route runs out of liquidity before taking the whole amount (a partial fill)");
+  }
+}
+
 /**
- * Static quote for `amountIn` over a packed path on `quoter` (from quoterV2ForChainId). Throws when the
+ * Static quote for `amountIn` over a packed path on `quoter` (from quoterV2ForChainId). Throws PartialFillError when the
  * route cannot take the whole amount: the forwarder reverts such a fill (InputNotConsumed), and clones
  * deployed before that check would settle it as a bad price and draw a subsidy for EURe still on the clone.
  */
@@ -459,7 +465,7 @@ export async function quoteRouteOutput(quoter: Address, path: Hex, amountIn: big
     functionName: "quoteExactInput"
   });
   if (isPartialFill(result[1])) {
-    throw new Error("the route runs out of liquidity before taking the whole amount (a partial fill)");
+    throw new PartialFillError();
   }
   return result[0];
 }
