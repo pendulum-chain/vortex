@@ -356,6 +356,37 @@ describe("SquidRouterPayExecutor reliability", () => {
     expect(approved.state.axelarConfirmRecoveryAt).toBeUndefined();
   });
 
+  it("re-confirms a call axelarscan reports as confirmed that never got approved", async () => {
+    // Live shape on 2026-10-25 (Base -> BSC): failed polls left "confirmed" with confirm_failed false.
+    const unapproved = {
+      ...FEE_STATUS,
+      call: { chain: "base" },
+      confirm: { block_timestamp: Math.floor(Date.now() / 1000) - 60 * 60 },
+      confirm_failed: false,
+      is_insufficient_fee: false,
+      status: "confirmed"
+    };
+    getStatusAxelarScan
+      .mockImplementationOnce(async () => unapproved as never)
+      .mockImplementationOnce(async () => ({ ...unapproved, status: "executed" }) as never);
+    const handler = Object.create(SquidRouterPayExecutor.prototype) as any;
+    handler.initialDelayMs = 0;
+    handler.pollIntervalMs = 0;
+    handler.stuckAlertThresholdMs = 0;
+    handler.slackNotifier = null;
+    handler.patchStateKey = mock(async (target: RampState, key: string, value: string) => {
+      target.state = { ...target.state, [key]: value };
+      return 1;
+    });
+    const state = makeState();
+
+    await handler.checkBridgeStatus(state, SWAP_HASH, makeQuote(), 1000);
+
+    expect(recoverAxelarStuckConfirm).toHaveBeenCalledTimes(1);
+    expect(recoverAxelarStuckConfirm.mock.calls[0]?.slice(0, 2)).toEqual([SWAP_HASH, "base"]);
+    expect(state.state.axelarConfirmRecoveryAt).toBeString();
+  });
+
   it("alerts once with block context and the current stuck classification", async () => {
     const state = makeState();
     state.phaseHistory = [{ phase: "squidRouterPay", timestamp: new Date(Date.now() - 30 * 60 * 1000) }];

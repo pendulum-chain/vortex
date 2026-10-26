@@ -32,6 +32,10 @@ export interface AxelarScanStatusResponse {
   // new ConfirmGatewayTx is broadcast. The status can still read "confirmed": axelarscan
   // records the failed poll's confirm event too (poll 3258866, 2026-10-06).
   confirm_failed?: boolean;
+  // The confirm event axelarscan recorded; also set from a failed poll (see confirm_failed).
+  confirm?: {
+    block_timestamp?: number; // seconds
+  };
   call?: {
     chain: string; // source chain in Axelar naming, e.g. "base"
     event?: string; // "ContractCallWithToken" or "ContractCall"
@@ -60,6 +64,10 @@ export interface AxelarScanStatusResponse {
 
 // How long an approved call may wait for Axelar's relayer before Vortex executes it itself.
 export const AXELAR_APPROVED_EXECUTE_GRACE_MS = 2 * 60 * 1000;
+
+// How long a "confirmed" call may wait for gateway approval before its confirmation is
+// treated as failed. Real confirmations were approved within 84 s (348 GMPs, 2026-10-26).
+export const AXELAR_CONFIRMED_APPROVAL_GRACE_MS = 10 * 60 * 1000;
 
 /**
  * Coarse GMP states that matter for stuck-transfer handling. Derived from the
@@ -90,6 +98,17 @@ export function classifyGmpStatus(status: AxelarScanStatusResponse | undefined |
     return "insufficient_gas";
   }
   if (status.confirm_failed && !status.approved && !status.executed) return "source_confirmation_stuck";
+  // After failed polls axelarscan can also read "confirmed" with confirm_failed false and no
+  // approval ever following (polls 3271108-3271116, 2026-10-25); only a new confirm moves it.
+  if (
+    status.status === "confirmed" &&
+    !status.approved &&
+    !status.executed &&
+    status.confirm?.block_timestamp !== undefined &&
+    nowMs - status.confirm.block_timestamp * 1000 >= AXELAR_CONFIRMED_APPROVAL_GRACE_MS
+  ) {
+    return "source_confirmation_stuck";
+  }
   if (status.status === "called") return "waiting_source_confirmation";
   if (status.status === "confirming" || status.status === "confirmable") return "waiting_source_confirmation";
   // Approved but no relayer tx after the grace period. no_gas_remain is not used: axelarscan
@@ -103,8 +122,8 @@ export function classifyGmpStatus(status: AxelarScanStatusResponse | undefined |
   ) {
     return "approved_not_executed";
   }
-  // Without confirm_failed, "confirmed" means the source confirmation succeeded — the
-  // transfer is waiting on approval/execution, so another ConfirmGatewayTx would be irrelevant.
+  // Within the approval grace and without confirm_failed, "confirmed" means the source
+  // confirmation succeeded — the transfer is waiting on approval/execution.
   if (
     ["confirmed", "approving", "approvable", "approved", "executing", "executable", "express_executable"].includes(
       status.status
