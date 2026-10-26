@@ -44,7 +44,9 @@ jobs:
 
   test:
     name: Running tests
-    runs-on: ubuntu-latest
+    # ponytail: pinned because the ubuntu-26.04 image behind ubuntu-latest fails the frontend tests
+    # (native fetch rejects jsdom's AbortSignal); unpin once they pass there.
+    runs-on: ubuntu-24.04
     env:
       CI: true
 
