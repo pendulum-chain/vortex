@@ -48,3 +48,4 @@ The full placement and lifecycle policy is in [`docs/README.md`](docs/README.md)
 | `.agents/skills` | Purpose-built, repository-specific agent workflows (review, shipping, PR feedback, cleanup rules, Vortex integration, and Sentry guidance). |
 | `.claude` | Shared Claude Code settings and worktree configuration. |
 | `.clinerules` | Pointer from Cline to the canonical `CLAUDE.md` and documentation policy. |
+| `.oss-scanner` | Build image and threat model for Anthropic's OSS Scanner, which audits this repository offline. |
