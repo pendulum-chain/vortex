@@ -34,7 +34,8 @@ export const AveniaMintContext = defineContext<AveniaMintMetadata>()("aveniaMint
 
 export async function simulateAveniaMint(
   input: PhaseIO<typeof FiatToken.BRL, "fiat">,
-  ctx: PhaseCtx
+  ctx: PhaseCtx,
+  network: typeof Networks.Base | typeof Networks.Moonbeam = Networks.Base
 ): Promise<PhaseResult<PhaseIO<typeof EvmToken.BRLA, typeof Networks.Base>, AveniaMintMetadata>> {
   const brlaTokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
   const inputAmountDecimal = new Big(input.amount);
@@ -62,7 +63,8 @@ export async function simulateAveniaMint(
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       inputThirdParty: false,
       outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
+      // Same rail BrlaOnrampMintExecutor requests at execution time.
+      outputPaymentMethod: network === Networks.Moonbeam ? AveniaPaymentMethod.MOONBEAM : AveniaPaymentMethod.BASE,
       outputThirdParty: false
     },
     { useCache: true }

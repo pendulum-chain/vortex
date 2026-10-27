@@ -26,7 +26,7 @@ export const AveniaMoonbeamMint: Phase<
   prepareTxs: prepareAveniaMoonbeamMintTxs,
   register: registerAveniaMint,
   async simulate(input, ctx) {
-    const result = await simulateAveniaMint(input, ctx);
+    const result = await simulateAveniaMint(input, ctx, Networks.Moonbeam);
     return {
       ...result,
       fees: await calculateFees(ctx, {
