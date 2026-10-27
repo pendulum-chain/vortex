@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import {
   AXELAR_APPROVED_EXECUTE_GRACE_MS,
+  AXELAR_CONFIRMED_APPROVAL_GRACE_MS,
   AxelarScanStatusResponse,
   classifyGmpStatus,
   getStatusAxelarScan,
@@ -96,6 +97,27 @@ describe("classifyGmpStatus", () => {
     );
     expect(classifyGmpStatus({ ...failedPoll, executed: {}, status: "executed" })).toBe("executed");
     expect(classifyGmpStatus({ ...failedPoll, is_insufficient_fee: true })).toBe("insufficient_gas");
+  });
+
+  it("treats a confirmed call that stays unapproved past the grace period as stuck", () => {
+    // Shape seen on 2026-10-25 (Base -> BSC, polls 3271108-3271116): every poll failed, yet
+    // axelarscan reported "confirmed" with confirm_failed false and no approval for 16 hours.
+    const confirmedAtSeconds = 1_792_945_245;
+    const graceEndMs = confirmedAtSeconds * 1000 + AXELAR_CONFIRMED_APPROVAL_GRACE_MS;
+    const unapproved = status({
+      call: { chain: "base" },
+      confirm: { block_timestamp: confirmedAtSeconds },
+      confirm_failed: false,
+      status: "confirmed"
+    });
+
+    expect(classifyGmpStatus(unapproved, graceEndMs)).toBe("source_confirmation_stuck");
+    expect(classifyGmpStatus(unapproved, graceEndMs - 1)).toBe("relayer_pending");
+    expect(classifyGmpStatus({ ...unapproved, approved: { block_timestamp: confirmedAtSeconds + 20 } }, graceEndMs)).toBe(
+      "relayer_pending"
+    );
+    expect(classifyGmpStatus({ ...unapproved, confirm: undefined }, graceEndMs)).toBe("relayer_pending");
+    expect(classifyGmpStatus({ ...unapproved, is_insufficient_fee: true }, graceEndMs)).toBe("insufficient_gas");
   });
 });
 

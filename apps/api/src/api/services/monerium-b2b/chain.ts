@@ -438,7 +438,25 @@ export async function readEnabledRoutes(factory: Address): Promise<Array<{ index
   return routes.filter(route => route.enabled).map(({ index, path }) => ({ index, path }));
 }
 
-/** Static quote for `amountIn` over a packed path on `quoter` (from quoterV2ForChainId). */
+// QuoterV2 quotes without a price limit, so a hop that runs out of liquidity ends at the extreme
+// price (TickMath MIN_SQRT_RATIO + 1 or MAX_SQRT_RATIO - 1) having taken only part of its input.
+const SWAP_LIMIT_SQRT_PRICES = new Set([4295128740n, 1461446703485210103287273052203988822378723970341n]);
+
+/** True when a hop of a QuoterV2 quote stopped at the swap limit: a partial fill, not a quote for the whole amount. */
+export const isPartialFill = (sqrtPriceX96AfterList: readonly bigint[]): boolean =>
+  sqrtPriceX96AfterList.some(price => SWAP_LIMIT_SQRT_PRICES.has(price));
+
+export class PartialFillError extends Error {
+  constructor() {
+    super("the route runs out of liquidity before taking the whole amount (a partial fill)");
+  }
+}
+
+/**
+ * Static quote for `amountIn` over a packed path on `quoter` (from quoterV2ForChainId). Throws PartialFillError when the
+ * route cannot take the whole amount: the forwarder reverts such a fill (InputNotConsumed), and clones
+ * deployed before that check would settle it as a bad price and draw a subsidy for EURe still on the clone.
+ */
 export async function quoteRouteOutput(quoter: Address, path: Hex, amountIn: bigint): Promise<bigint> {
   const { result } = await getPublicClient().simulateContract({
     abi: quoterV2Abi,
@@ -446,6 +464,9 @@ export async function quoteRouteOutput(quoter: Address, path: Hex, amountIn: big
     args: [path, amountIn],
     functionName: "quoteExactInput"
   });
+  if (isPartialFill(result[1])) {
+    throw new PartialFillError();
+  }
   return result[0];
 }
 

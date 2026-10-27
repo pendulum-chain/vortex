@@ -55,7 +55,7 @@ export interface MoneriumFiatDepositAttributes {
   /** Why the deposit entered the refund path (a DepositRefundReason), and when. */
   refundReason: string | null;
   refundStartedAt: Date | null;
-  /** Hash and time of the last DEPOSIT_UPDATED snapshot evaluated (set silently, never bumps updated_at). */
+  /** Hash and row version (updated_at) of the last DEPOSIT_UPDATED snapshot evaluated (set silently, never bumps updated_at). */
   lifecycleEventHash: string | null;
   lifecycleEventAt: Date | null;
   createdAt: Date;

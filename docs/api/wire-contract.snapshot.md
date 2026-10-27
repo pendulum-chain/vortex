@@ -45,6 +45,7 @@ AccountSnapshot: {
   profileId: null | string;
   status: string;
   targetPpm: number;
+  waitingReason: "monerium_profile_has_iban" | null;
 }
 
 AccountUpdatedWebhookPayload: {
@@ -63,9 +64,12 @@ AccountUpdatedWebhookPayload: {
     profileId: null | string;
     status: string;
     targetPpm: number;
+    waitingReason: "monerium_profile_has_iban" | null;
   };
   timestamp: string;
 }
+
+AccountWaitingReason: "monerium_profile_has_iban"
 
 AlchemyPayPriceResponse: {
   direction: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -2577,6 +2581,7 @@ WebhookDeliveryAttempt: {
       profileId: null | string;
       status: string;
       targetPpm: number;
+      waitingReason: "monerium_profile_has_iban" | null;
     };
     timestamp: string;
   } | {
@@ -2734,6 +2739,7 @@ WebhookPayload: {
     profileId: null | string;
     status: string;
     targetPpm: number;
+    waitingReason: "monerium_profile_has_iban" | null;
   };
   timestamp: string;
 } | {

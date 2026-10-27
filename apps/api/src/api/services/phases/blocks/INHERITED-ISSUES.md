@@ -57,12 +57,6 @@ Positive dust can no longer suppress submission or satisfy completion by itself.
 
 ## Estimation and recovery heuristics
 
-### Avenia Base simulation uses a Moonbeam transfer quote
-
-- **References:** `simulateAveniaMint` requests `AveniaPaymentMethod.MOONBEAM` and returns Base output (`phases/avenia-mint/simulation.ts:35-69`, `82-108`); direct Base mint delegates to it (`phases/avenia-direct-mint/simulation.ts:9-20`).
-- **Impact:** Base quote output and fees can be based on the wrong Avenia rail, affecting quoted output, fee accounting, and recovery thresholds when Base and Moonbeam pricing differ.
-- **Release relevance:** Pre-existing quote-accuracy issue on Avenia Base routes; visible to users and therefore release-relevant, but not a block adaptation.
-
 ### Recovery uses 95% balance shortcuts
 
 - **References:** Avenia mint skips at 95% of precomputed output (`phases/avenia-mint/execution.ts:39-42`, `92-103`) and Mykobo deposit does the same (`phases/mykobo-mint/execution.ts:24-49`).
