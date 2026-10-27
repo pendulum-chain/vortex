@@ -416,6 +416,8 @@ describe("iban.updated inbox recording", () => {
     await resetTestDatabase();
   });
 
+  afterEach(() => mock.restore());
+
   it("records the issued IBAN on the account and never overwrites a different one", async () => {
     const account = await createMappedAccount();
     await MoneriumWebhookEvent.create({
@@ -462,6 +464,31 @@ describe("iban.updated inbox recording", () => {
         type: "iban.updated"
       }
     });
+
+    await processMoneriumWebhookInbox(ETHEREUM_CHAIN);
+
+    await account.reload();
+    expect(account.iban).toBe(PARTNER_IBAN);
+    expect(account.waitingReason).toBeNull();
+  });
+
+  it("leaves no wait that onboarding records between the webhook's read and its IBAN write", async () => {
+    const account = await createMappedAccount();
+    await MoneriumWebhookEvent.create({
+      eventId: "evt-iban-race",
+      payload: {
+        data: { address: FORWARDER, chain: "ethereum", iban: PARTNER_IBAN, profile: MONERIUM_PROFILE },
+        timestamp: "2026-10-27T12:00:00Z",
+        type: "iban.updated"
+      }
+    });
+    const findOne = MoneriumAccount.findOne.bind(MoneriumAccount);
+    spyOn(MoneriumAccount, "findOne").mockImplementation((async (...args: Parameters<typeof findOne>) => {
+      const found = await findOne(...args);
+      // Onboarding's guarded wait write, which does not take the forwarder lock.
+      await MoneriumAccount.update({ waitingReason: "monerium_profile_has_iban" }, { where: { iban: null, id: account.id } });
+      return found;
+    }) as typeof findOne);
 
     await processMoneriumWebhookInbox(ETHEREUM_CHAIN);
 
