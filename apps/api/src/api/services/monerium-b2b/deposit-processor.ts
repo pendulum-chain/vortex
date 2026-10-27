@@ -161,7 +161,12 @@ async function processIbanEvent(
     } else if (event.chain !== expectedChain || event.profileId !== account.profileId) {
       logger.error(`monerium-b2b: iban.updated scope mismatch for account ${account.id}, skipping`);
     } else if (account.iban === null) {
-      await account.update({ iban: event.iban, waitingReason: null }, { transaction });
+      // A static write: an instance update skips waitingReason when the row read above had none,
+      // and onboarding (outside this lock) can record its wait between that read and this write.
+      await MoneriumAccount.update(
+        { iban: event.iban, waitingReason: null },
+        { transaction, where: { iban: null, id: account.id } }
+      );
       logger.info(`monerium-b2b: account ${account.id} has its IBAN (${account.status})`);
     } else if (account.iban !== event.iban) {
       // Never overwrite: an IBAN change on a live account is the association
