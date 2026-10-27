@@ -1,5 +1,15 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
-import { BrlaApiService, EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
+import {
+  AveniaPaymentMethod,
+  BrlaApiService,
+  BrlaCurrency,
+  EPaymentMethod,
+  EvmToken,
+  FiatToken,
+  Networks,
+  RampDirection,
+  RampPhase
+} from "@vortexfi/shared";
 import * as feesNamespace from "../core/fees";
 const BRL_ONRAMP_BASE_DIRECT: RampPhase[] = [
   "initial",
@@ -62,15 +72,20 @@ describe("BRL direct Base onramp flow", () => {
   });
 
   it("simulates the direct Avenia mint without swap or bridge deductions", async () => {
-    BrlaApiService.getInstance = mock(() => ({
-      createPayInQuote: mock(async (request: { inputCurrency: string }) => ({
-        appliedFees: [{ amount: "0.2", type: "Gas Fee" }],
-        outputAmount: request.inputCurrency === "BRL" ? "99" : "98.5",
-        quoteToken: "mock-quote-token"
-      }))
-    })) as unknown as typeof BrlaApiService.getInstance;
+    const createPayInQuote = mock(async (request: { inputCurrency: string }) => ({
+      appliedFees: [{ amount: "0.2", type: "Gas Fee" }],
+      outputAmount: request.inputCurrency === "BRL" ? "99" : "98.5",
+      quoteToken: "mock-quote-token"
+    }));
+    BrlaApiService.getInstance = mock(() => ({ createPayInQuote })) as unknown as typeof BrlaApiService.getInstance;
 
     const result = await brlOnrampBaseDirectFlow.simulate(buildCtx());
+
+    // The transfer quote must price the Base rail the executor mints on; Avenia rejects BRLA on MOONBEAM.
+    expect(createPayInQuote.mock.calls[1][0]).toMatchObject({
+      outputCurrency: BrlaCurrency.BRLA,
+      outputPaymentMethod: AveniaPaymentMethod.BASE
+    });
 
     expect(result.output).toMatchObject({ amountRaw: "98300000000000000000", chain: Networks.Base, token: EvmToken.BRLA });
     expect(calculateFeesMock).toHaveBeenCalledWith(
