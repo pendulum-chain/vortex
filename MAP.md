@@ -11,6 +11,7 @@ workspace; use [`docs/README.md`](docs/README.md) to locate durable project cont
 | `apps/frontend` | React widget and public web surface. XState ramp/KYC flows, wallets, and partner embedding. |
 | `apps/demo` | Minimal browser-only React example for a BRL/PIX to BSC USDC onramp through `@vortexfi/sdk`. |
 | `apps/gold` | "ouro. by Vortex" consumer app for BRL/PIX to PAXG through `@vortexfi/sdk`, served by the frontend site at `/pt-br/gold`. |
+| `apps/stocks` | Brazil Stock Tokens pilot, served at `/pt-br/stocks`; the live ramp is disabled until the API supports the route. |
 | `apps/dashboard` | React account dashboard. Auth, customer entities, onboarding, recipients, history, and self-ramp flows. |
 | `apps/rebalancer` | Standalone service for cross-chain liquidity correction and profitability-aware rebalancing. |
 
@@ -21,6 +22,7 @@ workspace; use [`docs/README.md`](docs/README.md) to locate durable project cont
 | `packages/shared` | `@vortexfi/shared`: wire contracts, tokens/networks, provider clients, signing helpers, and shared configuration. |
 | `packages/kyc` | `@vortexfi/kyc`: provider KYC/KYB state machines shared by widget and dashboard. |
 | `packages/sdk` | `@vortexfi/sdk`: public partner SDK for quote, registration, signing, update, start, and status flows. |
+| `packages/consumer-kit` | Consumer login, wallet, recovery and ramp helpers; currently consumed by Stocks. |
 
 ## Contracts
 

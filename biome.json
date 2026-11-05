@@ -18,6 +18,8 @@
       "!**/build/**",
       "!**/node_modules/",
       "!apps/gold/**",
+      "!apps/stocks/**",
+      "!packages/consumer-kit/**",
       "!**/coverage/**",
       "!**/test-results/**",
       "!**/playwright-report/**",

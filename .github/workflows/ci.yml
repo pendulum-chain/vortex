@@ -113,3 +113,6 @@ jobs:
 
       - name: 🧪 Gold tests
         run: bun run test:gold
+
+      - name: 🧪 Stocks and consumer wallet tests
+        run: bun run test:consumer-kit && bun run test:stocks
