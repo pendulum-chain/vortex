@@ -13,7 +13,16 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { Signature as EvmSignature } from "ethers";
-import { decodeFunctionData, erc20Abi, keccak256 } from "viem";
+import {
+  ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
+  ContractFunctionZeroDataError,
+  decodeFunctionData,
+  erc20Abi,
+  HttpRequestError,
+  keccak256,
+  parseAbi
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { installFakeFinancialJournal } from "../../../../../test-utils/fake-financial-journal";
 import { installFakeChainIdRpc } from "../../../../../test-utils/fake-world/fake-evm";
@@ -63,12 +72,15 @@ const metadata: StockPermitSourceMetadata = {
   token: NVDA
 };
 
-function prepare(permit: { domain: typeof DOMAIN; nonce: bigint } | null = { domain: DOMAIN, nonce: PERMIT_NONCE }) {
+function prepare(
+  permit: { domain: typeof DOMAIN; nonce: bigint } | null = { domain: DOMAIN, nonce: PERMIT_NONCE },
+  gasless = permit !== null
+) {
   return prepareStockPermitSourceTxs(
     {
       accounts: { EVM: { address: ephemeral.address, type: EphemeralAccountType.EVM } },
       globals: {} as never,
-      ownMetadata: metadata,
+      ownMetadata: { ...metadata, gasless },
       ownRegistrationFacts: { owner: owner.address },
       quote: {} as never
     } as PrepareCtx<StockPermitSourceMetadata, { owner: string }>,
@@ -248,6 +260,13 @@ describe("StockPermitSource transactions", () => {
     });
     expect(aggregateNativePrefunding(prepared.intents)).toEqual({
       [`${Networks.Robinhood}:${ephemeral.address.toLowerCase()}`]: (200_000n * FEES.maxFeePerGas * 3n).toString()
+    });
+  });
+
+  it("answers 503 when the quote said gasless and the permit is gone at registration, rather than asking for ETH", async () => {
+    await expect(prepare(null, true)).rejects.toMatchObject({
+      message: "Selling this token is temporarily unavailable. Please try again later.",
+      status: 503
     });
   });
 
@@ -556,12 +575,33 @@ describe("StockPermitSource simulation", () => {
       expect(await probeStockPermit(NVDA, owner.address)).toEqual({ domain: DOMAIN, nonce: 3n });
     });
 
-    it("means no permit on a contract error", async () => {
+    const abi = parseAbi(["function nonces(address owner) view returns (uint256)"]);
+    const executionError = (cause: ConstructorParameters<typeof ContractFunctionExecutionError>[0]) =>
+      new ContractFunctionExecutionError(cause, { abi, args: [owner.address], functionName: "nonces" });
+
+    it("means no permit when the contract reverts", async () => {
       installToken(async () => {
-        throw Object.assign(new Error("reverted"), { name: "ContractFunctionExecutionError" });
+        throw executionError(new ContractFunctionRevertedError({ abi, functionName: "nonces", message: "execution reverted" }));
       });
 
       expect(await probeStockPermit(NVDA, owner.address)).toBeNull();
+    });
+
+    it("means no permit when the contract returns no data", async () => {
+      installToken(async () => {
+        throw executionError(new ContractFunctionZeroDataError({ functionName: "nonces" }));
+      });
+
+      expect(await probeStockPermit(NVDA, owner.address)).toBeNull();
+    });
+
+    it("does not mistake a failed RPC call for a token without a permit", async () => {
+      const failure = executionError(new HttpRequestError({ status: 503, url: "https://rpc.invalid" }));
+      installToken(async () => {
+        throw failure;
+      });
+
+      await expect(probeStockPermit(NVDA, owner.address)).rejects.toBe(failure);
     });
 
     it("rethrows anything else", async () => {
@@ -570,6 +610,41 @@ describe("StockPermitSource simulation", () => {
       });
 
       await expect(probeStockPermit(NVDA, owner.address)).rejects.toThrow("boom");
+    });
+
+    // `@vortexfi/shared` bundles its own viem, so only its real client throws what production sees, and those errors
+    // are not instances of this package's classes. The fake RPC stands in for the node behind that client.
+    describe("over the real client", () => {
+      function answerRpc(answer: (request: { id: number; method: string }) => Response) {
+        spyOn(globalThis, "fetch").mockImplementation((async (_url: unknown, init?: { body?: unknown }) =>
+          answer(JSON.parse(String(init?.body)))) as typeof fetch);
+      }
+      const rpcError = (id: number, error: { code: number; data?: string; message: string }) =>
+        Response.json({ error, id, jsonrpc: "2.0" });
+
+      it("means no permit on an execution revert", async () => {
+        answerRpc(({ id }) => rpcError(id, { code: 3, data: "0x", message: "execution reverted" }));
+
+        expect(await probeStockPermit(NVDA, owner.address)).toBeNull();
+      });
+
+      it("means no permit when the token returns no data", async () => {
+        answerRpc(({ id }) => Response.json({ id, jsonrpc: "2.0", result: "0x" }));
+
+        expect(await probeStockPermit(NVDA, owner.address)).toBeNull();
+      });
+
+      it("rethrows when the node answers with an HTTP error", async () => {
+        answerRpc(() => new Response("upstream down", { status: 503 }));
+
+        await expect(probeStockPermit(NVDA, owner.address)).rejects.toThrow("HTTP request failed");
+      });
+
+      it("rethrows when the node rate limits the read", async () => {
+        answerRpc(({ id }) => rpcError(id, { code: -32005, message: "rate limited" }));
+
+        await expect(probeStockPermit(NVDA, owner.address)).rejects.toThrow();
+      });
     });
   });
 });

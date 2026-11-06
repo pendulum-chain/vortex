@@ -3349,7 +3349,7 @@ export interface components {
             expiresAt?: string;
             feeCurrency: components["schemas"]["RampCurrency"];
             from?: components["schemas"]["DestinationType"];
-            /** @description Stock corridor SELL only: whether the token supports a permit, so the seller needs no native gas. Registration can still issue the one-transfer fallback, which needs native gas. */
+            /** @description Stock corridor SELL only: whether the token supports a permit, so the seller needs no native gas. When true, registration issues that permit or answers 503. When false, it normally issues one wallet transfer, which needs native gas. */
             gasless?: boolean;
             /** @description Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in wei. It is already included in the network fee. Omitted when no reserve is due. */
             gasReserveAmount?: string;
@@ -7785,6 +7785,20 @@ export interface operations {
                     /**
                      * @example {
                      *       "message": "An unexpected error occurred."
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable. On `robinhood`, the Relay order or the token's permit could not be read while building the transactions. Nothing was registered; retry with a new quote. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "message": "Selling this token is temporarily unavailable. Please try again later."
                      *     }
                      */
                     "application/json": components["schemas"]["ErrorResponse"];

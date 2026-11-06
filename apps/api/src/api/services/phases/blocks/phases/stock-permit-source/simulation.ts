@@ -31,7 +31,20 @@ export interface StockPermitProbe {
   nonce: bigint;
 }
 
-/** Null means the token has no EIP-2612 permit, so the seller has to send it themselves. */
+// By name, because `@vortexfi/shared` bundles its own viem: what its clients throw fails `instanceof` against this package's copy.
+const NO_PERMIT_ERRORS = ["ContractFunctionRevertedError", "ContractFunctionZeroDataError"];
+
+function isNoPermitError(error: unknown): boolean {
+  for (let cause = error; cause instanceof Error; cause = cause.cause) {
+    if (NO_PERMIT_ERRORS.includes(cause.name)) return true;
+  }
+  return false;
+}
+
+/**
+ * Null means the token answered and has no EIP-2612 permit, so the seller has to send it themselves. A failed read says
+ * nothing about the token, and viem wraps both in the same `ContractFunctionExecutionError`, so that one rethrows.
+ */
 export async function probeStockPermit(symbol: StockSymbol, owner: `0x${string}`): Promise<StockPermitProbe | null> {
   const address = ROBINHOOD_STOCKS[symbol].address;
   const client = EvmClientManager.getInstance().getClient(Networks.Robinhood);
@@ -42,7 +55,7 @@ export async function probeStockPermit(symbol: StockSymbol, owner: `0x${string}`
     ]);
     return { domain: await resolveAlfredpayPermitDomain(client, address, getNetworkId(Networks.Robinhood), name), nonce };
   } catch (error) {
-    if (error instanceof Error && error.name === "ContractFunctionExecutionError") return null;
+    if (isNoPermitError(error)) return null;
     throw error;
   }
 }

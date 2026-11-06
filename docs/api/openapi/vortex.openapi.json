@@ -3603,7 +3603,7 @@
             "$ref": "#/components/schemas/DestinationType"
           },
           "gasless": {
-            "description": "Stock corridor SELL only: whether the token supports a permit, so the seller needs no native gas. Registration can still issue the one-transfer fallback, which needs native gas.",
+            "description": "Stock corridor SELL only: whether the token supports a permit, so the seller needs no native gas. When true, registration issues that permit or answers 503. When false, it normally issues one wallet transfer, which needs native gas.",
             "type": "boolean"
           },
           "gasReserveAmount": {
@@ -10795,6 +10795,20 @@
               }
             },
             "description": "Internal Server Error.",
+            "headers": {}
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "Selling this token is temporarily unavailable. Please try again later."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable. On `robinhood`, the Relay order or the token's permit could not be read while building the transactions. Nothing was registered; retry with a new quote.",
             "headers": {}
           }
         },

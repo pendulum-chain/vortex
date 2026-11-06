@@ -5,7 +5,9 @@ import {
   PRESIGNED_EVM_FEE_MULTIPLIER,
   type SignedTypedData
 } from "@vortexfi/shared";
+import httpStatus from "http-status";
 import { encodeFunctionData, erc20Abi } from "viem";
+import { APIError } from "../../../../../errors/api-error";
 import { requireAccount } from "../../core/accounts";
 import { ROBINHOOD_STOCKS } from "../../core/robinhood-stocks";
 import type { PrepareCtx, PreparedPhaseTxs, TxIntent } from "../../core/types";
@@ -118,6 +120,14 @@ export async function prepareStockPermitSourceTxs(
   ]);
   const state: StockPermitSourceState = { amountRaw, owner: facts.owner, token };
   if (!permit) {
+    // The quote promised a sale that needs no ETH. A wallet-paid transfer now could leave the seller unable to send it.
+    if (ctx.ownMetadata.gasless) {
+      throw new APIError({
+        isPublic: true,
+        message: "Selling this token is temporarily unavailable. Please try again later.",
+        status: httpStatus.SERVICE_UNAVAILABLE
+      });
+    }
     return {
       intents: [userTransferIntent(facts.owner, ephemeral, tokenAddress, amountRaw, fees)],
       state: { ...state, isNoPermitFallback: true }

@@ -10,7 +10,7 @@ import {
   RampDirection,
   type UnsignedTx
 } from "@vortexfi/shared";
-import { formatEther, parseUnits } from "viem";
+import { type Abi, ContractFunctionExecutionError, ContractFunctionZeroDataError, formatEther, HttpRequestError, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { runBlockQuoteFlow } from "../api/services/phases/blocks/core/quote";
 import { ROBINHOOD_STOCKS, type StockSymbol } from "../api/services/phases/blocks/core/robinhood-stocks";
@@ -365,10 +365,31 @@ describe("Robinhood Chain stock quotes, end to end", () => {
         const scripted = world.evm.onReadContract;
         world.evm.onReadContract = (network, params) => {
           if (params.functionName !== "nonces") return scripted?.(network, params);
-          throw Object.assign(new Error("no permit"), { name: "ContractFunctionExecutionError" });
+          throw new ContractFunctionExecutionError(new ContractFunctionZeroDataError({ functionName: "nonces" }), {
+            abi: params.abi as Abi,
+            args: params.args as unknown[],
+            functionName: "nonces"
+          });
         };
 
         expect((await createQuote(sellBody)).quote.gasless).toBe(false);
+      });
+
+      it("fails the SELL quote when the read itself failed, rather than saying the token has no permit", async () => {
+        const scripted = world.evm.onReadContract;
+        world.evm.onReadContract = (network, params) => {
+          if (params.functionName !== "nonces") return scripted?.(network, params);
+          throw new ContractFunctionExecutionError(new HttpRequestError({ status: 503, url: "https://rpc.invalid" }), {
+            abi: params.abi as Abi,
+            args: params.args as unknown[],
+            functionName: "nonces"
+          });
+        };
+
+        const response = await postQuote(sellBody);
+
+        expect(response.status).toBe(500);
+        expect(await response.text()).not.toContain("gasless");
       });
 
       it("is absent on a BUY", async () => {
