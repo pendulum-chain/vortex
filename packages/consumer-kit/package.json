@@ -1,0 +1,23 @@
+{
+  "name": "@vortexfi/consumer-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.js",
+    "./chains": "./src/chains.js",
+    "./privy": "./src/privy/index.js"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@vortexfi/sdk": "workspace:*",
+    "viem": "catalog:"
+  },
+  "peerDependencies": {
+    "@privy-io/react-auth": "^3.39.0",
+    "react": "19.2.0"
+  }
+}

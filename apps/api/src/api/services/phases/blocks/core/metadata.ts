@@ -3,6 +3,7 @@ import {
   type EvmNetworks,
   isNetworkEVM,
   Networks,
+  type ProviderCost,
   type QuoteFeeStructure,
   type RampCurrency
 } from "@vortexfi/shared";
@@ -42,6 +43,16 @@ export interface EvmDestinationGasQuote {
   transferGasLimit: string;
 }
 
+/** ETH delivered to the buyer's wallet at purchase, charged inside the network fee. */
+export interface GasReserveQuote {
+  amountRaw: string;
+  currency: "ETH";
+  fiat: string;
+  /** The wallet whose balance decided the amount. The ramp must deliver to this address. */
+  quotedFor?: string;
+  usd: string;
+}
+
 export interface FlowGlobals {
   evmDestinationGas?: EvmDestinationGasQuote;
   fees: {
@@ -49,8 +60,12 @@ export interface FlowGlobals {
     usd: { anchor: string; network: string; partnerMarkup: string; total: string; vortex: string };
     vortexFeePenPercentage?: number;
   };
+  gasless?: boolean;
+  gasReserve?: GasReserveQuote;
   partner: PartnerInfo | null;
+  providerCosts?: ProviderCost[];
   request: CreateQuoteRequest & { userId?: string };
+  routingStrategy?: "direct";
   subsidyDisplay?: { currency: RampCurrency; fiat: string; usd: string };
 }
 

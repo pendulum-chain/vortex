@@ -1,11 +1,17 @@
-import { CreateQuoteRequest, RampCurrency, RampDirection } from "@vortexfi/shared";
+import { CreateQuoteRequest, QuoteError, RampCurrency, RampDirection } from "@vortexfi/shared";
+import httpStatus from "http-status";
 import { Op } from "sequelize";
 import logger from "../../../../config/logger";
+import Partner from "../../../../models/partner.model";
 import ProfilePartnerAssignment from "../../../../models/profilePartnerAssignment.model";
+import { APIError } from "../../../errors/api-error";
 import { UUID_PATTERN } from "../../../helpers/uuid";
 import { findPartnerWithPricing, PartnerWithPricing } from "../../partners/partner-pricing.service";
 import { getTargetFiatCurrency } from "../../phases/blocks/core/helpers";
+import { isBrlPixRobinhoodRoute } from "../../phases/blocks/core/robinhood-stocks";
 import type { PartnerPricingSource } from "./types";
+
+const STOCKS_PRICING_PARTNER = "vortex-stocks";
 
 type QuotePartnerResolutionRequest = CreateQuoteRequest & {
   controllingManagerProfileId?: string;
@@ -52,6 +58,33 @@ async function findPartnerByIdForRamp(
   return partner;
 }
 
+/** Prices from the internal row whoever calls, and fails closed rather than quoting at default fees. */
+async function resolveStocksPartner(
+  request: QuotePartnerResolutionRequest,
+  fiatCurrency: RampCurrency
+): Promise<ResolvedQuotePartner> {
+  const partner = await findPartnerWithPricing({ name: STOCKS_PRICING_PARTNER }, request.rampType, fiatCurrency);
+  if (!partner) {
+    logger.error(`Pricing partner '${STOCKS_PRICING_PARTNER}' is missing or inactive for rampType=${request.rampType}.`);
+    throw new APIError({
+      isPublic: true,
+      message: QuoteError.FailedToCalculateQuote,
+      status: httpStatus.INTERNAL_SERVER_ERROR
+    });
+  }
+
+  const owner = request.partnerId
+    ? await Partner.findOne({
+        where: {
+          ...(UUID_PATTERN.test(request.partnerId) ? { id: request.partnerId } : { name: request.partnerId }),
+          isActive: true
+        }
+      })
+    : null;
+
+  return { ownerPartnerId: owner?.id ?? null, partner, pricingPartnerId: partner.id, source: "corridor" };
+}
+
 async function findAssignment(userId: string, now: Date): Promise<{ partnerId: string | null } | null> {
   const assignment = await ProfilePartnerAssignment.findOne({
     order: [["createdAt", "DESC"]],
@@ -70,6 +103,10 @@ export async function resolveQuotePartner(
   now = new Date()
 ): Promise<ResolvedQuotePartner> {
   const fiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
+
+  if (isBrlPixRobinhoodRoute(request)) {
+    return resolveStocksPartner(request, fiatCurrency);
+  }
 
   if (request.partnerId) {
     const partner = await findPartnerForRamp(request.partnerId, request.rampType, fiatCurrency);

@@ -1,4 +1,4 @@
-import { FiatToken } from "@vortexfi/shared";
+import { FiatToken, RampDirection } from "@vortexfi/shared";
 
 interface PriceProvider {
   baseUrl: string;
@@ -75,6 +75,40 @@ function readDisabledFiatCurrencies(): FiatToken[] {
     );
   }
   return symbols as FiatToken[];
+}
+
+/**
+ * `STOCKS_ENABLED_DIRECTIONS="BUY,SELL"`: per-direction switch for the Robinhood Chain stock corridor.
+ * Empty keeps it off. New quotes stop, ramps already registered keep executing. An unknown value
+ * aborts startup so a misspelled switch cannot stay silently inactive.
+ */
+function readStocksEnabledDirections(): RampDirection[] {
+  const directions = (process.env.STOCKS_ENABLED_DIRECTIONS || "")
+    .split(",")
+    .map(direction => direction.trim().toUpperCase())
+    .filter(Boolean);
+  const known: string[] = Object.values(RampDirection);
+  const unknown = directions.filter(direction => !known.includes(direction));
+  if (unknown.length > 0) {
+    throw new Error(`STOCKS_ENABLED_DIRECTIONS contains unknown directions: ${unknown.join(", ")} (expected BUY, SELL)`);
+  }
+  return directions as RampDirection[];
+}
+
+function readPositiveIntegerEnv(name: string, defaultValue: string): number {
+  const rawValue = (process.env[name] ?? defaultValue).trim();
+  if (!/^[1-9]\d*$/.test(rawValue) || !Number.isSafeInteger(Number(rawValue))) {
+    throw new Error(`${name} must be a positive integer (got '${rawValue}')`);
+  }
+  return Number(rawValue);
+}
+
+function readWeiEnv(name: string, defaultValue: string): bigint {
+  const rawValue = (process.env[name] ?? defaultValue).trim();
+  if (!/^\d+$/.test(rawValue)) {
+    throw new Error(`${name} must be a non-negative integer in wei (got '${rawValue}')`);
+  }
+  return BigInt(rawValue);
 }
 
 interface MykoboFeeFallback {
@@ -217,6 +251,15 @@ interface Config {
   };
   swap: {
     deadlineMinutes: number;
+  };
+  stocks: {
+    enabledDirections: RampDirection[];
+    gasReserveTargetWei: bigint;
+    gasReserveThresholdWei: bigint;
+    maxPriceDeviationBps: number;
+    priceReferenceMaxAgeHours: number;
+    settlementSubsidyMaxBps: number;
+    settlementSubsidyMaxUsd: string;
   };
   subsidy: {
     evmPostSwapDiscountSubsidyQuoteFraction: number;
@@ -500,6 +543,15 @@ export const config: Config = {
     ratingSheetId: process.env.GOOGLE_RATING_SPREADSHEET_ID,
     storageSheetId: process.env.GOOGLE_SPREADSHEET_ID
   },
+  stocks: {
+    enabledDirections: readStocksEnabledDirections(),
+    gasReserveTargetWei: readWeiEnv("ROBINHOOD_GAS_RESERVE_TARGET_WEI", "50000000000000"),
+    gasReserveThresholdWei: readWeiEnv("ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI", "20000000000000"),
+    maxPriceDeviationBps: readPositiveIntegerEnv("STOCKS_MAX_PRICE_DEVIATION_BPS", "200"),
+    priceReferenceMaxAgeHours: readPositiveIntegerEnv("STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS", "72"),
+    settlementSubsidyMaxBps: readPositiveIntegerEnv("STOCKS_SETTLEMENT_SUBSIDY_MAX_BPS", "250"),
+    settlementSubsidyMaxUsd: readPositiveDecimalEnv("STOCKS_SETTLEMENT_SUBSIDY_MAX_USD", "50")
+  },
   subscanApiKey: process.env.SUBSCAN_API_KEY,
 
   subsidy: {
@@ -518,6 +570,10 @@ export const config: Config = {
 };
 
 export const EVM_FUNDING_PRIVATE_KEY = process.env.EVM_FUNDING_PRIVATE_KEY ?? config.secrets.moonbeamExecutorPrivateKey;
+
+if (config.stocks.gasReserveTargetWei > 0n && config.stocks.gasReserveThresholdWei > config.stocks.gasReserveTargetWei) {
+  throw new Error("ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI must not exceed ROBINHOOD_GAS_RESERVE_TARGET_WEI");
+}
 
 if (config.sandboxEnabled && config.deploymentEnv !== "sandbox") {
   throw new Error(`SANDBOX_ENABLED=true requires DEPLOYMENT_ENV=sandbox (got '${config.deploymentEnv}'); refusing to start`);

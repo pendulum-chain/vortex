@@ -14,13 +14,27 @@ export enum EvmToken {
   ETH = "ETH",
   BRLA = "BRLA",
   EURC = "EURC",
-  POL = "POL"
+  POL = "POL",
+  USDG = "USDG",
+  SPY = "SPY",
+  TSLA = "TSLA",
+  NVDA = "NVDA",
+  AMZN = "AMZN",
+  AAPL = "AAPL",
+  GOOGL = "GOOGL",
+  MSFT = "MSFT",
+  QQQ = "QQQ",
+  SPCX = "SPCX",
+  META = "META",
+  MU = "MU",
+  SGOV = "SGOV"
 }
 
 export enum UsdLikeEvmToken {
   USDC = EvmToken.USDC,
   USDT = EvmToken.USDT,
-  USDCE = EvmToken.USDCE
+  USDCE = EvmToken.USDCE,
+  USDG = EvmToken.USDG
 }
 
 export interface EvmTokenDetails extends BaseTokenDetails {

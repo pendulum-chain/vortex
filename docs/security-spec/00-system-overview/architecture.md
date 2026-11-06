@@ -38,10 +38,11 @@ Vortex is a cross-border payment gateway that converts between fiat currencies (
 │  │(DB)     │ │(Auth)   │ │(RPC)     │ │(BRLA/Avenia,    │         │
 │  └─────────┘ └─────────┘ │Pendulum  │ │ Mykobo,         │         │
 │                           │Moonbeam* │ │ Alfredpay,      │         │
-│                           │AssetHub  │ │ Squid)          │         │
+│                           │AssetHub  │ │ Squid, Relay)   │         │
 │                           │Hydration │ └─────────────────┘         │
 │                           │Polygon   │                              │
 │                           │Base      │                              │
+│                           │Robinhood │                              │
 │                           └──────────┘                              │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -50,6 +51,8 @@ Vortex is a cross-border payment gateway that converts between fiat currencies (
 status polling, and automatic cleanup do not connect to it.
 
 **Base** is the hub for all BRL on/off-ramp flows: BRLA mint/burn via Avenia, Nabla swap on EVM, and sequential-transfer fee distribution. BRL flows do not touch Pendulum or Moonbeam.
+
+**Robinhood Chain** (4663) is the settlement chain of the BRL stock token corridor. Base still handles the BRL leg; Relay bridges Base USDC to and from USDG, and a pinned Uniswap V3 pool swaps USDG and the stock token. See `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`.
 
 ### Key Data Flows
 
@@ -65,7 +68,7 @@ status polling, and automatic cleanup do not connect to it.
 2. **Authentication and resource authorization are separate boundaries** — middleware authenticates the presented principal and rejects invalid or indeterminate credentials before controller logic. Controllers/services MUST additionally enforce ownership and authority after loading the referenced quote, ramp, webhook, recipient, or other resource.
 3. **The API server MUST NOT hold user private keys** — ephemeral keys are generated client-side (SDK/frontend). The server only receives addresses, never secrets.
 4. **Server-held secrets (funding keys, executor keys) MUST only be used for platform operations** — funding ephemeral accounts, executing subsidization, signing webhooks. Never for user-initiated transactions on behalf of the user's own assets.
-5. **All external service calls (BRLA, Mykobo, Alfredpay, chain RPCs) MUST be treated as untrusted** — responses must be validated, timeouts enforced, and failures handled without corrupting ramp state.
+5. **All external service calls (BRLA, Mykobo, Alfredpay, Relay, chain RPCs) MUST be treated as untrusted** — responses must be validated, timeouts enforced, and failures handled without corrupting ramp state.
 6. **Database state MUST be the single source of truth for ramp progress** — in-memory state is transient and may be lost on restart.
 7. **No single component compromise should grant access to all user funds** — the system should limit blast radius through key separation and least-privilege access.
 8. **All inter-chain transfers MUST be verified on both source and destination** — sending a transfer is not sufficient; the system must confirm receipt before advancing phases.

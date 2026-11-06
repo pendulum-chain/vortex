@@ -1,6 +1,6 @@
 # Overview
 
-Vortex is a cross-border payments gateway that moves value between fiat currencies and crypto assets. It coordinates quoting, cross-chain swaps via XCM, anchor settlement, and payout across networks such as Base, Polygon, Ethereum, Arbitrum, BSC, Avalanche, Pendulum, Stellar, Moonbeam, AssetHub, and Hydration.
+Vortex is a cross-border payments gateway that moves value between fiat currencies and crypto assets. It coordinates quoting, cross-chain swaps via XCM, anchor settlement, and payout across networks such as Base, Polygon, Ethereum, Arbitrum, BSC, Avalanche, Robinhood Chain, Pendulum, Stellar, Moonbeam, AssetHub, and Hydration.
 
 These docs are written for partner developers integrating Vortex into a backend, wallet, checkout flow, or operations dashboard. The endpoint reference documents the raw API surface; the guide pages explain the recommended integration sequence and the responsibilities that sit on the API client side.
 
@@ -8,7 +8,7 @@ These docs are written for partner developers integrating Vortex into a backend,
 
 The current SDK release supports BRL/PIX and bank-transfer corridors for USD (ACH), MXN (SPEI), COP (ACH), and ARS (CBU), where enabled by country and route configuration. EUR/SEPA buys are available in sandbox through the direct API, the Dashboard, and the Widget; production activation is pending, and SDK support ships with the next `@vortexfi/sdk` release (0.9.0 does not support EUR). The user onboards with the EUR provider and links the paying wallet in the Dashboard or Widget, and that wallet signs a typed-data permit for each buy. EUR sells are unavailable. AssetHub is not available for these corridors. Other fiat currencies are exposed through reference data endpoints and are added incrementally.
 
-For crypto, Vortex supports USDC and USDT across the listed EVM networks plus USDC on AssetHub. Stablecoin pegs and routes are subject to liquidity on the Nabla AMM and the wider Pendulum/Hydration corridor.
+For crypto, Vortex supports USDC and USDT across the listed EVM networks plus USDC on AssetHub. Where enabled, Robinhood Chain carries allowlisted stock tokens over BRL/PIX instead, as described in [Quotes And Pricing](https://api-docs.vortexfinance.co/quotes-and-pricing). Stablecoin pegs and routes are subject to liquidity on the Nabla AMM and the wider Pendulum/Hydration corridor.
 
 ## How A Ramp Flows
 

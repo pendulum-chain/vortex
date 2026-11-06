@@ -23,7 +23,23 @@ describe("Netlify headers", () => {
     });
   });
 
-  it("does not apply the anti-framing headers beyond gold", () => {
-    expect(headerRules.filter(rule => rule.values["X-Frame-Options"]).map(rule => rule.path)).toEqual(["/pt-br/gold/*"]);
+  it("keeps the stocks pilot out of frames and search results", () => {
+    expect(headerRules.find(rule => rule.path === "/pt-br/stocks/*")?.values).toMatchObject({
+      "Content-Security-Policy": "frame-ancestors 'none'",
+      "X-Frame-Options": "DENY",
+      "X-Robots-Tag": "noindex"
+    });
+  });
+
+  it("does not apply the anti-framing headers beyond the consumer apps", () => {
+    expect(headerRules.filter(rule => rule.values["X-Frame-Options"]).map(rule => rule.path)).toEqual(["/pt-br/gold/*", "/pt-br/stocks/*", "/en/stocks/*"]);
+  });
+
+  it("protects the English stocks edition and keeps it out of search before activation", () => {
+    expect(headerRules.find(rule => rule.path === "/en/stocks/*")?.values).toMatchObject({
+      "Content-Security-Policy": "frame-ancestors 'none'",
+      "X-Frame-Options": "DENY",
+      "X-Robots-Tag": "noindex"
+    });
   });
 });

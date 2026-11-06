@@ -22,12 +22,14 @@ import type { FlowIdentity } from "../core/identity";
 import { assertFlowIdentity } from "../core/identity";
 import type { FlowMetadata } from "../core/metadata";
 import { getFlowMetadata } from "../core/metadata";
+import { isStockSymbol } from "../core/robinhood-stocks";
 import type { Flow } from "../core/types";
 import { alfredpayOfframpFlow, makeAlfredpayOfframpFlow } from "./alfredpay-offramp";
 import { alfredpayOnrampCrossChainFlow, makeAlfredpayOnrampCrossChainFlow } from "./alfredpay-onramp-cross-chain";
 import { alfredpayOnrampDirectFlow, makeAlfredpayOnrampDirectFlow } from "./alfredpay-onramp-direct";
 import { brlOfframpAssethubUsdcFlow } from "./brl-offramp-assethub-usdc";
 import { brlOfframpBaseFlow, makeBrlOfframpBaseFlow } from "./brl-offramp-base";
+import { brlOfframpRobinhoodStockFlow, makeBrlOfframpRobinhoodStockFlow } from "./brl-offramp-robinhood-stock";
 import { brlOnrampAssethubUsdcFlow } from "./brl-onramp-assethub-usdc";
 import { brlOnrampBaseCrossChainFlow, makeBrlOnrampBaseCrossChainFlow } from "./brl-onramp-base-cross-chain";
 import { brlOnrampBaseDirectFlow } from "./brl-onramp-base-direct";
@@ -36,6 +38,7 @@ import {
   brlOnrampBaseSameChainSwapFlow,
   makeBrlOnrampBaseSameChainSwapFlow
 } from "./brl-onramp-base-same-chain";
+import { brlOnrampRobinhoodStockFlow, makeBrlOnrampRobinhoodStockFlow } from "./brl-onramp-robinhood-stock";
 import { eurOfframpBaseFlow, makeEurOfframpBaseFlow } from "./eur-offramp-base";
 import { eurOnrampBaseCrossChainFlow, makeEurOnrampBaseCrossChainFlow } from "./eur-onramp-base-cross-chain";
 import { eurOnrampBaseDirectFlow } from "./eur-onramp-base-direct";
@@ -133,6 +136,7 @@ const flowDefinitions: FlowDefinition[] = [
         request.outputCurrency === FiatToken.EURC &&
         request.to === EPaymentMethod.SEPA &&
         network !== undefined &&
+        network !== Networks.Robinhood &&
         isNetworkEVM(network) &&
         // Structural only: the flow input resolver rejects symbols unknown to the merged token
         // catalog at quote time. Matching must not depend on live token discovery, because
@@ -193,6 +197,7 @@ const flowDefinitions: FlowDefinition[] = [
         request.rampType === RampDirection.SELL &&
         request.outputCurrency === FiatToken.BRL &&
         network !== undefined &&
+        network !== Networks.Robinhood &&
         isNetworkEVM(network) &&
         // Structural only: the flow input resolver rejects symbols unknown to the merged token
         // catalog at quote time. Matching must not depend on live token discovery, because
@@ -219,6 +224,7 @@ const flowDefinitions: FlowDefinition[] = [
         isDomesticToken(request.outputCurrency) &&
         request.to === mapFiatToDestination(request.outputCurrency as FiatToken) &&
         network !== undefined &&
+        network !== Networks.Robinhood &&
         isNetworkEVM(network) &&
         isOnChainToken(request.inputCurrency) &&
         !isDormantMoneriumEure(request.inputCurrency)
@@ -294,6 +300,7 @@ const flowDefinitions: FlowDefinition[] = [
         !isDormantMoneriumEure(request.outputCurrency) &&
         network !== undefined &&
         network !== Networks.Base &&
+        network !== Networks.Robinhood &&
         isNetworkEVM(network)
       );
     },
@@ -379,6 +386,7 @@ const flowDefinitions: FlowDefinition[] = [
         !isDormantMoneriumEure(request.outputCurrency) &&
         network !== undefined &&
         network !== Networks.Polygon &&
+        network !== Networks.Robinhood &&
         isNetworkEVM(network)
       );
     }
@@ -400,7 +408,46 @@ const flowDefinitions: FlowDefinition[] = [
         !isDormantMoneriumEure(request.outputCurrency) &&
         network !== undefined &&
         network !== Networks.Base &&
+        network !== Networks.Robinhood &&
         isNetworkEVM(network)
+      );
+    }
+  },
+  {
+    create(request) {
+      if (!isStockSymbol(request.outputCurrency)) {
+        throw new APIError({ message: "Unsupported Robinhood Chain token", status: httpStatus.BAD_REQUEST });
+      }
+      return makeBrlOnrampRobinhoodStockFlow(request.outputCurrency);
+    },
+    executorFlow: brlOnrampRobinhoodStockFlow,
+    legacyCompatible: false,
+    matches(request) {
+      return (
+        request.rampType === RampDirection.BUY &&
+        request.to === Networks.Robinhood &&
+        request.from === EPaymentMethod.PIX &&
+        request.inputCurrency === FiatToken.BRL &&
+        isStockSymbol(request.outputCurrency)
+      );
+    }
+  },
+  {
+    create(request) {
+      if (!isStockSymbol(request.inputCurrency)) {
+        throw new APIError({ message: "Unsupported Robinhood Chain token", status: httpStatus.BAD_REQUEST });
+      }
+      return makeBrlOfframpRobinhoodStockFlow(request.inputCurrency);
+    },
+    executorFlow: brlOfframpRobinhoodStockFlow,
+    legacyCompatible: false,
+    matches(request) {
+      return (
+        request.rampType === RampDirection.SELL &&
+        request.from === Networks.Robinhood &&
+        request.to === EPaymentMethod.PIX &&
+        request.outputCurrency === FiatToken.BRL &&
+        isStockSymbol(request.inputCurrency)
       );
     }
   }

@@ -69,6 +69,10 @@ export function quoteToSigningNetworks(quote: FreshnessQuote): SigningNetworks {
         : undefined;
       if (inputTokenDetails && isEvmTokenDetails(inputTokenDetails)) {
         evm.add(Networks.Base);
+        // Stock sells also sign the source transfer and the swap on Robinhood Chain.
+        if (fromNetwork === Networks.Robinhood) {
+          evm.add(Networks.Robinhood);
+        }
       } else {
         substrate.add("pendulum");
       }

@@ -26,6 +26,19 @@ The phase processor in `state-machine.md` orchestrates execution. The authoritat
 - Supported EVM destination tokens must exist in `evmTokenConfig`.
 - `EurOnrampBase*` and `EurOfframpBase` Mykobo flows remain executable only for persisted recovery and are never candidates for new quotes. See `05-integrations/monerium.md` and `05-integrations/mykobo.md`.
 
+**BRL On-ramp to a stock token (Avenia, Relay, Uniswap on Robinhood Chain):** Pix → BRLA mint on Base → Nabla BRLA→USDC → fees → Relay to USDG → pinned Uniswap V3 USDG→stock → exact-amount settlement → buyer's wallet → gas reserve
+- Runtime phases (`BrlOnrampRobinhoodStock`): `initial` → `brlaOnrampMint` → `fundEphemeral` → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `distributeFees` → `subsidizePostSwap` → `relayBridge` → `uniswapApprove` → `uniswapSwap` → `stockSettlementTopUp` → `destinationTransfer` → `gasReserveTopUp` → `complete`.
+- The quote promises the exact token amount. `stockSettlementTopUp` covers any shortfall within its cap and pauses above it (`06-cross-chain/fund-routing.md` invariant 15, RISK-028). A surplus is swept after completion.
+- `gasReserveTopUp` sends the buyer the exact wei the quote charged. The tokens are already delivered, so it never fails the ramp; a wallet that rejects native ETH therefore leaves the ramp in this phase until an operator resolves it.
+
+**BRL Off-ramp from a stock token (Uniswap, Relay on Robinhood Chain, Avenia):** Stock on the seller's wallet → ephemeral → pinned Uniswap V3 stock→USDG → Relay deposit address → Base USDC → fees → Nabla USDC→BRLA → Pix
+- Runtime phases (`BrlOfframpRobinhoodStock`): `initial` → `fundEphemeral` → `stockPermitTransfer` → `uniswapApprove` → `uniswapSwap` → `relayBridge` → `distributeFees` → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `subsidizePostSwap` → `brlaPayoutOnBase` → `complete`.
+- `fundEphemeral` spends nothing until the seller can cover the sale. On the permit path it reads the owner's token balance: a short balance waits, and an expired permit fails the ramp with no funds moved. On the fallback it verifies the reported transfer first.
+- `stockPermitTransfer` submits the seller's EIP-2612 permit from the funding wallet, then broadcasts the ephemeral's exact `transferFrom`. Without a permit the seller sends one `squidRouterNoPermitTransfer`, verified by hash. The seller keeps the tokens until the pull, so only then can a dead end fail the ramp.
+- From `uniswapSwap` on, funds are on the ephemeral or with Relay. Failures on the route retry or pause and never fail the ramp.
+
+**Both stock flows** are off unless `STOCKS_ENABLED_DIRECTIONS` lists the direction, are matched by server-side allowlisted symbol (`core/robinhood-stocks.ts`), and hold an issuer pause (`paused()` or `oraclePaused()`) as recoverable, also failing closed when the flags cannot be read. `simulate` rejects an execution price worse than the Chainlink reference by more than `STOCKS_MAX_PRICE_DEVIATION_BPS`, or a stale reference. The swap is held below the soft minimum. See `05-integrations/relay.md` and `transaction-validation.md` invariant 11.
+
 **BRL Off-ramp (Avenia/BRLA on Base):** User's crypto on source EVM → Squid bridge to Base USDC (user-signed, client-side) → Nabla-on-Base swap (USDC→BRLA) → Avenia PIX payout
 - A Base BRLA source requires no Squid source route or network fee. Quote simulation values the BRLA at the BRL/USD oracle rate before entering the common Base offramp pricing pipeline, preserving the fiat peg rather than treating one BRLA as one USD.
 - Runtime backend phases: `initial` → `fundEphemeral` → `distributeFees` (on Base, USDC) → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `subsidizePostSwap` → `brlaPayoutOnBase` → `complete`
@@ -87,6 +100,7 @@ graph TD
     Provider -->|BRLA BRL on Base| BrlaMint[brlaOnrampMint - poll Base RPC, 30min/5min]
     Provider -->|Monerium EUR on Polygon| MonIssue[moneriumOnrampMint - wait for owner EURe delta]
     Provider -->|Alfredpay| AfMint[alfredpayOnrampMint]
+    Provider -->|BRLA BRL to stock token| StockMint[brlaOnrampMint]
 
     %% --- BRL Base route ---
     BrlaMint --> BrlaFund[fundEphemeral]
@@ -122,6 +136,16 @@ graph TD
     Backup -->|No| DestTransfer
     BackupSquid --> DestTransfer
 
+    %% --- Stock token route: same Base prefix as BRL, then Relay and a pinned swap on Robinhood Chain ---
+    StockMint --> StockBase["fundEphemeral to subsidizePostSwap (Base, as BRL above)"]
+    StockBase --> RelayBuy[relayBridge Base USDC to USDG]
+    RelayBuy --> StockApprove[uniswapApprove on Robinhood Chain]
+    StockApprove --> StockSwap[uniswapSwap USDG to stock]
+    StockSwap --> StockSettle[stockSettlementTopUp]
+    StockSettle --> StockDest[destinationTransfer on Robinhood Chain]
+    StockDest --> GasReserve[gasReserveTopUp]
+    GasReserve --> Complete
+
     %% --- Alfredpay branch: direct-token Polygon case short-circuits the swap, then final settlement subsidy runs before destinationTransfer ---
     AfMint --> AfFund[fundEphemeral]
     AfFund --> AfSquidSwap[squidRouterSwap]
@@ -153,6 +177,12 @@ graph TD
     %% The user-signed Squid bridge (source EVM -> Base USDC) is submitted client-side
     %% before the backend runtime starts. AssetHub -> BRL is cataloged for recovery but disabled at quote eligibility.
     Corridor -->|BRL on Base| BaseFund[fundEphemeral]
+    Corridor -->|BRL from stock token| StockFund[fundEphemeral on Robinhood Chain and Base]
+    StockFund --> StockPermit[stockPermitTransfer]
+    StockPermit --> StockApprove[uniswapApprove]
+    StockApprove --> StockSwap[uniswapSwap stock to Relay deposit address]
+    StockSwap --> RelaySell[relayBridge USDG to Base USDC]
+    RelaySell --> BaseDistEvm
     BaseFund --> BaseDistEvm["distributeFees (EVM branch)"]
     BaseDistEvm --> BaseSubPreEvm["subsidizePreSwap (EVM branch)"]
     BaseSubPreEvm --> BaseApproveEvm["nablaApprove (EVM branch)"]
@@ -179,7 +209,7 @@ graph TD
 > Notes:
 > - Persisted legacy `EurOfframpBase` ramps may still execute the former Mykobo branch through `mykoboPayoutOnBase`; no new quote can enter it.
 > - `BaseChainPostProcessHandler` sweeps the Base cleanup transactions present in ramp state. Phase-owned transaction preparation emits only the cleanup intents required by the resolved flow.
-> - `pendulumCleanup` and other chain-specific post-process handlers (`PolygonPostProcessHandler`) execute after `complete` via the post-process subsystem, not as in-flow phases. See `ephemeral-accounts.md`.
+> - `pendulumCleanup` and other chain-specific post-process handlers (`PolygonPostProcessHandler`, `RobinhoodPostProcessHandler`) execute after `complete` via the post-process subsystem, not as in-flow phases. See `ephemeral-accounts.md`.
 > - The dormant `BrlOfframpAssethubUsdc` definition uses only a Substrate ephemeral and preserves its historical AssetHub user-wallet blueprint plus contiguous Pendulum nonce sequence. Runtime registration/start are blocked before those validation or platform-funded phases execute.
 > - Pendulum pre/post-swap subsidy phases wait until the transferred balance is visible before advancing. Transient Pendulum RPC/submission failures remain recoverable, while a confirmed insufficient funding-account balance remains unrecoverable. A persisted Pendulum fee-distribution hash is checked for successful execution before the phase advances.
 > - The dormant Pendulum-to-Moonbeam executor retains its former BRLA-arrival accounting rule for review; no new XCM or GLMR subsidy is submitted while Moonbeam is retired.
@@ -195,6 +225,10 @@ graph TD
 | **DEX Swap (EVM)** | `blocks/phases/nabla-swap/execution.ts` | Base ephemeral → Nabla-on-Base contract → Base ephemeral |
 | **Bridge / XCM** | `blocks/phases/moonbeam-to-pendulum-xcm/execution.ts`, `blocks/phases/pendulum-to-assethub-xcm/execution.ts`, `blocks/phases/avenia-pendulum-offramp/execution.ts` | Source chain ephemeral → destination chain ephemeral |
 | **Fiat provider** | `blocks/phases/avenia-mint/execution.ts`, `blocks/phases/avenia-offramp-payout/execution.ts`, `blocks/phases/mykobo-mint/execution.ts`, `blocks/phases/mykobo-offramp-payout/execution.ts`, `blocks/phases/alfredpay-mint/execution.ts`, `blocks/phases/alfredpay-offramp/execution.ts` | Ephemeral ↔ provider |
+| **Relay** | `blocks/phases/stock-route/execution.ts` | Ephemeral → Relay → ephemeral on the other chain |
+| **DEX Swap (Uniswap)** | `blocks/phases/uniswap-v3-fixed-swap/execution.ts` | Ephemeral → pinned router → ephemeral, or the Relay deposit address on a stock SELL |
+| **Stock source** | `blocks/phases/stock-permit-source/execution.ts` | Seller's wallet → Robinhood Chain ephemeral |
+| **Stock settlement** | `blocks/phases/stock-settlement/execution.ts`, `blocks/phases/gas-reserve-top-up/execution.ts` | EVM funding account → ephemeral (stock), and → buyer's wallet (ETH) |
 | **SquidRouter** | `blocks/phases/squid-router-swap/execution.ts`, plus Alfredpay permit execution in `blocks/phases/alfredpay-offramp/execution.ts` | Ephemeral/executor → SquidRouter → destination |
 | **Fee distribution** | `blocks/phases/distribute-fees/execution.ts` (Substrate Pendulum + sequential ephemeral-signed ERC-20 transfers on Base/Polygon) | Ephemeral → platform fee collection address(es) |
 | **Lifecycle** | `blocks/core/initial-executor.ts`, `blocks/phases/destination-transfer/execution.ts` | Setup and final delivery |
@@ -202,10 +236,10 @@ graph TD
 ## Security Invariants
 
 1. **Phase ordering MUST match the expected corridor flow** — Each corridor has a fixed phase sequence. The phase processor MUST NOT allow out-of-order transitions. The phase handler's return value determines the next phase, and it MUST match the expected sequence for the ramp's corridor.
-2. **Subsidy amounts MUST be bounded** — Every subsidization handler (`subsidizePreSwap`, `subsidizePostSwap`, `fundEphemeral`, `finalSettlementSubsidy`) must enforce a maximum USD-equivalent cap to prevent draining the funding account on a single ramp. AlfredPay SELL additionally applies the partner and final-settlement caps during quote simulation, reducing the provider input/output when the target would exceed them; the runtime check remains defense in depth for bridge under-delivery. EVM pre/post-swap cap fractions are loaded from environment configuration and default to `0.05`. EVM `subsidizePostSwap` must not treat the top-up as one undifferentiated bucket: the actual-vs-quoted swap-output discrepancy and the discount-derived subsidy must each pass their own configured cap before any transfer is submitted.
+2. **Subsidy amounts MUST be bounded** — Every subsidization handler (`subsidizePreSwap`, `subsidizePostSwap`, `fundEphemeral`, `finalSettlementSubsidy`, `stockSettlementTopUp`) must enforce a maximum USD-equivalent cap to prevent draining the funding account on a single ramp. AlfredPay SELL additionally applies the partner and final-settlement caps during quote simulation, reducing the provider input/output when the target would exceed them; the runtime check remains defense in depth for bridge under-delivery. EVM pre/post-swap cap fractions are loaded from environment configuration and default to `0.05`. EVM `subsidizePostSwap` must not treat the top-up as one undifferentiated bucket: the actual-vs-quoted swap-output discrepancy and the discount-derived subsidy must each pass their own configured cap before any transfer is submitted.
 3. **Presigned transactions MUST be used in the correct phase** — `getPresignedTransaction(state, phase)` retrieves the transaction for a specific phase. A phase handler MUST NOT access presigned transactions for a different phase.
 4. **Token amounts at each phase MUST be traceable to the original quote** — The quote defines input/output amounts. Each phase should operate on amounts derived from the quote, not from untrusted runtime state.
-5. **Cross-chain advancement MUST use the strongest evidence available for that corridor** — Active Squid flows prefer terminal Squid/Axelar status and persist any route-scoped EVM balance fallback. Moonbeam-dependent flows MUST NOT advance while runtime retirement is active. Their dormant executors retain narrowly documented evidence exceptions in `06-cross-chain/xcm-transfers.md` and `RISK-REGISTER.md` that must be resolved before re-enablement.
+5. **Cross-chain advancement MUST use the strongest evidence available for that corridor** — Active Squid flows prefer terminal Squid/Axelar status and persist any route-scoped EVM balance fallback. Relay requires its terminal status plus the destination balance, and accepts the balance alone only while the status is unavailable (RISK-030). Moonbeam-dependent flows MUST NOT advance while runtime retirement is active. Their dormant executors retain narrowly documented evidence exceptions in `06-cross-chain/xcm-transfers.md` and `RISK-REGISTER.md` that must be resolved before re-enablement.
 6. **Fee distribution ordering is defined per corridor, not globally** — off-ramps run `distributeFees` **before** the swap (fees taken in USDC, the universal stablecoin, before the remainder swaps to the payout token); on-ramps run it **after** the swap (again in USDC). The corridor's phase sequence is the authority; see `fee-integrity.md` invariant 6. Distributed fees are final — a ramp that fails after `distributeFees` has no fee-refund path, which is accepted as RISK-010 and bounded by the recovery/retry design of the later phases.
 7. **Each phase handler MUST be idempotent or have re-execution guards** — If the phase processor retries a phase (due to timeout or recoverable error), the handler must not double-execute (double-swap, double-transfer, double-fund). EVM pre/post-swap subsidies bind their financial-operation identity to the target balance rather than the live shortfall or funding-wallet nonce, refresh the shortfall immediately before preparation, check funding balances before claiming a side effect, and only retry a failed claim after typed proof that gas estimation reverted before broadcast. The confirmed result persists the amount actually sent so subsidy bookkeeping replays that amount rather than a later balance observation.
 8. **SquidRouter RPC selection MUST be driven by block metadata `fromNetwork`** — `blocks/phases/squid-router-swap/execution.ts` resolves the network from `SquidRouterSwapContext` and passes it to `getClient(network)` for both approve and swap calls. Selecting the RPC from `inputCurrency` would mis-route Monerium's Polygon transactions or persisted Mykobo Base transactions to the destination chain.

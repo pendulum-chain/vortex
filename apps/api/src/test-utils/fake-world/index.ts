@@ -4,10 +4,11 @@ import { installBackgroundWorkTracking } from "./fake-background-work";
 import { type FakeEvm, installFakeChainIdRpc, installFakeEvm } from "./fake-evm";
 import { type FakeMonerium, installFakeMonerium } from "./fake-monerium";
 import { type FakePrices, installFakePrices } from "./fake-prices";
+import { type FakeRelay, installFakeRelay } from "./fake-relay";
 import { type FakeSquidRouter, installFakeSquidRouter } from "./fake-squidrouter";
 import { installFetchGuard } from "./fetch-guard";
 
-export type { FakeAlfredpay, FakeBrla, FakeEvm, FakeMonerium, FakeMykobo, FakePrices, FakeSquidRouter };
+export type { FakeAlfredpay, FakeBrla, FakeEvm, FakeMonerium, FakeMykobo, FakePrices, FakeRelay, FakeSquidRouter };
 export { installFakeChainIdRpc, installFetchGuard };
 
 export interface FakeWorld {
@@ -17,6 +18,7 @@ export interface FakeWorld {
   alfredpay: FakeAlfredpay;
   monerium: FakeMonerium;
   prices: FakePrices;
+  relay: FakeRelay;
   squidRouter: FakeSquidRouter;
   restore: () => void;
 }
@@ -34,6 +36,7 @@ export function installFakeWorld(): FakeWorld {
   const { fakeMonerium, restore: restoreMonerium } = installFakeMonerium();
   const { fakePrices, restore: restorePrices } = installFakePrices();
   const { fakeSquidRouter, restore: restoreSquidRouter } = installFakeSquidRouter();
+  const { fakeRelay, restore: restoreRelay } = installFakeRelay();
   // Not an external boundary, but fire-and-forget app work (the ramp-completion email
   // enqueue) must be trackable so truncateAllTables can wait for it between tests.
   const { restore: restoreBackgroundWorkTracking } = installBackgroundWorkTracking();
@@ -108,9 +111,11 @@ export function installFakeWorld(): FakeWorld {
     monerium: fakeMonerium,
     mykobo: fakeMykobo,
     prices: fakePrices,
+    relay: fakeRelay,
     restore: () => {
       ApiManager.getInstance = originalGetApiManager;
       restoreBackgroundWorkTracking();
+      restoreRelay();
       restoreSquidRouter();
       restorePrices();
       restoreMonerium();

@@ -328,6 +328,7 @@ export class FlowBuilder<O extends PhaseIO> {
             globals: {
               ...(ctx.evmDestinationGas ? { evmDestinationGas: ctx.evmDestinationGas } : {}),
               fees: ctx.fees as never,
+              ...(ctx.gasReserve ? { gasReserve: ctx.gasReserve } : {}),
               partner: ctx.partner,
               request: ctx.request
             }

@@ -1,4 +1,4 @@
-import { CleanupPhase, EvmClientManager, Networks, PresignedTx } from "@vortexfi/shared";
+import { CleanupPhase, EvmClientManager, EvmNetworks, Networks, PresignedTx } from "@vortexfi/shared";
 import { Transaction as EvmTransaction } from "ethers";
 import { erc20Abi } from "viem";
 import logger from "../../../../config/logger";
@@ -9,6 +9,9 @@ import { BasePostProcessHandler } from "./base-post-process-handler";
 const BASE_CLEANUP_PHASES: CleanupPhase[] = ["baseCleanupBrla", "baseCleanupUsdc", "baseCleanupEurc", "baseCleanupAxlUsdc"];
 
 export class BaseChainPostProcessHandler extends BasePostProcessHandler {
+  protected readonly network: EvmNetworks = Networks.Base;
+  protected readonly cleanupPhases: CleanupPhase[] = BASE_CLEANUP_PHASES;
+
   public getCleanupName(): CleanupPhase {
     return "baseCleanupBrla";
   }
@@ -25,7 +28,7 @@ export class BaseChainPostProcessHandler extends BasePostProcessHandler {
       return false;
     }
 
-    return BASE_CLEANUP_PHASES.some(phase => this.getPresignedTransaction(state, phase) !== undefined);
+    return this.cleanupPhases.some(phase => this.getPresignedTransaction(state, phase) !== undefined);
   }
 
   public async process(state: RampState): Promise<[boolean, Error | null]> {
@@ -34,7 +37,7 @@ export class BaseChainPostProcessHandler extends BasePostProcessHandler {
       return [false, this.createErrorObject("No EVM ephemeral address found in state")];
     }
 
-    for (const phase of BASE_CLEANUP_PHASES) {
+    for (const phase of this.cleanupPhases) {
       const presignedTx = this.getPresignedTransaction(state, phase);
       if (!presignedTx) {
         continue;
@@ -64,7 +67,7 @@ export class BaseChainPostProcessHandler extends BasePostProcessHandler {
       }
 
       const evmClientManager = EvmClientManager.getInstance();
-      const publicClient = evmClientManager.getClient(Networks.Base);
+      const publicClient = evmClientManager.getClient(this.network);
 
       const balance = await publicClient.readContract({
         abi: erc20Abi,
@@ -74,20 +77,20 @@ export class BaseChainPostProcessHandler extends BasePostProcessHandler {
       });
 
       if (balance === 0n) {
-        logger.info(`Base cleanup ${phase} for ramp ${state.id}: ephemeral has zero balance, skipping`);
+        logger.info(`${this.network} cleanup ${phase} for ramp ${state.id}: ephemeral has zero balance, skipping`);
         return [true, null];
       }
 
-      const txHash = await evmClientManager.sendRawTransactionWithRetry(Networks.Base, signedApproveTx as `0x${string}`);
+      const txHash = await evmClientManager.sendRawTransactionWithRetry(this.network, signedApproveTx as `0x${string}`);
       const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
       if (!approveReceipt || approveReceipt.status !== "success") {
         return [false, this.createErrorObject(`Approve tx ${txHash} for ${phase} failed`, phase)];
       }
 
-      const fundingAccount = getEvmFundingAccount(Networks.Base);
-      const walletClient = evmClientManager.getWalletClient(Networks.Base, fundingAccount);
+      const fundingAccount = getEvmFundingAccount(this.network);
+      const walletClient = evmClientManager.getWalletClient(this.network, fundingAccount);
 
-      const [transferFromHash, transferReceipt] = await runSerializedEvmFundingOperation(Networks.Base, async () => {
+      const [transferFromHash, transferReceipt] = await runSerializedEvmFundingOperation(this.network, async () => {
         const hash = await walletClient.writeContract({
           abi: erc20Abi,
           address: tokenAddress,
@@ -100,10 +103,10 @@ export class BaseChainPostProcessHandler extends BasePostProcessHandler {
         return [false, this.createErrorObject(`transferFrom tx ${transferFromHash} for ${phase} failed`, phase)];
       }
 
-      logger.info(`Successfully swept ${balance} tokens for Base cleanup ${phase} on ramp ${state.id}`);
+      logger.info(`Successfully swept ${balance} tokens for ${this.network} cleanup ${phase} on ramp ${state.id}`);
       return [true, null];
     } catch (e) {
-      return [false, this.createErrorObject(`Error in Base cleanup ${phase}: ${e}`, phase)];
+      return [false, this.createErrorObject(`Error in ${this.network} cleanup ${phase}: ${e}`, phase)];
     }
   }
 }

@@ -55,6 +55,11 @@ transaction preparation, phase ordering, and executor registration. The catalog
  the Polygon Monerium EUR onramp, plus the AlfredPay flows,
  expressed as flow *families* parameterized by destination chain and token
  where needed.
+The two BRL stock token flows settle on Robinhood Chain and are parameterized by
+allowlisted stock symbol. All 12 instances of a flow share one identity, and
+the executor flow is the NVDA instance. `StockRoute` is one block for the Relay
+bridge and the Uniswap swap, because their amounts chain and the sell swap pays
+the deposit address only the bridge order produces.
 The Monerium issue, owner-to-ephemeral self-transfer, and fixed Polygon Uniswap V3
 EURe-to-USDC blocks compose the active SEPA/EUR BUY flow. Issue execution uses a
 persisted owner-balance baseline and waits for the quoted post-fee EURe delta.
@@ -101,16 +106,21 @@ apps/api/src/api/services/phases/blocks/
     prepare.ts                                 # nonce allocation + native prefunding aggregation
     quote.ts                                   # production simulation, validation, persistence
     quote-response.ts                          # public response from flow metadata
+    robinhood-stocks.ts                        # per-symbol pins, issuer flags, Chainlink price guard
     settlement.ts                              # structural settlement baseline helpers
   flows/catalog.ts                             # authoritative request -> flow mapping
   register-handlers.ts                         # catalog-derived executor registration
   phases/                                      # one directory per block-owned phase
     alfredpay-{mint,offramp}/                  # provider lifecycle and execution
-    avenia-{direct-mint,mint,moonbeam-mint}/   # BRL onramp variants
+    avenia-{direct-mint,mint,moonbeam-mint,stock-mint}/ # BRL onramp variants
     avenia-{offramp-fee,offramp-payout,pendulum-offramp}/
     mykobo-{mint,offramp-fee,offramp-payout}/  # legacy EUR recovery phases
     monerium-{issue,self-transfer}/            # active EUR issue/self-transfer phases
-    uniswap-v3-fixed-swap/                     # pinned Polygon EURe/USDC conversion
+    uniswap-v3-fixed-swap/                     # pinned Uniswap V3 routes: Polygon EURe/USDC and stock tokens
+    stock-route/                               # Relay bridge plus Uniswap swap on Robinhood Chain, both directions
+    stock-permit-source/                       # seller's permit and pull, or one verified transfer
+    stock-settlement/                          # exact-amount top-up and the stock cleanup approval
+    gas-reserve-top-up/                        # ETH the quote charged, sent to the buyer
     {evm,assethub}-offramp-source/             # source validation and tx plans
     fund-ephemeral/                            # EVM/Substrate funding and source-hash checks
     nabla-swap/                                # EVM Nabla simulation, txs, and executors
@@ -129,8 +139,10 @@ apps/api/src/api/services/phases/blocks/
     brl-onramp-base-direct.ts                  # BRL -> BRLA on Base
     brl-onramp-base-same-chain.ts              # Base USDC passthrough and routed Base outputs
     brl-onramp-base-cross-chain.ts             # makeBrlOnrampBaseCrossChainFlow(toChain, toToken)
+    brl-onramp-robinhood-stock.ts              # makeBrlOnrampRobinhoodStockFlow(token)
     brl-onramp-assethub-usdc.ts                # disabled public corridor, retained for recovery
     brl-offramp-base.ts                        # supported EVM source -> BRL on Base
+    brl-offramp-robinhood-stock.ts             # makeBrlOfframpRobinhoodStockFlow(token)
     brl-offramp-assethub-usdc.ts               # disabled public corridor, retained for recovery
     eur-onramp-base-direct.ts                  # legacy Mykobo recovery
     eur-onramp-base-same-chain.ts              # legacy Mykobo recovery
@@ -339,13 +351,20 @@ route.
 |--------------|------|--------------|-----------|
 | `nablaApprove`, `nablaSwap` | main | `NablaSwap` | its executors broadcast them; amounts from `nablaSwapEvm` |
 | `uniswapApprove`, `uniswapSwap` | main | `PolygonEureUsdcUniswapSwap` | exact EURe approval and pinned-path `exactInput` conversion (EURe → USDC.e → USDC) |
+| `relayApprove`, `relayBridge` | main | `StockRouteBuy` | Base approve and deposit of the validated Relay order |
+| `uniswapApprove`, `uniswapSwap` | main | `StockRouteBuy`, `StockRouteSell` | exact approval and pinned one-hop `multicall(deadline, [exactInput])`; on a sell the recipient is the Relay deposit address, so the swap is the deposit |
+| `stockPermitTransfer` | main | `StockPermitSource` | seller's typed-data permit and the ephemeral's exact `transferFrom` |
+| `squidRouterNoPermitTransfer` | main | `StockPermitSource` | seller-broadcast `transfer`, for a token without a permit |
 | `distributeFees` | main | `DistributeFees` | fee amounts from `quote.metadata.fees` |
 | `squidRouterApprove`, `squidRouterSwap` | main | `SquidRouterSwap` | bridge input from `evmToEvm` |
 | `destinationTransfer` | main | `DestinationTransfer` | delivers `quote.outputAmount` to the user |
 | `backupSquidRouterApprove`, `backupSquidRouterSwap`, `backupApprove` | backup | `SquidRouterSwap` | contingency for *its* bridge falling short |
+| `stockBackupApprove` | backup | `StockRouteBuy`, `StockRouteSell` | operator recovery of the swap input, with `reuseFirstMainNonce` |
+| `relayBackupApprove` | backup | `StockRouteSell` | operator recovery of a Relay refund, with `reuseFirstMainNonce` |
 | `baseCleanupBrla` | cleanup | `AveniaMint` | sweeps dust of the token *it* minted |
 | `baseCleanupUsdc` | cleanup | `NablaSwap` | sweeps dust of *its* swap output |
 | `polygonCleanup`, `alfredOnrampMintFallback` | cleanup | `AlfredpayMint` | cleanup and contingency transfer for its minted token |
+| `robinhoodCleanupStock` | cleanup | `StockSettlement` | sweeps a stock surplus after completion |
 
 For AlfredPay, `SquidRouterSwap` owns the Polygon source approve/swap and the
 destination backup lane, using the phase-owned
@@ -356,6 +375,10 @@ destination backup lane, using the phase-owned
 owned `blockState`. Avenia owns its tax identifier, Nabla owns its soft
 minimum, and Squid owns its route identifiers. Native call value belongs to
 the flow-level transaction plan.
+
+Every ephemeral transaction is signed for five consecutive nonces, so a
+`reuseFirstMainNonce` backup stays broadcastable however far the main lane has
+got. No executor broadcasts `stockBackupApprove` or `relayBackupApprove`.
 
 ### `assemblePhaseFlow` (`core/phase-flow.ts`)
 
@@ -388,6 +411,12 @@ same contract under `phases/`.
 | `MoneriumIssue(chain, fee)` | `moneriumIssue` | `["moneriumOnrampMint"]` |
 | `MoneriumSelfTransfer<Chain>()` | `moneriumSelfTransfer` | `["moneriumOnrampSelfTransfer"]` |
 | `PolygonEureUsdcUniswapSwap` | `uniswapV3FixedSwap` | `["uniswapApprove", "uniswapSwap"]` |
+| `AveniaStockMint` | `aveniaMint` | `["brlaOnrampMint"]` |
+| `StockPermitSource(token)` | `stockPermitSource` | `["stockPermitTransfer"]` |
+| `StockRouteBuy(token)` | `stockRoute` | `["relayBridge", "uniswapApprove", "uniswapSwap"]` |
+| `StockRouteSell(token)` | `stockRoute` | `["uniswapApprove", "uniswapSwap", "relayBridge"]` |
+| `StockSettlement(token)` | `stockSettlement` | `["stockSettlementTopUp"]` |
+| `GasReserveTopUp(token)` | `gasReserveTopUp` | `["gasReserveTopUp"]` |
 | `FundEphemeral(token, chain)` | `fundEphemeral` | `["fundEphemeral"]` |
 | `SubsidizePre<Token, Chain>()` | `subsidizePreSwap` | `["subsidizePreSwap"]` |
 | `NablaSwap(chain, in, out)` | `nablaSwap` | `["nablaApprove", "nablaSwap"]` |
@@ -400,6 +429,16 @@ same contract under `phases/`.
 `SquidRouterSwap` derives the bridge target from its **own** `toToken` /
 `toChain` args (not from `ctx.request.outputCurrency`) — the phase carries
 its complete contract in its signature.
+
+Only one executor class may own a phase name, so `PolygonEureUsdcUniswapSwap`
+and `StockRoute` share `UniswapApproveExecutor` and `UniswapSwapExecutor`.
+`resolveUniswapRoute` reads `blocks.stockRoute.swap` when present and the Polygon
+context otherwise, and trusts stock metadata only as far as it matches
+`core/robinhood-stocks.ts`. A stock route never fails the ramp, because its funds
+are on the ephemeral or with Relay: mismatches, mined reverts and journal verdicts
+pause for reconciliation, and RPC failures, simulated reverts, issuer pauses and
+fills below the soft minimum retry. Polygon behaviour is unchanged.
+`SubsidizePost({ routeValueProbe: false })` skips the Squid probe on these routes.
 
 For persisted legacy flows, `MykoboMint.register` derives the approved Mykobo customer from the authenticated
 user, creates the provider deposit intent against the Base EVM ephemeral, and
@@ -536,6 +575,7 @@ Their values no longer overwrite one shared `subsidy` key.
 | `Networks` | `Base` | `"base"` |
 | `Networks` | `Arbitrum` | `"arbitrum"` |
 | `Networks` | `Polygon` | `"polygon"` |
+| `Networks` | `Robinhood` | `"robinhood"` |
 
 **Gotcha:** `FiatToken.BRL` is `"BRL"` but `EvmToken.BRLA` is `"BRLA"`
 (and `FiatToken.EURC` is `"EUR"` vs `EvmToken.EURC` `"EURC"`) — different
@@ -557,6 +597,8 @@ declared signature bridges them.
 | `SubsidizePre<Token, Chain>()` | type-args only | ctx-derived |
 | `SubsidizePost<Token, Chain>()` | type-args only | ctx-derived |
 | `FinalSettlementSubsidy<Token, Chain>()` | type-args only | ctx-derived |
+| `AveniaStockMint` | plain `const` (no generics) | no runtime variability |
+| `StockRouteBuy(token)`, `StockRouteSell(token)`, `StockPermitSource(token)`, `StockSettlement(token)`, `GasReserveTopUp(token)` | generic function with a runtime arg | the symbol selects its pins and its output brand |
 | `DestinationTransfer<Token, Chain>()` | type-args only | pure passthrough in simulation |
 
 **Brands are always enum member types** (`typeof EvmToken.BRLA`,
@@ -608,6 +650,12 @@ Unmapped cases fail at quote resolution; there is no alternate engine:
    an expired order cannot be replaced
    without degrading them, execution pauses before the single-use provider transfer
    and leaves the funds on the client-held Polygon ephemeral for reconciliation.
+10. **Stock selection is per allowlisted symbol.** `matches` accepts only
+    `robinhood`, BRL, Pix and a symbol on the allowlist, never a contract address.
+    The `STOCKS_ENABLED_DIRECTIONS` switch is a quote gate rather than part of
+    `matches`, which also runs on persisted quotes. The stock definitions come last
+    in the catalog, because `getBlockFlowHandlers` keeps the first executor instance
+    per phase, and they are not `legacyCompatible`.
 
 ### Runtime ownership
 

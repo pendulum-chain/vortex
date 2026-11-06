@@ -1,0 +1,1333 @@
+[
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200000000",
+        "amountUsd": "199.974600",
+        "minimumAmount": "200000000"
+      },
+      "currencyOut": {
+        "amount": "199906237",
+        "amountUsd": "199.879050",
+        "minimumAmount": "195908112"
+      },
+      "totalImpact": {
+        "usd": "-0.095550"
+      }
+    },
+    "name": "std",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200000000",
+                "chainId": "base",
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1794480920,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                },
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1794480920,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "robinhood",
+            "deadline": 1794480920,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "expectedAmount": "199906237",
+                "minimumAmount": "195908112",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0x178059837e7e93fc061fb8613db740eff19750496637ed5709a469056eca9b69",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0x9048c1ec2258bc8ca79140de65f19bb5bfcc33816858b234d2562bd5a20d4808",
+        "paymentDetails": {
+          "amount": "200000000",
+          "chainId": "base",
+          "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x1793876120e2cc6f1c19f27b968ffa8617716d160318eba34715e35a0a688619",
+    "steps": [
+      {
+        "id": "approve",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0x095ea7b30000000000000000000000004cd00e387622c35bddb9b4c962c136462338bc31000000000000000000000000000000000000000000000000000000000bebc200",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "73112",
+              "maxFeePerGas": "6500000",
+              "maxPriorityFeePerGas": "1000000",
+              "to": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x1793876120e2cc6f1c19f27b968ffa8617716d160318eba34715e35a0a688619"
+      },
+      {
+        "depositAddress": "",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0xe8017952000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000000000000000000000000000000000000bebc2009048c1ec2258bc8ca79140de65f19bb5bfcc33816858b234d2562bd5a20d4808",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "75909",
+              "maxFeePerGas": "6500000",
+              "maxPriorityFeePerGas": "1000000",
+              "to": "0x4cd00e387622c35bddb9b4c962c136462338bc31",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x1793876120e2cc6f1c19f27b968ffa8617716d160318eba34715e35a0a688619"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200000000",
+        "amountUsd": "199.974600",
+        "minimumAmount": "200000000"
+      },
+      "currencyOut": {
+        "amount": "199902500",
+        "amountUsd": "199.875313",
+        "minimumAmount": "195904450"
+      },
+      "totalImpact": {
+        "usd": "-0.099287"
+      }
+    },
+    "name": "dep",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200000000",
+                "chainId": "base",
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1809428120,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                },
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1809428120,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "robinhood",
+            "deadline": 1809428120,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "expectedAmount": "199902500",
+                "minimumAmount": "195904450",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0x00b6688bce7f659f5d2f887d0a4dd4a52dadcf0ae86bd0eaaadbc0668d6ada3c",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0x812103782ed9c21e0f0196b0cbd8bd856a13c0684525ac3dd9a87d29dc2db966",
+        "paymentDetails": {
+          "amount": "200000000",
+          "chainId": "base",
+          "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x17938761201b26582a8a8c5a3b5801fda4a7b4b746b1b14371c4704b49e1703f",
+    "steps": [
+      {
+        "depositAddress": "0xd5e4c398cfca0dd804d9c864e0f9809b50889313",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0xa9059cbb000000000000000000000000d5e4c398cfca0dd804d9c864e0f9809b50889313000000000000000000000000000000000000000000000000000000000bebc200",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "81885",
+              "maxFeePerGas": "6500000",
+              "maxPriorityFeePerGas": "1000000",
+              "to": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x17938761201b26582a8a8c5a3b5801fda4a7b4b746b1b14371c4704b49e1703f"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200000000",
+        "amountUsd": "199.941000",
+        "minimumAmount": "200000000"
+      },
+      "currencyOut": {
+        "amount": "199877192",
+        "amountUsd": "199.819627",
+        "minimumAmount": "195879648"
+      },
+      "totalImpact": {
+        "usd": "-0.121373"
+      }
+    },
+    "name": "buy_ei",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200000000",
+                "chainId": "base",
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1794510690,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                },
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1794510690,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "robinhood",
+            "deadline": 1794510690,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "expectedAmount": "199877192",
+                "minimumAmount": "195879648",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0xb2d6fa695cf26055a6eb3d3186b131e4ef711bd1244e3c03a970d0806370efc6",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0xfad30d110d725054ff14e3537a997a213ce7ba278056535457c6b0bb9206b7c1",
+        "orderSignature": "0xb8b9f80d0602a831e2ae67162024610aa312c62aa86b13946b6a065ecc1a59667786a8c3044e33aac54c4b859b56cbaa201fa93e037eaab7c55be5e2f26af4021c",
+        "paymentDetails": {
+          "amount": "200000000",
+          "chainId": "base",
+          "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x179390589086373621852a758945dc4ca6955d8c38c66e34a6a8c2da3f61119d",
+    "steps": [
+      {
+        "id": "approve",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0x095ea7b30000000000000000000000004cd00e387622c35bddb9b4c962c136462338bc31000000000000000000000000000000000000000000000000000000000bebc200",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "73112",
+              "maxFeePerGas": "6500000",
+              "maxPriorityFeePerGas": "1000000",
+              "to": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x179390589086373621852a758945dc4ca6955d8c38c66e34a6a8c2da3f61119d"
+      },
+      {
+        "depositAddress": "",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0xe8017952000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000000000000000000000000000000000000bebc200fad30d110d725054ff14e3537a997a213ce7ba278056535457c6b0bb9206b7c1",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "75909",
+              "maxFeePerGas": "6500000",
+              "maxPriorityFeePerGas": "1000000",
+              "to": "0x4cd00e387622c35bddb9b4c962c136462338bc31",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x179390589086373621852a758945dc4ca6955d8c38c66e34a6a8c2da3f61119d"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200122893",
+        "amountUsd": "200.063857",
+        "minimumAmount": "200122893"
+      },
+      "currencyOut": {
+        "amount": "200000000",
+        "amountUsd": "199.942400",
+        "minimumAmount": "200000000"
+      },
+      "totalImpact": {
+        "usd": "-0.121457"
+      }
+    },
+    "name": "buy_eo",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200122893",
+                "chainId": "base",
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1794510693,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                },
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1794510693,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "robinhood",
+            "deadline": 1794510693,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "expectedAmount": "200000000",
+                "minimumAmount": "200000000",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0xfa71bf2793f7383490ee96b1120748be28e2b151c37e94cb9e94066487e6175d",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0xccbdae14588bed3de2c8e9f6ac511d247ee54ec971fbbfbb3359d897590447e8",
+        "paymentDetails": {
+          "amount": "200122893",
+          "chainId": "base",
+          "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x1793905892ed8f9232fb8bd3ad4872c7dda79e5343c82846e2bc0c9d31b5a89e",
+    "steps": [
+      {
+        "id": "approve",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0x095ea7b30000000000000000000000004cd00e387622c35bddb9b4c962c136462338bc31000000000000000000000000000000000000000000000000000000000beda20d",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "73127",
+              "maxFeePerGas": "6680643",
+              "maxPriorityFeePerGas": "1178518",
+              "to": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x1793905892ed8f9232fb8bd3ad4872c7dda79e5343c82846e2bc0c9d31b5a89e"
+      },
+      {
+        "depositAddress": "",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0xe8017952000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000000000000000000000000000000000000beda20dccbdae14588bed3de2c8e9f6ac511d247ee54ec971fbbfbb3359d897590447e8",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "75925",
+              "maxFeePerGas": "6680643",
+              "maxPriorityFeePerGas": "1178518",
+              "to": "0x4cd00e387622c35bddb9b4c962c136462338bc31",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x1793905892ed8f9232fb8bd3ad4872c7dda79e5343c82846e2bc0c9d31b5a89e"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200000000",
+        "amountUsd": "199.941000",
+        "minimumAmount": "200000000"
+      },
+      "currencyOut": {
+        "amount": "199873623",
+        "amountUsd": "199.816059",
+        "minimumAmount": "195876151"
+      },
+      "totalImpact": {
+        "usd": "-0.124941"
+      }
+    },
+    "name": "buy_ei_strict",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200000000",
+                "chainId": "base",
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1809457895,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                },
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1809457895,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "robinhood",
+            "deadline": 1809457895,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "expectedAmount": "199873623",
+                "minimumAmount": "195876151",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0xc07bc2056e97ab8457bd71817668c989d19623fa225ba446d9a1162df3c6ccb5",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0xdfc1a40ece2714079a0974e4b1430ae167d8107f7ff6d1efef7af1916e715494",
+        "orderSignature": "0x1d516e02e750075d39b93d105660bafc51a42faea7cc4bfe440aaf1368ac82884ee28cf28724b3415ff9e10b8ab88d0fc2fd2d493efbbf3207a0f0e6615c2e471c",
+        "paymentDetails": {
+          "amount": "200000000",
+          "chainId": "base",
+          "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x1793905895ab5c062dc4cefa1d035625f5ab53c594bc7748df8157115ffb76f2",
+    "steps": [
+      {
+        "depositAddress": "0xDF6A4f54432d3AD009bAa046F0D1161595555aB3",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0xa9059cbb000000000000000000000000df6a4f54432d3ad009baa046f0d1161595555ab3000000000000000000000000000000000000000000000000000000000bebc200",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "81885",
+              "maxFeePerGas": "6678518",
+              "maxPriorityFeePerGas": "1178518",
+              "to": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x1793905895ab5c062dc4cefa1d035625f5ab53c594bc7748df8157115ffb76f2"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200126809",
+        "amountUsd": "200.067772",
+        "minimumAmount": "200126809"
+      },
+      "currencyOut": {
+        "amount": "200000000",
+        "amountUsd": "199.942400",
+        "minimumAmount": "200000000"
+      },
+      "totalImpact": {
+        "usd": "-0.125372"
+      }
+    },
+    "name": "buy_eo_strict",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200126809",
+                "chainId": "base",
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1809457897,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                },
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1809457897,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "robinhood",
+            "deadline": 1809457897,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "expectedAmount": "200000000",
+                "minimumAmount": "200000000",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0x73f7788ff7064b724eecbf683928835c5f9dc243aa706f91d03135808aec1e70",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0x824a754994fad14f8cda9f7c6a4bddbfa57a88759ac3a54e208117238ce89816",
+        "orderSignature": "0x9c5e6355eecf4e0957b7a5b1e3dc003b853d11efae20aea151cb61e887176d9504202f0504f528fd663a8d8023468c7d82edca4e7b616bb512c96657110bf1351c",
+        "paymentDetails": {
+          "amount": "200126809",
+          "chainId": "base",
+          "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x1793905897feb98f17504e2acc97fc983b77ced7bfc032bcb438723df6dafd68",
+    "steps": [
+      {
+        "depositAddress": "0xA1559bD8Cc8DcbDa118f69B22a6Cb7bfF72b4460",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0xa9059cbb000000000000000000000000a1559bd8cc8dcbda118f69b22a6cb7bff72b4460000000000000000000000000000000000000000000000000000000000bedb159",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "81901",
+              "maxFeePerGas": "7442056",
+              "maxPriorityFeePerGas": "1942056",
+              "to": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x1793905897feb98f17504e2acc97fc983b77ced7bfc032bcb438723df6dafd68"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200000000",
+        "amountUsd": "199.945400",
+        "minimumAmount": "200000000"
+      },
+      "currencyOut": {
+        "amount": "199894366",
+        "amountUsd": "199.835397",
+        "minimumAmount": "195896479"
+      },
+      "totalImpact": {
+        "usd": "-0.110003"
+      }
+    },
+    "name": "sell_ei",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200000000",
+                "chainId": "robinhood",
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1794510704,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                },
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1794510704,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "base",
+            "deadline": 1794510704,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "expectedAmount": "199894366",
+                "minimumAmount": "195896479",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0x37f8fc46b08542fc39f19231a0c8724e4f0eaef70a924efa5f19f5d128b00154",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0x0d5b059795de23dcd791163a30d54ad8c551c07bf32c7fe98634fb8d4c51d10a",
+        "orderSignature": "0x605b97a6b231cc2d9374c38f26a79b7ef1890209be3e3b9f30ed0e91920728de4f1ab6f68af0f7a81054d120081987498ad8cbe8235dfdc029316bd5b16c17451b",
+        "paymentDetails": {
+          "amount": "200000000",
+          "chainId": "robinhood",
+          "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x179390590424ca573dd6130070ab13278c25011abb49c72440596d07469bfe19",
+    "steps": [
+      {
+        "id": "approve",
+        "items": [
+          {
+            "data": {
+              "chainId": 4663,
+              "data": "0x095ea7b30000000000000000000000004cd00e387622c35bddb9b4c962c136462338bc31000000000000000000000000000000000000000000000000000000000bebc200",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "76425",
+              "maxFeePerGas": "31542000",
+              "maxPriorityFeePerGas": "0",
+              "to": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x179390590424ca573dd6130070ab13278c25011abb49c72440596d07469bfe19"
+      },
+      {
+        "depositAddress": "",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 4663,
+              "data": "0xe8017952000000000000000000000000000000000000000000000000000000000000dead0000000000000000000000005fc5360d0400a0fd4f2af552add042d716f1d168000000000000000000000000000000000000000000000000000000000bebc2000d5b059795de23dcd791163a30d54ad8c551c07bf32c7fe98634fb8d4c51d10a",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "80303",
+              "maxFeePerGas": "31542000",
+              "maxPriorityFeePerGas": "0",
+              "to": "0x4cd00e387622c35bddb9b4c962c136462338bc31",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x179390590424ca573dd6130070ab13278c25011abb49c72440596d07469bfe19"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200105638",
+        "amountUsd": "200.051009",
+        "minimumAmount": "200105638"
+      },
+      "currencyOut": {
+        "amount": "200000000",
+        "amountUsd": "199.941000",
+        "minimumAmount": "200000000"
+      },
+      "totalImpact": {
+        "usd": "-0.110009"
+      }
+    },
+    "name": "sell_eo",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200105638",
+                "chainId": "robinhood",
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1794510706,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                },
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1794510706,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "base",
+            "deadline": 1794510706,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "expectedAmount": "200000000",
+                "minimumAmount": "200000000",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0xee7a1312c3a732da47a24f74262ca648e8ba12500efc459047f449f88445bb76",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0x49043d35ce8be7e5a1388bcc688a5122e2bca405aec5254ebc5f9f519a622da0",
+        "paymentDetails": {
+          "amount": "200105638",
+          "chainId": "robinhood",
+          "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x17939059060de7c3f8235afd47601a82b6cb0222b8013c0702c72fc653ee6718",
+    "steps": [
+      {
+        "id": "approve",
+        "items": [
+          {
+            "data": {
+              "chainId": 4663,
+              "data": "0x095ea7b30000000000000000000000004cd00e387622c35bddb9b4c962c136462338bc31000000000000000000000000000000000000000000000000000000000bed5ea6",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "76441",
+              "maxFeePerGas": "31600800",
+              "maxPriorityFeePerGas": "0",
+              "to": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x17939059060de7c3f8235afd47601a82b6cb0222b8013c0702c72fc653ee6718"
+      },
+      {
+        "depositAddress": "",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 4663,
+              "data": "0xe8017952000000000000000000000000000000000000000000000000000000000000dead0000000000000000000000005fc5360d0400a0fd4f2af552add042d716f1d168000000000000000000000000000000000000000000000000000000000bed5ea649043d35ce8be7e5a1388bcc688a5122e2bca405aec5254ebc5f9f519a622da0",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "80334",
+              "maxFeePerGas": "31600800",
+              "maxPriorityFeePerGas": "0",
+              "to": "0x4cd00e387622c35bddb9b4c962c136462338bc31",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x17939059060de7c3f8235afd47601a82b6cb0222b8013c0702c72fc653ee6718"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200000000",
+        "amountUsd": "199.945400",
+        "minimumAmount": "200000000"
+      },
+      "currencyOut": {
+        "amount": "199877505",
+        "amountUsd": "199.818541",
+        "minimumAmount": "195879955"
+      },
+      "totalImpact": {
+        "usd": "-0.126859"
+      }
+    },
+    "name": "sell_strict",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200000000",
+                "chainId": "robinhood",
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1809457908,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                },
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1809457908,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "base",
+            "deadline": 1809457908,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "expectedAmount": "199877505",
+                "minimumAmount": "195879955",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0xcd0947c633079036b3b787d5e550e31594e36b693728a580cd2bdf7860db406e",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0x6d22d78e4128b3b75747272856f5e06234068893b6a35c106cb647a98551c62b",
+        "orderSignature": "0x667a266df5fe063eeafa73081a0bba978b8391d05e87f266ee9eed171a8791a068c42e5998b866727a3fc6f50a430553d267cbdf613936c9a851b0d386a3c27f1b",
+        "paymentDetails": {
+          "amount": "200000000",
+          "chainId": "robinhood",
+          "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x1793905908a59c3faa27cbd590773dcd6d7d82ceba825b2f6712a13717d3f6af",
+    "steps": [
+      {
+        "depositAddress": "0xB34aBC26cd584Fa9169168967087884c36EA8DdA",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 4663,
+              "data": "0xa9059cbb000000000000000000000000b34abc26cd584fa9169168967087884c36ea8dda000000000000000000000000000000000000000000000000000000000bebc200",
+              "from": "0x000000000000000000000000000000000000dEaD",
+              "gas": "86070",
+              "maxFeePerGas": "31614800",
+              "maxPriorityFeePerGas": "0",
+              "to": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x1793905908a59c3faa27cbd590773dcd6d7d82ceba825b2f6712a13717d3f6af"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200000000",
+        "amountUsd": "199.942800",
+        "minimumAmount": "200000000"
+      },
+      "currencyOut": {
+        "amount": "199873600",
+        "amountUsd": "199.814837",
+        "minimumAmount": "195876128"
+      },
+      "totalImpact": {
+        "usd": "-0.127963"
+      }
+    },
+    "name": "t_open",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200000000",
+                "chainId": "base",
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1809458120,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x0000000000000000000000000000000000000002"
+                },
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1809458120,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "robinhood",
+            "deadline": 1809458120,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "expectedAmount": "199873600",
+                "minimumAmount": "195876128",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0x000f0dd21fbaca4680a04d3bda09f07bb47d619054c30b58584eee42ff0efac9",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0xb0dc1a8bbd29b9227e1b326f549d66803e5cd0033b578ef4a36c98b12d635002",
+        "paymentDetails": {
+          "amount": "200000000",
+          "chainId": "base",
+          "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x179390612065b6667494cfc852820ed95d1b8a322b8953fae3c941f90ee9d8f4",
+    "steps": [
+      {
+        "depositAddress": "0x39ee8e2bf9d5ac861c9d6c4527b4237751222357",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0xa9059cbb00000000000000000000000039ee8e2bf9d5ac861c9d6c4527b4237751222357000000000000000000000000000000000000000000000000000000000bebc200",
+              "from": "0x0000000000000000000000000000000000000001",
+              "gas": "81885",
+              "maxFeePerGas": "6650000",
+              "maxPriorityFeePerGas": "1150000",
+              "to": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x179390612065b6667494cfc852820ed95d1b8a322b8953fae3c941f90ee9d8f4"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200000000",
+        "amountUsd": "199.943200",
+        "minimumAmount": "200000000"
+      },
+      "currencyOut": {
+        "amount": "199877173",
+        "amountUsd": "199.802619",
+        "minimumAmount": "198877787"
+      },
+      "totalImpact": {
+        "usd": "-0.140581"
+      }
+    },
+    "name": "t_slip50",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200000000",
+                "chainId": "base",
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1794510837,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x0000000000000000000000000000000000000002"
+                },
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1794510837,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "robinhood",
+            "deadline": 1794510837,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "expectedAmount": "199877173",
+                "minimumAmount": "198877787",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0x393c9c14a677faf798465b38521076e18c972387c528623520cc0fa80a822385",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0xbf06bd2bfd9f0486a60f8a5ea1a186758761c74935fcd83bf2f805c8164dc2ac",
+        "paymentDetails": {
+          "amount": "200000000",
+          "chainId": "base",
+          "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x17939060377a88acd5df3a44f618b7c3e3ef1eb14c2b2b0b86419d36c20a684d",
+    "steps": [
+      {
+        "id": "approve",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0x095ea7b30000000000000000000000004cd00e387622c35bddb9b4c962c136462338bc31000000000000000000000000000000000000000000000000000000000bebc200",
+              "from": "0x0000000000000000000000000000000000000001",
+              "gas": "73112",
+              "maxFeePerGas": "6746003",
+              "maxPriorityFeePerGas": "1232371",
+              "to": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x17939060377a88acd5df3a44f618b7c3e3ef1eb14c2b2b0b86419d36c20a684d"
+      },
+      {
+        "depositAddress": "",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0xe80179520000000000000000000000000000000000000000000000000000000000000001000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000000000000000000000000000000000000bebc200bf06bd2bfd9f0486a60f8a5ea1a186758761c74935fcd83bf2f805c8164dc2ac",
+              "from": "0x0000000000000000000000000000000000000001",
+              "gas": "75894",
+              "maxFeePerGas": "6746003",
+              "maxPriorityFeePerGas": "1232371",
+              "to": "0x4cd00e387622c35bddb9b4c962c136462338bc31",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x17939060377a88acd5df3a44f618b7c3e3ef1eb14c2b2b0b86419d36c20a684d"
+      }
+    ]
+  },
+  {
+    "details": {
+      "currencyIn": {
+        "amount": "200000000",
+        "amountUsd": "199.942800",
+        "minimumAmount": "200000000"
+      },
+      "currencyOut": {
+        "amount": "199877115",
+        "amountUsd": "199.818351",
+        "minimumAmount": "195879573"
+      },
+      "totalImpact": {
+        "usd": "-0.124449"
+      }
+    },
+    "name": "t_implicit",
+    "protocol": {
+      "v2": {
+        "orderData": {
+          "fees": [],
+          "inputs": [
+            {
+              "payment": {
+                "amount": "200000000",
+                "chainId": "base",
+                "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                "weight": "1"
+              },
+              "refunds": [
+                {
+                  "chainId": "base",
+                  "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                  "deadline": 1794510922,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x0000000000000000000000000000000000000002"
+                },
+                {
+                  "chainId": "robinhood",
+                  "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                  "deadline": 1794510922,
+                  "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+                  "minimumAmount": "0",
+                  "recipient": "0x000000000000000000000000000000000000dEaD"
+                }
+              ]
+            }
+          ],
+          "output": {
+            "calls": [],
+            "chainId": "robinhood",
+            "deadline": 1794510922,
+            "extraData": "0x0000000000000000000000000729e2a4716d9f7dd17858d5d504426d228697f7",
+            "payments": [
+              {
+                "currency": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "expectedAmount": "199877115",
+                "minimumAmount": "195879573",
+                "recipient": "0x000000000000000000000000000000000000dEaD"
+              }
+            ]
+          },
+          "salt": "0xc2d274dcd324b913e79598fbc73fb6efe38e3d73bbaf2b47700482fec7a8c79e",
+          "solver": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+          "solverChainId": "base",
+          "version": "v1"
+        },
+        "orderId": "0x28ae9a3827ae805cc5acf8403843e3e1f8dc80c2811b983159a88c5cc0d997ed",
+        "paymentDetails": {
+          "amount": "200000000",
+          "chainId": "base",
+          "currency": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "depository": "0x4cd00e387622c35bddb9b4c962c136462338bc31"
+        }
+      }
+    },
+    "requestId": "0x1793906122d594b01218a136f01fbdc38a422e6fbb1f13537e80a251789f510e",
+    "steps": [
+      {
+        "depositAddress": "",
+        "id": "deposit",
+        "items": [
+          {
+            "data": {
+              "chainId": 8453,
+              "data": "0xa9059cbb0000000000000000000000004cd00e387622c35bddb9b4c962c136462338bc31000000000000000000000000000000000000000000000000000000000bebc20028ae9a3827ae805cc5acf8403843e3e1f8dc80c2811b983159a88c5cc0d997ed",
+              "from": "0x0000000000000000000000000000000000000001",
+              "gas": "59745",
+              "maxFeePerGas": "6650000",
+              "maxPriorityFeePerGas": "1150000",
+              "to": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "value": "0"
+            }
+          }
+        ],
+        "kind": "transaction",
+        "requestId": "0x1793906122d594b01218a136f01fbdc38a422e6fbb1f13537e80a251789f510e"
+      }
+    ]
+  }
+]

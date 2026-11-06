@@ -243,6 +243,14 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "moneriumOnrampSelfTransfer":
     case "uniswapApprove":
     case "uniswapSwap":
+    case "relayApprove":
+    case "relayBridge":
+    case "stockPermitTransfer":
+    case "stockSettlementTopUp":
+    case "gasReserveTopUp":
+    case "stockBackupApprove":
+    case "relayBackupApprove":
+    case "robinhoodCleanupStock":
     case "alfredpayOnrampMint":
     case "alfredpayOfframpTransfer":
     case "brlaOnrampMint":

@@ -17,9 +17,9 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 
 | Layer | What | Where | Runner |
 |---|---|---|---|
-| 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend, `node --test` for `apps/gold/tests/`) |
+| 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend, `node --test` for `apps/gold/tests/`, `apps/stocks/tests/` and `packages/consumer-kit/tests/`) |
 | 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) and the HTTP surface tests (auth OTP flow, webhooks, ramp history, public routes; `http-surface.invariants.test.ts`) | `apps/api/src/tests/` | `bun test` |
-| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL, Alfredpay, and Monerium EUR corridors plus persisted Mykobo on/offramp recovery scenarios. | `apps/api/src/tests/corridors/` and block tests | `bun test` |
+| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL, BRL stock token, Alfredpay, and Monerium EUR corridors plus persisted Mykobo on/offramp recovery scenarios. | `apps/api/src/tests/corridors/` and block tests | `bun test` |
 | 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
 | 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard runs its own Playwright config covering auth, account selection, onboarding/KYC/KYB, recipient invitations, the MXN offramp journey, and BRL/MXN/USD/COP/ARS onramps. The nightly job also smoke-tests deployed staging and production BUY/SELL quotes through a cross-chain Squid corridor. | `apps/frontend/e2e/`, `apps/dashboard/e2e/`, `apps/api/src/tests/deployed-quotes.e2e.test.ts` | Playwright + Bun (non-blocking) |
@@ -74,6 +74,8 @@ Legend: ✅ directly tested · ◐ covered only via shared code/another corridor
 |---|---|---|---|---|---|---|---|---|
 | BRL (Avenia / Pix) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ✅² | ✅ | ✅ |
 | BRL (Avenia / Pix) | SELL | ✅ | ✅ | ✅ | ✅ pre/post-swap caps, recipient | ✅ F-021 | ✅ | ✅ |
+| BRL stock token (Avenia / Pix, Robinhood Chain) | BUY | ✅ | ✅ | ✅ | ✅ settlement cap, kill switch, price guard, token pins | ✅⁴ | ❌ | 🚫 |
+| BRL stock token (Avenia / Pix, Robinhood Chain) | SELL | ✅ | ✅ | ✅ | ✅ permit and transfer binding, deposit validation, issuer pause | ✅⁴ | ❌ | 🚫 |
 | MXN (Alfredpay / SPEI) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ✅ settlement subsidy | ✅ | ✅ |
 | MXN (Alfredpay / SPEI) | SELL | ✅ | ✅ | ✅ | ✅ calldata, F-001 cap | ✅¹ | ✅ | ✅ |
 | USD (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ✅ | ✅ | ✅ |
@@ -99,10 +101,20 @@ not shortened in scenarios); the consumed-nonce pause is covered in the scenario
 `corridors/eur-onramp.scenario.test.ts` / `eur-offramp.scenario.test.ts` seed identity-bearing
 Mykobo metadata directly and verify only persisted legacy recovery. Monerium's sandbox mints on
 testnets while the flow is pinned to Polygon mainnet, so the pay-in is not sandbox-verifiable.
+⁴ `corridors/brl-onramp-robinhood-stock.scenario.test.ts` and `brl-offramp-robinhood-stock.scenario.test.ts`
+drive quote → register → real signing with five nonces per transaction → update → start → the real
+processor. `test-utils/fake-world/robinhood-chain.ts` enforces chain id, nonces, fee caps, balances,
+allowances, permits and router swaps, and `fake-relay.ts` scripts the bridge. A live Relay fill, refund or
+funded Uniswap swap on chain 4663 is not exercised; see RISK-029. The widget hides this network, so its
+E2E journey is unavailable, and the Stocks app has its own suite under `apps/stocks/tests`.
+`corridors/stocks-app.e2e.test.ts` runs that app's real adapter, wallet kit and SDK against the real API
+and processor, with only the chain, the providers and the wallet faked. It needs the built SDK:
+CI builds it first in `test:sdk`, and a fresh checkout needs `bun build:sdk` before `cd apps/api && bun test`.
+It runs under bun, so signing with a real embedded wallet in a browser is not exercised.
 
 **Gaps at a glance** (everything not ✅ above): the Alfredpay permit/TokenRelayer cross-chain
 SELL variant is untested (no-permit fallback is); the active EUR onramp lacks an E2E widget
-journey; EUR offramp is intentionally unavailable; the
+journey; the BRL stock token corridor has no SDK scenario; EUR offramp is intentionally unavailable; the
 AssetHub corridors are runtime-disabled and deliberately deferred (see the decision note under
 Infrastructure — revisit only if the product restores them).
 
@@ -114,7 +126,7 @@ All external boundaries are stubbed at the existing service seams — the single
 code already goes through:
 
 - **Anchors/APIs**: `BrlaApiService` (Avenia), `MykoboApiService`, Alfredpay, Monerium
-  (white-label reads, wallet link, IBAN request/move), SquidRouter, price feeds. Each fake is configurable per test: succeed with given amounts, return malformed
+  (white-label reads, wallet link, IBAN request/move), SquidRouter, Relay, price feeds. Each fake is configurable per test: succeed with given amounts, return malformed
   data, time out, or fail N times then succeed (for retry testing).
 - **Chains**: faked at the `EvmClientManager` and Pendulum `apiManager` seams with an in-memory
   balance ledger. Phase handlers genuinely poll balances and observe transfers; tests script the
@@ -307,7 +319,8 @@ payout tickets hermetically only — creating one live would move funds), Moneri
 (profiles, linked addresses, IBANs, orders, files, and webhook subscriptions hermetically; prepared
 read-only sandbox checks behind white-label credentials and fixture IDs; every persistent or
 value-moving call behind its own `MONERIUM_CONTRACT_RUN_*` gate; excluded from `contracts.yml`
-until credentials and known fixtures are provisioned), and the CoinGecko
+until credentials and known fixtures are provisioned), Relay (`/quote/v2` and `/intents/status/v3`
+live, with `CONTRACT_RELAY_API_KEY` when set; no deposit is ever made), and the CoinGecko
 `simple/price` feed (schema in `apps/api/src/api/services/priceFeed.schemas.ts` — the price fake
 patches above the HTTP seam, so its hermetic half is fixture-based). Client methods with no
 production consumers are deliberately uncovered. Next per the PRD: milestone 5, warn-only

@@ -169,6 +169,8 @@ export class FakeBrla {
   onPixOutputTicket?: (ticket: { id: string; walletAddress?: string }) => void;
   readonly pixInputTickets: Array<{ id: string; brCode: string }> = [];
   readonly pixOutputTickets: Array<{ id: string }> = [];
+  /** The BRL amount of every payout quote requested. */
+  readonly payoutQuoteAmounts: string[] = [];
   private counter = 0;
 
   private readonly impl = {
@@ -181,15 +183,18 @@ export class FakeBrla {
       outputAmount: (Number(quoteParams.inputAmount) * this.payInRate).toString(),
       quoteToken: `payin-quote-token-${++this.counter}`
     }),
-    createPayOutQuote: async (quoteParams: { outputAmount: string }) => ({
-      appliedFees: [],
-      basePrice: "1",
-      inputAmount: (Number(quoteParams.outputAmount) / this.payOutRate).toString(),
-      inputCurrency: "BRLA",
-      inputPaymentMethod: "INTERNAL",
-      outputAmount: quoteParams.outputAmount,
-      quoteToken: `payout-quote-token-${++this.counter}`
-    }),
+    createPayOutQuote: async (quoteParams: { outputAmount: string }) => {
+      this.payoutQuoteAmounts.push(quoteParams.outputAmount);
+      return {
+        appliedFees: [],
+        basePrice: "1",
+        inputAmount: (Number(quoteParams.outputAmount) / this.payOutRate).toString(),
+        inputCurrency: "BRLA",
+        inputPaymentMethod: "INTERNAL",
+        outputAmount: quoteParams.outputAmount,
+        quoteToken: `payout-quote-token-${++this.counter}`
+      };
+    },
     createPixInputTicket: async () => {
       const ticket = {
         brCode: `brcode-${++this.counter}`,
