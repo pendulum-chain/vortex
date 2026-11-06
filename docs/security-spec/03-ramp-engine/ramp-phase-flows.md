@@ -33,6 +33,7 @@ The phase processor in `state-machine.md` orchestrates execution. The authoritat
 
 **BRL Off-ramp from a stock token (Uniswap, Relay on Robinhood Chain, Avenia):** Stock on the seller's wallet → ephemeral → pinned Uniswap V3 stock→USDG → Relay deposit address → Base USDC → fees → Nabla USDC→BRLA → Pix
 - Runtime phases (`BrlOfframpRobinhoodStock`): `initial` → `fundEphemeral` → `stockPermitTransfer` → `uniswapApprove` → `uniswapSwap` → `relayBridge` → `distributeFees` → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `subsidizePostSwap` → `brlaPayoutOnBase` → `complete`.
+- `fundEphemeral` spends nothing until the seller can cover the sale. On the permit path it reads the owner's token balance: a short balance waits, and an expired permit fails the ramp with no funds moved. On the fallback it verifies the reported transfer first.
 - `stockPermitTransfer` submits the seller's EIP-2612 permit from the funding wallet, then broadcasts the ephemeral's exact `transferFrom`. Without a permit the seller sends one `squidRouterNoPermitTransfer`, verified by hash. The seller keeps the tokens until the pull, so only then can a dead end fail the ramp.
 - From `uniswapSwap` on, funds are on the ephemeral or with Relay. Failures on the route retry or pause and never fail the ramp.
 
