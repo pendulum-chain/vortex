@@ -23,6 +23,10 @@
   command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:dashboard"
   publish = "dist"
 
+[build.environment]
+  # Netlify does not read .bun-version, and this overrides the older BUN_VERSION set in its UI.
+  BUN_VERSION = "1.4.4"
+
 # The deployed branches never skip a build. Netlify's default check, which previews still use, compares
 # this directory against $CACHED_COMMIT_REF, which is the branch's last build only while its build cache
 # exists. A cache lapses about 16 days after the build that wrote it, and a cancelled build writes none.

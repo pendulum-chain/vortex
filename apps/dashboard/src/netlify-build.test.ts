@@ -11,4 +11,9 @@ describe("Netlify build settings", () => {
       assert.ok(config.includes(`[context.${context}]\n  ignore = "/bin/false"\n`));
     });
   }
+
+  it("builds with the Bun version the repo pins", () => {
+    const pinned = readFileSync(new URL("../../../.bun-version", import.meta.url), "utf8").trim();
+    assert.ok(config.includes(`BUN_VERSION = "${pinned}"`));
+  });
 });
