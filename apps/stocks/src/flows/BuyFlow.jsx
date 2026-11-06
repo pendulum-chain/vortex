@@ -1,8 +1,9 @@
-// S7 buy flow: Gold's TransactionFlow state machine over the ramp adapter.
+// Buy flow: Gold's TransactionFlow state machine over the ramp adapter.
 //   amount -> (code) -> prepare: availability, quote, price guard, readiness -> (kyc) -> confirm
 //   confirm -> re-quote if it expires within 15 s, else register -> pix -> start -> processing
 //   processing -> success | issue;  resume: getRamp -> success | issue | pix | processing | code
 import { useEffect, useRef, useState } from "react";
+import { isTransientError } from "@vortexfi/consumer-kit";
 import { ArrowLeft, ArrowRight, Info } from "../components/icons.js";
 import { Modal } from "../components/Modal.jsx";
 import { QuoteCosts } from "../components/QuoteCosts.jsx";
@@ -11,11 +12,12 @@ import { DEMO_TOOLS } from "../lib/config.js";
 import { formatBRL, formatNumber, formatPercent, priceBRL } from "../format.js";
 import { gasReserveLinePt, sellLaterNotePt } from "../lib/gas-reserve.js";
 import { MARKET_CLOSED_NOTE_PT, tokenizationClosedNotePt, tokenizationWindowOpen, usMarketStatus } from "../lib/market-hours.js";
+import { waitingCopyPt } from "../lib/phases.js";
 import { checkQuotePrice } from "../lib/price-guard.js";
 import { freshPauseReason } from "../lib/ramp-contract.js";
 import { DEFAULT_BUY, MIN_BUY, QUICK_BUY_VALUES, buyFeePercent, quoteNeedsRefresh, showSmallBuyNote, stepAfterCode, validBuyAmount } from "../lib/purchase-options.js";
 import { estimateTokensForBrl, formatSharesApproxPt, formatTokenAmount, multiplierWeiFor, sharesWei } from "../lib/token.js";
-import { FlowIssue, FlowProgress, GuardCard, KycStep, OtpStep, ProcessingSteps, QuoteTimer, SuccessSeal, TokenSummary, Waiting, errorMessage, needsCode, unavailableMessage } from "./parts.jsx";
+import { FlowIssue, FlowProgress, GuardCard, KYC_IN_REVIEW_PT, KycStep, OtpStep, POLL_RESTART_MS, ProcessingSteps, QuoteTimer, SuccessSeal, TokenSummary, Waiting, errorMessage, needsCode, unavailableMessage } from "./parts.jsx";
 import { PixStep } from "./PixStep.jsx";
 
 const PROGRESS = ["Valor", "Segurança", "Revisão", "Pix"];
@@ -71,14 +73,14 @@ function ConfirmStep({ token, quote, guard, reference, multiplierWei, onConfirm,
         <div className="is-sub"><dt>Taxas das redes</dt><dd>{formatBRL(quote.fees.network)}</dd></div>
         {reserve && <div className="is-sub"><dt>{reserve.label}<small>{reserve.note}</small></dt><dd>{formatBRL(reserve.brl)}</dd></div>}
         <div><dt>Preço por token nesta cotação</dt><dd>{priceBRL(quote.impliedBrlPerToken)}{reference && <small>referência {priceBRL(reference.brl)}{deviation != null ? ` (${formatPercent(deviation)})` : ""}</small>}</dd></div>
-        <div className="is-total"><dt>Você recebe</dt><dd>≈ {formatTokenAmount(quote.tokenAmount)} {token.symbol} (token)<small>{formatSharesApproxPt(shares)}</small></dd></div>
+        <div className="is-total"><dt>Você recebe</dt><dd>{formatTokenAmount(quote.tokenAmount)} {token.symbol} (token)<small>{formatSharesApproxPt(shares)}</small></dd></div>
       </dl>
       <QuoteCosts quote={quote} />
       <QuoteTimer expiresAt={quote.expiresAt} />
       <GuardCard guard={guard} direction="BUY" reference={reference} accepted={guardAccepted} onAccept={setGuardAccepted} />
       <p className="hint">{sellLaterNotePt(quote)}</p>
       {quote.simulated && <p className="demo-hint">Cotação simulada: taxas ilustrativas, nenhum dinheiro é movimentado.</p>}
-      <label className="check"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>Entendo que é um Stock Token (não a ação), que o preço pode variar até a execução e que a operação em blockchain é definitiva.</span></label>
+      <label className="check"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>Entendo que é um Stock Token (não a ação) e que a operação em blockchain é definitiva.</span></label>
       {error && <p className="field-error" role="alert">{error}</p>}
       {!blocked && <button className="btn btn--primary btn--lg btn--full" type="button" onClick={onConfirm} disabled={!canConfirm}>{busy ? <><span className="spinner" aria-hidden="true" /> Preparando seu Pix…</> : <>Gerar Pix de {formatBRL(quote.brlAmount)} <ArrowRight size={18} weight="bold" aria-hidden="true" /></>}</button>}
       <button className="back-button" type="button" onClick={onRefresh} disabled={busy}>Atualizar cotação</button>
@@ -86,8 +88,9 @@ function ConfirmStep({ token, quote, guard, reference, multiplierWei, onConfirm,
   );
 }
 
-export default function BuyFlow({ token, auth, runtime, market, flags, resume = null, initialAmount, demoQuote = false, onClose, onSettled, onPayUsdc }) {
+export default function BuyFlow({ token, auth, runtime, market, flags, resume: resumed = null, initialAmount, demoQuote = false, onClose, onSettled, onPayUsdc }) {
   const { adapter, verification } = runtime;
+  const [resume, setResume] = useState(resumed); // null again once the resumed operation is given up
   const wallet = auth.address;
   const privyDid = auth.user?.privyDid;
   const [step, setStep] = useState(resume ? "resuming" : "amount");
@@ -102,6 +105,7 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume = 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [pollRun, setPollRun] = useState(0);
   const lock = useRef(false);
   const settled = useRef(false);
   const price = market.state.status === "unavailable" ? null : market.state.prices[token.symbol];
@@ -113,10 +117,12 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume = 
     try { await operation(); }
     catch (nextError) {
       if (nextError?.name === "AbortError") return;
-      if (needsCode(nextError) && verification.required) { setOtpSent(false); setOtp(""); setStep("otp"); setError(""); }
+      if (needsCode(nextError) && verification.required) askForCode();
       else setError(errorMessage(nextError, "Não foi possível preparar a cotação."));
     } finally { lock.current = false; setBusy(false); }
   }
+
+  function askForCode() { setOtpSent(false); setOtp(""); setStep("otp"); setError(""); }
 
   async function quoteNow() {
     const next = await adapter.quoteBuy({ symbol: token.symbol, brlAmount: Number(amount), walletAddress: wallet });
@@ -135,6 +141,7 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume = 
     if (pause) throw new Error(unavailableMessage(pause));
     await quoteNow();
     const readiness = await runtime.getReadiness();
+    if (readiness.kycStatus === "pending") throw new Error(KYC_IN_REVIEW_PT);
     if (readiness.kycStatus !== "approved") { setStep("kyc"); return; }
     if (!readiness.canBuy) throw new Error("Sua conta ainda não está liberada para comprar com Pix. Consulte a Vortex.");
     setNotice(""); setStep("confirm");
@@ -153,13 +160,21 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume = 
     const current = await adapter.getRamp(rampId, { walletAddress: wallet });
     setRamp(current);
     if (current.classification === "success") { finish(current); return; }
-    if (current.classification === "failure") { setError("Esta compra expirou ou não pôde ser concluída. Nenhum novo Pix foi gerado."); setStep("issue"); return; }
+    if (current.classification === "failure") { setError("Esta compra expirou ou não pôde ser concluída. Se houve débito, consulte o suporte com o código da operação."); setStep("issue"); return; }
     if (current.currentPhase === "initial" && (current.depositQrCode || current.simulatedPix) && stage !== "registering") { setStep("pix"); return; }
+    if (current.currentPhase === "initial" && stage === "registering") {
+      // Its Pix code was never shown, so nothing can have been paid: this device can let it go.
+      await adapter.abandonRamp(rampId, { walletAddress: wallet });
+      setResume(null);
+      setError("O registro desta compra não foi concluído, e nenhum Pix foi gerado. Você pode começar de novo.");
+      setStep("issue");
+      return;
+    }
     if (current.currentPhase === "initial") { setError("O registro precisa ser conferido pela Vortex. Consulte o suporte com o código da operação; não faça um novo Pix."); setStep("issue"); return; }
     setStep("processing");
   }
 
-  // Resume an operation from the banner (spec: resuming -> getRamp -> …).
+  // Resume an operation from the banner (resuming -> getRamp -> …).
   useEffect(() => {
     if (!resume) return;
     run(async () => {
@@ -178,18 +193,24 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume = 
     run(prepare);
   }, []);
 
-  // Track the ramp until it is final (4 s / 20 min in the kit; the simulated ramp is faster).
+  // Track the ramp until it is final (4 s in the kit; the simulated ramp is faster).
   useEffect(() => {
     if (step !== "processing" || !ramp?.id) return undefined;
     const controller = new AbortController();
+    let restart;
     adapter.pollStatus(ramp.id, { signal: controller.signal, walletAddress: wallet, onUpdate: setRamp })
       .then((final) => {
         if (final.classification === "success") finish(final);
         else { setRamp(final); setError("A compra não pôde ser concluída. Se houve débito, consulte o suporte com o código da operação."); setStep("issue"); }
       })
-      .catch((nextError) => { if (nextError?.name !== "AbortError") { setError(errorMessage(nextError)); setStep("issue"); } });
-    return () => controller.abort();
-  }, [step, ramp?.id]);
+      .catch((nextError) => {
+        if (nextError?.name === "AbortError") return;
+        if (needsCode(nextError) && verification.required) askForCode();
+        else if (isTransientError(nextError)) restart = setTimeout(() => setPollRun((run) => run + 1), POLL_RESTART_MS);
+        else { setError(errorMessage(nextError)); setStep("issue"); }
+      });
+    return () => { clearTimeout(restart); controller.abort(); };
+  }, [step, ramp?.id, pollRun]);
 
   const continueFromAmount = () => {
     if (verification.required && !verification.hasSession({ email, privyDid })) { setError(""); setStep("otp"); return; }
@@ -225,8 +246,8 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume = 
       }
       setStep("pix");
     } catch (nextError) {
-      const saved = runtime.activeRampStore.get(wallet);
-      if (saved) { setRamp((current) => current || { id: saved.rampId }); setError(errorMessage(nextError)); setStep("issue"); return; }
+      const rampId = runtime.activeRampStore.get(wallet)?.rampId ?? nextError?.details?.rampId;
+      if (rampId) { setRamp((current) => current || { id: rampId }); setError(errorMessage(nextError)); setStep("issue"); return; }
       throw nextError;
     }
   });
@@ -236,13 +257,20 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume = 
     setRamp(started);
     setStep("processing");
   });
+  const abandon = () => run(async () => {
+    const current = await adapter.abandonRamp(ramp.id, { walletAddress: wallet });
+    if (current.currentPhase !== "initial") { await loadExisting(ramp.id); return; } // the Pix was paid after all
+    setResume(null); setRamp(null); setNotice(""); setStep("amount");
+  });
   const retry = () => {
     if (resume) { setError(""); run(loadExisting); return; }
     if (runtime.activeRampStore.get(wallet)) { setError("Consulte o suporte com o código desta operação antes de tentar novamente."); return; }
     setError(""); setRamp(null); setStep("amount");
   };
 
-  const tokenLabel = quote ? `≈ ${formatTokenAmount(quote.tokenAmount)} ${token.symbol} (token)` : `tokens ${token.symbol}`;
+  const tokenLabel = quote ? `${formatTokenAmount(quote.tokenAmount)} ${token.symbol} (token)` : `tokens ${token.symbol}`;
+  const operationId = ramp?.id ?? resume?.rampId;
+  const waiting = waitingCopyPt("BUY", ramp?.currentPhase, token.symbol);
   const progress = PROGRESS_INDEX[step];
   const closeDisabled = busy && ["confirm", "resuming"].includes(step);
   const title = step === "success" ? "Compra concluída" : `Comprar ${token.symbol}`;
@@ -254,10 +282,10 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume = 
       {step === "kyc" && <KycStep kyc={runtime.kyc} quote={quote} email={email} initialName={auth.user?.name} onApproved={() => { setNotice(""); setStep("confirm"); }} />}
       {step === "confirm" && quote && <ConfirmStep key={quote.id} token={token} quote={quote} guard={guard} reference={reference} multiplierWei={multiplierWei} onConfirm={generatePix} onRefresh={refreshQuote} busy={busy} error={error} notice={notice} />}
       {step === "resuming" && <Waiting title="Retomando sua compra" text="Buscando o status mais recente da operação." />}
-      {step === "pix" && ramp && <PixStep ramp={ramp} tokenLabel={tokenLabel} onPaid={markPaid} busy={busy} error={error} adapter={adapter} />}
+      {step === "pix" && ramp && <PixStep ramp={ramp} tokenLabel={tokenLabel} onPaid={markPaid} onAbandon={abandon} busy={busy} error={error} adapter={adapter} />}
       {step === "processing" && (
         <div className="flow-section">
-          <Waiting title={`Seus tokens ${token.symbol} estão a caminho`} text="Você pode fechar esta tela: a compra continua e aparece no Início e no Histórico." />
+          <Waiting title={waiting.title} text={waiting.text} />
           <ProcessingSteps direction="BUY" phase={ramp?.currentPhase} />
           <button className="btn btn--secondary btn--lg btn--full" type="button" onClick={onClose}>Fechar</button>
         </div>
@@ -277,7 +305,7 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume = 
         </div>
       )}
       {step === "issue" && <FlowIssue message={error} onRetry={retry} onClose={onClose} />}
-      {ramp?.id && step !== "success" && <p className="op-ref">Código da operação: <code>{ramp.id}</code></p>}
+      {operationId && step !== "success" && <p className="op-ref">Código da operação: <code>{operationId}</code></p>}
       {["otp", "kyc", "confirm"].includes(step) && !busy && !ramp && <div className="flow-foot" style={{ marginTop: 8 }}><button className="back-button" type="button" onClick={() => { setError(""); setStep("amount"); }}><ArrowLeft size={16} aria-hidden="true" /> Voltar</button></div>}
       {step === "amount" && <p className="legal-note" style={{ marginTop: 16 }}><Info size={14} aria-hidden="true" style={{ display: "inline", verticalAlign: "-2px" }} /> Você recebe um Stock Token, não a ação. O custo total aparece antes do Pix.</p>}
     </Modal>

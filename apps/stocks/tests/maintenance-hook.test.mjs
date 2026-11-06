@@ -28,6 +28,7 @@ async function harness(run) {
   try {
     await run({ render, resolve, requests, commits, latest: () => latest, tick: () => act(async () => { for (const callback of timers.values()) callback(); }),
       focus: () => act(async () => window.dispatchEvent(new dom.window.Event("focus"))),
+      blur: () => act(async () => window.dispatchEvent(new dom.window.Event("blur"))),
       visibility: value => act(async () => { visible = value; document.dispatchEvent(new dom.window.Event("visibilitychange")); }) });
   } finally {
     await act(async () => root.unmount()); dom.window.close();
@@ -43,6 +44,13 @@ test("returning focus discards a prior clear result before a delayed maintenance
   await s.render(true); await s.resolve(0, false); assert.equal(s.latest().status.active, false);
   await s.focus(); assert.equal(s.requests.length, 2); assert.equal(s.latest().status, null);
   await s.resolve(1, true); assert.equal(s.latest().status.active, true);
+}));
+
+test("clicking another window keeps the status, so the Pix code does not disappear", () => harness(async s => {
+  await s.render(true); await s.resolve(0, false);
+  await s.blur();
+  assert.equal(s.latest().status.active, false);
+  assert.equal(s.requests.length, 1);
 }));
 
 test("hidden pages discard pending answers and resume with a fresh public status read", () => harness(async s => {

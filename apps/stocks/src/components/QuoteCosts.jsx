@@ -22,7 +22,7 @@ export function QuoteCosts({ quote }) {
             </dd>
           </div>)}
           <div data-cost-id="product"><dt>Taxa adicional {BRAND.name}<small>Sem cobrança além do serviço Vortex e dos provedores</small></dt><dd>{formatBRL(details.extraProductFee)}<small>0 bps</small></dd></div>
-          {quote.gasReserve && <div><dt>Reserva de ETH<small>Fica na carteira para pagar a rede nas próximas vendas</small></dt><dd>{formatBRL(quote.gasReserve.brl)}<small>Já incluída nas taxas</small></dd></div>}
+          {quote.gasReserve && <div><dt>Reserva de ETH<small>Fica na sua carteira como ETH na Robinhood Chain</small></dt><dd>{formatBRL(quote.gasReserve.brl)}<small>Já incluída nas taxas</small></dd></div>}
           {details.identifiedTotal !== null && <div className="is-total"><dt>Custos identificados<small>Taxas, efeitos de preço informados e reserva de ETH</small></dt><dd>{formatBRL(details.identifiedTotal)}<small>{formatNumber(costBps(details.identifiedTotal, basis), 2)} bps</small></dd></div>}
         </dl>
         <p className="hint">Os valores acima já estão refletidos no que você paga e recebe. Não são cobrados novamente.{!details.complete && " O detalhamento está incompleto: taxas informadas não representam necessariamente todo o efeito de câmbio e negociação."}</p>

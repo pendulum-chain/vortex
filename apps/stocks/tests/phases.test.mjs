@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import { BUY_STEPS, PHASE_TO_STEP, SELL_STEPS, STEP_LABELS_PT, stepFor } from "../src/lib/phases.js";
+import { BUY_STEPS, PHASE_TO_STEP, SELL_STEPS, STEP_LABELS_PT, stepFor, waitingCopyPt } from "../src/lib/phases.js";
 import { SIM_PHASES } from "../src/lib/simulated-ramp.js";
 import { REPO } from "./helpers.mjs";
 
@@ -64,4 +64,18 @@ test("every simulated phase is mapped, so the demo progress bar moves", () => {
 test("every step before done has a pt-BR label", () => {
   for (const step of BUY_STEPS.slice(0, -1)) assert.ok(STEP_LABELS_PT.BUY[step], step);
   for (const step of SELL_STEPS.slice(0, -1)) assert.ok(STEP_LABELS_PT.SELL[step], step);
+});
+
+test("a buy says its tokens are on the way only after the Pix is confirmed", () => {
+  for (const phase of [undefined, "initial", "brlaOnrampMint", "onHoldForComplianceCheck"]) assert.equal(waitingCopyPt("BUY", phase, "NVDA").title, "Confirmando seu Pix", phase);
+  for (const phase of ["fundEphemeral", "nablaSwap", "relayBridge", "destinationTransfer"]) assert.equal(waitingCopyPt("BUY", phase, "NVDA").title, "Seus tokens NVDA estão a caminho", phase);
+  assert.match(waitingCopyPt("BUY", "onHoldForComplianceCheck", "NVDA").text, /verificação de conformidade, o que pode levar mais tempo/);
+  assert.doesNotMatch(waitingCopyPt("BUY", "brlaOnrampMint", "NVDA").text, /conformidade/);
+  assert.ok(sharedRampPhases().has("onHoldForComplianceCheck"), "the name the status response uses");
+});
+
+test("a sell says its Pix is on the way only from the payout step on", () => {
+  for (const phase of [undefined, "initial", "fundEphemeral", "stockPermitTransfer", "uniswapSwap", "relayBridge", "nablaSwap"]) assert.equal(waitingCopyPt("SELL", phase).title, "Vendendo seus tokens", phase);
+  assert.equal(waitingCopyPt("SELL", "brlaPayoutOnBase").title, "Seu Pix está a caminho");
+  assert.equal(waitingCopyPt("SELL", "complete").title, "Seu Pix está a caminho");
 });

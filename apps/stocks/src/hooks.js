@@ -153,12 +153,28 @@ export function useMaintenanceStatus({ readStatus, enabled }) {
     retry.current = resume;
     resume();
     const timer = setInterval(() => { if (visible()) run(); }, 15_000);
-    window.addEventListener("blur", invalidate);
     window.addEventListener("focus", resume);
     document.addEventListener("visibilitychange", visibility);
-    return () => { alive = false; retry.current = () => {}; clearInterval(timer); window.removeEventListener("blur", invalidate); window.removeEventListener("focus", resume); document.removeEventListener("visibilitychange", visibility); };
+    return () => { alive = false; retry.current = () => {}; clearInterval(timer); window.removeEventListener("focus", resume); document.removeEventListener("visibilitychange", visibility); };
   }, [readStatus, enabled]);
   return { status: enabled && snapshot?.owner === identity.current ? snapshot.status : null, refresh: () => retry.current() };
+}
+
+/**
+ * The resume banner reads this device's record, which cannot know that a ramp finished while the app
+ * was closed. With a Vortex session already in this tab (this never asks for the code) the status is
+ * read once while no flow is open, and the adapter settles a finished ramp. A failed read leaves the
+ * banner as it is: tapping it reports the error.
+ */
+export function usePendingRampRead({ runtime, rampId, walletAddress, who, idle, onSettled }) {
+  useEffect(() => {
+    if (!idle || !rampId || !runtime?.verification.hasSession(who)) return undefined;
+    let alive = true;
+    runtime.adapter.getRamp(rampId, { walletAddress }).then((ramp) => {
+      if (alive && ["success", "failure"].includes(ramp.classification)) onSettled();
+    }, () => {});
+    return () => { alive = false; };
+  }, [runtime, rampId, walletAddress, idle]);
 }
 
 /**

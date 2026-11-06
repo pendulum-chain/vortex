@@ -10,7 +10,7 @@ import { Modal } from "./components/Modal.jsx";
 import { SiteFooter } from "./components/SiteFooter.jsx";
 import { DEMO_USER } from "./DemoAuth.js";
 import { WelcomeSheet } from "./components/Welcome.jsx";
-import { useAvailability, useMarket, useNow, useOnline, usePortfolio, useRuntime } from "./hooks.js";
+import { useAvailability, useMarket, useNow, useOnline, usePendingRampRead, usePortfolio, useRuntime } from "./hooks.js";
 import { DEMO_TOOLS } from "./lib/config.js";
 import { flowFor } from "./lib/detail-actions.js";
 import { localHistoryRows, mergeHistory, ownedHistoryRows } from "./lib/history.js";
@@ -70,6 +70,7 @@ export function App({ auth, config }) {
   // The active ramp (resume banner) and the device history; the adapter writes them, we only read.
   const pending = useMemo(() => (runtime && address ? runtime.activeRampStore.get(address) : null), [runtime, address, version, modal, now]);
   const localRows = useMemo(() => (runtime && address ? localHistoryRows(runtime.activeRampStore.history(address)) : []), [runtime, address, version, modal]);
+  usePendingRampRead({ runtime, rampId: pending?.rampId, walletAddress: address, who: { email: auth.user?.email, privyDid: auth.user?.privyDid }, idle: !modal, onSettled: () => { portfolio.refreshSoon(); refreshLocal(); } });
   const historyOwner = `${auth.user?.privyDid ?? ""}:${address ?? ""}`;
   const historyRows = useMemo(() => mergeHistory(localRows, ownedHistoryRows(serverRows, historyOwner)), [localRows, serverRows, historyOwner]);
 

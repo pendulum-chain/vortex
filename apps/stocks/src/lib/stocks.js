@@ -1,8 +1,8 @@
 // The launch universe: a bundled allowlist of Stock Tokens on Robinhood Chain (chain id 4663).
 // Addresses come from the RHJ registry. The list ships in the bundle;
 // scripts/verify-allowlist.mjs re-checks it against the registry and the chain before a release.
-// Never take names or addresses from LI.FI's token list: it carries lookalikes (NET "NetNet",
-// BULL). tests/stocks-allowlist.test.mjs pins this file.
+// Never take names or addresses from an aggregator's token list: they carry lookalikes (NET
+// "NetNet", BULL). tests/stocks-allowlist.test.mjs pins this file.
 
 import { BRAND } from "../brand.js";
 
@@ -10,7 +10,7 @@ import { BRAND } from "../brand.js";
  *   collections:string[],          // ids from COLLECTIONS (a token can be in several)
  *   badgesPt:string[],             // "Para começar", "Oscila mais", "Nova na bolsa", "Baixa oscilação"
  *   role:"default-first-buy"|"dollar-reserve"|null,
- *   guardTier:"A"|"B",             // all 12 launch tokens passed liquidity gate L1 -> "A" (price-guard.js)
+ *   guardTier:"A"|"B",             // all 12 launch tokens passed the liquidity check -> "A" (price-guard.js)
  *   address:`0x${string}`, decimals:18, isin:string, coingeckoId:string,
  *   chart:{ coingeckoId:string, source:"xstocks-proxy"|"token" }, chainlinkFeed:string|null,
  *   multiplierSnapshot:string,     // uiMultiplier() on 2026-09-26 (18-decimal string); the chain read wins
@@ -18,7 +18,6 @@ import { BRAND } from "../brand.js";
  *   searchTerms:string[] }} StockToken */
 
 export const ALLOWLIST_SNAPSHOT = Object.freeze({
-  selection: "design/stock-universe.json v0.1 (2026-09-26T14:10Z)",
   registry: "https://api.robinhood.com/rhj/assets",
   fetchedAt: "2026-09-26",
   chainId: 4663,
@@ -155,7 +154,7 @@ export const STOCK_TOKENS = Object.freeze([
     collections: ["inteligencia-artificial", "mais-negociadas"], badgesPt: ["Oscila mais"], role: null,
     address: "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD", isin: "US5951121038",
     coingeckoId: "micron-technology-robinhood-tokenized-stock",
-    // Not in the universe file (no full-year proxy); found in CoinGecko coins/list, 112 points since 2026-06-04 [P3].
+    // No full-year proxy; found in CoinGecko coins/list, with points since 2026-06-04.
     chart: { coingeckoId: "micron-technology-xstock", source: "xstocks-proxy" },
     chainlinkFeed: "0x425EEFdCf05ed6526C3cE61Af99429A228a6d596",
     multiplierSnapshot: "1.000074823219171086",
@@ -167,7 +166,7 @@ export const STOCK_TOKENS = Object.freeze([
     collections: ["fundos-de-indice"], badgesPt: ["Baixa oscilação"], role: "dollar-reserve",
     address: "0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5", isin: "US46436E7186",
     coingeckoId: "ishares-0-3-month-treasury-bond-etf-robinhood-tokenized-stock",
-    // The token's own series: the xStocks SGOV id returned 0 points (universe source C2), and the
+    // The token's own series: the xStocks SGOV id returned 0 points, and the
     // underlying's price is flat (~100.6) because the yield is reinvested through the multiplier.
     chart: { coingeckoId: "ishares-0-3-month-treasury-bond-etf-robinhood-tokenized-stock", source: "token" },
     chainlinkFeed: "0xa0DF4ee0fFf975306345875E3548Fcc519577A11",
@@ -193,7 +192,7 @@ export const WATCHLIST = Object.freeze([
   { symbol: "AMD", namePt: "AMD", terms: ["a1md34"], status: "wave-2" },
   { symbol: "PLTR", namePt: "Palantir", terms: ["p2lt34"], status: "wave-2" },
   { symbol: "TSM", namePt: "TSMC", terms: ["taiwan semiconductor", "tsmc34"], status: "wave-2" },
-  { symbol: "MSTR", namePt: "Strategy (MicroStrategy)", terms: ["microstrategy", "m2st34"], status: "wave-2-owner-decision" },
+  { symbol: "MSTR", namePt: "Strategy (MicroStrategy)", terms: ["microstrategy", "m2st34"], status: "wave-2" },
   { symbol: "NFLX", namePt: "Netflix", terms: ["nflx34"], status: "wave-2" },
   { symbol: "VTI", namePt: "Vanguard Total Stock Market", terms: ["vanguard"], status: "watch" },
   { symbol: "LLY", namePt: "Eli Lilly", terms: ["lilly"], status: "watch" },
@@ -216,8 +215,7 @@ export const CROSS_LINKS = Object.freeze([
   Object.freeze({ terms: Object.freeze(["gld", "ouro", "gold", "paxg"]), label: "Para ouro, use o ouro. by Vortex", href: "/pt-br/gold/" }),
 ]);
 
-// Pending issuer corporate actions (RHJ /rhj/corporate-actions, universe source R3, seen
-// 2026-09-26T14:04Z). Expect a multiplier change and a trading pause of about 02:00-15:30 CET on
+// Pending issuer corporate actions (RHJ /rhj/corporate-actions, seen 2026-09-26T14:04Z). Expect a multiplier change and a trading pause of about 02:00-15:30 CET on
 // the process date (market-hours.js expectedIssuerPause). The chain read (paused/oraclePaused) is
 // what actually disables buy and sell. A snapshot goes stale: scripts/verify-allowlist.mjs fails
 // before a release when it is older than 14 days or misses a pending action of a launch token.
@@ -228,7 +226,7 @@ export const CORPORATE_ACTIONS = Object.freeze([
   Object.freeze({ symbol: "QQQ", kind: "cash-dividend", processDate: "2026-10-08" }),
 ]);
 
-// Verbatim from stock-universe.json sharedCopyPt (draft copy, brand/legal review pending).
+// Draft copy, brand and legal review pending.
 export const SHARED_COPY_PT = Object.freeze({
   whatYouBuy: "Você compra Stock Tokens, emitidos pela Robinhood Assets (Jersey) Limited, que acompanham o preço da ação ou do fundo. Não é a ação em si e não dá direito a voto.",
   dividends: "Dividendos são reinvestidos automaticamente no próprio token. Não há pagamento em dinheiro.",
@@ -239,10 +237,9 @@ export const SHARED_COPY_PT = Object.freeze({
 /** The "hours" line; while buying is not open yet it does not say "Compre quando quiser" as if it were possible today. */
 export const hoursPt = (rampOpen) => (rampOpen === false ? `Quando a compra com Pix for liberada: ${SHARED_COPY_PT.hours[0].toLowerCase()}${SHARED_COPY_PT.hours.slice(1)}` : SHARED_COPY_PT.hours);
 
-// Selling on Robinhood Chain can require ETH for network fees. If the wallet lacks ETH, a
-// purchase can deliver a small reserve on a separate fee line. "Quando falta" also covers
-// a sale that uses a gasless permit. See tests/stocks-allowlist.test.mjs.
-export const SELL_GAS_RESERVE_PT = "Para vender, você não precisa comprar ETH à parte: quando falta, a compra inclui uma pequena reserva de ETH na Robinhood Chain para as taxas de rede.";
+// A sell's network fee is part of its own quote: a permit sell spends no ETH from the wallet. See
+// tests/stocks-allowlist.test.mjs.
+export const SELL_NETWORK_FEE_PT = "Para vender, você não precisa comprar ETH à parte: a taxa de rede já vem descontada do valor que você recebe no Pix.";
 
 const BY_SYMBOL = new Map(STOCK_TOKENS.map((item) => [item.symbol, item]));
 const BY_ADDRESS = new Map(STOCK_TOKENS.map((item) => [item.address.toLowerCase(), item]));
@@ -260,7 +257,7 @@ export const tokensInCollection = (collectionId) => STOCK_TOKENS.filter((item) =
 
 export const isVolatile = (item) => item.badgesPt.includes(VOLATILITY_BADGE);
 
-/** Extra risk lines for the detail screen (spec S6). */
+/** Extra risk lines for the detail screen. */
 export function riskNotesPt(item) {
   const notes = [];
   if (isVolatile(item)) notes.push("O preço pode oscilar muito.");
@@ -338,7 +335,7 @@ export function searchStocks(query) {
   return hits.map((entry) => entry.hit);
 }
 
-/** Copy for a non-buyable search hit (spec S5); never promises a date. */
+/** Copy for a non-buyable search hit; never promises a date. */
 export function searchHitNotePt(hit, productName = BRAND.name) {
   if (hit.kind === "watchlist") return `${hit.item.namePt} (${hit.item.symbol}): em avaliação, ainda não disponível no ${productName}`;
   if (hit.kind === "not_tokenized") return `${hit.item.namePt} ainda não existe como Stock Token na Robinhood Chain.`;

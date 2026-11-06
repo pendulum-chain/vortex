@@ -9,13 +9,15 @@ const STATUS = { failure: ["Não concluída", "badge--volatile"], processing: ["
 export function ActivityRow({ row, hidden = false }) {
   const buy = row.direction === "BUY";
   const status = STATUS[row.status];
-  const tokens = row.tokenAmount ? `${buy ? "+" : "−"}${formatTokenAmount(row.tokenAmount)} ${row.symbol || ""}`.trim() : "—";
+  const sign = row.status === "failure" ? "" : buy ? "+" : "−"; // a failed operation's amount is not a claim that it moved
+  const tokens = row.tokenAmount ? `${sign}${formatTokenAmount(row.tokenAmount)} ${row.symbol || ""}`.trim() : "—";
   return (
     <div className="activity-row">
       <span className={`activity-icon activity-icon--${buy ? "buy" : "sell"}`} aria-hidden="true">{buy ? <ArrowDownLeft size={20} weight="bold" /> : <ArrowUpRight size={20} weight="bold" />}</span>
       <span className="activity-row__main">
         <b>{buy ? "Compra" : "Venda"}{row.symbol ? ` · ${row.symbol}` : ""}{row.simulated && <span className="badge badge--sim">Simulação</span>}{status && <span className={`badge ${status[1]}`}>{status[0]}</span>}</b>
         <small>{formatDateTime(row.date) || "Data indisponível"}</small>
+        {row.status === "failure" && <small style={{ overflowWrap: "anywhere" }}>Código da operação: {row.id}</small>}
       </span>
       <span className="activity-row__amount">
         <span className="mono">{hidden ? "•••" : tokens}</span>

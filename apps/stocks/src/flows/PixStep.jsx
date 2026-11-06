@@ -9,7 +9,7 @@ import { Notice } from "../components/ui.jsx";
 import { formatBRL } from "../format.js";
 import { useCopy, useMaintenanceStatus } from "../hooks.js";
 
-export function PixStep({ ramp, tokenLabel, onPaid, busy, error, adapter }) {
+export function PixStep({ ramp, tokenLabel, onPaid, onAbandon, busy, error, adapter }) {
   const code = ramp.depositQrCode || "";
   const simulated = !code && ramp.simulatedPix;
   const [deadline] = useState(() => ramp.startDeadline ?? (simulated ? Date.now() + 15 * 60_000 : Number.NaN));
@@ -21,7 +21,7 @@ export function PixStep({ ramp, tokenLabel, onPaid, busy, error, adapter }) {
   const maintenance = useMaintenanceStatus({ readStatus: adapter?.getMaintenanceStatus, enabled: !simulated && routeOpen });
   const expired = !Number.isFinite(seconds) || seconds <= 0;
   const canPay = !expired && routeOpen && (simulated || maintenance.status?.active === false);
-  const pauseMessage = expired ? "O prazo deste Pix terminou. Não pague este código. Se já pagou, feche esta tela e retome o acompanhamento no Início."
+  const pauseMessage = expired ? "O prazo deste Pix terminou. Não pague este código. Se já pagou, a compra continua e aparece no Histórico."
     : !routeOpen ? "Novos pagamentos estão pausados. Não faça este Pix agora. Sua operação continua salva."
       : maintenance.status?.active ? "A Vortex está em manutenção. Não faça este Pix agora. Se já pagou, sua operação continua salva para acompanhamento."
         : "Aguarde enquanto verificamos a disponibilidade da Vortex. Não faça um novo Pix até a confirmação.";
@@ -65,6 +65,7 @@ export function PixStep({ ramp, tokenLabel, onPaid, busy, error, adapter }) {
       {!simulated && routeOpen && !expired && <button className="back-button" type="button" onClick={maintenance.refresh}>Verificar disponibilidade</button>}
       {error && <p className="field-error" role="alert">{error}</p>}
       <button className="btn btn--primary btn--lg btn--full" type="button" onClick={onPaid} disabled={busy || !canPay}>{busy ? <><span className="spinner" aria-hidden="true" /> Confirmando…</> : simulated ? "Já fiz o Pix (simulado)" : "Já fiz o Pix"}</button>
+      {expired && <button className="btn btn--secondary btn--lg btn--full" type="button" onClick={onAbandon} disabled={busy}>Não paguei, começar de novo</button>}
       <p className="legal-note">{canPay ? "Depois desta confirmação, a compra segue automaticamente. Você pode fechar e voltar sem perder o acompanhamento." : "Você pode fechar esta tela e retomar a mesma operação pelo Início. Não gere outro pagamento se já houve débito."}</p>
     </div>
   );

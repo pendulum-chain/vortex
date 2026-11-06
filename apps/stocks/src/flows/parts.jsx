@@ -44,6 +44,13 @@ export function errorMessage(error, fallback = "Não foi possível continuar.") 
 
 export const needsCode = (error) => error?.status === 401 || error?.code === "AUTH_REQUIRED";
 
+// The kit's poll gives up after 20 minutes or 5 network errors in a row, with an error that counts as
+// transient, but the ramp goes on without it (long holds, lost signal). A flow starts it over after
+// this long, for as long as its tracking screen is open.
+export const POLL_RESTART_MS = 4_000;
+
+export const KYC_IN_REVIEW_PT = "Sua verificação ainda está em análise. Tente novamente em alguns minutos.";
+
 /** Price guard: warn needs a second checkbox, block has no confirm button. */
 export function GuardCard({ guard, direction, reference, accepted, onAccept }) {
   const copy = guard ? priceGuardCopyPt(guard, { direction, reference }) : null;
@@ -114,7 +121,7 @@ function FileField({ label, file, hint, onChange }) {
 
 const DEMO_FORM = Object.freeze({ fullName: "Ana Silva", taxId: "00000000000", dateOfBirth: "1990-01-01", state: "SP", city: "São Paulo", zipCode: "01310100", streetAddress: "Av. Paulista, 1000 (exemplo)", documentType: "DRIVERS-LICENSE" });
 
-/** Avenia KYC (spec S9), reached only when readiness says so; KYC belongs to the Vortex user. */
+/** Avenia KYC, reached only when readiness says so; KYC belongs to the Vortex user. */
 export function KycStep({ kyc, quote, email, initialName, onApproved }) {
   const demo = kyc.demo === true;
   const [phase, setPhase] = useState("form");
@@ -184,7 +191,10 @@ export function KycStep({ kyc, quote, email, initialName, onApproved }) {
       onApproved();
     } catch (nextError) {
       if (controller.signal.aborted) return; // the flow was closed
-      setError(nextError.message || "Não foi possível concluir a verificação."); setPhase("liveness");
+      setError(nextError.message || "Não foi possível concluir a verificação.");
+      // "Já concluí a selfie" would only resubmit what was refused: these need a new upload and selfie.
+      if (["KYC_NEW_ATTEMPT_BLOCKED", "KYC_SUBMISSION_REFUSED"].includes(nextError?.code)) { submitted.current = false; setPrepared(null); setLivenessUrl(""); setPhase("form"); }
+      else setPhase("liveness");
     } finally { if (!controller.signal.aborted) setBusy(false); }
   };
 
@@ -220,7 +230,7 @@ export function KycStep({ kyc, quote, email, initialName, onApproved }) {
       </div>
       {error && <p ref={errorRef} className="field-error" role="alert">{error}</p>}
       <button className="btn btn--primary btn--lg btn--full" type="button" onClick={prepare} disabled={!valid || busy}>{busy ? <><span className="spinner" aria-hidden="true" /> Enviando com segurança…</> : <>Continuar para a selfie <ArrowRight size={18} aria-hidden="true" /></>}</button>
-      <p className="legal-note">Estes dados vão direto para a Avenia, para a verificação obrigatória. Eles não ficam guardados neste aparelho.</p>
+      <p className="legal-note">Estes dados passam pela Vortex e seguem para a Avenia, para a verificação obrigatória. Eles não ficam guardados neste aparelho.</p>
     </div>
   );
 }

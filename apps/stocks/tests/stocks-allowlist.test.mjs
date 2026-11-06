@@ -4,7 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { getAddress } from "viem";
 import {
-  ALLOWLIST_SNAPSHOT, COLLECTIONS, CORPORATE_ACTIONS, CORPORATE_ACTIONS_SEEN_AT, CROSS_LINKS, DEFAULT_ORDER, NOT_TOKENIZED, SELL_GAS_RESERVE_PT, SHARED_COPY_PT, STOCK_TOKENS, VOLATILITY_BADGE, WATCHLIST,
+  ALLOWLIST_SNAPSHOT, COLLECTIONS, CORPORATE_ACTIONS, CORPORATE_ACTIONS_SEEN_AT, CROSS_LINKS, DEFAULT_ORDER, NOT_TOKENIZED, SELL_NETWORK_FEE_PT, SHARED_COPY_PT, STOCK_TOKENS, VOLATILITY_BADGE, WATCHLIST,
   findStock, findStockByAddress, isVolatile, riskNotesPt, searchHitNotePt, searchStocks, tokensInCollection,
 } from "../src/lib/stocks.js";
 import { APP, REPO, sourceFiles } from "./helpers.mjs";
@@ -29,7 +29,6 @@ test("12 launch tokens in exactly the default order, SPY first", () => {
   assert.equal(STOCK_TOKENS[0].role, "default-first-buy");
   assert.ok(Object.isFrozen(STOCK_TOKENS) && STOCK_TOKENS.every(Object.isFrozen));
   assert.equal(ALLOWLIST_SNAPSHOT.chainId, 4663);
-  assert.match(ALLOWLIST_SNAPSHOT.selection, /stock-universe\.json v0\.1/);
 });
 
 test("addresses are EIP-55 checksummed, unique, 18 decimals, valid ISINs", () => {
@@ -91,7 +90,7 @@ test("watchlist and not-tokenized names carry no address and never overlap the l
 
 test("lookalike, excluded and settlement addresses are absent from the allowlist", () => {
   const forbidden = [
-    "0xCA9c78Dd337A67F6e0077F65F5E9218719d30eDf", // NET "NetNet" lookalike (LI.FI list only)
+    "0xCA9c78Dd337A67F6e0077F65F5E9218719d30eDf", // NET "NetNet" lookalike
     "0x49bac47750F3dCdBa49350B5D74fd399e90f97C6", // BULL lookalike
     "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", // USDG (settlement stablecoin, not a Stock Token)
     "0x0A3B763d66c0e8c7555c986A3701E1DC1Bf3954F", // "Paxos USDG" lookalike
@@ -134,7 +133,7 @@ test("search finds BDR tickers, accents, watchlist, not-tokenized names and the 
   assert.deepEqual(CROSS_LINKS[0].terms, ["gld", "ouro", "gold", "paxg"]);
 });
 
-test("pending corporate actions and shared copy come from the universe file", () => {
+test("pending corporate actions name launch tokens and the shared copy says what you buy", () => {
   assert.deepEqual(CORPORATE_ACTIONS.map((action) => `${action.symbol} ${action.processDate}`), ["META 2026-09-28", "NVDA 2026-10-01", "QQQ 2026-10-08"]);
   assert.match(CORPORATE_ACTIONS_SEEN_AT, /^\d{4}-\d{2}-\d{2}$/, "the verify script needs the snapshot date");
   for (const action of CORPORATE_ACTIONS) assert.ok(findStock(action.symbol));
@@ -146,51 +145,27 @@ test("a token logo, once set, exists in public/ (until design delivers, the UI s
   for (const token of STOCK_TOKENS) if (token.logo) assert.ok(existsSync(join(APP, "public", token.logo)), token.logo);
 });
 
-// When the reference universe is provided via STOCK_UNIVERSE_JSON, check the transcription.
-const universePath = process.env.STOCK_UNIVERSE_JSON || join(REPO, "..", "design", "stock-universe.json");
-test("the transcription matches stock-universe.json", { skip: existsSync(universePath) ? false : `universe file not found at ${universePath}` }, () => {
-  const universe = JSON.parse(readFileSync(universePath, "utf8"));
-  assert.equal(universe.version, "0.1");
-  assert.deepEqual([...DEFAULT_ORDER], universe.defaultOrder);
-  assert.equal(universe.tokens.length, STOCK_TOKENS.length);
-  for (const source of universe.tokens) {
-    const token = findStock(source.symbol);
-    assert.ok(token, source.symbol);
-    assert.equal(token.address, source.address, `${source.symbol} address`);
-    assert.equal(token.decimals, source.decimals);
-    assert.equal(token.isin, source.isin);
-    assert.equal(token.namePt, source.namePt);
-    assert.equal(token.descriptionPt, source.descriptionPt);
-    assert.equal(token.underlyingName, source.underlyingName);
-    assert.equal(token.type, source.type);
-    assert.deepEqual([...token.collections], source.collections);
-    assert.deepEqual([...token.badgesPt], source.badgesPt);
-    assert.equal(token.role, source.role);
-    assert.equal(token.coingeckoId, source.price.coingeckoId);
-    assert.equal(token.chainlinkFeed, source.price.chainlinkFeed);
-    assert.equal(token.multiplierSnapshot, source.uiMultiplier);
-    if (source.chart.coingeckoProxyId1y) assert.equal(token.chart.coingeckoId, source.chart.coingeckoProxyId1y, `${source.symbol} chart proxy`);
-  }
-  assert.deepEqual(COLLECTIONS.map(({ id, titlePt, subtitlePt, tickers }) => ({ id, titlePt, subtitlePt, tickers: [...tickers] })), universe.collections.map(({ id, titlePt, subtitlePt, tickers }) => ({ id, titlePt, subtitlePt, tickers })));
-  assert.deepEqual({ ...SHARED_COPY_PT }, { whatYouBuy: universe.sharedCopyPt.whatYouBuy, dividends: universe.sharedCopyPt.dividends, hours: universe.sharedCopyPt.hours, pauses: universe.sharedCopyPt.pauses });
-  const watch = universe.watchlist.filter((item) => item.status !== "not-tokenized").map((item) => item.ticker);
-  const notTokenized = universe.watchlist.filter((item) => item.status === "not-tokenized").map((item) => item.ticker);
-  assert.deepEqual(WATCHLIST.map((item) => item.symbol), watch);
-  assert.deepEqual(NOT_TOKENIZED.map((item) => item.symbol), notTokenized);
-  for (const excluded of universe.excluded) if (excluded.address) assert.equal(findStockByAddress(excluded.address), null, excluded.ticker);
+// The app bundles its own list and the API pins its own: they must name the same contracts.
+test("the allowlist matches the stock tokens in the shared EVM token config", () => {
+  const config = readFileSync(join(REPO, "packages/shared/src/tokens/evm/config.ts"), "utf8");
+  const shared = [...config.matchAll(/evmToken\(Networks\.Robinhood, "(\w+)", (\d+), "(0x[0-9a-fA-F]{40})"/g)]
+    .filter(([, symbol]) => !["ETH", "USDG"].includes(symbol))
+    .map(([, symbol, decimals, address]) => ({ symbol, decimals: Number(decimals), address }));
+  assert.equal(shared.length, 12, "the config's format changed: this comparison no longer reads it");
+  const byAddress = (a, b) => a.address.localeCompare(b.address);
+  assert.deepEqual(STOCK_TOKENS.map(({ symbol, decimals, address }) => ({ symbol, decimals, address })).sort(byAddress), shared.sort(byAddress));
 });
 
-// Selling pays its network fee in ETH on Robinhood Chain; the purchase delivers a small ETH reserve
-// when the wallet lacks it. Every "venda e
-// receba no Pix" promise says how the fee is covered, and no screen still tells the user to get ETH.
+// A sell's network fee is part of its own quote. Every "venda e receba no Pix" promise says how the
+// fee is covered, and no screen still tells the user to get ETH.
 test("every sell-to-Pix promise says the fee is covered without buying ETH", () => {
-  assert.match(SELL_GAS_RESERVE_PT, /reserva de ETH na Robinhood Chain/);
-  assert.match(SELL_GAS_RESERVE_PT, /não precisa comprar ETH/);
-  assert.match(SELL_GAS_RESERVE_PT, /quando falta/, "true also with a permit sell and a reserve target of 0");
+  assert.match(SELL_NETWORK_FEE_PT, /não precisa comprar ETH/);
+  assert.match(SELL_NETWORK_FEE_PT, /já vem descontada do valor que você recebe/);
+  assert.doesNotMatch(SELL_NETWORK_FEE_PT, /reserva/, "a permit sell does not spend the reserve");
   const files = sourceFiles();
   const promises = files.flatMap((file) => file.text.split("\n").filter((line) => /[Vv]enda[^.<]*receba no Pix/.test(line)).map((line) => ({ path: file.path, line })));
   assert.ok(promises.length > 0, "sell-to-Pix promises are still present and must explain their network fees");
-  for (const { path, line } of promises) assert.match(line, /SELL_GAS_RESERVE_PT|sem comprar ETH/, `${path}: ${line.trim()}`);
+  for (const { path, line } of promises) assert.match(line, /SELL_NETWORK_FEE_PT|sem comprar ETH/, `${path}: ${line.trim()}`);
   for (const file of files) {
     assert.doesNotMatch(file.text, /precisa de um pouco de ETH|A compra não inclui ETH|SELL_NEEDS_ETH_PT/, file.path);
   }

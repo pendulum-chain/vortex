@@ -1,8 +1,9 @@
-// S8 sell flow: Gold's SellFlow over the ramp adapter.
+// Sell flow: Gold's SellFlow over the ramp adapter.
 //   amount (tokens + Pix key) -> (code) -> prepare: availability, wallet on Robinhood Chain, balance
 //   and ETH, quote, price guard, readiness -> (kyc) -> review -> register + sign -> start -> processing
 //   sign (resume): resumeSell -> start;  processing -> success | issue
 import { useEffect, useRef, useState } from "react";
+import { isTransientError } from "@vortexfi/consumer-kit";
 import { QuoteCosts } from "../components/QuoteCosts.jsx";
 import { ArrowLeft, ArrowRight, Check, Copy, GasPump } from "../components/icons.js";
 import { Modal } from "../components/Modal.jsx";
@@ -12,11 +13,12 @@ import { useCopy } from "../hooks.js";
 import { DEMO_TOOLS } from "../lib/config.js";
 import { sellGasNoticePt, sellGasRequiredWei } from "../lib/gas-reserve.js";
 import { MARKET_CLOSED_SELL_NOTE_PT, tokenizationClosedNotePt, tokenizationWindowOpen, usMarketStatus } from "../lib/market-hours.js";
+import { waitingCopyPt } from "../lib/phases.js";
 import { checkQuotePrice } from "../lib/price-guard.js";
 import { freshPauseReason } from "../lib/ramp-contract.js";
 import { quoteNeedsRefresh, stepAfterCode, validSellAmount } from "../lib/purchase-options.js";
 import { formatTokenAmount, formatTokensPt, maxSellAmount, tokensToWei } from "../lib/token.js";
-import { FlowIssue, FlowProgress, GuardCard, KycStep, OtpStep, ProcessingSteps, QuoteTimer, StepIntro, SuccessSeal, TokenSummary, Waiting, errorMessage, needsCode, unavailableMessage } from "./parts.jsx";
+import { FlowIssue, FlowProgress, GuardCard, KYC_IN_REVIEW_PT, KycStep, OtpStep, POLL_RESTART_MS, ProcessingSteps, QuoteTimer, StepIntro, SuccessSeal, TokenSummary, Waiting, errorMessage, needsCode, unavailableMessage } from "./parts.jsx";
 
 const PROGRESS = ["Quantidade", "Segurança", "Revisão", "Confirmação"];
 const PROGRESS_INDEX = { amount: 0, otp: 1, kyc: 1, review: 2, sign: 3 };
@@ -122,8 +124,10 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
   const [error, setError] = useState("");
   const [errorCode, setErrorCode] = useState("");
   const [notice, setNotice] = useState("");
+  const [pollRun, setPollRun] = useState(0);
   const lock = useRef(false);
   const settled = useRef(false);
+  const backToTracking = useRef(false); // the code was asked for while tracking a sell that already started
   const price = market.state.status === "unavailable" ? null : market.state.prices[token.symbol];
 
   async function run(operation) {
@@ -132,10 +136,12 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
     try { await operation(); }
     catch (nextError) {
       if (nextError?.name === "AbortError") return;
-      if (needsCode(nextError) && verification.required) { setOtpSent(false); setOtp(""); setStep("otp"); setError(""); }
+      if (needsCode(nextError) && verification.required) askForCode();
       else { setError(errorMessage(nextError)); setErrorCode(nextError?.code || ""); }
     } finally { lock.current = false; setBusy(false); }
   }
+
+  function askForCode() { setOtpSent(false); setOtp(""); setStep("otp"); setError(""); }
 
   async function quoteNow() {
     const next = await adapter.quoteSell({ symbol: token.symbol, tokenAmount: amount, walletAddress: wallet });
@@ -164,6 +170,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
     if (tokensToWei(amount) > balance) throw new Error(`Você tem ${formatTokensPt(balance)}. Escolha uma quantidade menor.`);
     await quoteNow();
     const readiness = await runtime.getReadiness();
+    if (readiness.kycStatus === "pending") throw new Error(KYC_IN_REVIEW_PT);
     if (readiness.kycStatus !== "approved") { setStep("kyc"); return; }
     if (!readiness.canSell) throw new Error("Sua conta ainda não está liberada para receber Pix. Verifique sua situação com a Vortex.");
     setNotice(""); setStep("review");
@@ -181,6 +188,14 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
     setRamp(current);
     if (current.classification === "success") { finish(current); return; }
     if (current.classification === "failure") { setError("Esta venda não foi concluída. Consulte o suporte com o código abaixo antes de tentar outra operação."); setStep("issue"); return; }
+    if (resume.stage === "registering" && current.currentPhase === "initial") {
+      // The wallet is asked only after this stage, so nothing can have moved: this device can let it go.
+      await adapter.abandonRamp(resume.rampId, { walletAddress: wallet });
+      setError("O registro desta venda não foi concluído, e nada saiu da sua carteira. Comece uma nova venda.");
+      setErrorCode("SELL_EXPIRED"); // it cannot be continued: no retry
+      setStep("issue");
+      return;
+    }
     if (resume.stage === "registering") { setError("O registro precisa ser conferido pela Vortex. Envie o código abaixo ao suporte; não faça uma nova venda."); setStep("issue"); return; }
     setStep(current.currentPhase === "initial" ? "sign" : "processing");
   }
@@ -208,14 +223,20 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
   useEffect(() => {
     if (step !== "processing" || !ramp?.id) return undefined;
     const controller = new AbortController();
+    let restart;
     adapter.pollStatus(ramp.id, { signal: controller.signal, walletAddress: wallet, onUpdate: setRamp })
       .then((final) => {
         if (final.classification === "success") finish(final);
         else { setRamp(final); setError("A venda não foi concluída. Consulte o suporte com o código da operação."); setStep("issue"); }
       })
-      .catch((nextError) => { if (nextError?.name !== "AbortError") { setError(errorMessage(nextError)); setStep("issue"); } });
-    return () => controller.abort();
-  }, [step, ramp?.id]);
+      .catch((nextError) => {
+        if (nextError?.name === "AbortError") return;
+        if (needsCode(nextError) && verification.required) { backToTracking.current = true; askForCode(); }
+        else if (isTransientError(nextError)) restart = setTimeout(() => setPollRun((run) => run + 1), POLL_RESTART_MS);
+        else { setError(errorMessage(nextError)); setStep("issue"); }
+      });
+    return () => { clearTimeout(restart); controller.abort(); };
+  }, [step, ramp?.id, pollRun]);
 
   const continueFromAmount = () => {
     if (verification.required && !verification.hasSession({ email, privyDid })) { setError(""); setStep("otp"); return; }
@@ -225,7 +246,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
   const verifyOtp = () => run(async () => {
     await verification.verifyOtp(email, otp, { privyDid });
     const next = stepAfterCode({ direction: "SELL", rampId: ramp?.id, resuming: Boolean(resume) });
-    if (next === "sign") setStep("sign");
+    if (next === "sign") setStep(backToTracking.current ? "processing" : "sign");
     else if (next === "existing") await loadExisting();
     else await prepare();
   });
@@ -269,6 +290,8 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
   });
   const refresh = () => run(async () => { await readBalances(); await quoteNow(); setNotice("Cotação e saldo atualizados."); });
 
+  const operationId = ramp?.id ?? resume?.rampId;
+  const waiting = waitingCopyPt("SELL", ramp?.currentPhase);
   const progress = PROGRESS_INDEX[step];
   const title = step === "success" ? "Venda concluída" : `Vender ${token.symbol}`;
   const closeDisabled = busy && ["review", "sign", "resuming"].includes(step);
@@ -282,7 +305,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
       {step === "resuming" && <Waiting title="Retomando sua venda" text="Buscando o status mais recente da operação." />}
       {step === "sign" && (
         <div className="flow-section">
-          <StepIntro icon={GasPump} title="Confirme na sua carteira">Até duas confirmações: autorizar e vender. A janela da carteira mostra a rede Robinhood Chain.</StepIntro>
+          <StepIntro icon={GasPump} title="Confirme na sua carteira">Uma confirmação, para autorizar esta venda. A janela da carteira mostra a rede Robinhood Chain.</StepIntro>
           {runtime.simulated && <p className="demo-hint">Simulação: nenhuma confirmação real é pedida à carteira.</p>}
           {error && <p className="field-error" role="alert">{error}</p>}
           {errorCode === "INSUFFICIENT_GAS" && <WalletAddress address={wallet} />}
@@ -291,7 +314,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
       )}
       {step === "processing" && (
         <div className="flow-section">
-          <Waiting title="Seu Pix está a caminho" text="Você pode fechar esta tela: a venda continua e aparece no Início e no Histórico." />
+          <Waiting title={waiting.title} text={waiting.text} />
           <ProcessingSteps direction="SELL" phase={ramp?.currentPhase} />
           <button className="btn btn--secondary btn--lg btn--full" type="button" onClick={onClose}>Fechar</button>
         </div>
@@ -310,7 +333,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
         </div>
       )}
       {step === "issue" && <FlowIssue message={error} onRetry={resume && errorCode !== "SELL_EXPIRED" ? () => { setError(""); run(loadExisting); } : null} onClose={onClose} />}
-      {ramp?.id && step !== "success" && <p className="op-ref">Código da operação: <code>{ramp.id}</code></p>}
+      {operationId && step !== "success" && <p className="op-ref">Código da operação: <code>{operationId}</code></p>}
       {["otp", "kyc", "review"].includes(step) && !busy && !ramp && <div className="flow-foot" style={{ marginTop: 8 }}><button className="back-button" type="button" onClick={() => { setError(""); setStep("amount"); }}><ArrowLeft size={16} aria-hidden="true" /> Voltar</button></div>}
     </Modal>
   );

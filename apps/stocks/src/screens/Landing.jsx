@@ -1,4 +1,4 @@
-// S1 landing (#/, anonymous). Renders from the eager bundle with no Privy, SDK or chart code.
+// Landing (#/, anonymous). Renders from the eager bundle with no Privy, SDK or chart code.
 import { ArrowRight, ArrowSquareOut, Bank, CheckCircle, Clock, CurrencyCircleDollar, HandCoins, Plus } from "../components/icons.js";
 import { B2BBand } from "../components/SiteFooter.jsx";
 import { BRAND } from "../brand.js";
@@ -28,7 +28,7 @@ function CostReceipt({ price }) {
         <div><dt>Custo total (já incluído)</dt><dd>{formatBRL(fees.total)} · {formatNumber((fees.total / EXAMPLE_AMOUNT) * 100, 2)}%</dd></div>
         <div className="is-total"><dt>Você recebe</dt><dd>≈ {formatTokenAmount(tokens)} NVDA (token)</dd></div>
       </dl>
-      <p className="receipt__note">Exemplo ilustrativo, com reserva inicial para taxas de rede. A cotação final é atualizada antes do pagamento.</p>
+      <p className="receipt__note">Exemplo ilustrativo, com uma pequena reserva de ETH que fica na sua carteira. A cotação final é atualizada antes do pagamento.</p>
     </div>
   );
 }
@@ -38,8 +38,8 @@ const faq = (rampOpen) => [
   ["Recebo dividendos? Posso votar?", `${SHARED_COPY_PT.dividends} Stock Tokens não dão direito a voto.`],
   ["Posso comprar à noite ou no fim de semana?", `${hoursPt(rampOpen)} ${SHARED_COPY_PT.pauses}`],
   ["Onde ficam meus tokens?", "Na sua carteira, na Robinhood Chain. Ela é criada quando você entra com Vortex, sem precisar instalar outra aplicação. A Vortex não guarda seus tokens."],
-  ["Quanto custa?", `A cotação mostra quanto você paga, os custos incluídos e quantos tokens recebe, antes de gerar o Pix. Nos detalhes, você vê cada provedor: conversão de moeda, transferência entre redes, compra do token e serviço Vortex. A ${BRAND.name} não cobra uma taxa extra; nossa remuneração vem da taxa Vortex. Quando necessária, uma reserva para taxas de rede de vendas futuras também aparece na cotação. Não há mensalidade. A compra mínima é de ${formatBRL(MIN_BUY, 0)}; em compras pequenas, os custos fixos pesam mais.`],
-  ["Como eu vendo?", "Escolha quantos tokens vender e informe uma chave Pix da sua própria conta. Você vê o valor líquido antes de confirmar na sua carteira. A taxa de rede da venda é paga em ETH na Robinhood Chain, com a reserva que a compra inclui quando falta: você não precisa comprar ETH à parte."],
+  ["Quanto custa?", `A cotação mostra quanto você paga, os custos incluídos e quantos tokens recebe, antes de gerar o Pix. Nos detalhes, você vê cada provedor: conversão de moeda, transferência entre redes, compra do token e serviço Vortex. A ${BRAND.name} não cobra uma taxa extra; nossa remuneração vem da taxa Vortex. Quando incluída, uma pequena reserva de ETH, que fica na sua carteira, também aparece na cotação. Não há mensalidade. A compra mínima é de ${formatBRL(MIN_BUY, 0)}; em compras pequenas, os custos fixos pesam mais.`],
+  ["Como eu vendo?", "Escolha quantos tokens vender e informe uma chave Pix da sua própria conta. Você vê o valor líquido antes de confirmar na sua carteira. A taxa de rede já vem descontada desse valor: você não precisa comprar ETH à parte."],
   ["Como faço meu primeiro acesso?", "Entre com sua conta Google ou seu e-mail, sem criar uma nova senha. Na primeira compra com Pix, a Vortex confirma seu e-mail com um código e verifica sua identidade, se necessário. Se você já usa o ouro., pode usar o mesmo acesso."],
   ["Quem pode usar?", "Pessoas no Brasil, com CPF e uma chave Pix. Stock Tokens não são oferecidos nos EUA, no Canadá, no Reino Unido e na Suíça, conforme o emissor."],
 ];
@@ -127,7 +127,7 @@ export function Landing({ market, rampOpen, onPreview, canPreviewContinue, onLea
             <p className="section__lede">Veja quanto você paga, os custos incluídos e quantos tokens recebe. Sem mensalidade ou taxa de custódia da {BRAND.name}</p>
             <ul className="costs__list">
               <li><span className="costs__icon"><CurrencyCircleDollar size={22} aria-hidden="true" /></span><div><b>Saiba para onde vai cada valor</b><span>Abra os detalhes da cotação para ver a conversão, a compra do token e a taxa Vortex. A {BRAND.name} não cobra uma taxa extra.</span></div></li>
-              <li><span className="costs__icon"><Bank size={22} aria-hidden="true" /></span><div><b>Taxas de rede incluídas</b><span>O custo de receber os tokens e, quando necessária, uma reserva para pagar as taxas de uma venda futura.</span></div></li>
+              <li><span className="costs__icon"><Bank size={22} aria-hidden="true" /></span><div><b>Taxas de rede incluídas</b><span>O custo de receber os tokens e, quando incluída, uma pequena reserva de ETH, que fica na sua carteira.</span></div></li>
               <li><span className="costs__icon"><HandCoins size={22} aria-hidden="true" /></span><div><b>Venda com Pix</b><span>Na venda, as taxas aparecem antes e o valor líquido cai na sua chave Pix.</span></div></li>
             </ul>
           </div>
