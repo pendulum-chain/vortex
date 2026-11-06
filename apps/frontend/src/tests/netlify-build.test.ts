@@ -8,4 +8,9 @@ describe("Netlify build settings", () => {
   it.each(["production", "staging"])("never skips a build of %s", context => {
     expect(config).toContain(`[context.${context}]\n  ignore = "/bin/false"\n`);
   });
+
+  it("builds with the Bun version the repo pins", () => {
+    const pinned = readFileSync(new URL("../../../../.bun-version", import.meta.url), "utf8").trim();
+    expect(config).toContain(`BUN_VERSION = "${pinned}"`);
+  });
 });

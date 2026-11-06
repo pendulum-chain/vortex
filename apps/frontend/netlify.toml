@@ -32,6 +32,8 @@
 [build]
   command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:sdk && bun run build:frontend && bun run build:gold && mkdir -p apps/frontend/dist/client/pt-BR/gold && cp -R apps/gold/dist/client/. apps/frontend/dist/client/pt-BR/gold/"
   publish = "dist/client"
+  # Netlify does not read .bun-version, and this overrides the older BUN_VERSION set in its UI.
+  environment = { BUN_VERSION = "1.4.4" }
   # Netlify's default ignore check only diffs the base directory, so a commit touching only
   # apps/gold or the shared/sdk packages would be skipped as "no content change". Build when
   # any input of this site changed (paths are relative to the base directory).
