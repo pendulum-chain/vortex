@@ -59,18 +59,31 @@ function sleep(ms, signal) {
 export function createBrazilKyc({ session, fetchImpl }) {
   const authed = session.authenticatedApi;
 
-  // Reads the signed-in user's own Avenia account with the OTP session, as the widget does before it
-  // skips KYC. /v1/ramp-info cannot be used: it only reports on the owner of an API credential.
+  // The signed-in user's own Avenia account, read with the OTP session as the widget does before it
+  // skips KYC, and with no CPF, which a returning user no longer has here. /v1/ramp-info cannot be used:
+  // it only reports on the owner of an API credential. /v1/onboarding/status comes first because it
+  // refreshes the provider's attempt, and that is what approves a review that ended while the user was
+  // away; /v1/brl/getUser only passes once the account is approved here.
   /** @returns {Promise<Readiness>} */
   async function getReadiness() {
+    let onboarding = null;
+    let onboardingError = null;
+    try { onboarding = await authed("/v1/onboarding/status", { method: "GET" }); }
+    catch (error) { onboardingError = error; }
     try {
       const { identityStatus } = await authed("/v1/brl/getUser", { method: "GET" });
       const approved = identityStatus === "CONFIRMED";
       return { kycStatus: approved ? "approved" : "pending", canBuy: approved, canSell: approved };
     } catch (error) {
-      // 400/404: the user has no approved, provisioned Avenia account yet.
-      if (error.status === 400 || error.status === 404) return { kycStatus: "not_started", canBuy: false, canSell: false };
-      throw error;
+      // 400/404: no approved, provisioned Avenia account yet.
+      if (error.status !== 400 && error.status !== 404) throw error;
+      // Not knowing is not "not started": the form would only resubmit over a review in flight.
+      if (onboardingError) throw onboardingError;
+      const account = onboarding?.entities?.flatMap((entity) => entity.accounts).find((item) => item.provider === "avenia" && item.customerType === "individual");
+      // The provider's attempt is what is in review. status and submittedAt cannot tell: creating the
+      // subaccount already sets them, before any document is sent.
+      const inReview = ["pending", "in_review"].includes(account?.kycCase?.status) && ["PENDING", "PROCESSING"].includes(account?.kycCase?.statusExternal);
+      return { kycStatus: inReview ? "pending" : "not_started", canBuy: false, canSell: false };
     }
   }
 
@@ -89,8 +102,10 @@ export function createBrazilKyc({ session, fetchImpl }) {
   async function submit(payload) {
     try { return await authed("/v1/brl/newKyc", { method: "POST", body: JSON.stringify(payload) }); }
     catch (error) {
-      if (error.status !== 409) throw error;
-      throw new VortexError("Não foi possível abrir uma nova verificação automaticamente. Consulte o suporte da Vortex.", { status: 409, code: "KYC_NEW_ATTEMPT_BLOCKED", details: error.details });
+      if (error.status === 409) throw new VortexError("Não foi possível abrir uma nova verificação automaticamente. Consulte o suporte da Vortex.", { status: 409, code: "KYC_NEW_ATTEMPT_BLOCKED", details: error.details });
+      // The same payload would be refused again: the user has to correct it on the form.
+      if (error.status === 400) throw new VortexError(error.message, { status: 400, code: "KYC_SUBMISSION_REFUSED", details: error.details });
+      throw error;
     }
   }
   const getStatus = (taxId) => authed(`/v1/brl/getKycStatus?taxId=${encodeURIComponent(taxId)}`, { method: "GET" });
