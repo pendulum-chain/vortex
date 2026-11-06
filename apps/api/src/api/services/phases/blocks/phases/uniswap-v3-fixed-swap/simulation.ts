@@ -1,8 +1,16 @@
-import { EvmClientManager, EvmToken, Networks } from "@vortexfi/shared";
+import { EvmClientManager, type EvmNetworks, EvmToken, Networks } from "@vortexfi/shared";
 import Big from "big.js";
 import { getAddress } from "viem";
 import { evmIO } from "../../core/io";
 import { defineContext, type SerializableBig } from "../../core/metadata";
+import {
+  ROBINHOOD_STOCKS,
+  ROBINHOOD_UNISWAP_FACTORY,
+  ROBINHOOD_UNISWAP_QUOTER_V2,
+  ROBINHOOD_UNISWAP_SWAP_ROUTER_02,
+  ROBINHOOD_USDG_ADDRESS,
+  type StockSymbol
+} from "../../core/robinhood-stocks";
 import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
 import { MONERIUM_EURE } from "../monerium-issue/simulation";
 import {
@@ -16,6 +24,7 @@ import {
   uniswapV3FactoryAbi,
   uniswapV3PoolAbi,
   uniswapV3QuoterAbi,
+  uniswapV3QuoterV2Abi,
   uniswapV3RouterAbi
 } from "./contract";
 
@@ -44,12 +53,22 @@ function sameAddress(left: string, right: string): boolean {
   return getAddress(left) === getAddress(right);
 }
 
-export async function verifyPolygonEureUsdcDeployment(): Promise<void> {
-  const client = EvmClientManager.getInstance().getClient(Networks.Polygon);
-  const [routerFactory, quoterFactory, ...hops] = await Promise.all([
-    client.readContract({ abi: uniswapV3RouterAbi, address: POLYGON_UNISWAP_V3_ROUTER, functionName: "factory" }),
-    client.readContract({ abi: uniswapV3QuoterAbi, address: POLYGON_UNISWAP_V3_QUOTER, functionName: "factory" }),
-    ...POLYGON_EURE_USDC_ROUTE.map(hop =>
+interface UniswapDeployment {
+  factory: `0x${string}`;
+  hops: readonly { fee: number; pool: `0x${string}`; tokenIn: `0x${string}`; tokenOut: `0x${string}` }[];
+  label: string;
+  network: EvmNetworks;
+  quoter: `0x${string}`;
+  router: `0x${string}`;
+}
+
+/** Router and quoter on the pinned factory, each pool holding the expected pair and fee and canonical on that factory. */
+async function verifyUniswapDeployment({ factory, hops, label, network, quoter, router }: UniswapDeployment): Promise<void> {
+  const client = EvmClientManager.getInstance().getClient(network);
+  const [routerFactory, quoterFactory, ...readHops] = await Promise.all([
+    client.readContract({ abi: uniswapV3RouterAbi, address: router, functionName: "factory" }),
+    client.readContract({ abi: uniswapV3QuoterAbi, address: quoter, functionName: "factory" }),
+    ...hops.map(hop =>
       Promise.all([
         client.readContract({ abi: uniswapV3PoolAbi, address: hop.pool, functionName: "token0" }),
         client.readContract({ abi: uniswapV3PoolAbi, address: hop.pool, functionName: "token1" }),
@@ -57,32 +76,52 @@ export async function verifyPolygonEureUsdcDeployment(): Promise<void> {
         client.readContract({ abi: uniswapV3PoolAbi, address: hop.pool, functionName: "factory" }),
         client.readContract({
           abi: uniswapV3FactoryAbi,
-          address: POLYGON_UNISWAP_V3_FACTORY,
+          address: factory,
           args: [hop.tokenIn, hop.tokenOut, hop.fee],
           functionName: "getPool"
         })
       ])
     )
   ]);
-  const hopsMatch = POLYGON_EURE_USDC_ROUTE.every((hop, index) => {
-    const [token0, token1, fee, poolFactory, canonicalPool] = hops[index];
-    const pair = [token0, token1].map(getAddress).sort();
-    const expected = [hop.tokenIn, hop.tokenOut].map(getAddress).sort();
+  const hopsMatch = hops.every((hop, index) => {
+    const [token0, token1, fee, poolFactory, canonicalPool] = readHops[index];
+    // Not `.map(getAddress)`: its second parameter is a chain id, so the array index would change the checksum.
+    const pair = [token0, token1].map(address => getAddress(address)).sort();
+    const expected = [hop.tokenIn, hop.tokenOut].map(address => getAddress(address)).sort();
     return (
       pair[0] === expected[0] &&
       pair[1] === expected[1] &&
       fee === hop.fee &&
-      sameAddress(poolFactory, POLYGON_UNISWAP_V3_FACTORY) &&
+      sameAddress(poolFactory, factory) &&
       sameAddress(canonicalPool, hop.pool)
     );
   });
-  if (
-    !hopsMatch ||
-    !sameAddress(routerFactory, POLYGON_UNISWAP_V3_FACTORY) ||
-    !sameAddress(quoterFactory, POLYGON_UNISWAP_V3_FACTORY)
-  ) {
-    throw new Error("UniswapV3FixedSwap: Polygon EURe/USDC deployment does not match the pinned route");
+  if (!hopsMatch || !sameAddress(routerFactory, factory) || !sameAddress(quoterFactory, factory)) {
+    throw new Error(`UniswapV3FixedSwap: ${label} deployment does not match the pinned route`);
   }
+}
+
+export async function verifyPolygonEureUsdcDeployment(): Promise<void> {
+  await verifyUniswapDeployment({
+    factory: POLYGON_UNISWAP_V3_FACTORY,
+    hops: POLYGON_EURE_USDC_ROUTE,
+    label: "Polygon EURe/USDC",
+    network: Networks.Polygon,
+    quoter: POLYGON_UNISWAP_V3_QUOTER,
+    router: POLYGON_UNISWAP_V3_ROUTER
+  });
+}
+
+export async function verifyStockSwapDeployment(symbol: StockSymbol): Promise<void> {
+  const { address, uniswapFee, uniswapPool } = ROBINHOOD_STOCKS[symbol];
+  await verifyUniswapDeployment({
+    factory: ROBINHOOD_UNISWAP_FACTORY,
+    hops: [{ fee: uniswapFee, pool: uniswapPool, tokenIn: ROBINHOOD_USDG_ADDRESS, tokenOut: address }],
+    label: `Robinhood ${symbol}/USDG`,
+    network: Networks.Robinhood,
+    quoter: ROBINHOOD_UNISWAP_QUOTER_V2,
+    router: ROBINHOOD_UNISWAP_SWAP_ROUTER_02
+  });
 }
 
 export async function quotePolygonEureToUsdc(amountIn: bigint): Promise<bigint> {
@@ -94,6 +133,19 @@ export async function quotePolygonEureToUsdc(amountIn: bigint): Promise<bigint> 
     functionName: "quoteExactInput"
   });
   return result;
+}
+
+export async function quoteStockSwap(path: `0x${string}`, amountIn: bigint): Promise<bigint> {
+  const client = EvmClientManager.getInstance().getClient(Networks.Robinhood);
+  const {
+    result: [amountOut]
+  } = await client.simulateContract({
+    abi: uniswapV3QuoterV2Abi,
+    address: ROBINHOOD_UNISWAP_QUOTER_V2,
+    args: [path, amountIn],
+    functionName: "quoteExactInput"
+  });
+  return amountOut;
 }
 
 export async function simulateUniswapV3FixedSwap(

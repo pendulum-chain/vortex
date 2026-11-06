@@ -1,5 +1,6 @@
-import { Networks } from "@vortexfi/shared";
-import { encodePacked, parseAbi } from "viem";
+import { Networks, RampDirection } from "@vortexfi/shared";
+import { encodeFunctionData, encodePacked, parseAbi } from "viem";
+import { ROBINHOOD_STOCKS, ROBINHOOD_USDG_ADDRESS, type StockSymbol } from "../../core/robinhood-stocks";
 import { MONERIUM_ISSUE_NETWORKS } from "../monerium-issue/simulation";
 
 export const POLYGON_UNISWAP_V3_FACTORY = "0x1F98431c8aD98523631AE4a59f267346ea31F984" as const;
@@ -46,3 +47,76 @@ export const uniswapV3RouterAbi = parseAbi([
   "function factory() view returns (address)",
   "function exactInput((bytes path,address recipient,uint256 deadline,uint256 amountIn,uint256 amountOutMinimum) params) payable returns (uint256 amountOut)"
 ]);
+
+/** QuoterV2 returns four values where the original quoter returned one, under the same selector. */
+export const uniswapV3QuoterV2Abi = parseAbi([
+  "function factory() view returns (address)",
+  "function quoteExactInput(bytes path,uint256 amountIn) returns (uint256 amountOut,uint160[] sqrtPriceX96AfterList,uint32[] initializedTicksCrossedList,uint256 gasEstimate)"
+]);
+
+/** SwapRouter02's `exactInput` struct has no deadline: only the `multicall` wrapper carries one. */
+export const swapRouter02Abi = parseAbi([
+  "function factory() view returns (address)",
+  "function exactInput((bytes path,address recipient,uint256 amountIn,uint256 amountOutMinimum) params) payable returns (uint256 amountOut)",
+  "function multicall(uint256 deadline,bytes[] data) payable returns (bytes[] results)"
+]);
+
+export type UniswapRouterKind = "v1" | "swapRouter02";
+
+export function encodeUniswapSwap(
+  kind: UniswapRouterKind,
+  {
+    deadline,
+    ...params
+  }: {
+    amountIn: bigint;
+    amountOutMinimum: bigint;
+    deadline: bigint;
+    path: `0x${string}`;
+    recipient: `0x${string}`;
+  }
+): `0x${string}` {
+  if (kind === "v1") {
+    return encodeFunctionData({ abi: uniswapV3RouterAbi, args: [{ ...params, deadline }], functionName: "exactInput" });
+  }
+  return encodeFunctionData({
+    abi: swapRouter02Abi,
+    args: [deadline, [encodeFunctionData({ abi: swapRouter02Abi, args: [params], functionName: "exactInput" })]],
+    functionName: "multicall"
+  });
+}
+
+/** Single hop between a stock and USDG through the stock's pinned pool, ordered from input to output. */
+export function stockSwapTokens(
+  symbol: StockSymbol,
+  direction: RampDirection
+): { inputToken: `0x${string}`; outputToken: `0x${string}` } {
+  const stock = ROBINHOOD_STOCKS[symbol].address;
+  return direction === RampDirection.BUY
+    ? { inputToken: ROBINHOOD_USDG_ADDRESS, outputToken: stock }
+    : { inputToken: stock, outputToken: ROBINHOOD_USDG_ADDRESS };
+}
+
+export function stockSwapPath(symbol: StockSymbol, direction: RampDirection): `0x${string}` {
+  const { inputToken, outputToken } = stockSwapTokens(symbol, direction);
+  return encodePacked(["address", "uint24", "address"], [inputToken, ROBINHOOD_STOCKS[symbol].uniswapFee, outputToken]);
+}
+
+/** What a presigned approval and swap are checked against. */
+export interface UniswapSwapTarget {
+  inputToken: `0x${string}`;
+  kind: UniswapRouterKind;
+  label: string;
+  network: Networks.Polygon | Networks.Robinhood;
+  path: `0x${string}`;
+  router: `0x${string}`;
+}
+
+export const POLYGON_EURE_USDC_TARGET: UniswapSwapTarget = {
+  inputToken: POLYGON_EURE,
+  kind: "v1",
+  label: "Polygon EURe/USDC",
+  network: Networks.Polygon,
+  path: POLYGON_EURE_USDC_PATH,
+  router: POLYGON_UNISWAP_V3_ROUTER
+};
