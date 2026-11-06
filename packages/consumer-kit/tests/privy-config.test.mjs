@@ -17,7 +17,11 @@ test("login methods are identical to Gold's, so a Google user of ouro. finds Goo
 });
 
 test("every user gets an embedded wallet on login", () => {
-  assert.deepEqual(stocks().embeddedWallets, { ethereum: { createOnLogin: "users-without-wallets" } });
+  assert.equal(stocks().embeddedWallets.ethereum.createOnLogin, "users-without-wallets");
+});
+
+test("the wallet always shows its window: a permit is never signed on one checkbox alone", () => {
+  assert.equal(stocks().embeddedWallets.showWalletUIs, true);
 });
 
 test("the sign-in is branded 'Entrar com Vortex', never as an account", () => {

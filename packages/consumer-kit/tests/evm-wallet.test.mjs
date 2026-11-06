@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ethereum, robinhoodChain } from "../src/chains.js";
-import { encodeFunctionData, maxUint256, parseAbi } from "viem";
-import { BROADCAST_PENDING, assertSellRequests, ensureChain, evmTransaction, guardTypedData, sendEvmTransaction, submitWalletTransactions } from "../src/evm-wallet.js";
+import { encodeFunctionData, maxUint256, parseAbi, recoverTypedDataAddress } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { BROADCAST_PENDING, assertSellRequests, ensureChain, evmTransaction, sendEvmTransaction, submitWalletTransactions } from "../src/evm-wallet.js";
 
 const address = "0x0000000000000000000000000000000000000001";
 const token = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC";
@@ -25,14 +26,20 @@ const ROUTER = "0xce16F69375520ab01377ce7B88f5BA8C48F8D666";
 const ATTACKER = "0x000000000000000000000000000000000000dEaD";
 const OTHER_TOKEN = "0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5";
 const AMOUNT = 5n * 10n ** 17n;
-const EXPECT = { token, from: address, chainId: 4663, maxAmountWei: AMOUNT.toString(), spenders: [ROUTER], phases: { squidRouterApprove: ["approve"], squidRouterNoPermitTransfer: ["transfer"], secondTransfer: ["transfer"] } };
+const EXPECT = { token, from: address, chainId: 4663, maxAmountWei: AMOUNT.toString(), spenders: [ROUTER], phases: { squidRouterApprove: ["approve"], squidRouterNoPermitTransfer: ["transfer"], secondTransfer: ["transfer"], stockPermitTransfer: ["permit"] } };
 const call = (functionName, args) => encodeFunctionData({ abi: ERC20, functionName, args });
 const txTo = (to, data, phase = "squidRouterApprove") => ({ phase, signer: address, txData: { to, data, value: "0", gas: "150000" } });
-const permit = (overrides = {}) => ({ phase: "permit", signer: address, txData: {
-  domain: { name: "NVIDIA", version: "1", chainId: 4663, verifyingContract: token },
-  types: { Permit: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }, { name: "value", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] },
-  primaryType: "Permit", message: { owner: address, spender: ROUTER, value: AMOUNT.toString(), nonce: "0", deadline: "9999999999" }, ...overrides,
+const nowSeconds = () => Math.floor(Date.now() / 1000);
+const PERMIT_FIELDS = [{ name: "owner", type: "address" }, { name: "spender", type: "address" }, { name: "value", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }];
+// As the backend issues it: domain keys sorted, deadline one hour out.
+const PERMIT_DOMAIN = { chainId: 4663, name: "NVIDIA", verifyingContract: token, version: "1" };
+const permitMessage = (overrides = {}) => ({ owner: address, spender: ROUTER, value: AMOUNT.toString(), nonce: "0", deadline: String(nowSeconds() + 3600), ...overrides });
+const permit = (overrides = {}, phase = "stockPermitTransfer") => ({ phase, signer: address, txData: {
+  domain: PERMIT_DOMAIN, types: { Permit: PERMIT_FIELDS }, primaryType: "Permit", message: permitMessage(), ...overrides,
 } });
+// What the SDK hands the wallet with includeDomainType: the same request plus the canonical domain type.
+const CANONICAL_DOMAIN_TYPE = [{ name: "name", type: "string" }, { name: "version", type: "string" }, { name: "chainId", type: "uint256" }, { name: "verifyingContract", type: "address" }];
+const asSdkPayload = (txData) => ({ ...txData, types: { ...txData.types, EIP712Domain: CANONICAL_DOMAIN_TYPE } });
 const SELL = [txTo(token, call("approve", [ROUTER, AMOUNT]))];
 
 /** The chain's public client: receipts, and eth_estimateGas (77,118 gas, unless `estimate` says otherwise). */
@@ -52,14 +59,6 @@ test("switches the embedded wallet to the flow's chain", async () => {
   const provider = fakeProvider();
   await ensureChain(provider, robinhoodChain);
   assert.deepEqual(provider.calls[0], { method: "wallet_switchEthereumChain", params: [{ chainId: "0x1237" }] });
-});
-
-test("typed-data confirmations cannot switch away from the flow's chain", () => {
-  assert.throws(() => guardTypedData({ domain: { chainId: 137 } }, robinhoodChain), /Robinhood Chain/);
-  assert.throws(() => guardTypedData({ domain: { chainId: 1 } }, robinhoodChain), /Robinhood Chain/);
-  assert.doesNotThrow(() => guardTypedData({ domain: { chainId: 4663 } }, robinhoodChain));
-  assert.doesNotThrow(() => guardTypedData({ domain: { chainId: "0x1237" } }, robinhoodChain));
-  assert.doesNotThrow(() => guardTypedData({ domain: {} }, robinhoodChain));
 });
 
 test("insufficient ETH is blocked before the transaction is broadcast", async () => {
@@ -167,7 +166,7 @@ test("wallet submission refuses unreviewed typed data and checkpoints before bro
   const saved = [];
   const client = { submitUserTransactions: async (rampId, transactions, callbacks) => {
     assert.equal(callbacks.includeDomainType, true);
-    await assert.rejects(callbacks.signTypedData({ domain: { chainId: 137 } }), { code: "WALLET_REQUEST_REFUSED" });
+    await assert.rejects(callbacks.signTypedData({ domain: { chainId: 137 } }, { payloadCount: 1, unsignedTransaction: SELL[0] }), { code: "WALLET_REQUEST_REFUSED" });
     await callbacks.sendTransaction(SELL[0].txData, { unsignedTransaction: SELL[0] });
   } };
   await submitWalletTransactions({ client, rampId: "r1", transactions: SELL, expect: EXPECT, from: address, provider, chain: robinhoodChain, publicClient: okReceipt(),
@@ -193,8 +192,7 @@ test("a reviewed sell may approve or transfer only the sold token to its pinned 
   assert.doesNotThrow(() => assertSellRequests(SELL, EXPECT));
   assert.doesNotThrow(() => assertSellRequests([txTo(token, call("transfer", [ROUTER, AMOUNT]), "squidRouterNoPermitTransfer")], EXPECT));
   assert.doesNotThrow(() => assertSellRequests([txTo(token.toLowerCase(), call("approve", [ROUTER, AMOUNT - 1n]))], EXPECT), "addresses compare case-insensitively");
-  assert.throws(() => assertSellRequests([permit()], EXPECT), { code: "WALLET_REQUEST_REFUSED" });
-  assert.throws(() => assertSellRequests([{ phase: "permit", txData: [permit().txData, permit().txData] }], EXPECT), { code: "WALLET_REQUEST_REFUSED" });
+  assert.throws(() => assertSellRequests([{ phase: "stockPermitTransfer", signer: address, txData: [permit().txData, permit().txData] }], EXPECT), { code: "WALLET_REQUEST_REFUSED" });
   assert.doesNotThrow(() => assertSellRequests(SELL, { ...EXPECT, spenders: [ROUTER] }));
 });
 
@@ -208,7 +206,7 @@ test("a hostile or mistaken wallet request is refused before the wallet is asked
   refused([txTo(OTHER_TOKEN, call("approve", [ROUTER, 1n]))]); // another token in the wallet
   refused([txTo(OTHER_TOKEN, call("transfer", [ATTACKER, 1n]))]);
   refused([txTo(token, call("approve", [ATTACKER, AMOUNT]))], { ...EXPECT, spenders: [ROUTER] });
-  refused([permit({ message: { owner: address, spender: ATTACKER, value: maxUint256.toString(), nonce: "0", deadline: "9999999999" } })]);
+  refused([permit({ message: permitMessage({ spender: ATTACKER, value: maxUint256.toString(), deadline: "9999999999" }) })]);
   refused([permit({ domain: { chainId: 4663, verifyingContract: OTHER_TOKEN } })]);
   refused([permit({ primaryType: "PermitSingle" })]);
   refused([permit()], { ...EXPECT, spenders: [ATTACKER] });
@@ -219,4 +217,110 @@ test("a hostile or mistaken wallet request is refused before the wallet is asked
   const client = { submitUserTransactions: async () => { throw new Error("must not be reached"); } };
   await assert.rejects(submitWalletTransactions({ client, rampId: "r1", transactions: [SELL[0], txTo(token, call("approve", [ATTACKER, maxUint256]))], expect: EXPECT, from: address, provider, chain: robinhoodChain, getCheckpoint: () => null, saveCheckpoint: () => {} }), { code: "WALLET_REQUEST_REFUSED" });
   assert.deepEqual(provider.calls, [], "no chain switch, no signature, no broadcast");
+});
+
+test("a permit for this sale passes the policy, also with the domain type the SDK adds", () => {
+  assert.doesNotThrow(() => assertSellRequests([permit()], EXPECT));
+  assert.doesNotThrow(() => assertSellRequests([permit({ types: asSdkPayload(permit().txData).types })], EXPECT));
+  assert.doesNotThrow(() => assertSellRequests([permit({ domain: { chainId: 4663, verifyingContract: token } })], EXPECT), "a token whose domain has only chain and contract");
+  assert.doesNotThrow(() => assertSellRequests([permit({ message: permitMessage({ spender: ROUTER.toLowerCase() }) })], EXPECT), "addresses compare case-insensitively");
+});
+
+test("every field that decides what a permit allows is pinned to the policy", () => {
+  const refused = (label, transaction, expect = EXPECT) => assert.throws(() => assertSellRequests([transaction], expect), (error) => error.code === "WALLET_REQUEST_REFUSED" && /nada foi assinado/.test(error.message), label);
+  const withMessage = (overrides) => permit({ message: permitMessage(overrides) });
+  refused("another spender", withMessage({ spender: ATTACKER }));
+  refused("another owner", withMessage({ owner: ATTACKER }));
+  refused("another token", permit({ domain: { ...PERMIT_DOMAIN, verifyingContract: OTHER_TOKEN } }));
+  refused("a larger value", withMessage({ value: (AMOUNT + 1n).toString() }));
+  refused("an unlimited value", withMessage({ value: maxUint256.toString() }));
+  refused("a smaller value", withMessage({ value: (AMOUNT - 1n).toString() }));
+  refused("a far-future deadline", withMessage({ deadline: String(nowSeconds() + 3901) }));
+  refused("no real deadline", withMessage({ deadline: maxUint256.toString() }));
+  refused("an expired deadline", withMessage({ deadline: String(nowSeconds() - 1) }));
+  refused("a missing deadline", permit({ message: { owner: address, spender: ROUTER, value: AMOUNT.toString(), nonce: "0" } }));
+  refused("an extra message field", permit({ message: permitMessage({ extra: "1" }) }));
+  refused("an extra type", permit({ types: { Permit: PERMIT_FIELDS, Order: [{ name: "id", type: "uint256" }] } }));
+  refused("another Permit type", permit({ types: { Permit: PERMIT_FIELDS.slice(0, 4) } }));
+  refused("Permit fields in another order", permit({ types: { Permit: [PERMIT_FIELDS[1], PERMIT_FIELDS[0], ...PERMIT_FIELDS.slice(2)] } }));
+  refused("a domain type that leaves the contract out", permit({ types: { Permit: PERMIT_FIELDS, EIP712Domain: CANONICAL_DOMAIN_TYPE.slice(0, 3) } }));
+  refused("a wrong chain", permit({ domain: { ...PERMIT_DOMAIN, chainId: 1 } }));
+  refused("no chain", permit({ domain: { name: "NVIDIA", verifyingContract: token, version: "1" } }));
+  refused("a domain with a salt", permit({ domain: { ...PERMIT_DOMAIN, salt: `0x${"00".repeat(32)}` } }));
+  refused("a phase not in the policy", permit({}, "squidRouterApprove"));
+  refused("a phase nobody listed", permit({}, "somethingNew"));
+  refused("another signer", { ...permit(), signer: ATTACKER });
+  refused("another network", { ...permit(), network: "base" }, { ...EXPECT, network: "robinhood" });
+  refused("no amount consented", permit(), { ...EXPECT, maxAmountWei: "0" });
+  refused("other typed data", permit({ primaryType: "PermitSingle" }));
+  refused("a null primaryType", permit({ primaryType: null }));
+  // Typed data carrying a transaction too: the SDK would sign it as typed data.
+  refused("typed data with calldata", permit({ to: token, data: call("approve", [ROUTER, AMOUNT]), value: "0" }));
+  const approve = txTo(token, call("approve", [ROUTER, AMOUNT]));
+  refused("a transaction also shaped as other typed data", { ...approve, txData: { ...approve.txData, domain: { chainId: 1 }, types: { Order: [] }, primaryType: "Order", message: {} } });
+});
+
+test("a permit counts toward the amount the sale may move", () => {
+  const twoPhases = { ...EXPECT, phases: { ...EXPECT.phases, secondApprove: ["approve"] } };
+  assert.throws(() => assertSellRequests([txTo(token, call("approve", [ROUTER, 1n]), "secondApprove"), permit()], twoPhases), { code: "WALLET_REQUEST_REFUSED" });
+  assert.throws(() => assertSellRequests([permit(), txTo(token, call("approve", [ROUTER, 1n]), "secondApprove")], twoPhases), { code: "WALLET_REQUEST_REFUSED" });
+  assert.throws(() => assertSellRequests([permit(), permit()], EXPECT), { code: "WALLET_REQUEST_REFUSED" }, "one request per phase");
+});
+
+function permitClient(payloadFor = (tx) => asSdkPayload(tx.txData), context = {}) {
+  const signatures = [];
+  return { signatures, submitUserTransactions: async (rampId, transactions, callbacks) => {
+    assert.equal(callbacks.includeDomainType, true);
+    for (const tx of transactions) signatures.push(await callbacks.signTypedData(payloadFor(tx), { payloadCount: 1, payloadIndex: 0, unsignedTransaction: tx, ...context }));
+  } };
+}
+const permitSubmission = (client, provider, overrides = {}) => submitWalletTransactions({ client, rampId: "r1", transactions: [permit()], expect: EXPECT, from: address, provider, chain: robinhoodChain, publicClient: okReceipt(), getCheckpoint: () => null, saveCheckpoint: () => { throw new Error("a permit has nothing to checkpoint"); }, ...overrides });
+
+test("a permit is signed through the wallet, on the flow's chain, after the app's last check", async () => {
+  const order = [];
+  const provider = fakeProvider({ eth_signTypedData_v4: () => { order.push("sign"); return "0xsigned"; } });
+  const client = permitClient();
+  await permitSubmission(client, provider, { beforeSign: async () => { order.push("beforeSign"); } });
+  assert.deepEqual(provider.calls[0], { method: "wallet_switchEthereumChain", params: [{ chainId: "0x1237" }] });
+  assert.deepEqual(order, ["beforeSign", "sign"]);
+  assert.deepEqual(client.signatures, ["0xsigned"]);
+  const sign = provider.calls.find((call) => call.method === "eth_signTypedData_v4");
+  assert.equal(sign.params[0], address);
+  assert.deepEqual(JSON.parse(sign.params[1]), JSON.parse(JSON.stringify(asSdkPayload(permit().txData))), "the wallet reads a JSON string, with the canonical domain type");
+  assert.ok(!provider.calls.some((call) => call.method === "eth_sendTransaction"), "signing a permit costs the seller no transaction");
+});
+
+test("a failed last check stops the signature", async () => {
+  const provider = fakeProvider();
+  await assert.rejects(permitSubmission(permitClient(), provider, { beforeSign: async () => { throw Object.assign(new Error("pausado"), { code: "MAINTENANCE_ACTIVE" }); } }), { code: "MAINTENANCE_ACTIVE" });
+  assert.ok(!provider.calls.some((call) => call.method === "eth_signTypedData_v4"));
+});
+
+test("the signature handler holds what reaches it to the policy, whatever passed before it", async () => {
+  const hostile = [
+    ["another spender", (tx) => asSdkPayload({ ...tx.txData, message: permitMessage({ spender: ATTACKER }) })],
+    ["other typed data", () => ({ domain: { chainId: 4663 }, types: { Order: [] }, primaryType: "Order", message: {} })],
+    ["another domain type", (tx) => ({ ...tx.txData, types: { ...tx.txData.types, EIP712Domain: CANONICAL_DOMAIN_TYPE.slice(0, 3) } })],
+  ];
+  for (const [label, payloadFor] of hostile) {
+    const provider = fakeProvider();
+    await assert.rejects(permitSubmission(permitClient(payloadFor), provider), { code: "WALLET_REQUEST_REFUSED" }, label);
+    assert.ok(!provider.calls.some((call) => call.method === "eth_signTypedData_v4"), label);
+  }
+  const provider = fakeProvider();
+  await assert.rejects(permitSubmission(permitClient(undefined, { payloadCount: 2 }), provider), { code: "WALLET_REQUEST_REFUSED" }, "one signature per request");
+  assert.ok(!provider.calls.some((call) => call.method === "eth_signTypedData_v4"));
+  const otherPhase = fakeProvider();
+  await assert.rejects(permitSubmission(permitClient(undefined, { unsignedTransaction: { phase: "somethingNew" } }), otherPhase), { code: "WALLET_REQUEST_REFUSED" });
+  assert.ok(!otherPhase.calls.some((call) => call.method === "eth_signTypedData_v4"));
+});
+
+test("the signature recovers to the seller over the domain the token hashes, despite the backend's sorted keys", async () => {
+  const seller = privateKeyToAccount("0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+  const message = permitMessage({ owner: seller.address });
+  const provider = fakeProvider({ eth_signTypedData_v4: ([, json]) => seller.signTypedData(JSON.parse(json)) });
+  const client = permitClient();
+  await permitSubmission(client, provider, { from: seller.address, transactions: [{ ...permit({ message }), signer: seller.address }], expect: { ...EXPECT, from: seller.address } });
+  const recovered = await recoverTypedDataAddress({ domain: { name: "NVIDIA", version: "1", chainId: 4663, verifyingContract: token }, types: { Permit: PERMIT_FIELDS }, primaryType: "Permit", message, signature: client.signatures[0] });
+  assert.equal(recovered, seller.address);
 });

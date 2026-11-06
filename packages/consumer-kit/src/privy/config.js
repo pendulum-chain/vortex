@@ -35,7 +35,8 @@ export function createPrivyConfig({ brand, defaultChain, extraChains = [], rpcOv
       ...(brand.loginMessage ? { loginMessage: brand.loginMessage } : {}),
     },
     legal: { ...LEGAL_URLS },
-    embeddedWallets: { ethereum: { createOnLogin: "users-without-wallets" } },
+    // Unset, Privy follows the app's server setting, which could sign a permit with no wallet window at all.
+    embeddedWallets: { showWalletUIs: true, ethereum: { createOnLogin: "users-without-wallets" } },
     defaultChain: chains[0],
     supportedChains: chains,
   };
