@@ -9,11 +9,14 @@ import {
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
+import * as quoteFeesNamespace from "../core/quote-fees";
 
 const alfredpayApiServiceGetInstanceReal = AlfredpayApiService.getInstance;
+const quoteFeesReal = { ...quoteFeesNamespace };
 
 afterAll(() => {
   AlfredpayApiService.getInstance = alfredpayApiServiceGetInstanceReal;
+  mock.module("../core/quote-fees", () => ({ ...quoteFeesReal }));
 });
 
 mock.module("../core/quote-fees", () => ({

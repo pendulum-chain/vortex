@@ -145,7 +145,9 @@ export class SubsidizePostSwapExecutor extends EvmSubsidyTopUpExecutor {
               const quoteOutputUsd = await priceFeedService.convertCurrency(
                 quote.outputAmount,
                 quote.outputCurrency as RampCurrency,
-                EvmToken.USDC as RampCurrency
+                EvmToken.USDC as RampCurrency,
+                null,
+                quote.network
               );
               const discrepancyRaw = subsidyComponents.discrepancyAmountRaw;
               const discountRaw = subsidyComponents.discountAmountRaw;

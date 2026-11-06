@@ -387,3 +387,48 @@ describe("vars disabled fiat currencies", () => {
     expect(result.stderr).toContain("DISABLED_FIAT_CURRENCIES contains unknown fiat currencies: EURC");
   });
 });
+
+describe("vars stocks corridor", () => {
+  const print = "JSON.stringify(vars.config.stocks, (_key, value) => (typeof value === 'bigint' ? value.toString() : value))";
+
+  it("keeps the corridor off with the documented defaults", async () => {
+    const result = await importVarsWithEnv({}, print);
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({
+      enabledDirections: [],
+      gasReserveTargetWei: "50000000000000",
+      gasReserveThresholdWei: "20000000000000",
+      maxPriceDeviationBps: 200,
+      priceReferenceMaxAgeHours: 72,
+      settlementSubsidyMaxBps: 250,
+      settlementSubsidyMaxUsd: "50"
+    });
+  });
+
+  it("parses a mixed-case, padded direction list", async () => {
+    const result = await importVarsWithEnv({ STOCKS_ENABLED_DIRECTIONS: " buy, SELL ,," }, "JSON.stringify(vars.config.stocks.enabledDirections)");
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: '["BUY","SELL"]\n' });
+  });
+
+  it.each([
+    [{ STOCKS_ENABLED_DIRECTIONS: "BUY,HOLD" }, "STOCKS_ENABLED_DIRECTIONS contains unknown directions: HOLD"],
+    [{ STOCKS_MAX_PRICE_DEVIATION_BPS: "0" }, "STOCKS_MAX_PRICE_DEVIATION_BPS must be a positive integer"],
+    [{ STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS: "1.5" }, "STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS must be a positive integer"],
+    [{ STOCKS_SETTLEMENT_SUBSIDY_MAX_USD: "free" }, "STOCKS_SETTLEMENT_SUBSIDY_MAX_USD must be a positive number"],
+    [{ ROBINHOOD_GAS_RESERVE_TARGET_WEI: "1e15" }, "ROBINHOOD_GAS_RESERVE_TARGET_WEI must be a non-negative integer"],
+    [{ ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI: "60000000000000" }, "ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI must not exceed"]
+  ])("refuses to start on %p", async (env, message) => {
+    const result = await importVarsWithEnv(env as Record<string, string>);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(message);
+  });
+
+  it("allows a target of 0, which disables the reserve, with the default threshold", async () => {
+    const result = await importVarsWithEnv({ ROBINHOOD_GAS_RESERVE_TARGET_WEI: "0" });
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });
+  });
+});

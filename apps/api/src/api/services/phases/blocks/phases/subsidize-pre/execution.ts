@@ -139,7 +139,9 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
             const quoteOutputUsd = await priceFeedService.convertCurrency(
               quote.outputAmount,
               quote.outputCurrency as RampCurrency,
-              EvmToken.USDC as RampCurrency
+              EvmToken.USDC as RampCurrency,
+              null,
+              quote.network
             );
             const subsidyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
             const percentageCap = Big(quoteOutputUsd).mul(subsidyCapFraction);
