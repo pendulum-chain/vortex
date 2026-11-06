@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import { ASSUMED_PHASES, BUY_STEPS, PHASE_TO_STEP, SELL_STEPS, STEP_LABELS_PT, stepFor } from "../src/lib/phases.js";
+import { BUY_STEPS, PHASE_TO_STEP, SELL_STEPS, STEP_LABELS_PT, stepFor } from "../src/lib/phases.js";
 import { SIM_PHASES } from "../src/lib/simulated-ramp.js";
 import { REPO } from "./helpers.mjs";
 
@@ -13,30 +13,27 @@ function sharedRampPhases() {
   return new Set([...union.matchAll(/"([A-Za-z]+)"/g)].map((match) => match[1]));
 }
 
-test("every mapped phase except the proposed routing phases exists in the shared RampPhase", () => {
+test("every mapped phase exists in the shared RampPhase", () => {
   const phases = sharedRampPhases();
   assert.ok(phases.size > 30, "RampPhase union not found");
-  for (const phase of Object.keys(PHASE_TO_STEP)) {
-    if (ASSUMED_PHASES.includes(phase)) assert.ok(!phases.has(phase), `${phase} now exists: drop it from ASSUMED_PHASES`);
-    else assert.ok(phases.has(phase), `${phase} is not a RampPhase`);
-  }
+  for (const phase of Object.keys(PHASE_TO_STEP)) assert.ok(phases.has(phase), `${phase} is not a RampPhase`);
 });
 
 test("buy phases advance through the four steps to done", () => {
   assert.deepEqual([...BUY_STEPS], ["payment", "convert", "buy", "deliver", "done"]);
   let index = 0;
   const seen = [];
-  for (const phase of ["initial", "brlaOnrampMint", "fundEphemeral", "nablaSwap", "lifiSwap", "destinationTransfer", "complete"]) {
+  for (const phase of ["initial", "brlaOnrampMint", "fundEphemeral", "nablaSwap", "uniswapSwap", "destinationTransfer", "complete"]) {
     index = stepFor("BUY", phase, index);
     seen.push(BUY_STEPS[index]);
   }
   assert.deepEqual(seen, ["payment", "payment", "convert", "convert", "buy", "deliver", "done"]);
-  assert.equal(BUY_STEPS[stepFor("BUY", "gasReserveTopUp", 3)], "deliver", "the proposed reserve top-up (after destinationTransfer) is still delivery");
+  assert.equal(BUY_STEPS[stepFor("BUY", "gasReserveTopUp", 3)], "deliver", "the reserve top-up (after destinationTransfer) is still delivery");
 });
 
-test("sell phases: the swap legs are the sell step", () => {
+test("sell phases: funding, the permit and the swap legs are the sell step", () => {
   assert.deepEqual([...SELL_STEPS], ["sell", "convert", "payout", "done"]);
-  assert.equal(SELL_STEPS[stepFor("SELL", "lifiSwap", 0)], "sell");
+  for (const phase of ["fundEphemeral", "stockPermitTransfer"]) assert.equal(SELL_STEPS[stepFor("SELL", phase, 0)], "sell", `${phase} must not show the sale as done`);
   assert.equal(SELL_STEPS[stepFor("SELL", "uniswapSwap", 0)], "sell");
   assert.equal(SELL_STEPS[stepFor("SELL", "relayBridge", 0)], "sell");
   assert.equal(SELL_STEPS[stepFor("SELL", "squidRouterSwap", 0)], "sell");
@@ -48,7 +45,7 @@ test("sell phases: the swap legs are the sell step", () => {
 test("steps never move backwards and unknown phases keep the current step", () => {
   assert.equal(stepFor("BUY", "nablaSwap", 3), 3);
   assert.equal(stepFor("BUY", "somethingNew", 2), 2);
-  assert.equal(stepFor("SELL", "lifiSwap", 2), 2);
+  assert.equal(stepFor("SELL", "somethingNew", 2), 2);
   assert.equal(stepFor("BUY", "brlaPayoutOnBase", 1), 1, "a sell-only step does not exist in a buy");
 });
 
@@ -62,7 +59,6 @@ test("every simulated phase is mapped, so the demo progress bar moves", () => {
   }
   assert.equal(SELL_STEPS[index], "done");
   assert.ok(SIM_PHASES.BUY.includes("relayBridge") && SIM_PHASES.BUY.includes("uniswapSwap"));
-  assert.ok([...SIM_PHASES.BUY, ...SIM_PHASES.SELL].every((phase) => !/lifi/i.test(phase)));
 });
 
 test("every step before done has a pt-BR label", () => {

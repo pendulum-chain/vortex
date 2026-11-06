@@ -9,7 +9,7 @@ import type { UnsignedTx } from "../endpoints/ramp.endpoints";
 process.env.ALFREDPAY_API_KEY ||= "test-key";
 process.env.ALFREDPAY_API_SECRET ||= "test-secret";
 
-const { Networks } = await import("./networks");
+const { Networks, robinhoodChain } = await import("./networks");
 const { createEvmClient, groupUnsignedTxsForSigning, signUnsignedTransactions } = await import("./signUnsigned");
 
 const EPHEMERAL = {
@@ -89,6 +89,41 @@ describe("groupUnsignedTxsForSigning", () => {
 
     for (const tx of txs) {
       expect(groups.evmTxs.includes(tx) && groups.destinationNetworkTxs.includes(tx)).toBe(false);
+    }
+  });
+});
+
+describe("Robinhood Chain signing", () => {
+  it("prefers Alchemy and keeps the chain's public RPC as the fallback", () => {
+    expect(transportUrls(createEvmClient(Networks.Robinhood, EPHEMERAL, "test-api-key"))).toEqual([
+      "https://robinhood-mainnet.g.alchemy.com/v2/test-api-key",
+      robinhoodChain.rpcUrls.default.http[0]
+    ]);
+    expect(transportUrls(createEvmClient(Networks.Robinhood, EPHEMERAL))).toEqual([robinhoodChain.rpcUrls.default.http[0]]);
+  });
+
+  it("signs any phase on the chain with all nonce backups, instead of silently dropping it", async () => {
+    const tx = makeTx(Networks.Robinhood, "uniswapSwap");
+    expect(groupUnsignedTxsForSigning([tx]).evmTxs).toEqual([tx]);
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as { id: number; method: string };
+      expect(request.method).toBe("eth_chainId");
+      return new Response(JSON.stringify({ id: request.id, jsonrpc: "2.0", result: `0x${robinhoodChain.id.toString(16)}` }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }) as typeof fetch;
+
+    try {
+      const [primaryTx] = await signUnsignedTransactions([tx], { evmEphemeral: EPHEMERAL });
+      const signedVariants = [primaryTx, ...Object.values(primaryTx.meta.additionalTxs ?? {})];
+      const parsedVariants = signedVariants.map(variant => parseTransaction(variant.txData as `0x${string}`));
+
+      expect(parsedVariants.map(parsed => parsed.chainId)).toEqual(Array(5).fill(4663));
+      expect(parsedVariants.map(parsed => parsed.nonce)).toEqual([0, 1, 2, 3, 4]);
+    } finally {
+      globalThis.fetch = originalFetch;
     }
   });
 });

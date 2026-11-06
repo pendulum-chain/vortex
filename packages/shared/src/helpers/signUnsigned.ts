@@ -14,6 +14,7 @@ import {
   Networks,
   NUMBER_OF_PRESIGNED_TXS,
   PresignedTx,
+  robinhoodChain,
   UnsignedTx
 } from "../index";
 import logger from "../logger";
@@ -27,7 +28,8 @@ const EVM_EPHEMERAL_SIGNING_NETWORKS: Networks[] = [
   Networks.Arbitrum,
   Networks.Avalanche,
   Networks.BSC,
-  Networks.Ethereum
+  Networks.Ethereum,
+  Networks.Robinhood
 ];
 
 const DESTINATION_NETWORK_PHASES = [
@@ -171,6 +173,10 @@ export function createEvmClient(
     case Networks.Ethereum:
       chain = mainnet;
       rpcUrls = apiKey ? [`https://eth-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
+      break;
+    case Networks.Robinhood:
+      chain = robinhoodChain;
+      rpcUrls = apiKey ? [`https://robinhood-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     default:
       throw new Error(`Unsupported or unconfigured EVM network: ${network}`);

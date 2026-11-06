@@ -1,6 +1,6 @@
 import { Abi, Account, Chain, createPublicClient, createWalletClient, http, PublicClient, Transport, WalletClient } from "viem";
 import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
-import { ALCHEMY_API_KEY, EvmNetworks, Networks } from "../../index";
+import { ALCHEMY_API_KEY, EvmNetworks, Networks, robinhoodChain } from "../../index";
 import logger from "../../logger";
 
 export interface EvmNetworkConfig {
@@ -107,6 +107,11 @@ export function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
       chain: arbitrum,
       name: Networks.Arbitrum,
       rpcUrls: apiKey ? [`https://arb-mainnet.g.alchemy.com/v2/${apiKey}`, ""] : [""]
+    },
+    {
+      chain: robinhoodChain,
+      name: Networks.Robinhood,
+      rpcUrls: apiKey ? [`https://robinhood-mainnet.g.alchemy.com/v2/${apiKey}`, ""] : [""]
     },
     {
       chain: avalanche,

@@ -57,7 +57,8 @@ const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> =
   [Networks.Base]: { decimals: 18, symbol: "ETH" },
   [Networks.Avalanche]: { decimals: 18, symbol: "AVAX" },
   [Networks.Moonbeam]: { decimals: 18, symbol: "GLMR" },
-  [Networks.BaseSepolia]: { decimals: 18, symbol: "ETH" }
+  [Networks.BaseSepolia]: { decimals: 18, symbol: "ETH" },
+  [Networks.Robinhood]: { decimals: 18, symbol: "ETH" }
 };
 
 // Waits for the destination bridge delivery, then tops the ephemeral up to the quoted settlement

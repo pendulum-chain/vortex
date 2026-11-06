@@ -1,6 +1,6 @@
 import { Networks } from "@vortexfi/shared";
 
-const DISABLED_FRONTEND_NETWORKS = new Set<Networks>([Networks.AssetHub]);
+const DISABLED_FRONTEND_NETWORKS = new Set<Networks>([Networks.AssetHub, Networks.Robinhood]);
 
 function normalizeNetwork(network: Networks | string | undefined): Networks | undefined {
   if (!network) {

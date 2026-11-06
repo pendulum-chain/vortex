@@ -71,6 +71,14 @@ const BRL_OFFRAMP_EVM = {
   rampType: RampDirection.SELL,
   to: "pix"
 };
+const BRL_OFFRAMP_ROBINHOOD = {
+  from: Networks.Robinhood,
+  inputCurrency: "NVDA",
+  outputCurrency: FiatToken.BRL,
+  rampType: RampDirection.SELL,
+  to: "pix"
+};
+
 const BRL_OFFRAMP_ASSETHUB = { ...BRL_OFFRAMP_EVM, from: Networks.AssetHub };
 const ALFREDPAY_OFFRAMP = {
   from: Networks.Polygon,
@@ -127,6 +135,17 @@ const IDENTITY_BEARING_LEGACY_EUR_ONRAMP = {
 describe("quoteToSigningNetworks", () => {
   it("BRL off-ramp from an EVM chain signs on Base only", () => {
     expect(quoteToSigningNetworks(BRL_OFFRAMP_EVM)).toEqual({ evm: [Networks.Base], substrate: [] });
+  });
+
+  it("BRL off-ramp of a stock from Robinhood Chain signs on Base and Robinhood Chain", () => {
+    expect(quoteToSigningNetworks(BRL_OFFRAMP_ROBINHOOD)).toEqual({ evm: [Networks.Base, Networks.Robinhood], substrate: [] });
+  });
+
+  it("Avenia on-ramp to Robinhood Chain signs on Base plus Robinhood Chain", () => {
+    expect(quoteToSigningNetworks({ ...AVENIA_ONRAMP_BASE, outputCurrency: "NVDA", to: Networks.Robinhood })).toEqual({
+      evm: [Networks.Base, Networks.Robinhood],
+      substrate: []
+    });
   });
 
   it("BRL off-ramp from AssetHub signs the Substrate ephemeral on Pendulum only", () => {
@@ -207,6 +226,7 @@ describe("quoteToSigningNetworks", () => {
     const emitted = new Set(
       [
         BRL_OFFRAMP_EVM,
+        BRL_OFFRAMP_ROBINHOOD,
         BRL_OFFRAMP_ASSETHUB,
         ALFREDPAY_OFFRAMP,
         EUR_OFFRAMP,
@@ -226,7 +246,7 @@ describe("quoteToSigningNetworks", () => {
       })
     );
     expect([...emitted].sort() as string[]).toEqual(
-      ([Networks.Arbitrum, Networks.Base, Networks.Moonbeam, Networks.Polygon, "hydration", "pendulum"] as string[]).sort()
+      ([Networks.Arbitrum, Networks.Base, Networks.Moonbeam, Networks.Polygon, Networks.Robinhood, "hydration", "pendulum"] as string[]).sort()
     );
   });
 

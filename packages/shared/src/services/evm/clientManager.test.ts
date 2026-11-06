@@ -33,6 +33,14 @@ describe("redactRpcUrlForLogs", () => {
 });
 
 describe("EvmClientManager RPC configuration", () => {
+  it("prefers Alchemy for Robinhood Chain and keeps its public RPC as the fallback", () => {
+    expect(getEvmNetworks("test-api-key").find(network => network.name === Networks.Robinhood)?.rpcUrls).toEqual([
+      "https://robinhood-mainnet.g.alchemy.com/v2/test-api-key",
+      ""
+    ]);
+    expect(getEvmNetworks().find(network => network.name === Networks.Robinhood)?.rpcUrls).toEqual([""]);
+  });
+
   it("prefers Alchemy for Polygon Amoy and keeps viem's default transport as the fallback", () => {
     const polygonAmoyConfig = getEvmNetworks("test-api-key").find(network => network.name === Networks.PolygonAmoy);
 

@@ -10,17 +10,13 @@ export const PHASE_TO_STEP = Object.freeze({
   initial: "payment", brlaOnrampMint: "payment", fundEphemeral: "convert", subsidizePreSwap: "convert", nablaApprove: "convert",
   nablaSwap: "convert", distributeFees: "convert", subsidizePostSwap: "convert", squidRouterApprove: "buy", squidRouterSwap: "buy",
   squidRouterPay: "buy", finalSettlementSubsidy: "deliver", destinationTransfer: "deliver", brlaPayoutOnBase: "payout", complete: "done",
-  // Future phases pending API confirmation: Vortex has to announce the real names.
   // gasReserveTopUp sends the ETH gas reserve after the tokens: still "deliver".
-  lifiApprove: "buy", lifiSwap: "buy", lifiPermitExecute: "buy", gasReserveTopUp: "deliver",
-  relayBridge: "buy", uniswapApprove: "buy", uniswapSwap: "buy",
+  gasReserveTopUp: "deliver", relayBridge: "buy", uniswapApprove: "buy", uniswapSwap: "buy",
 });
 
-export const ASSUMED_PHASES = Object.freeze(["lifiApprove", "lifiSwap", "lifiPermitExecute", "gasReserveTopUp", "relayBridge"]);
-
-// In a sell the token leaves the wallet first: the swap legs are the "sell" step.
+// In a sell the token leaves the wallet first: funding, the permit and the swap legs are the "sell" step.
 const SELL_OVERRIDES = Object.freeze({
-  initial: "sell", lifiApprove: "sell", lifiSwap: "sell", lifiPermitExecute: "sell",
+  initial: "sell", fundEphemeral: "sell", stockPermitTransfer: "sell",
   relayBridge: "sell", uniswapApprove: "sell", uniswapSwap: "sell",
   squidRouterApprove: "sell", squidRouterSwap: "sell", squidRouterPay: "sell",
 });
