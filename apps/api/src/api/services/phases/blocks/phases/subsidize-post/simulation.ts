@@ -30,9 +30,15 @@ export interface SubsidizePostMetadata extends SubsidyMetadata {
 
 export const SubsidizePostContext = defineContext<SubsidizePostMetadata>()("subsidizePostSwap");
 
+export interface SubsidizePostSimulationConfig {
+  /** Off for routes Squid cannot price: no probe, no fallback warning on every quote, no route-value gross-up. */
+  routeValueProbe?: boolean;
+}
+
 export async function simulateSubsidizePost<Token extends TokenBrand, Chain extends ChainBrand>(
   input: PhaseIO<Token, Chain>,
-  ctx: PhaseCtx
+  ctx: PhaseCtx,
+  { routeValueProbe = true }: SubsidizePostSimulationConfig = {}
 ): Promise<PhaseResult<PhaseIO<Token, Chain>, SubsidizePostMetadata>> {
   const tokenDetails = getOnChainTokenDetails(input.chain as Networks, input.token as OnChainToken);
   if (!tokenDetails) {
@@ -49,7 +55,7 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
   );
   let adjustedExpectedOutput = expectedOutput;
   const toNetwork = getNetworkFromDestination(ctx.request.to);
-  if (toNetwork && !(toNetwork === input.chain && ctx.request.outputCurrency === input.token)) {
+  if (routeValueProbe && toNetwork && !(toNetwork === input.chain && ctx.request.outputCurrency === input.token)) {
     try {
       const bridge = await getEvmBridgeQuote({
         amountDecimal: expectedOutput.toString(),
