@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, it, mock} from "bun:test";
-import {EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection} from "@vortexfi/shared";
+import {EPaymentMethod, EvmToken, FiatToken, Networks, QuoteError, RampDirection} from "@vortexfi/shared";
 import Partner from "../../../../models/partner.model";
 import PartnerPricingConfig from "../../../../models/partnerPricingConfig.model";
 import ProfilePartnerAssignment from "../../../../models/profilePartnerAssignment.model";
@@ -240,5 +240,108 @@ describe("resolveQuotePartner", () => {
     expect(result.pricingPartnerId).toBeNull();
     expect(result.ownerPartnerId).toBeNull();
     expect(assignmentLookupCount).toBe(0);
+  });
+
+  describe("Robinhood Chain stock routes", () => {
+    const STOCKS_ID = "stocks-id";
+    const buy = { ...baseRequest, network: Networks.Robinhood, outputCurrency: EvmToken.NVDA, to: Networks.Robinhood };
+    const sell = {
+      from: Networks.Robinhood,
+      inputAmount: "1",
+      inputCurrency: EvmToken.NVDA,
+      network: Networks.Robinhood,
+      outputCurrency: FiatToken.BRL,
+      rampType: RampDirection.SELL,
+      to: EPaymentMethod.PIX
+    };
+
+    function stubStocksPartner(extra: Record<string, ReturnType<typeof stubPartner>> = {}) {
+      const partners: Record<string, ReturnType<typeof stubPartner>> = {
+        "vortex-stocks": stubPartner(STOCKS_ID, "vortex-stocks"),
+        ...extra
+      };
+      Partner.findOne = mock(
+        async ({ where }: { where: { name?: string } }) => partners[where.name ?? ""] ?? null
+      ) as typeof Partner.findOne;
+      PartnerPricingConfig.findOne = mock(async ({ where }: { where: { partnerId?: string; rampType?: RampDirection } }) =>
+        where.partnerId === STOCKS_ID ? stubConfig(STOCKS_ID, where.rampType as RampDirection) : null
+      ) as typeof PartnerPricingConfig.findOne;
+    }
+
+    it.each([
+      ["BUY", buy],
+      ["SELL", sell]
+    ] as const)("prices an anonymous %s from the corridor with no owner", async (_label, request) => {
+      stubStocksPartner();
+
+      await expect(resolveQuotePartner(request)).resolves.toMatchObject({
+        ownerPartnerId: null,
+        pricingPartnerId: STOCKS_ID,
+        source: "corridor"
+      });
+    });
+
+    it("wins over profile and manager assignments, without looking them up", async () => {
+      stubStocksPartner();
+      const assignmentLookup = mock(async () => ({ partnerId: "assigned-id" }));
+      ProfilePartnerAssignment.findOne = assignmentLookup as unknown as typeof ProfilePartnerAssignment.findOne;
+
+      const resolved = await resolveQuotePartner({ ...buy, controllingManagerProfileId: "manager", userId: "user" });
+
+      expect(resolved).toMatchObject({ ownerPartnerId: null, pricingPartnerId: STOCKS_ID, source: "corridor" });
+      expect(assignmentLookup).not.toHaveBeenCalled();
+    });
+
+    it("keeps the caller's credential partner as owner, even with no pricing row of its own", async () => {
+      stubStocksPartner({ OwnPartner: stubPartner("own-id", "OwnPartner") });
+
+      await expect(resolveQuotePartner({ ...buy, partnerId: "OwnPartner" })).resolves.toMatchObject({
+        ownerPartnerId: "own-id",
+        pricingPartnerId: STOCKS_ID,
+        source: "corridor"
+      });
+    });
+
+    it("leaves the owner null when the credential partner does not exist", async () => {
+      stubStocksPartner();
+
+      await expect(resolveQuotePartner({ ...buy, partnerId: "GonePartner" })).resolves.toMatchObject({
+        ownerPartnerId: null,
+        pricingPartnerId: STOCKS_ID,
+        source: "corridor"
+      });
+    });
+
+    it("fails closed when the row is missing, even for a caller with its own partner", async () => {
+      Partner.findOne = mock(async ({ where }: { where: { name?: string } }) =>
+        where.name === "OwnPartner" ? stubPartner("own-id", "OwnPartner") : null
+      ) as typeof Partner.findOne;
+      PartnerPricingConfig.findOne = mock(async () => stubConfig("own-id", RampDirection.BUY)) as typeof PartnerPricingConfig.findOne;
+
+      for (const request of [buy, sell, { ...buy, partnerId: "OwnPartner" }]) {
+        await expect(resolveQuotePartner(request)).rejects.toMatchObject({
+          isPublic: true,
+          message: QuoteError.FailedToCalculateQuote,
+          status: 500
+        });
+      }
+    });
+
+    it.each([
+      ["a non-BRL BUY", { ...buy, from: EPaymentMethod.SPEI, inputCurrency: FiatToken.MXN }],
+      ["a non-Pix BUY", { ...buy, from: EPaymentMethod.SEPA }],
+      ["a non-BRL SELL", { ...sell, outputCurrency: FiatToken.MXN, to: EPaymentMethod.SPEI }],
+      ["a non-Pix SELL", { ...sell, to: EPaymentMethod.SEPA }]
+    ])("does not touch %s, so the catalog can reject it", async (_label, request) => {
+      Partner.findOne = mock(async () => null) as typeof Partner.findOne;
+
+      await expect(resolveQuotePartner(request)).resolves.toMatchObject({ partner: null, source: "none" });
+    });
+
+    it("does not touch other networks", async () => {
+      Partner.findOne = mock(async () => null) as typeof Partner.findOne;
+
+      await expect(resolveQuotePartner(baseRequest)).resolves.toMatchObject({ partner: null, source: "none" });
+    });
   });
 });
