@@ -1,4 +1,5 @@
 import { getNetworkId, Networks, RELAY_ROBINHOOD_USDG_ADDRESS } from "@vortexfi/shared";
+import { verifyTypedData } from "ethers";
 import { decodeFunctionData, erc20Abi, parseTransaction } from "viem";
 import {
   ROBINHOOD_STOCKS,
@@ -13,6 +14,22 @@ import type { FakeEvm, RecordedEvmTx } from "./fake-evm";
 
 type Address = `0x${string}`;
 
+export const PERMIT_TYPES = {
+  Permit: [
+    { name: "owner", type: "address" },
+    { name: "spender", type: "address" },
+    { name: "value", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+    { name: "deadline", type: "uint256" }
+  ]
+};
+
+/** The name in a stock token's EIP-712 domain. */
+const stockName = (address: string) => {
+  const symbol = Object.entries(ROBINHOOD_STOCKS).find(([, pin]) => pin.address.toLowerCase() === address.toLowerCase())?.[0];
+  return symbol && `Fake ${symbol}`;
+};
+
 /**
  * Answers what a stock quote reads on Robinhood Chain: unpaused flags, a fresh Chainlink round, the pinned Uniswap
  * deployment, and QuoterV2 swapping at exactly `priceUsd` USDG per token. Other reads fall through to the handler
@@ -26,6 +43,8 @@ export function scriptRobinhoodChain(evm: FakeEvm, priceUsd: bigint): void {
       case "paused":
       case "oraclePaused":
         return false;
+      case "name":
+        return stockName(params.address) ?? scripted?.(network, params);
       case "latestRoundData":
         return [1n, priceUsd * 100_000_000n, 0n, BigInt(Math.floor(Date.now() / 1000)), 1n] as const;
       case "factory":
@@ -75,8 +94,9 @@ const decodeAs = <Abi extends readonly unknown[]>(abi: Abi, data: Address) => {
 /**
  * Token semantics for what a scenario broadcasts, so a wrong amount, a missing approval or an unfunded ephemeral shows
  * up the way it would on chain. A raw transaction must afford its signed fee cap and is charged all of it, at its exact
- * nonce. ERC-20 calls, permits and the pinned Uniswap router move balances and allowances. A call that cannot complete
- * mines as reverted. Other effects (Nabla, Relay) stay with the scenario, which uses `pull` and `credit`.
+ * nonce. ERC-20 calls, permits and the pinned Uniswap router move balances and allowances, and a permit must carry the
+ * owner's signature over the token's domain and current nonce, which it consumes. A call that cannot complete mines as
+ * reverted. Other effects (Nabla, Relay) stay with the scenario, which uses `pull` and `credit`.
  */
 export class TokenLedger {
   /** What a swap delivers against the quote it was held to. Below 10,000 the pool moved between the quote and the swap. */
@@ -109,6 +129,29 @@ export class TokenLedger {
 
   allowance(network: string, token: string, owner: string, spender: string): bigint {
     return this.allowances.get(this.key(network, token, owner, spender)) ?? 0n;
+  }
+
+  permitNonce(token: string, owner: string): bigint {
+    return this.permitNonces.get(this.key(token, owner)) ?? 0n;
+  }
+
+  private permitSigner(
+    tx: RecordedEvmTx,
+    token: Address,
+    [owner, spender, value, deadline, v, r, s]: readonly [string, string, bigint, bigint, number, Address, Address]
+  ): string | null {
+    const domain = {
+      chainId: getNetworkId(tx.network as Networks),
+      name: stockName(token),
+      verifyingContract: token,
+      version: "1"
+    };
+    const message = { deadline, nonce: this.permitNonce(token, owner), owner, spender, value };
+    try {
+      return verifyTypedData(domain, PERMIT_TYPES, message, { r, s, v });
+    } catch {
+      return null;
+    }
   }
 
   credit(network: string, token: string, holder: string, amount: bigint): void {
@@ -211,13 +254,14 @@ export class TokenLedger {
     } else {
       const permit = decodeAs(moneriumPermitAbi, data);
       if (permit?.functionName !== "permit") return;
-      const [owner, spender, value, deadline] = permit.args as [string, string, bigint, bigint];
-      if (deadline < BigInt(Math.floor(Date.now() / 1000))) {
+      const args = permit.args as [string, string, bigint, bigint, number, Address, Address];
+      const [owner, spender, value, deadline] = args;
+      const signer = this.permitSigner(tx, token, args);
+      if (deadline < BigInt(Math.floor(Date.now() / 1000)) || signer?.toLowerCase() !== owner.toLowerCase()) {
         this.evm.revertedReceiptHashes.add(tx.hash);
         return;
       }
-      const nonceKey = this.key(token, owner);
-      this.permitNonces.set(nonceKey, (this.permitNonces.get(nonceKey) ?? 0n) + 1n);
+      this.permitNonces.set(this.key(token, owner), this.permitNonce(token, owner) + 1n);
       this.allowances.set(this.key(tx.network, token, owner, spender), value);
     }
   }

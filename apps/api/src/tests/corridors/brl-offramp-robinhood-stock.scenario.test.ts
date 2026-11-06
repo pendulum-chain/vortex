@@ -11,15 +11,22 @@ import {
   type RampPhase,
   RELAY_BASE_USDC_ADDRESS,
   RELAY_ROBINHOOD_USDG_ADDRESS,
+  robinhoodChain,
   type SignedTypedData,
   signUnsignedTransactions,
   type UnsignedTx
 } from "@vortexfi/shared";
+// @ts-expect-error The wallet kit is plain JavaScript without declarations.
+import { assertSellRequests } from "../../../../../packages/consumer-kit/src/evm-wallet.js";
 import Big from "big.js";
 import {
+  type Abi,
+  ContractFunctionExecutionError,
+  ContractFunctionZeroDataError,
   decodeFunctionData,
   erc20Abi,
   getAddress,
+  HttpRequestError,
   maxUint256,
   parseEther,
   parseSignature,
@@ -319,6 +326,16 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
     const userBlueprint = released.unsignedTxs.find(tx => !isEphemeral(tx));
     if (!userBlueprint) throw new Error("the signatures did not release what the seller signs");
     if (userBlueprint.phase === "stockPermitTransfer") {
+      // What came back through the API and the database is what the Stocks app's wallet has to accept.
+      assertSellRequests([userBlueprint], {
+        chainId: robinhoodChain.id,
+        from: owner.address,
+        maxAmountWei: SOLD_RAW,
+        network: Networks.Robinhood,
+        phases: { stockPermitTransfer: ["permit"] },
+        spenders: [ephemeral.address],
+        token: stock
+      });
       await post("/v1/ramp/update", { presignedTxs: [await signPermit(userBlueprint, owner)], rampId: registered.id }, user.id);
     } else {
       expect(userBlueprint.phase).toBe("squidRouterNoPermitTransfer");
@@ -376,15 +393,21 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
     expect(final.state.payOutTicketId).toBeTruthy();
   }
 
-  function scriptTokenWithoutPermit(): void {
+  function scriptNoncesFailure(cause: ConstructorParameters<typeof ContractFunctionExecutionError>[0]): void {
     const reads = world.evm.onReadContract;
     world.evm.onReadContract = (network, params) => {
       if (network === Networks.Robinhood && params.functionName === "nonces") {
-        throw Object.assign(new Error("execution reverted"), { name: "ContractFunctionExecutionError" });
+        throw new ContractFunctionExecutionError(cause, {
+          abi: params.abi as Abi,
+          args: params.args as unknown[],
+          functionName: "nonces"
+        });
       }
       return reads?.(network, params);
     };
   }
+
+  const scriptTokenWithoutPermit = () => scriptNoncesFailure(new ContractFunctionZeroDataError({ functionName: "nonces" }));
 
   const ALL_BROADCASTS: RampPhase[] = ["uniswapApprove", "uniswapSwap", "distributeFees", "nablaApprove", "nablaSwap", "brlaPayoutOnBase"];
 
@@ -433,6 +456,66 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
       const final = await startAndSettle(setup);
 
       expectPaidOut(setup, final, pixOutBefore, ["stockPermitTransfer", ...ALL_BROADCASTS]);
+    },
+    60000
+  );
+
+  it(
+    "spends no funding gas on a seller who moved the tokens away, and completes once they are back",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      const pixOutBefore = world.brla.pixOutputTickets.length;
+      world.evm.setErc20Balance(Networks.Robinhood, setup.stock, setup.owner.address, SOLD_RAW - 1n);
+
+      const held = await startAndSettle(setup);
+
+      expect(held.currentPhase).toBe("fundEphemeral");
+      expect(world.evm.sentTransactions).toHaveLength(0);
+      expect(held.errorLogs.at(-1)).toMatchObject({ phase: "fundEphemeral", recoverable: true });
+
+      world.evm.setErc20Balance(Networks.Robinhood, setup.stock, setup.owner.address, SOLD_RAW);
+      await phaseProcessor.processRamp(setup.rampId);
+
+      expectPaidOut(setup, await settled(setup), pixOutBefore, ["stockPermitTransfer", ...ALL_BROADCASTS]);
+    },
+    60000
+  );
+
+  it.each([
+    ["the token no longer answers as having a permit", () => scriptTokenWithoutPermit(), 503],
+    ["the read failed", () => scriptNoncesFailure(new HttpRequestError({ status: 503, url: "https://rpc.invalid" })), 500]
+  ] as const)(
+    "registers nothing and keeps the gasless quote when %s",
+    async (_label, script, status) => {
+      const owner = privateKeyToAccount(generatePrivateKey());
+      const ephemeral = privateKeyToAccount(generatePrivateKey());
+      const user = await createTestUser();
+      await createTestTaxId(user.id, { taxId: TAX_ID });
+      const quote = await post<{ gasless?: boolean; id: string }>("/v1/quotes", {
+        from: Networks.Robinhood,
+        inputAmount: SOLD,
+        inputCurrency: EvmToken.NVDA,
+        network: Networks.Robinhood,
+        outputCurrency: FiatToken.BRL,
+        rampType: RampDirection.SELL,
+        to: "pix"
+      });
+      expect(quote.gasless).toBe(true);
+      script();
+
+      const response = await app.request("/v1/ramp/register", {
+        body: JSON.stringify({
+          additionalData: { pixDestination: PIX_KEY, receiverTaxId: RECEIVER_TAX_ID, taxId: TAX_ID, walletAddress: owner.address },
+          quoteId: quote.id,
+          signingAccounts: [{ address: ephemeral.address, type: "EVM" }]
+        }),
+        headers: jsonHeaders(user.id),
+        method: "POST"
+      });
+
+      expect(response.status).toBe(status);
+      expect((await QuoteTicket.findByPk(quote.id))?.status).toBe("pending");
+      expect(await RampState.count({ where: { quoteId: quote.id } })).toBe(0);
     },
     60000
   );

@@ -17,6 +17,8 @@ import {
 import Big from "big.js";
 import { decodeFunctionData, formatEther, formatUnits, keccak256, parseAbi, parseEther, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, type PrivateKeyAccount, privateKeyToAccount } from "viem/accounts";
+// @ts-expect-error The Stocks app is plain JavaScript without declarations.
+import { assertRegisteredBuy } from "../../../../stocks/src/lib/vortex-stocks.js";
 import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import { getBlockMetadata } from "../../api/services/phases/blocks/core/metadata";
 import { ROBINHOOD_STOCKS, type StockSymbol } from "../../api/services/phases/blocks/core/robinhood-stocks";
@@ -223,6 +225,12 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
       user.id
     );
     expect(updated.depositQrCode).toBeTruthy();
+    // The check the app runs on this very response before it shows the Pix code.
+    assertRegisteredBuy(updated, {
+      quote: { brlAmount: Number(inputAmount), id: quote.id, tokenAmountWei: parseUnits(quote.outputAmount, 18).toString() },
+      token: { address: ROBINHOOD_STOCKS[token].address },
+      walletAddress: destination
+    });
 
     const signed: BuySetup["signed"] = {};
     for (const tx of presignedTxs) signed[tx.phase as RampPhase | CleanupPhase] = tx.txData as `0x${string}`;
