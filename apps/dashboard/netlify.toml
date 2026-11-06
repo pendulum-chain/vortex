@@ -23,6 +23,18 @@
   command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:dashboard"
   publish = "dist"
 
+# The deployed branches never skip a build. Netlify's default check, which previews still use, compares
+# this directory against $CACHED_COMMIT_REF, which is the branch's last build only while its build cache
+# exists. A cache lapses about 16 days after the build that wrote it, and a cancelled build writes none.
+# Without one, the variable holds the default branch (staging) head, whatever Netlify's docs say, so
+# staging and release merges into main compare equal, cancel, and keep cancelling. `[context.staging]`
+# also covers release PR previews.
+[context.production]
+  ignore = "/bin/false"
+
+[context.staging]
+  ignore = "/bin/false"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
