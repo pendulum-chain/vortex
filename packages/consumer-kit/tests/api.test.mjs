@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
-import { VortexError, createApi, friendlyError, resolveApiBase } from "../src/vortex/api.js";
+import { fileURLToPath } from "node:url";
+import { SERVER_MESSAGES_PT, VortexError, createApi, friendlyError, resolveApiBase } from "../src/vortex/api.js";
 import { json, withFetch } from "./helpers.mjs";
 
 const apiBase = "https://api.example.test";
@@ -65,4 +68,24 @@ test("friendly errors in Brazilian Portuguese per status", () => {
   assert.equal(friendlyError(400, { error: { message: "Valor mínimo R$ 50" } }), "Valor mínimo R$ 50");
   assert.equal(friendlyError(502, { message: "upstream" }), "A Vortex está temporariamente indisponível. Tente novamente em alguns minutos.");
   assert.equal(friendlyError(418, null), "A Vortex não conseguiu concluir esta etapa.");
+});
+
+test("the API's fixed messages for the e-mail code and KYC steps are worded in Portuguese", () => {
+  assert.equal(friendlyError(400, { error: "Invalid OTP or OTP expired" }), "Código inválido ou expirado. Confira o código ou solicite um novo.");
+  assert.match(friendlyError(409, { error: "A subaccount already exists for this taxId" }), /Este CPF já está ligado a outra conta/);
+  assert.equal(friendlyError(400, { details: "x", error: "Invalid request" }), "Confira os dados informados e tente novamente.");
+  assert.equal(friendlyError(400, { message: "Invalid OTP or OTP expired" }), friendlyError(400, { error: { message: "Invalid OTP or OTP expired" } }));
+  for (const [message, pt] of Object.entries(SERVER_MESSAGES_PT)) {
+    assert.equal(friendlyError(400, { error: message }), pt, message);
+    assert.doesNotMatch(pt, /\b(the|this|please|not)\b/i, message);
+  }
+  // What the status already words stays as it is.
+  assert.equal(friendlyError(502, { error: "Invalid request" }), "A Vortex está temporariamente indisponível. Tente novamente em alguns minutos.");
+  assert.equal(friendlyError(403, { error: "This customer is already approved" }), "Esta operação ainda não está autorizada para este acesso.");
+});
+
+test("every message in the table is one the backend really sends", () => {
+  const walk = (dir) => readdirSync(dir).flatMap((name) => { const path = join(dir, name); return statSync(path).isDirectory() ? walk(path) : [path]; });
+  const sources = walk(fileURLToPath(new URL("../../../apps/api/src/api", import.meta.url))).filter((path) => path.endsWith(".ts") && !/\.test\.ts$|__tests__/.test(path)).map((path) => readFileSync(path, "utf8")).join("\n");
+  for (const message of Object.keys(SERVER_MESSAGES_PT)) assert.ok(sources.includes(message), `no backend source says "${message}"`);
 });

@@ -105,3 +105,7 @@ test("resuming a sell asks the API for the ramp's unsigned wallet transactions (
   assert.equal(seen[0].url, "https://api.example.test/v1/ramp/r%2F1?showUnsignedTxs=true");
   assert.match(seen[0].init.headers.Authorization, /^Bearer /);
 });
+
+test("the poll's time limit counts as transient, so a flow can start tracking over", async () => {
+  await assert.rejects(pollRamp({}, "r1", { timeoutMs: 0 }), (error) => error.code === "POLL_TIMEOUT" && isTransientError(error));
+});

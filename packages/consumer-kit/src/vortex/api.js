@@ -17,10 +17,31 @@ export function resolveApiBase(value, origin) {
   return new URL(value || "/api/production", origin).href.replace(/\/$/, "");
 }
 
+const KYC_NEEDS_SUPPORT_PT = "Sua verificação precisa ser conferida pela Vortex. Consulte o suporte da Vortex.";
+const KYC_ALREADY_APPROVED_PT = "Sua identidade já foi verificada. Feche esta tela e tente novamente.";
+
+// The API's fixed English messages that the e-mail code and KYC steps can show through this client.
+export const SERVER_MESSAGES_PT = Object.freeze({
+  "Invalid OTP or OTP expired": "Código inválido ou expirado. Confira o código ou solicite um novo.",
+  "A subaccount already exists for this taxId": "Este CPF já está ligado a outra conta Vortex. Entre com o e-mail dessa conta ou consulte o suporte da Vortex.",
+  "This customer is already approved": KYC_ALREADY_APPROVED_PT,
+  "The KYC case is already approved": KYC_ALREADY_APPROVED_PT,
+  "This KYC case uses Sumsub token import": KYC_NEEDS_SUPPORT_PT,
+  "Exactly one canonical KYC case is required": KYC_NEEDS_SUPPORT_PT,
+  "The canonical subaccount differs from the confirmed creation result": KYC_NEEDS_SUPPORT_PT,
+  "Subaccount not found": KYC_NEEDS_SUPPORT_PT,
+  "Ramp disabled": KYC_NEEDS_SUPPORT_PT,
+  "Individual KYC requires an individual customer account.": KYC_NEEDS_SUPPORT_PT,
+  "taxIdNumber does not match the tax ID claimed for this subaccount.": "O CPF não confere com o informado no início da verificação. Confira o número e tente novamente.",
+  "The provider rejected the KYC submission. Correct the submitted details and try again.": "A Avenia recusou os dados enviados. Corrija as informações e tente novamente.",
+  "Invalid request": "Confira os dados informados e tente novamente.",
+});
+
 export function friendlyError(status, body) {
   const raw = body?.error?.message || body?.message || body?.error;
   if (status === 401) return "Sua sessão de segurança expirou. Solicite um novo código.";
   if (status === 403) return "Esta operação ainda não está autorizada para este acesso.";
+  if (status < 500 && SERVER_MESSAGES_PT[raw]) return SERVER_MESSAGES_PT[raw];
   if (status === 409) return raw || "Esta etapa já foi concluída. Atualizamos o status para você.";
   if (status === 422 || status === 400) return raw || "Confira os dados informados e tente novamente.";
   if (status >= 500) return "A Vortex está temporariamente indisponível. Tente novamente em alguns minutos.";
