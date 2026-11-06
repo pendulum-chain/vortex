@@ -140,6 +140,10 @@ UBO registration is idempotent per person: Vortex keys each submission by the su
 
 The provider-hosted alternative remains available: `POST /v1/brl/kyb/new-level-1/web-sdk` starts or resumes the hosted flow, and the quote-less [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link) wraps it in the widget.
 
+### Stock Tokens On Robinhood Chain
+
+Where enabled, stock tokens on the `"robinhood"` network use this corridor and its onboarding: `"from": "pix"` to buy, and `"to": "pix"` to sell. No other fiat rail reaches this network. See [Quotes And Pricing](https://api-docs.vortexfinance.co/quotes-and-pricing) for the request and the response fields.
+
 ## USD, MXN, COP, ARS (Bank Transfers)
 
 These corridors settle through Vortex's local payment partners over domestic banking rails. In quote requests, the rail identifier takes the place of a network in `from` (buy) or `to` (sell):

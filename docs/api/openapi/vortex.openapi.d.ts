@@ -1755,13 +1755,13 @@ export interface paths {
         };
         /**
          * Supported Cryptocurrencies
-         * @description Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; `rampTypes` lists the directions at least one corridor supports for the token.
+         * @description Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; `rampTypes` lists the directions at least one corridor supports for the token. `robinhood` lists only the allowlisted stock tokens, with the directions currently enabled.
          */
         get: {
             parameters: {
                 query: {
                     /**
-                     * @description Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `base-sepolia`, `bsc`, `ethereum`, `moonbeam`, `paseo`, `polygon`, `polygonAmoy`
+                     * @description Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `base-sepolia`, `bsc`, `ethereum`, `moonbeam`, `paseo`, `polygon`, `polygonAmoy`, `robinhood`
                      * @example ethereum
                      */
                     network: components["schemas"]["SupportedCryptocurrencyNetwork"];
@@ -2337,7 +2337,7 @@ export interface components {
             valid: boolean;
         };
         /** @enum {string} */
-        CleanupPhase: "moonbeamCleanup" | "pendulumCleanup" | "polygonCleanup" | "polygonCleanupAxlUsdc" | "hydrationCleanup" | "assetHubCleanup" | "baseCleanupUsdc" | "baseCleanupBrla" | "baseCleanupEurc" | "baseCleanupAxlUsdc" | "ethereumCleanupUsdc";
+        CleanupPhase: "moonbeamCleanup" | "pendulumCleanup" | "polygonCleanup" | "polygonCleanupAxlUsdc" | "hydrationCleanup" | "assetHubCleanup" | "baseCleanupUsdc" | "baseCleanupBrla" | "baseCleanupEurc" | "baseCleanupAxlUsdc" | "ethereumCleanupUsdc" | "robinhoodCleanupStock";
         /** @description Allowed values: `AR`, `BR`, `EU` */
         CountryCode: string;
         CreateApiCredentialRequest: {
@@ -2366,7 +2366,7 @@ export interface components {
             inputAmount: string;
             /** @description The currency type for the input amount. */
             inputCurrency: components["schemas"]["RampCurrency"];
-            /** @description Optional whitelist of networks to evaluate when searching for the best quote. If omitted or empty, all eligible networks for the corridor are considered. */
+            /** @description Optional whitelist of networks to evaluate when searching for the best quote. If omitted or empty, all eligible networks for the corridor are considered. `robinhood` is never evaluated; request it directly through `POST /v1/quotes`. */
             networks?: components["schemas"]["Networks"][];
             /** @description The desired currency type for the output amount. */
             outputCurrency: components["schemas"]["RampCurrency"];
@@ -2393,6 +2393,8 @@ export interface components {
             /** @description Your api key, if available. */
             apiKey?: string;
             countryCode?: components["schemas"]["CountryCode"];
+            /** @description BUY on Robinhood Chain only: the EVM address that will receive the tokens. It sizes the gas reserve, and registration must then use the same address. Ignored on every other route. */
+            destinationAddress?: string;
             /** @description From destination */
             from: components["schemas"]["DestinationType"];
             /**
@@ -2434,7 +2436,7 @@ export interface components {
          * @description Represents either a blockchain network or a traditional payment method.
          * @enum {string}
          */
-        DestinationType: "assethub" | "arbitrum" | "avalanche" | "base" | "bsc" | "ethereum" | "polygon" | "moonbeam" | "pendulum" | "stellar" | "pix" | "sepa" | "cbu" | "ach" | "spei";
+        DestinationType: "assethub" | "arbitrum" | "avalanche" | "base" | "bsc" | "ethereum" | "polygon" | "moonbeam" | "robinhood" | "pendulum" | "stellar" | "pix" | "sepa" | "cbu" | "ach" | "spei";
         DocumentUploadEntry: {
             id: string;
             uploadURLBack?: string;
@@ -3135,7 +3137,7 @@ export interface components {
          * @description Supported blockchain networks.
          * @enum {string}
          */
-        Networks: "assethub" | "arbitrum" | "avalanche" | "base" | "bsc" | "ethereum" | "polygon" | "moonbeam";
+        Networks: "assethub" | "arbitrum" | "avalanche" | "base" | "bsc" | "ethereum" | "polygon" | "moonbeam" | "robinhood";
         OnboardingApiErrorResponse: {
             error: string | {
                 code: string;
@@ -3289,7 +3291,7 @@ export interface components {
             selectionRequired: boolean;
         };
         /** @enum {string} */
-        OnChainToken: "USDC" | "USDT" | "ETH" | "USDC.E";
+        OnChainToken: "USDC" | "USDT" | "ETH" | "USDC.E" | "SPY" | "TSLA" | "NVDA" | "AMZN" | "AAPL" | "GOOGL" | "MSFT" | "QQQ" | "SPCX" | "META" | "MU" | "SGOV";
         PayloadTooLargeErrorResponse: {
             /** @constant */
             code: 413;
@@ -3327,6 +3329,16 @@ export interface components {
         PaymentMethod: string;
         /** @description A transaction envelope from registration with its raw transaction or typed-data signature attached. */
         PresignedTx: components["schemas"]["UnsignedTx"];
+        ProviderCost: {
+            /** @description In BRL with two decimals. Rows with `includedIn: rate` can be negative. */
+            amountFiat: string;
+            /** @enum {string} */
+            id: "ramp" | "conversion" | "bridge" | "swap" | "vortex" | "network";
+            /** @enum {string} */
+            includedIn: "fees" | "rate";
+            /** @enum {string} */
+            provider: "avenia" | "nabla" | "relay" | "uniswap" | "vortex" | "network";
+        };
         QuoteResponse: {
             anchorFeeFiat: string;
             anchorFeeUSD: string;
@@ -3337,6 +3349,14 @@ export interface components {
             expiresAt?: string;
             feeCurrency: components["schemas"]["RampCurrency"];
             from?: components["schemas"]["DestinationType"];
+            /** @description Stock corridor SELL only: whether the token supports a permit, so the seller needs no native gas. Registration can still issue the one-transfer fallback, which needs native gas. */
+            gasless?: boolean;
+            /** @description Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in wei. It is already included in the network fee. Omitted when no reserve is due. */
+            gasReserveAmount?: string;
+            /** @enum {string} */
+            gasReserveCurrency?: "ETH";
+            gasReserveFiat?: string;
+            gasReserveUsd?: string;
             /**
              * Format: uuid
              * @description Unique identifier for the quote.
@@ -3354,8 +3374,15 @@ export interface components {
             partnerFeeUSD: string;
             processingFeeFiat: string;
             processingFeeUSD: string;
+            /** @description Stock corridor only: an itemized view of what each leg of the route costs. Rows with `includedIn: fees` add up to the total fee less the gas reserve. Rows with `includedIn: rate` are signed estimates already reflected in the output amount. */
+            providerCosts?: components["schemas"]["ProviderCost"][];
             /** @description The type of ramp process. */
             rampType?: components["schemas"]["RampDirection"];
+            /**
+             * @description Stock corridor only.
+             * @enum {string}
+             */
+            routingStrategy?: "direct";
             to?: components["schemas"]["DestinationType"];
             totalFeeFiat: string;
             totalFeeUSD: string;
@@ -3367,7 +3394,7 @@ export interface components {
          * @example USDC
          * @enum {string}
          */
-        RampCurrency: "EUR" | "ARS" | "BRL" | "USD" | "MXN" | "COP" | "USDC" | "USDT" | "USDC.E";
+        RampCurrency: "EUR" | "ARS" | "BRL" | "USD" | "MXN" | "COP" | "USDC" | "USDT" | "USDC.E" | "SPY" | "TSLA" | "NVDA" | "AMZN" | "AAPL" | "GOOGL" | "MSFT" | "QQQ" | "SPCX" | "META" | "MU" | "SGOV";
         /** @enum {string} */
         RampDirection: "BUY" | "SELL";
         RampErrorLog: {
@@ -3393,7 +3420,7 @@ export interface components {
          * @description The current phase of the ramp process.
          * @enum {string}
          */
-        RampPhase: "initial" | "timedOut" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "uniswapApprove" | "uniswapSwap" | "squidRouterPermitExecute" | "squidRouterNoPermitTransfer" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterApprove" | "squidRouterSwap" | "squidRouterPay" | "fundEphemeral" | "destinationTransfer" | "nablaApprove" | "nablaSwap" | "hydrationSwap" | "hydrationToAssethubXcm" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "pendulumToMoonbeamXcm" | "pendulumToHydrationXcm" | "assethubToPendulum" | "pendulumToAssethubXcm" | "subsidizePreSwap" | "subsidizePostSwap" | "distributeFees" | "alfredpayOnrampMint" | "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "brlaOnrampMint" | "onHoldForComplianceCheck" | "brlaPayoutOnBase" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "baseTransfer" | "finalSettlementSubsidy" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "backupApprove" | "failed" | "complete";
+        RampPhase: "initial" | "timedOut" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "uniswapApprove" | "uniswapSwap" | "squidRouterPermitExecute" | "squidRouterNoPermitTransfer" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterApprove" | "squidRouterSwap" | "squidRouterPay" | "fundEphemeral" | "destinationTransfer" | "nablaApprove" | "nablaSwap" | "hydrationSwap" | "hydrationToAssethubXcm" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "pendulumToMoonbeamXcm" | "pendulumToHydrationXcm" | "assethubToPendulum" | "pendulumToAssethubXcm" | "subsidizePreSwap" | "subsidizePostSwap" | "distributeFees" | "alfredpayOnrampMint" | "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "brlaOnrampMint" | "onHoldForComplianceCheck" | "brlaPayoutOnBase" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "baseTransfer" | "finalSettlementSubsidy" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "backupApprove" | "relayApprove" | "relayBridge" | "stockPermitTransfer" | "stockSettlementTopUp" | "gasReserveTopUp" | "stockBackupApprove" | "relayBackupApprove" | "failed" | "complete";
         RampProcess: {
             achPaymentData?: components["schemas"]["AchPaymentData"];
             anchorFeeFiat?: string;
@@ -3415,6 +3442,12 @@ export interface components {
             feeCurrency?: components["schemas"]["RampCurrency"];
             /** @description The source network or payment method. */
             from: components["schemas"]["DestinationType"];
+            /** @description Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in wei. It is already included in the network fee. Omitted when no reserve is due. */
+            gasReserveAmount?: string;
+            /** @enum {string} */
+            gasReserveCurrency?: "ETH";
+            gasReserveFiat?: string;
+            gasReserveUsd?: string;
             ibanPaymentData?: components["schemas"]["IbanPaymentData"];
             /** @description Unique identifier for the ramp process. */
             id: string;
@@ -3614,7 +3647,7 @@ export interface components {
          * @description Networks accepted by the supported-cryptocurrencies endpoint.
          * @enum {string}
          */
-        SupportedCryptocurrencyNetwork: "assethub" | "arbitrum" | "avalanche" | "base" | "base-sepolia" | "bsc" | "ethereum" | "moonbeam" | "paseo" | "polygon" | "polygonAmoy";
+        SupportedCryptocurrencyNetwork: "assethub" | "arbitrum" | "avalanche" | "base" | "base-sepolia" | "bsc" | "ethereum" | "moonbeam" | "paseo" | "polygon" | "polygonAmoy" | "robinhood";
         /** @enum {string} */
         TaxIdType: "CPF" | "CNPJ";
         TriggerOfframpRequest: {
@@ -7299,6 +7332,7 @@ export interface operations {
              * @description Bad Request. Possible reasons:
              *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
              *     - Invalid ramp type (must be "BUY" or "SELL")
+             *     - On `robinhood`: the direction is not enabled, the token is not on the allowlist, a SELL amount has more than 18 decimals, or `destinationAddress` is not an EVM address
              */
             400: {
                 headers: {
@@ -7335,7 +7369,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Service Unavailable. Destination network fees currently exceed the configured safety limit; retry the quote later. */
+            /** @description Service Unavailable. Destination network fees currently exceed the configured safety limit; retry the quote later. On `robinhood`, the issuer has paused trading in the token, or its market price is unavailable or too far from the route's price. */
             503: {
                 headers: {
                     [name: string]: unknown;

@@ -68,6 +68,7 @@ documents win.
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
 | Resend | `05-integrations/resend.md` | Outbound email — auth mail relay and transactional notifications |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
+| Relay | `05-integrations/relay.md` | Base USDC and Robinhood Chain USDG bridge for the stock token corridor |
 | XCM Transfers | `06-cross-chain/xcm-transfers.md` | Dormant Pendulum↔Moonbeam↔AssetHub compatibility and re-enable constraints |
 | Fund Routing | `06-cross-chain/fund-routing.md` | Subsidization, fee distribution, amount integrity |
 | Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management — cost/profit/opportunistic USDC→BRLA→USDC (Base), and cost/profit-aware BRLA→USDC correction (Base low-coverage) |
@@ -116,6 +117,8 @@ Most module specifications use these sections:
 | **FastForex** | Fiat exchange-rate provider used as the USD-to-fiat rate source for currencies without a Binance market, and the fallback after Binance for those that have one |
 | **Squid Router** | Cross-chain swap/routing protocol for EVM chains |
 | **Axelar** | Cross-chain messaging protocol used by SquidRouter for EVM-to-EVM bridging |
+| **Relay** | Intent-based bridge used for Base USDC and Robinhood Chain USDG on the stock token corridor |
+| **Robinhood Chain** | Arbitrum Nitro chain 4663 that hosts the stock tokens, USDG and the Uniswap V3 pools the corridor trades on |
 | **Avenia** | BRLA's internal settlement platform; handles BRLA transfers, swaps, and PIX payouts |
 | **Subsidization** | When the platform tops up an ephemeral account to ensure the user receives the quoted amount |
 | **pk\_/sk\_** | Public key / Secret key prefixes for the dual API key system |

@@ -30,7 +30,7 @@ X-Public-Key: pk_live_...
 ```
 
 - `rampType` is `"BUY"` (onramp, fiat → crypto) or `"SELL"` (offramp, crypto → fiat).
-- `from` / `to` are either a fiat rail (`"pix"`, `"sepa"`, `"ach"`, `"spei"`, `"cbu"`) or a network identifier (`"polygon"`, `"base"`, `"ethereum"`, `"arbitrum"`, `"bsc"`, `"avalanche"`, `"assethub"`, `"stellar"`, `"moonbeam"`). `"ach"` serves USD and COP, `"spei"` serves MXN, and `"cbu"` serves ARS; see [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors).
+- `from` / `to` are either a fiat rail (`"pix"`, `"sepa"`, `"ach"`, `"spei"`, `"cbu"`) or a network identifier (`"polygon"`, `"base"`, `"ethereum"`, `"arbitrum"`, `"bsc"`, `"avalanche"`, `"robinhood"`, `"assethub"`, `"stellar"`, `"moonbeam"`). `"ach"` serves USD and COP, `"spei"` serves MXN, and `"cbu"` serves ARS; see [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors).
 - `inputAmount` is a decimal string in the smallest commonly used unit of `inputCurrency` (e.g. `"150"` for 150 BRL, `"100"` for 100 USDC). Do not pass raw chain base units.
 - `X-Public-Key` (optional) carries the public half of one API credential for attribution and discount eligibility. The legacy body `apiKey` field remains accepted for quote compatibility; if both are sent, their values must match.
 
@@ -69,6 +69,29 @@ X-Public-Key: pk_live_...
 - Fees are flattened into per-component fields, each provided twice: once denominated in `feeCurrency` (the `*Fiat` fields) and once in USD (the `*Usd` fields). `processingFee` is the sum of the anchor and Vortex components.
 - When a quote-time discount applies, optional `discountFiat`, `discountUsd`, and `discountCurrency` fields are present.
 - `expiresAt` is short (typically a few minutes). Register the ramp promptly or request a new quote.
+
+## Stock Tokens
+
+Where enabled, the `"robinhood"` network quotes stock tokens against BRL over PIX, in both directions. Identify the token by its symbol rather than its contract address. `GET /v1/supported-cryptocurrencies?network=robinhood` lists the symbols, their addresses, and the directions currently enabled.
+
+```json
+{
+  "rampType": "BUY",
+  "from": "pix",
+  "to": "robinhood",
+  "network": "robinhood",
+  "inputAmount": "150",
+  "inputCurrency": "BRL",
+  "outputCurrency": "NVDA",
+  "destinationAddress": "0x1234567890abcdef1234567890abcdef12345678"
+}
+```
+
+- A BUY delivers exactly `outputAmount` to the wallet, and then native gas if the wallet needs it. `destinationAddress` sizes this gas reserve for that wallet, and registration must use the same address; without it, the quote charges the full reserve. The reserve is included in the network fee and reported by the optional `gasReserveAmount`, `gasReserveCurrency`, `gasReserveFiat`, and `gasReserveUsd` fields, which `GET /v1/ramp/{id}` also returns. They are omitted when no reserve is due.
+- A SELL moves exactly `inputAmount`, which can have up to 18 decimals and is echoed unchanged. `gasless: true` means the token supports a permit, so the seller normally needs no native gas. Registration can still issue a single wallet transfer instead, so read the returned transactions rather than relying on this field.
+- `routingStrategy` and `providerCosts` are present only on these quotes. `providerCosts` itemizes each leg: rows with `includedIn: "fees"` add up to the total fee less the gas reserve, and rows with `includedIn: "rate"` are signed estimates already reflected in the output amount.
+- A `400` means the direction is not enabled or the token is not on the allowlist. A `503` means the issuer has paused the token, or its market price is unavailable or too far from the route's price. Retry a `503` later with a new quote.
+- `POST /v1/quotes/best` never evaluates this network, and partner credentials do not change its pricing.
 
 ## Best-Quote Selection
 

@@ -2,8 +2,9 @@
 
 Scope: `apps/stocks` and `packages/consumer-kit`. The Stocks pilot is served at
 `/pt-br/stocks/` (Brazil/Pix) and `/en/stocks/` (English/Base USDC). Gold retains its existing
-implementation. This change adds no server endpoint, signing authority, chain executor, or
-production Robinhood Chain ramp.
+implementation. This client boundary adds no server endpoint, signing authority or chain executor.
+The server's stock corridor is specified in `03-ramp-engine/ramp-phase-flows.md`, and stays off until
+`STOCKS_ENABLED_DIRECTIONS` lists a direction.
 
 ## Modes and execution
 
@@ -12,6 +13,9 @@ production Robinhood Chain ramp.
   Pix code. The mode is visibly labelled. Netlify deploy previews use demo.
 - Live additionally requires `VITE_STOCKS_RAMP_ENABLED=true` and API availability for the
   configured network and allowlisted token address. Until then buying displays “em breve”.
+- The server corridor does not yet meet this client's checks. It identifies tokens by symbol
+  while the client sends and validates addresses, and a `gasless` sell needs a permit signature
+  the signing policy below refuses. Either difference keeps the live route closed for this client.
 - USDC checkout remains simulated in demo/preview and independently disabled in live until
   Vortex confirms its crypto order/funding contract. It exposes no real payment address or
   wallet signature. Zero Stocks markup is enforced; provider fees are disclosed separately.

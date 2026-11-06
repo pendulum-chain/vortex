@@ -81,6 +81,9 @@ Deliberate exceptions, all of them things a rename would break or misrepresent:
 - The EUR corridor's released API names: the `/v1/monerium/*` and `/v1/monerium-b2b/*` routes,
   `MONERIUM_*` error codes, `monerium*` phase values, and the SDK's `Monerium*` error classes.
   Prose around them still says "EUR provider".
+- `squidRouter*`, `uniswap*` and `relay*` phase values, which name the on-chain step a ramp is in,
+  and the `provider` field of `providerCosts` on stock quotes, which exists to disclose who charged
+  what. Prose around them still says "bridge" and "swap".
 
 Deprecated provider-named SDK aliases stay exported until the next major release.
 
