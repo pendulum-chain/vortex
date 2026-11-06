@@ -4,7 +4,7 @@
 // (Gold's demo shows an EMV-shaped Pix payload; nothing like it exists here, see pilot-safety.test.mjs.)
 // Progress is derived from the wall clock (startedAt + phase length), so a reload or a new tab
 // state resumes where it was; records live in sessionStorage.
-// Gas reserve: it mirrors the proposed Vortex rule. A buy quoted while the demo ETH
+// Gas reserve: it mirrors the Vortex rule. A buy quoted while the demo ETH
 // balance is below the threshold includes the top-up (target - balance) as its own fee; the demo
 // holdings receive that ETH on success, so later buys do not include it again. Without demo
 // holdings (preview) the balance is unknown and the full reserve is quoted, as Vortex does
@@ -30,7 +30,7 @@ const KEEP_RAMPS = 20;
 // The illustrative fee model lives in fee-model.js (the landing's cost example uses it too).
 export { SIM_FEES, simulatedFees } from "./fee-model.js";
 
-// The proposed reserve rule: below 0.00002 ETH, top up to 0.00005 ETH.
+// The reserve rule: below 0.00002 ETH, top up to 0.00005 ETH.
 // BRL at an illustrative ETH price: US$ 2,716.75 (Coinbase, 2026-09-29 14:13 UTC) x 5.2165 BRL/USD
 // (AwesomeAPI mid, 13:40 UTC) = R$ 14,172 per ETH, so 0.00005 ETH = R$ 0.71.
 export const SIM_GAS_RESERVE = Object.freeze({ targetWei: 50_000_000_000_000n, thresholdWei: 20_000_000_000_000n, brlPerEth: 14_172 });
@@ -233,6 +233,13 @@ export function createSimulatedStocksAdapter({
     return ramp;
   }
 
+  async function abandonRamp(rampId) {
+    const { walletAddress } = loadRecord(rampId);
+    const ramp = await getRamp(rampId);
+    if (ramp.currentPhase === "initial") settleRamp(activeRampStore, { ...ramp, classification: "failure" }, { walletAddress, simulated: true });
+    return ramp;
+  }
+
   async function startRamp(rampId) {
     const record = loadRecord(rampId);
     if (!record.startedAt) {
@@ -271,6 +278,7 @@ export function createSimulatedStocksAdapter({
     registerBuy,
     registerSell,
     resumeSell,
+    abandonRamp,
     startRamp,
     getRamp,
     pollStatus,

@@ -1,8 +1,23 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { EvmToken, isFiatToken, Networks, type RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
-import { formatUnits, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { InsufficientBalanceError, parseAPIError } from "../../../../packages/sdk/src/errors";
+// @ts-expect-error The Stocks app is plain JavaScript without declarations.
+import { parseGasReserve } from "../../../stocks/src/lib/gas-reserve.js";
+// @ts-expect-error The Stocks app is plain JavaScript without declarations.
+import { NETWORK_UNKNOWN_PATTERN, rampOpenState } from "../../../stocks/src/lib/ramp-contract.js";
+// @ts-expect-error The Stocks app is plain JavaScript without declarations.
+import { STOCK_TOKENS } from "../../../stocks/src/lib/stocks.js";
+import {
+  buildStockBuyRequest as appBuyRequest,
+  buildStockSellRequest as appSellRequest,
+  createVortexStocksAdapter,
+  mapAvailability,
+  mapStocksError,
+  validateStockQuote
+  // @ts-expect-error The Stocks app is plain JavaScript without declarations.
+} from "../../../stocks/src/lib/vortex-stocks.js";
 import { ROBINHOOD_STOCKS, type StockSymbol } from "../api/services/phases/blocks/core/robinhood-stocks";
 import { priceFeedService } from "../api/services/priceFeed.service";
 import sequelize from "../config/database";
@@ -13,232 +28,23 @@ import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
 import { scriptRobinhoodChain } from "../test-utils/fake-world/robinhood-chain";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
-/**
- * The rules below are the Stocks app's own, ported line for line so a real API response can be held against them:
- * `validateStockQuote`, `mapAvailability` and its request builders from `vortex-stocks.js`, `providerCostProblem` from
- * `provider-costs.js`, `parseGasReserve` and `gasReserveFeeProblem` from `gas-reserve.js`, `tokensToWei` from `token.js`.
- * The one rule the API does not meet by design is pinned at the end: the app identifies a token by address, the API by
- * symbol. Every other failure here means the app would refuse our quote.
- */
+/** The Stocks app's own code, held against real API responses. Any failure here means the app would refuse our answer. */
 type RawQuote = Record<string, unknown>;
+type Expected = { direction: "BUY" | "SELL"; id: string; network: Networks; requested: string };
 
-const DECIMAL = /^\d+(?:\.\d{1,18})?$/;
-const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
-const FEE_FIELDS = ["networkFeeFiat", "processingFeeFiat", "partnerFeeFiat", "totalFeeFiat"];
-const GAS_RESERVE_FIELDS = ["gasReserveAmount", "gasReserveCurrency", "gasReserveFiat", "gasReserveUsd"];
-const GAS_RESERVE_MAX_WEI = parseUnits("0.0003", 18);
-const FEE_ROUNDING = 0.01;
-const EPSILON = 1e-9;
-const NETWORK_UNKNOWN_PATTERN = /Invalid network|Unable to determine network/i;
-const DIRECT_PROVIDERS: Array<{ id: string; provider: string }> = [
-  { id: "ramp", provider: "avenia" },
-  { id: "conversion", provider: "nabla" },
-  { id: "bridge", provider: "relay" },
-  { id: "swap", provider: "uniswap" },
-  { id: "vortex", provider: "vortex" },
-  { id: "network", provider: "network" }
-];
+const buildStockBuyRequest = (outputId: string, brlAmount: string, destinationAddress: string | null = null) =>
+  appBuyRequest({ brlAmount, destinationAddress, network: Networks.Robinhood, outputId });
+const buildStockSellRequest = (inputId: string, tokenAmount: string) =>
+  appSellRequest({ inputId, network: Networks.Robinhood, tokenAmount });
 
-interface GasReserve {
-  brl: number;
-  usd: number | null;
-}
-
-const present = (value: unknown) => value !== undefined && value !== null && String(value).trim() !== "";
-const sameId = (a: unknown, b: unknown) => Boolean(a) && Boolean(b) && String(a).toLowerCase() === String(b).toLowerCase();
-const validAmount = (value: unknown) =>
-  (typeof value === "number" || typeof value === "string") &&
-  String(value).trim() !== "" &&
-  /^-?\d+(?:\.\d+)?$/.test(String(value)) &&
-  Number.isFinite(Number(value));
-
-function canonicalAmount(value: unknown): string | null {
-  const text = String(value ?? "").trim();
-  return DECIMAL.test(text) ? formatUnits(parseUnits(text, 18), 18) : null;
-}
-
-function tokensToWei(input: unknown): bigint {
-  const text = String(input ?? "").trim();
-  const match = /^(\d*)(?:[.,](\d*))?$/.exec(text);
-  if (!text || !match || !(match[1] || match[2])) throw new Error("Informe uma quantidade válida de tokens.");
-  const fraction = match[2] || "";
-  if (fraction.length > 18) throw new Error("Use no máximo 18 casas decimais.");
-  return parseUnits(`${match[1] || "0"}.${fraction || "0"}`, 18);
-}
-
-function parseGasReserve(raw: RawQuote): GasReserve | null {
-  if (!GAS_RESERVE_FIELDS.some(field => present(raw[field]))) return null;
-  const amountText = present(raw.gasReserveAmount) ? String(raw.gasReserveAmount).trim() : "0";
-  if (!DECIMAL.test(amountText)) throw new Error("gasReserveAmount is not a plain decimal ETH amount.");
-  const wei = parseUnits(amountText, 18);
-  const brl = present(raw.gasReserveFiat) ? Number(raw.gasReserveFiat) : wei === 0n ? 0 : Number.NaN;
-  if (!Number.isFinite(brl) || brl < 0) throw new Error("gasReserveFiat is missing or not a non-negative number.");
-  const usd = present(raw.gasReserveUsd) ? Number(raw.gasReserveUsd) : null;
-  if (usd !== null && (!Number.isFinite(usd) || usd < 0)) throw new Error("gasReserveUsd is not a non-negative number.");
-  if (wei === 0n) {
-    if (brl > 0 || (usd ?? 0) > 0) throw new Error("A gas reserve is charged but no ETH is delivered.");
-    return null;
-  }
-  if (wei > GAS_RESERVE_MAX_WEI) throw new Error("gasReserveAmount is above the most one purchase may deliver.");
-  if (raw.gasReserveCurrency !== "ETH") throw new Error("gasReserveCurrency is not ETH.");
-  return { brl, usd };
-}
-
-function gasReserveFeeProblem(quote: RawQuote, reserve: GasReserve): string | null {
-  const network = Number(quote.networkFeeFiat);
-  const service = Number(quote.processingFeeFiat) + Number(quote.partnerFeeFiat);
-  const total = Number(quote.totalFeeFiat);
-  if (reserve.brl > network + FEE_ROUNDING + EPSILON) return "the reserve is not inside networkFeeFiat";
-  if (service + network > total + FEE_ROUNDING + EPSILON) return "networkFeeFiat (with the reserve) is not inside totalFeeFiat";
-  if (total > service + network + FEE_ROUNDING + EPSILON) return "totalFeeFiat holds more than processing + partner + network";
-  if (!(total < Number(quote.inputAmount))) return "the fees, reserve included, are not below the amount paid";
-  const networkUsd = present(quote.networkFeeUsd) ? Number(quote.networkFeeUsd) : null;
-  if (reserve.usd !== null && networkUsd !== null && Number.isFinite(networkUsd) && reserve.usd > networkUsd + FEE_ROUNDING + EPSILON) {
-    return "the reserve is not inside networkFeeUsd";
-  }
-  return null;
-}
-
-function providerCostProblem(raw: RawQuote, reserve: GasReserve | null): string | null {
-  if (raw.providerCosts == null) return null;
-  if (!validAmount(raw.totalFeeFiat) || Number(raw.totalFeeFiat) < 0) return "invalid-total";
-  if (!Array.isArray(raw.providerCosts) || raw.providerCosts.length > DIRECT_PROVIDERS.length) return "invalid-list";
-  const costs = raw.providerCosts as Array<{ amountFiat: unknown; id: string; includedIn: string; provider: string }>;
-  const seen = new Set<string>();
-  let feeSum = 0;
-  for (const cost of costs) {
-    const expected = DIRECT_PROVIDERS.find(item => item.id === cost?.id);
-    if (
-      !expected ||
-      seen.has(cost.id) ||
-      cost.provider !== expected.provider ||
-      !validAmount(cost.amountFiat) ||
-      !["fees", "rate"].includes(cost.includedIn) ||
-      (cost.includedIn === "fees" && Number(cost.amountFiat) < 0)
-    ) {
-      return "invalid-entry";
-    }
-    seen.add(cost.id);
-    if (cost.includedIn === "fees") feeSum += Number(cost.amountFiat);
-  }
-  const feeTotal = Number(raw.totalFeeFiat) - (reserve?.brl || 0);
-  const feeDifferenceCents = Math.round(feeSum * 100) - Math.round(feeTotal * 100);
-  if (feeDifferenceCents > 1) return "fees-exceed-total";
-  if (seen.size === DIRECT_PROVIDERS.length && Math.abs(feeDifferenceCents) > 1) return "fees-do-not-reconcile";
-  for (const cost of costs) {
-    if (["vortex", "network"].includes(cost.id) && cost.includedIn !== "fees") return "invalid-inclusion";
-  }
-  const vortex = costs.find(cost => cost.id === "vortex");
-  if (vortex && raw.vortexFeeFiat != null && (!validAmount(raw.vortexFeeFiat) || Math.abs(Number(vortex.amountFiat) - Number(raw.vortexFeeFiat)) > 0.01)) {
-    return "vortex-fee-mismatch";
-  }
-  return null;
-}
-
-/** Throws the app's error code. `id` is what the app pinned the token to. */
-function validateStockQuote(
-  quote: RawQuote,
-  { direction, id, network, now = Date.now(), requested }: { direction: "BUY" | "SELL"; id: string; network: string; now?: number; requested: string }
-): void {
-  const buy = direction === "BUY";
-  const route =
-    quote?.rampType === direction &&
-    quote.network === network &&
-    quote.from === (buy ? "pix" : network) &&
-    quote.to === (buy ? network : "pix") &&
-    (buy ? quote.inputCurrency === "BRL" && sameId(quote.outputCurrency, id) : sameId(quote.inputCurrency, id) && quote.outputCurrency === "BRL");
-  if (!route) throw new Error("WRONG_ROUTE");
-  if (quote.routingStrategy !== "direct") throw new Error("WRONG_ROUTE");
-  const expiresAt = Date.parse(String(quote.expiresAt));
-  const tokenAmount = canonicalAmount(buy ? quote.outputAmount : quote.inputAmount);
-  const output = Number(quote.outputAmount);
-  if (!quote.id || !Number.isFinite(output) || output <= 0 || !Number.isFinite(expiresAt) || expiresAt <= now || tokenAmount === null) {
-    throw new Error("INVALID_QUOTE");
-  }
-  for (const field of FEE_FIELDS) {
-    const value = quote[field];
-    if (value == null || String(value).trim() === "" || typeof value === "boolean" || !Number.isFinite(Number(value)) || Number(value) < 0) {
-      throw new Error("INVALID_FEES");
-    }
-  }
-  const componentTotal = Number(quote.networkFeeFiat) + Number(quote.processingFeeFiat) + Number(quote.partnerFeeFiat);
-  if (Math.abs(componentTotal - Number(quote.totalFeeFiat)) > 0.010000001 || (buy && Number(quote.totalFeeFiat) >= Number(quote.inputAmount))) {
-    throw new Error("INVALID_FEES");
-  }
-  if (quote.feeCurrency !== "BRL") throw new Error("INVALID_FEES");
-  if (Number(quote.partnerFeeFiat) !== 0) throw new Error("INVALID_FEES");
-  let reserve: GasReserve | null;
+/** The error code the app answers a quote with, or null when it accepts the quote. */
+function refusal(quote: RawQuote, expected: Expected): string | null {
   try {
-    reserve = parseGasReserve(quote);
-  } catch {
-    throw new Error("INVALID_FEES");
+    validateStockQuote(quote, expected);
+    return null;
+  } catch (error) {
+    return (error as { code: string }).code;
   }
-  if (reserve && (!buy || gasReserveFeeProblem(quote, reserve))) throw new Error("INVALID_FEES");
-  if (providerCostProblem(quote, reserve)) throw new Error("INVALID_FEES");
-  let matches: boolean;
-  if (buy) {
-    matches = Number(quote.inputAmount) === Number(requested);
-  } else {
-    try {
-      matches = parseUnits(tokenAmount, 18) === tokensToWei(requested);
-    } catch {
-      matches = false;
-    }
-  }
-  if (!matches) throw new Error("AMOUNT_MISMATCH");
-}
-
-function mapAvailability(
-  response: { cryptocurrencies: Array<Record<string, unknown>> },
-  tokens: Array<{ address: string; symbol: string }>
-): Record<string, { buy: boolean; reason: string | null; sell: boolean }> {
-  const list = response.cryptocurrencies;
-  const map: Record<string, { buy: boolean; reason: string | null; sell: boolean }> = {};
-  for (const token of tokens) {
-    const listed = list.find(
-      item => item.assetNetwork === "robinhood" && sameId(item.assetContractAddress, token.address) && item.assetDecimals === 18
-    );
-    if (listed) {
-      const rampTypes = listed.rampTypes as string[] | undefined;
-      const buy = rampTypes?.includes("BUY") === true;
-      const sell = rampTypes?.includes("SELL") === true;
-      map[token.symbol] = { buy, reason: buy || sell ? null : "token_not_listed", sell };
-    } else if (list.some(item => item.assetNetwork === "robinhood" && String(item.assetSymbol || "").toUpperCase() === token.symbol)) {
-      map[token.symbol] = { buy: false, reason: "address_mismatch", sell: false };
-    } else {
-      map[token.symbol] = { buy: false, reason: "token_not_listed", sell: false };
-    }
-  }
-  return map;
-}
-
-function buildStockBuyRequest(outputId: string, brlAmount: string, destinationAddress: string | null = null) {
-  const request = {
-    countryCode: "BR",
-    from: "pix",
-    inputAmount: String(brlAmount),
-    inputCurrency: "BRL",
-    network: Networks.Robinhood,
-    outputCurrency: outputId,
-    paymentMethod: "pix",
-    rampType: "BUY",
-    to: Networks.Robinhood
-  };
-  return EVM_ADDRESS.test(String(destinationAddress ?? "")) ? { ...request, destinationAddress } : request;
-}
-
-function buildStockSellRequest(inputId: string, tokenAmount: string) {
-  return {
-    countryCode: "BR",
-    from: Networks.Robinhood,
-    inputAmount: tokenAmount,
-    inputCurrency: inputId,
-    network: Networks.Robinhood,
-    outputCurrency: "BRL",
-    paymentMethod: "pix",
-    rampType: "SELL",
-    to: "pix"
-  };
 }
 
 const STOCK_SYMBOLS = Object.keys(ROBINHOOD_STOCKS) as StockSymbol[];
@@ -298,8 +104,8 @@ describe("the Stocks app's rules, held against real quote responses", () => {
     return (await response.json()) as RawQuote;
   }
 
-  const expectedBuy = (id: string, requested: string) => ({ direction: "BUY" as const, id, network: Networks.Robinhood, requested });
-  const expectedSell = (id: string, requested: string) => ({ direction: "SELL" as const, id, network: Networks.Robinhood, requested });
+  const expectedBuy = (id: string, requested: string): Expected => ({ direction: "BUY", id, network: Networks.Robinhood, requested });
+  const expectedSell = (id: string, requested: string): Expected => ({ direction: "SELL", id, network: Networks.Robinhood, requested });
 
   describe("quotes the app accepts", () => {
     it.each(["100", "137", "500", "1234", "4999"])("BUY of %s BRL", async amount => {
@@ -365,7 +171,7 @@ describe("the Stocks app's rules, held against real quote responses", () => {
     });
   });
 
-  describe("a port that still bites: each broken quote is refused the way the app would", () => {
+  describe("each broken quote is refused the way the app would", () => {
     const buy = () => quoteFor(buildStockBuyRequest(EvmToken.NVDA, "500"));
     const sell = () => quoteFor(buildStockSellRequest(EvmToken.NVDA, "0.5"));
     const editCost = (quote: RawQuote, id: string, change: Record<string, unknown>) =>
@@ -374,6 +180,7 @@ describe("the Stocks app's rules, held against real quote responses", () => {
     it.each<[string, () => Promise<RawQuote>, (quote: RawQuote) => RawQuote, string]>([
       ["no route marker", buy, quote => ({ ...quote, routingStrategy: undefined }), "WRONG_ROUTE"],
       ["another network", buy, quote => ({ ...quote, network: "base" }), "WRONG_ROUTE"],
+      ["a sell without a permit", sell, quote => ({ ...quote, gasless: false }), "WRONG_ROUTE"],
       ["an expired quote", buy, quote => ({ ...quote, expiresAt: new Date(Date.now() - 1000).toISOString() }), "INVALID_QUOTE"],
       ["an exponent in the output", buy, quote => ({ ...quote, outputAmount: "1e-3" }), "INVALID_QUOTE"],
       ["a total off by two cents", buy, quote => ({ ...quote, totalFeeFiat: String(Number(quote.totalFeeFiat) + 0.02) }), "INVALID_FEES"],
@@ -394,27 +201,37 @@ describe("the Stocks app's rules, held against real quote responses", () => {
       const quote = await make();
       const expected = quote.rampType === "BUY" ? expectedBuy(EvmToken.NVDA, "500") : expectedSell(EvmToken.NVDA, "0.5");
 
-      validateStockQuote(quote, expected);
-      expect(() => validateStockQuote(breakIt(quote), expected)).toThrow(code);
+      expect(refusal(quote, expected)).toBeNull();
+      expect(refusal(breakIt(quote), expected)).toBe(code);
     });
   });
 
   describe("availability", () => {
-    const appTokens = STOCK_SYMBOLS.map(symbol => ({ address: ROBINHOOD_STOCKS[symbol].address, symbol }));
     const listing = async () => (await (await app.request("/v1/supported-cryptocurrencies?network=robinhood")).json()) as { cryptocurrencies: Array<Record<string, unknown>> };
+    const availability = async () => mapAvailability(await listing(), { network: Networks.Robinhood, tokens: STOCK_TOKENS });
 
-    it("lists every token the app knows, on its address, in both directions", async () => {
-      const availability = mapAvailability(await listing(), appTokens);
+    it("lists every token the app knows, on the address it bundles, in both directions", async () => {
+      const map = await availability();
 
-      for (const { symbol } of appTokens) expect(availability[symbol]).toEqual({ buy: true, reason: null, sell: true });
+      expect(Object.keys(map)).toHaveLength(STOCK_SYMBOLS.length);
+      for (const symbol of STOCK_SYMBOLS) expect(map[symbol]).toEqual({ buy: true, reason: null, sell: true });
     });
 
     it("shows the app no direction that is switched off", async () => {
       config.stocks.enabledDirections = [RampDirection.BUY];
 
-      const availability = mapAvailability(await listing(), appTokens);
+      const map = await availability();
 
-      for (const { symbol } of appTokens) expect(availability[symbol]).toEqual({ buy: true, reason: null, sell: false });
+      for (const symbol of STOCK_SYMBOLS) expect(map[symbol]).toEqual({ buy: true, reason: null, sell: false });
+    });
+
+    it("reads as the app's coming-soon state when the corridor is off", async () => {
+      config.stocks.enabledDirections = [];
+
+      const map = await availability();
+
+      for (const symbol of STOCK_SYMBOLS) expect(map[symbol]).toEqual({ buy: false, reason: "not_enabled", sell: false });
+      expect(rampOpenState({ rampEnabled: true, rampKind: "vortex" }, map)).toBe(false);
     });
 
     it("answers a quote with the app's coming-soon error when the corridor is off", async () => {
@@ -427,26 +244,103 @@ describe("the Stocks app's rules, held against real quote responses", () => {
     });
   });
 
-  describe("what the app cannot accept yet: the token id", () => {
+  describe("the app's adapter against the API", () => {
+    // The two things the SDK does to a quote call: post it, and turn a failure into its own error class.
+    const client = {
+      async createQuote(request: Record<string, unknown>) {
+        const response = await postQuote(request);
+        if (!response.ok) throw parseAPIError(await response.json(), response.status);
+        return response.json();
+      }
+    };
+    const adapter = () =>
+      createVortexStocksAdapter({
+        activeRampStore: {},
+        apiBase: app.baseUrl,
+        createClient: async () => client,
+        enabled: true,
+        ephemeralStore: {},
+        kyc: {},
+        network: Networks.Robinhood,
+        readMaintenance: async () => ({ active: false, details: null }),
+        session: {}
+      });
     const nvdaAddress = ROBINHOOD_STOCKS[EvmToken.NVDA as StockSymbol].address;
 
-    it("refuses our symbol while it pins the quote to the address", async () => {
-      const buy = await quoteFor(buildStockBuyRequest(EvmToken.NVDA, "500"));
-      const sell = await quoteFor(buildStockSellRequest(EvmToken.NVDA, "0.5"));
+    it.each(STOCK_SYMBOLS)("quotes %s by symbol in both directions, and the app accepts the answer", async symbol => {
+      const buy = await adapter().quoteBuy({ brlAmount: 250, symbol, walletAddress: wallet() });
+      const sell = await adapter().quoteSell({ symbol, tokenAmount: "0.5" });
 
-      expect(buy.outputCurrency).toBe(EvmToken.NVDA);
-      expect(sell.inputCurrency).toBe(EvmToken.NVDA);
-      expect(() => validateStockQuote(buy, expectedBuy(nvdaAddress, "500"))).toThrow("WRONG_ROUTE");
-      expect(() => validateStockQuote(sell, expectedSell(nvdaAddress, "0.5"))).toThrow("WRONG_ROUTE");
+      expect(buy.rawQuote.outputCurrency).toBe(symbol);
+      expect(sell.rawQuote.inputCurrency).toBe(symbol);
+      expect(buy.tokenAddress).toBe(ROBINHOOD_STOCKS[symbol].address);
+      expect(sell.tokenAddress).toBe(ROBINHOOD_STOCKS[symbol].address);
+      expect(sell.gasless).toBe(true);
     });
 
-    it("gets the allowlist error for a request that names the address", async () => {
+    it("a request that names the address gets the allowlist error, in Portuguese", async () => {
       const responses = await Promise.all([
         postQuote(buildStockBuyRequest(nvdaAddress, "500")),
         postQuote(buildStockSellRequest(nvdaAddress, "0.5"))
       ]);
 
-      for (const response of responses) expect(response.status).toBe(400);
+      for (const response of responses) {
+        expect(response.status).toBe(400);
+        const mapped = mapStocksError(parseAPIError(await response.json(), response.status));
+        expect(mapped.code).toBe("TOKEN_NOT_ALLOWED");
+        expect(mapped.message).toBe("Este token não está disponível aqui.");
+      }
+    });
+
+    it("a switched-off corridor stays the coming-soon error through the SDK's rewrite", async () => {
+      config.stocks.enabledDirections = [];
+
+      await expect(adapter().quoteBuy({ brlAmount: 500, symbol: "NVDA" })).rejects.toMatchObject({ code: "NETWORK_NOT_SUPPORTED" });
+    });
+
+    it("a token the issuer paused answers in Portuguese", async () => {
+      const scripted = world.evm.onReadContract;
+      world.evm.onReadContract = (network, params) =>
+        params.functionName === "paused" && params.address === nvdaAddress ? true : scripted?.(network, params);
+
+      await expect(adapter().quoteBuy({ brlAmount: 500, symbol: "NVDA" })).rejects.toMatchObject({
+        code: "TOKEN_UNAVAILABLE",
+        message: "Negociação pausada pelo emissor. Tente novamente mais tarde.",
+        status: 503
+      });
+    });
+
+    it("an amount below the corridor's minimum answers in Portuguese, with the limit", async () => {
+      await expect(adapter().quoteBuy({ brlAmount: 1, symbol: "NVDA" })).rejects.toMatchObject({
+        code: "INVALID_QUOTE",
+        message: expect.stringMatching(/^O valor desta operação precisa ser de pelo menos R\$\s[\d.,]+\.$/)
+      });
+    });
+
+    // As the API sends them, so the SDK's rewrites of some of them are part of the check.
+    it.each<[Record<string, unknown>, number, string]>([
+      [{ message: "Invalid pixKey or receiverTaxId." }, 400, "chave Pix"],
+      [{ message: "Amount exceeds BRL limit." }, 400, "limite"],
+      [{ message: "Amount exceeds global limit." }, 400, "limite"],
+      [{ error: "Amount exceeds limit" }, 400, "limite"],
+      [{ message: "Quote not found" }, 404, "cotação"],
+      [{ message: "Quote has expired" }, 400, "cotação"],
+      [{ message: "Quote already consumed" }, 409, "cotação"],
+      [{ message: "Quote is consumed" }, 400, "cotação"],
+      [{ error: "No completed provider profile found for this API key user." }, 400, "verificação"],
+      [{ error: "Subaccount not found" }, 404, "verificação"],
+      [{ message: "Subaccount not found." }, 400, "verificação"],
+      [{ error: "KYC invalid" }, 400, "verificação"],
+      [{ message: "Ramp not found" }, 404, "não foi encontrada"],
+      [{ message: "Ramp is not in a state that allows starting" }, 409, "não pode ser alterada"],
+      [{ message: "No presigned transactions found. Please call updateRamp first." }, 400, "não foi concluído"],
+      [{ message: "Maximum time window to start process exceeded. Ramp invalidated." }, 400, "prazo"]
+    ])("%j reaches the UI in Portuguese", (body, status, wording) => {
+      expect(mapStocksError(parseAPIError(body, status)).message).toContain(wording);
+    });
+
+    it("the SDK's own balance check keeps its meaning", () => {
+      expect(mapStocksError(new InsufficientBalanceError("0.5", "NVDA", Networks.Robinhood, wallet())).code).toBe("INSUFFICIENT_BALANCE");
     });
   });
 });

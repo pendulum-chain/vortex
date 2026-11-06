@@ -1,4 +1,4 @@
-// History screen rows (spec S10). The device-local history (last 12 finished ramps per wallet) is
+// History screen rows. The device-local history (last 12 finished ramps per wallet) is
 // always shown; with a Vortex session in this tab the server history (GET /v1/ramp/history) is
 // merged in by id, filtered to the Stocks network. Pure functions, so both paths are tested.
 import { classifyRamp } from "@vortexfi/consumer-kit";
@@ -12,7 +12,7 @@ const decimalOrNull = (value) => (/^\d+(?:\.\d+)?$/.test(String(value ?? "")) ? 
 
 export const ownedHistoryRows = (snapshot, owner) => snapshot?.owner === owner && Array.isArray(snapshot.rows) ? snapshot.rows : [];
 
-/** activeRampStore.history(wallet) entries -> rows (they are finished and successful by construction). */
+/** activeRampStore.history(wallet) entries -> rows: finished, and successful unless settled as a failure. */
 export function localHistoryRows(items = []) {
   return (Array.isArray(items) ? items : []).map((item) => ({
     id: String(item.rampId || ""),
@@ -22,7 +22,7 @@ export function localHistoryRows(items = []) {
     ...(item.paymentMethod === "usdc" ? { usdcAmount: decimalOrNull(item.usdcAmount), paymentMethod: "usdc" } : {}),
     tokenAmount: decimalOrNull(item.tokenAmount),
     date: numberOrNull(item.completedAt),
-    status: "success",
+    status: item.status === "failure" ? "failure" : "success",
     simulated: item.simulated === true,
     explorerLink: item.explorerLink || null,
   })).filter((row) => row.id);

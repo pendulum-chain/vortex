@@ -1,33 +1,29 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { BROADCAST_PENDING } from "@vortexfi/consumer-kit";
 import { encodeFunctionData, parseAbi } from "viem";
-import { StocksRampError } from "../src/lib/ramp-contract.js";
+import { localHistoryRows, mergeHistory, serverHistoryRows } from "../src/lib/history.js";
+import { RETAIN_AFTER_SEND_MS, StocksRampError } from "../src/lib/ramp-contract.js";
 import { STOCK_TOKENS } from "../src/lib/stocks.js";
 import { gasShortfallPt } from "../src/lib/gas-reserve.js";
 import { buildStockBuyRequest, buildStockSellRequest, createVortexStocksAdapter, mapAvailability, mapStocksError, normalizeStockQuote, validateStockQuote } from "../src/lib/vortex-stocks.js";
-import { NOW, NVDA, ROUTER, TX_HASH, approveTx, fakeSdk, fakeSession, fakeWallet, stores, vortexQuote } from "./fake-vortex.mjs";
+import { EPHEMERAL, NOW, NVDA, ROUTER, TX_HASH, approveTx, destinationTransferTx, fakeSdk, fakeSession, fakeWallet, permitTx, stores, vortexQuote } from "./fake-vortex.mjs";
 import { WALLET, forbiddenFetch, json, sourceFiles, withFetch } from "./helpers.mjs";
 
 const API = "https://www.vortexfinance.co/api/production";
 const code = (expected) => (error) => error instanceof StocksRampError && error.code === expected;
 
-const TEST_SELL_POLICY = { spenders: [ROUTER], phases: { squidRouterApprove: ["approve"], lifiApprove: ["approve"], squidRouterNoPermitTransfer: ["transfer"] } };
-function adapter({ enabled = true, sdk = fakeSdk(), session = fakeSession(), kyc, readBalance, log = [], now = () => NOW, sellSigningPolicy = TEST_SELL_POLICY, readMaintenance = async () => ({ active: false, details: null }) } = {}) {
+const SOLD_WEI = 5n * 10n ** 17n;
+const ATTACKER = "0x000000000000000000000000000000000000dEaD";
+function adapter({ enabled = true, sdk = fakeSdk(), session = fakeSession(), kyc, readBalance, log = [], now = () => NOW, readMaintenance = async () => ({ active: false, details: null }) } = {}) {
   const recovery = stores(log);
   const instance = createVortexStocksAdapter({
     enabled, network: "robinhood", apiBase: API, session, activeRampStore: recovery.activeRampStore, ephemeralStore: recovery.ephemeralStore,
     kyc: kyc ?? { getReadiness: async () => ({ kycStatus: "approved", canBuy: true, canSell: true }) },
-    createClient: sdk.createClient, readBalance, now, sellSigningPolicy, readMaintenance, warn: () => {},
+    createClient: sdk.createClient, readBalance, now, readMaintenance, warn: () => {},
   });
   return { adapter: instance, sdk, ...recovery };
 }
-
-test("production sells remain disabled without an independently reviewed signing policy", async () => {
-  const s = adapter({ sellSigningPolicy: null });
-  const quote = await s.adapter.quoteSell({ symbol: "NVDA", tokenAmount: "0.5" });
-  await assert.rejects(s.adapter.registerSell({ quote, walletAddress: WALLET, wallet: fakeWallet() }), code("SELL_NOT_ENABLED"));
-  assert.equal(s.sdk.calls.registerRamp.length, 0);
-});
 
 test("maintenance stops new Pix registration and ramp start without discarding recovery", async () => {
   let active = true;
@@ -45,26 +41,26 @@ test("maintenance stops new Pix registration and ramp start without discarding r
 
 test("maintenance opening after sell registration stops the wallet immediately before broadcast", async () => {
   let checks = 0;
-  const s = adapter({ sdk: fakeSdk({ unsignedTransactions: [approveTx({ signer: WALLET, amountWei: 5n * 10n ** 17n })] }), readBalance: async () => 10n ** 18n,
+  const s = adapter({ readBalance: async () => 10n ** 18n,
     readMaintenance: async () => ({ active: ++checks > 1, details: null }) });
   const quote = await s.adapter.quoteSell({ symbol: "NVDA", tokenAmount: "0.5" }), log = [];
   await assert.rejects(s.adapter.registerSell({ quote, walletAddress: WALLET, wallet: fakeWallet(log) }), code("MAINTENANCE_ACTIVE"));
-  assert.equal(log.includes("eth_sendTransaction"), false);
+  assert.equal(log.includes("eth_signTypedData_v4"), false);
   assert.equal(checks, 2);
   assert.equal(s.activeRampStore.get(WALLET).stage, "signing");
   assert.deepEqual(s.activeRampStore.get(WALLET).transactions, {});
 });
 
 test("fee totals reconcile even without optional reserve/provider extensions", () => {
-  const request = buildStockBuyRequest({ network: "robinhood", outputId: NVDA, brlAmount: 500 });
+  const request = buildStockBuyRequest({ network: "robinhood", outputId: "NVDA", brlAmount: 500 });
   for (const fields of [{ networkFeeFiat: "100", processingFeeFiat: "100", totalFeeFiat: "1" }, { networkFeeFiat: "300", processingFeeFiat: "300", totalFeeFiat: "600" }, { networkFeeFiat: " " }, { totalFeeFiat: false }]) {
-    assert.throws(() => validateStockQuote(vortexQuote(request, fields), { direction: "BUY", network: "robinhood", id: NVDA, requested: 500, now: NOW }), code("INVALID_FEES"));
+    assert.throws(() => validateStockQuote(vortexQuote(request, fields), { direction: "BUY", network: "robinhood", id: "NVDA", requested: 500, now: NOW }), code("INVALID_FEES"));
   }
 });
 
-test("a delayed initial sell registration cannot broadcast after its start window", async () => {
+test("a delayed initial sell registration cannot sign after its start window", async () => {
   let time = NOW;
-  const sdk = fakeSdk({ unsignedTransactions: [approveTx({ signer: WALLET, amountWei: 5n * 10n ** 17n })] });
+  const sdk = fakeSdk();
   const original = sdk.createClient;
   sdk.createClient = async (config) => {
     const client = await original(config), register = client.registerRamp.bind(client);
@@ -74,16 +70,19 @@ test("a delayed initial sell registration cannot broadcast after its start windo
   const quote = await s.adapter.quoteSell({ symbol: "NVDA", tokenAmount: "0.5" });
   const log = [];
   await assert.rejects(s.adapter.registerSell({ quote, walletAddress: WALLET, wallet: fakeWallet(log), pixKey: "test@example.com" }), code("SELL_EXPIRED"));
-  assert.equal(log.includes("eth_sendTransaction"), false);
+  assert.equal(log.includes("eth_signTypedData_v4"), false);
 });
 
-test("another wallet's pending Pix record blocks registration without revealing or replacing it", async () => {
+test("another wallet's pending record does not block this one, and stays unseen and intact", async () => {
   const s = adapter();
   const other = "0x0000000000000000000000000000000000000001";
   s.activeRampStore.save({ rampId: "paid-A", walletAddress: other }); s.activeRampStore.checkpoint("paid-A", "transfer", TX_HASH);
+  assert.equal(s.activeRampStore.get(WALLET), null);
   const quote = await s.adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500 });
-  await assert.rejects(s.adapter.registerBuy({ quote, walletAddress: WALLET }), code("RAMP_IN_PROGRESS"));
-  assert.equal(s.sdk.calls.registerRamp.length, 0); assert.equal(s.activeRampStore.get(other).transactions.transfer, TX_HASH);
+  const ramp = await s.adapter.registerBuy({ quote, walletAddress: WALLET });
+  assert.equal(s.activeRampStore.get(WALLET).rampId, ramp.id);
+  assert.equal(s.activeRampStore.get(other).rampId, "paid-A");
+  assert.equal(s.activeRampStore.get(other).transactions.transfer, TX_HASH);
 });
 
 test("two concurrent buy submissions reserve only one recovery record and register once", async () => {
@@ -94,40 +93,44 @@ test("two concurrent buy submissions reserve only one recovery record and regist
   assert.equal(s.activeRampStore.get(WALLET).rampId, "ramp-fake-1");
 });
 
-test("request builders use network \"robinhood\" and the token address (or symbol)", () => {
-  assert.deepEqual(buildStockBuyRequest({ network: "robinhood", outputId: NVDA, brlAmount: 500 }), {
-    rampType: "BUY", from: "pix", to: "robinhood", inputAmount: "500", inputCurrency: "BRL", outputCurrency: NVDA, paymentMethod: "pix", countryCode: "BR", network: "robinhood",
+test("request builders use network \"robinhood\" and the token symbol", () => {
+  assert.deepEqual(buildStockBuyRequest({ network: "robinhood", outputId: "NVDA", brlAmount: 500 }), {
+    rampType: "BUY", from: "pix", to: "robinhood", inputAmount: "500", inputCurrency: "BRL", outputCurrency: "NVDA", paymentMethod: "pix", countryCode: "BR", network: "robinhood",
   });
   assert.deepEqual(buildStockSellRequest({ network: "robinhood", inputId: "NVDA", tokenAmount: "0.5" }), {
     rampType: "SELL", from: "robinhood", to: "pix", inputAmount: "0.5", inputCurrency: "NVDA", outputCurrency: "BRL", paymentMethod: "pix", countryCode: "BR", network: "robinhood",
   });
 });
 
-test("the adapter identifies the token by its allowlisted address, never by its symbol", async () => {
+test("the adapter identifies the token by its allowlisted symbol, and only that symbol passes", async () => {
   const { adapter: live, sdk } = adapter();
   await live.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
-  assert.equal(sdk.calls.createQuote[0].outputCurrency, NVDA);
+  assert.equal(sdk.calls.createQuote[0].outputCurrency, "NVDA");
   await live.quoteSell({ symbol: "nvda", tokenAmount: "0,5", walletAddress: WALLET });
-  assert.deepEqual(sdk.calls.createQuote[1], buildStockSellRequest({ network: "robinhood", inputId: NVDA, tokenAmount: "0.5" }));
-  // A quote naming the symbol (as a lookalike could) instead of the address is refused.
-  const bySymbol = adapter({ sdk: fakeSdk({ quote: (request) => vortexQuote(request, { outputCurrency: "NVDA" }) }) });
-  await assert.rejects(bySymbol.adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET }), code("WRONG_ROUTE"));
+  assert.deepEqual(sdk.calls.createQuote[1], buildStockSellRequest({ network: "robinhood", inputId: "NVDA", tokenAmount: "0.5" }));
+  // The API echoes the symbol it was asked for: anything else is another route, an address included.
+  for (const outputCurrency of [NVDA, "TSLA", "nvda"]) {
+    const other = adapter({ sdk: fakeSdk({ quote: (request) => vortexQuote(request, { outputCurrency }) }) });
+    await assert.rejects(other.adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET }), code("WRONG_ROUTE"), outputCurrency);
+  }
 });
 
 test("quote validation fails closed", () => {
-  const buyRequest = buildStockBuyRequest({ network: "robinhood", outputId: NVDA, brlAmount: 500 });
-  const sellRequest = buildStockSellRequest({ network: "robinhood", inputId: NVDA, tokenAmount: "0.5" });
-  const buy = (overrides) => () => validateStockQuote(vortexQuote(buyRequest, overrides), { direction: "BUY", network: "robinhood", id: NVDA, requested: 500, now: NOW });
-  const sell = (overrides) => () => validateStockQuote(vortexQuote(sellRequest, overrides), { direction: "SELL", network: "robinhood", id: NVDA, requested: "0.5", now: NOW });
+  const buyRequest = buildStockBuyRequest({ network: "robinhood", outputId: "NVDA", brlAmount: 500 });
+  const sellRequest = buildStockSellRequest({ network: "robinhood", inputId: "NVDA", tokenAmount: "0.5" });
+  const buy = (overrides) => () => validateStockQuote(vortexQuote(buyRequest, overrides), { direction: "BUY", network: "robinhood", id: "NVDA", requested: 500, now: NOW });
+  const sell = (overrides) => () => validateStockQuote(vortexQuote(sellRequest, overrides), { direction: "SELL", network: "robinhood", id: "NVDA", requested: "0.5", now: NOW });
   assert.doesNotThrow(buy({}));
-  assert.doesNotThrow(buy({ outputCurrency: NVDA.toLowerCase() }), "the id compares case-insensitively");
   assert.doesNotThrow(sell({}));
   assert.throws(buy({ network: "ethereum" }), code("WRONG_ROUTE"));
   assert.throws(buy({ to: "ethereum" }), code("WRONG_ROUTE"));
   assert.throws(buy({ from: "sepa" }), code("WRONG_ROUTE"));
   assert.throws(buy({ rampType: "SELL" }), code("WRONG_ROUTE"));
   assert.throws(buy({ inputCurrency: "USD" }), code("WRONG_ROUTE"));
-  assert.throws(buy({ outputCurrency: "0x0000000000000000000000000000000000000001" }), code("WRONG_ROUTE"), "a different token");
+  assert.throws(buy({ outputCurrency: "TSLA" }), code("WRONG_ROUTE"), "a different token");
+  assert.throws(buy({ outputCurrency: NVDA }), code("WRONG_ROUTE"), "the id is the symbol, not the address");
+  assert.throws(sell({ inputCurrency: NVDA }), code("WRONG_ROUTE"));
+  assert.throws(sell({ inputCurrency: "nvda" }), code("WRONG_ROUTE"), "the API echoes the symbol exactly");
   assert.throws(sell({ from: "base" }), code("WRONG_ROUTE"));
   assert.throws(sell({ outputCurrency: "USDC" }), code("WRONG_ROUTE"));
   assert.throws(buy({ id: "" }), code("INVALID_QUOTE"));
@@ -140,19 +143,22 @@ test("quote validation fails closed", () => {
   assert.throws(buy({ partnerFeeFiat: "-1" }), code("INVALID_FEES"));
   assert.throws(buy({ partnerFeeFiat: "0.01" }), code("INVALID_FEES"), "Stocks must never add a product/partner markup");
   assert.throws(buy({ routingStrategy: undefined }), code("WRONG_ROUTE"), "direct execution must be confirmed by the backend");
-  assert.throws(buy({ routingStrategy: "lifi" }), code("WRONG_ROUTE"), "no silent LI.FI fallback");
-  assert.throws(sell({ routingStrategy: "lifi" }), code("WRONG_ROUTE"));
+  assert.throws(buy({ routingStrategy: "other-router" }), code("WRONG_ROUTE"), "no silent fallback route");
+  assert.throws(sell({ routingStrategy: "other-router" }), code("WRONG_ROUTE"));
   assert.throws(sell({ partnerFeeFiat: "0.01" }), code("INVALID_FEES"));
+  assert.throws(sell({ gasless: false }), code("WRONG_ROUTE"), "this app can only sign a permit");
+  assert.throws(sell({ gasless: undefined }), code("WRONG_ROUTE"));
+  assert.throws(sell({ gasless: "true" }), code("WRONG_ROUTE"));
   assert.throws(buy({ feeCurrency: "USD" }), code("INVALID_FEES"));
   assert.throws(buy({ inputAmount: "5000" }), code("AMOUNT_MISMATCH"), "BUY inputAmount must be what the user typed");
   assert.throws(sell({ inputAmount: "0.6" }), code("AMOUNT_MISMATCH"), "a SELL must never sell more than requested");
   assert.throws(sell({ inputAmount: "0.5000000000000000001" }), code("INVALID_QUOTE"));
-  assert.throws(buy({ providerCosts: [{ id: "bridge", provider: "lifi", amountFiat: "0.50", includedIn: "rate" }] }), code("INVALID_FEES"));
+  assert.throws(buy({ providerCosts: [{ id: "bridge", provider: "other-router", amountFiat: "0.50", includedIn: "rate" }] }), code("INVALID_FEES"));
 });
 
 test("a normalised quote carries fees, the implied price net of fees and the raw quote", () => {
   const token = STOCK_TOKENS.find((item) => item.symbol === "NVDA");
-  const buy = normalizeStockQuote(vortexQuote(buildStockBuyRequest({ network: "robinhood", outputId: NVDA, brlAmount: 500 })), token, "BUY");
+  const buy = normalizeStockQuote(vortexQuote(buildStockBuyRequest({ network: "robinhood", outputId: "NVDA", brlAmount: 500 })), token, "BUY");
   assert.equal(buy.brlAmount, 500);
   assert.equal(buy.tokenAmount, "0.426");
   assert.equal(buy.tokenAmountWei, "426000000000000000");
@@ -160,10 +166,10 @@ test("a normalised quote carries fees, the implied price net of fees and the raw
   assert.ok(Math.abs(buy.impliedBrlPerToken - (500 - 4.05) / 0.426) < 1e-9);
   assert.equal(buy.expiresAt, NOW + 60_000);
   assert.equal(buy.gasless, false);
-  assert.equal(buy.gasReserve, null, "no reserve fields, no reserve (today's API)");
+  assert.equal(buy.gasReserve, null, "no reserve fields, no reserve");
   assert.equal(buy.simulated, false);
   assert.equal(buy.rawQuote.id, "quote-fake-test-only");
-  const sell = normalizeStockQuote(vortexQuote(buildStockSellRequest({ network: "robinhood", inputId: NVDA, tokenAmount: "1" }), { gasless: true }), token, "SELL");
+  const sell = normalizeStockQuote(vortexQuote(buildStockSellRequest({ network: "robinhood", inputId: "NVDA", tokenAmount: "1" }), { gasless: true }), token, "SELL");
   assert.equal(sell.brlAmount, 1158.1);
   assert.ok(Math.abs(sell.impliedBrlPerToken - (1158.1 + 4.05)) < 1e-9);
   assert.equal(sell.gasless, true);
@@ -181,7 +187,9 @@ test("availability needs the canonical address, 18 decimals and the ramp directi
   assert.equal(warnings.length, 1);
   assert.equal(mapAvailability([listed({ assetDecimals: 6 })], { network: "robinhood" }).NVDA.reason, "address_mismatch");
   assert.equal(mapAvailability([listed({ assetNetwork: "ethereum" })], { network: "robinhood" }).NVDA.reason, "token_not_listed");
-  assert.equal(mapAvailability([listed({ rampTypes: [] })], { network: "robinhood" }).NVDA.reason, "token_not_listed");
+  // Listed with no direction: the corridor is switched off, which the UI calls "em breve".
+  assert.deepEqual(mapAvailability([listed({ rampTypes: [] })], { network: "robinhood" }).NVDA, { buy: false, sell: false, reason: "not_enabled" });
+  assert.equal(mapAvailability([listed({ rampTypes: undefined })], { network: "robinhood" }).NVDA.reason, "not_enabled");
 });
 
 test("the gated adapter makes no network call and refuses every ramp action", async () => {
@@ -282,6 +290,61 @@ test("a buy stores the active ramp as \"registering\" BEFORE its ephemeral keys,
   await assert.rejects(live.registerBuy({ quote: { ...quote, simulated: true }, walletAddress: WALLET }), code("INVALID_QUOTE"), "a simulated quote never reaches Vortex");
 });
 
+test("a registered buy shows no Pix code unless it delivers this token, to this wallet, in the quoted amount", async () => {
+  const QUOTED_WEI = 426n * 10n ** 15n;
+  const delivery = (overrides = {}) => ({ unsignedTxs: [destinationTransferTx({ to: WALLET, amountWei: QUOTED_WEI, ...overrides })] });
+  const refusals = {
+    "to another wallet": () => delivery({ to: ATTACKER }),
+    "of another token": () => delivery({ token: STOCK_TOKENS.find((item) => item.symbol === "SGOV").address }),
+    "one wei short": () => delivery({ amountWei: QUOTED_WEI - 1n }),
+    "one wei over": () => delivery({ amountWei: QUOTED_WEI + 1n }),
+    "without a delivery": () => ({ unsignedTxs: [] }),
+    "with no list": () => ({ unsignedTxs: undefined }),
+    "with two deliveries": () => ({ unsignedTxs: [...delivery().unsignedTxs, ...delivery().unsignedTxs] }),
+    "not a token transfer": () => ({ unsignedTxs: [{ phase: "destinationTransfer", txData: { to: NVDA, data: "0xdeadbeef" } }] }),
+    "an approve in its place": () => ({ unsignedTxs: [approveTx({ signer: EPHEMERAL, amountWei: QUOTED_WEI, phase: "destinationTransfer" })] }),
+    "for another quote": () => ({ quoteId: "quote-other" }),
+    "for another amount of BRL": () => ({ inputAmount: "5000" }),
+  };
+  for (const [label, registeredBuy] of Object.entries(refusals)) {
+    const { adapter: live, activeRampStore } = adapter({ sdk: fakeSdk({ registeredBuy }) });
+    const quote = await live.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
+    await assert.rejects(live.registerBuy({ quote, walletAddress: WALLET }), (error) => error.code === "WRONG_ROUTE" && error.details.rampId === "ramp-fake-1" && /o código Pix não foi mostrado/.test(error.message), label);
+    assert.equal(activeRampStore.get(WALLET), null, `${label}: nothing can be paid, so it does not hold the wallet`);
+    assert.deepEqual(activeRampStore.history(WALLET).map((row) => [row.rampId, row.status]), [["ramp-fake-1", "failure"]], `${label}: the code stays findable`);
+  }
+  // The checksum of an address is not a difference.
+  const lower = adapter({ sdk: fakeSdk({ registeredBuy: () => delivery({ to: WALLET.toLowerCase(), token: NVDA.toLowerCase() }) }) });
+  const quote = await lower.adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
+  assert.equal((await lower.adapter.registerBuy({ quote, walletAddress: WALLET })).depositQrCode, "pix-code-fake-test-only");
+});
+
+test("a failed registration holds nothing: no Pix code or wallet request can have reached the user", async () => {
+  const presignError = Object.assign(new Error("Some API failure"), { status: 500, isPublic: true });
+  const buy = adapter({ sdk: fakeSdk({ presignError }) });
+  const buyQuote = await buy.adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
+  await assert.rejects(buy.adapter.registerBuy({ quote: buyQuote, walletAddress: WALLET }), code("SERVER_ERROR"));
+  assert.equal(buy.activeRampStore.get(WALLET), null);
+  const sell = adapter({ sdk: fakeSdk({ presignError }), readBalance: async () => 10n ** 18n });
+  const walletLog = [];
+  const sellQuote = await sell.adapter.quoteSell({ symbol: "NVDA", tokenAmount: "0.5" });
+  await assert.rejects(sell.adapter.registerSell({ quote: sellQuote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet(walletLog) }), code("SERVER_ERROR"));
+  assert.equal(sell.activeRampStore.get(WALLET), null);
+  assert.deepEqual(walletLog, []);
+});
+
+test("a failed registration clears only its own attempt's record", async () => {
+  const sdk = fakeSdk();
+  const { adapter: live, activeRampStore } = adapter({ sdk });
+  sdk.client.registerRamp = async () => {
+    activeRampStore.save({ rampId: "other-tab", walletAddress: WALLET, rampType: "BUY", stage: "registering", createdAt: NOW - 1 });
+    throw new TypeError("Failed to fetch");
+  };
+  const quote = await live.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
+  await assert.rejects(live.registerBuy({ quote, walletAddress: WALLET }), code("SERVER_ERROR"));
+  assert.equal(activeRampStore.get(WALLET).rampId, "other-tab");
+});
+
 test("a failed recovery write stops the registration (fail closed)", async () => {
   const sdk = fakeSdk();
   const recovery = stores();
@@ -295,10 +358,10 @@ test("a failed recovery write stops the registration (fail closed)", async () =>
   await assert.rejects(live.registerBuy({ quote, walletAddress: WALLET }), /Não foi possível salvar a operação/);
 });
 
-test("a sell checks the balance, signs on Robinhood Chain with checkpoints and ends \"ready\"", async () => {
+test("a sell checks the balance, signs the permit on Robinhood Chain and ends \"ready\"", async () => {
   const walletLog = [];
-  const tx = approveTx({ signer: WALLET, amountWei: 5n * 10n ** 17n, phase: "lifiApprove" });
-  const other = { phase: "lifiSwap", signer: "0x0000000000000000000000000000000000000001", txData: { to: ROUTER, data: "0x" } };
+  const tx = permitTx({ signer: WALLET, amountWei: SOLD_WEI });
+  const other = { phase: "uniswapSwap", signer: "0x0000000000000000000000000000000000000001", txData: { to: ROUTER, data: "0x" } };
   const sdk = fakeSdk({ unsignedTransactions: [tx, other] });
   const { adapter: live, activeRampStore } = adapter({ sdk, readBalance: async () => 10n ** 18n });
   const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
@@ -306,15 +369,80 @@ test("a sell checks the balance, signs on Robinhood Chain with checkpoints and e
   const ramp = await live.registerSell({ quote, walletAddress: WALLET, pixKey: "  fake-test-only@example.com ", wallet: fakeWallet(walletLog), onRegistered: (r) => registered.push(r.id) });
   assert.deepEqual(sdk.calls.registerRamp[0].data, { walletAddress: WALLET, pixDestination: "fake-test-only@example.com" });
   assert.deepEqual(registered, ["ramp-fake-1"]);
-  assert.equal(walletLog[0], "wallet_switchEthereumChain:0x1237");
+  assert.deepEqual(walletLog, ["wallet_switchEthereumChain:0x1237", "eth_signTypedData_v4"], "one signature, and no ETH read or spent");
   assert.deepEqual(sdk.calls.submitUserTransactions[0].transactions, [tx], "only the user's own transactions");
-  assert.equal(walletLog.filter((entry) => entry === "eth_sendTransaction").length, 1);
   const record = activeRampStore.get(WALLET);
   assert.equal(record.stage, "ready");
-  assert.equal(record.transactions.lifiApprove, TX_HASH);
+  assert.equal(record.ephemeralEvmAddress, EPHEMERAL, "the spender stays pinned for a resume");
   assert.equal(record.rampType, "SELL");
   assert.equal(ramp.direction, "SELL");
   assert.equal(ramp.symbol, "NVDA");
+});
+
+test("a permit sell registers with an empty wallet and reads no ETH", async () => {
+  const { adapter: live, sdk } = adapter({ readBalance: async () => 10n ** 18n });
+  const empty = fakeWallet([], { ethWei: 0n });
+  empty.publicClient.getBalance = async () => { throw new Error("a permit sell reads no ETH"); };
+  const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+  await live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: empty });
+  assert.equal(sdk.calls.registerRamp.length, 1);
+});
+
+test("a sell without a permit is refused at the quote, so it never holds this device", async () => {
+  const { adapter: live, sdk, activeRampStore } = adapter({ sdk: fakeSdk({ quote: (request) => vortexQuote(request, { gasless: false }) }), readBalance: async () => 10n ** 18n });
+  await assert.rejects(live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET }), (error) => error.code === "WRONG_ROUTE" && /Nada foi registrado e seus tokens continuam na sua carteira/.test(error.message));
+  assert.equal(sdk.calls.registerRamp.length, 0);
+  assert.equal(activeRampStore.get(WALLET), null);
+  await live.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
+});
+
+test("the permit's spender is the ephemeral this device generated, never one the API names", async () => {
+  const walletLog = [];
+  const sdk = fakeSdk({ unsignedTransactions: [permitTx({ signer: WALLET, amountWei: SOLD_WEI, spender: ATTACKER })] });
+  const { adapter: live, activeRampStore } = adapter({ sdk, readBalance: async () => 10n ** 18n });
+  const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+  await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet(walletLog) }), (error) => error.code === "WALLET_REQUEST_REFUSED");
+  assert.deepEqual(walletLog, [], "the wallet was never asked");
+  assert.equal(activeRampStore.get(WALLET).stage, "signing");
+});
+
+test("this app signs only the permit: the transfer path stays with API clients", async () => {
+  const walletLog = [];
+  const transfer = { phase: "squidRouterNoPermitTransfer", signer: WALLET, network: "robinhood", txData: { to: NVDA, data: encodeFunctionData({ abi: parseAbi(["function transfer(address to, uint256 amount)"]), functionName: "transfer", args: [EPHEMERAL, SOLD_WEI] }), value: "0", gas: "85000" } };
+  const { adapter: live } = adapter({ sdk: fakeSdk({ unsignedTransactions: [transfer] }), readBalance: async () => 10n ** 18n });
+  const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+  await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet(walletLog) }), (error) => error.code === "WALLET_REQUEST_REFUSED");
+  assert.deepEqual(walletLog, []);
+  for (const unsignedTransactions of [[approveTx({ signer: WALLET, amountWei: SOLD_WEI, phase: "stockPermitTransfer" })], [permitTx({ signer: WALLET, amountWei: SOLD_WEI, phase: "squidRouterNoPermitTransfer" })]]) {
+    const other = adapter({ sdk: fakeSdk({ unsignedTransactions }), readBalance: async () => 10n ** 18n });
+    const sell = await other.adapter.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+    await assert.rejects(other.adapter.registerSell({ quote: sell, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet(walletLog) }), (error) => error.code === "WALLET_REQUEST_REFUSED");
+    assert.deepEqual(walletLog, []);
+  }
+});
+
+test("without the ephemeral on this device's record nothing is signed", async () => {
+  const walletLog = [];
+  const sdk = fakeSdk();
+  const createClient = sdk.createClient;
+  sdk.createClient = async (config) => createClient({ ...config, onBeforeEphemeralsStored: (rampId) => config.onBeforeEphemeralsStored(rampId) });
+  const { adapter: live, activeRampStore } = adapter({ sdk, readBalance: async () => 10n ** 18n });
+  const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+  await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet(walletLog) }), (error) => error.code === "SELL_EXPIRED" && error.details.rampId === "ramp-fake-1" && /Não foi possível conferir esta venda neste aparelho/.test(error.message));
+  assert.deepEqual(walletLog, []);
+  assert.equal(activeRampStore.get(WALLET).stage, "signing");
+});
+
+test("an empty or padded request list is not signed and never counts as signed", async () => {
+  for (const unsignedTransactions of [[], [permitTx({ signer: WALLET, amountWei: SOLD_WEI }), permitTx({ signer: WALLET, amountWei: SOLD_WEI, phase: "squidRouterNoPermitTransfer" })]]) {
+    const walletLog = [];
+    const { adapter: live, activeRampStore, sdk } = adapter({ sdk: fakeSdk({ unsignedTransactions }), readBalance: async () => 10n ** 18n });
+    const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+    await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet(walletLog) }), (error) => error.code === "WRONG_ROUTE" && /A carteira não recebeu o pedido desta venda/.test(error.message));
+    assert.deepEqual(walletLog, []);
+    assert.equal(activeRampStore.get(WALLET).stage, "signing", "never \"ready\"");
+    assert.equal(sdk.calls.submitUserTransactions.length, 0);
+  }
 });
 
 test("a sell above the on-chain balance is refused before registering", async () => {
@@ -326,19 +454,17 @@ test("a sell above the on-chain balance is refused before registering", async ()
   await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: {} }), code("WALLET_NOT_READY"));
 });
 
-test("resuming a sell never broadcasts a checkpointed transaction again", async () => {
+test("resuming a sell signs the permit once, keeps the pinned ephemeral and stays \"ready\"", async () => {
   const walletLog = [];
-  const tx = approveTx({ signer: WALLET, amountWei: 5n * 10n ** 17n, phase: "lifiApprove" });
-  const rampBody = { id: "ramp-fake-1", type: "SELL", currentPhase: "initial", status: "PENDING", inputCurrency: NVDA, inputAmount: "0.5", outputCurrency: "BRL", outputAmount: "570", createdAt: new Date(NOW).toISOString(), unsignedTxs: [tx] };
+  const rampBody = { id: "ramp-fake-1", type: "SELL", currentPhase: "initial", status: "PENDING", inputCurrency: "NVDA", inputAmount: "0.5", outputCurrency: "BRL", outputAmount: "570", createdAt: new Date(NOW).toISOString(), unsignedTxs: [permitTx({ signer: WALLET, amountWei: SOLD_WEI })] };
   const session = fakeSession({ "/v1/ramp/ramp-fake-1": rampBody });
   const { adapter: live, activeRampStore } = adapter({ session });
-  activeRampStore.save({ rampId: "ramp-fake-1", walletAddress: WALLET, rampType: "SELL", stage: "signing", symbol: "NVDA", tokenAddress: NVDA, inputAmount: "0.5" });
-  activeRampStore.checkpoint("ramp-fake-1", "lifiApprove", TX_HASH);
+  activeRampStore.save({ rampId: "ramp-fake-1", walletAddress: WALLET, rampType: "SELL", stage: "signing", symbol: "NVDA", tokenAddress: NVDA, inputAmount: "0.5", ephemeralEvmAddress: EPHEMERAL });
   const ramp = await live.resumeSell({ rampId: "ramp-fake-1", walletAddress: WALLET, wallet: fakeWallet(walletLog) });
   assert.equal(session.calls[0], "/v1/ramp/ramp-fake-1?showUnsignedTxs=true");
-  assert.ok(!walletLog.includes("eth_sendTransaction"), "the saved hash is only awaited");
-  assert.ok(walletLog.includes("receipt"));
+  assert.equal(walletLog.filter((entry) => entry === "eth_signTypedData_v4").length, 1);
   assert.equal(activeRampStore.get(WALLET).stage, "ready");
+  assert.equal(activeRampStore.get(WALLET).ephemeralEvmAddress, EPHEMERAL);
   assert.equal(ramp.symbol, "NVDA");
   // Already "ready": nothing is signed again.
   walletLog.length = 0;
@@ -346,15 +472,44 @@ test("resuming a sell never broadcasts a checkpointed transaction again", async 
   assert.deepEqual(walletLog, []);
 });
 
+test("a resume without this device's record signs nothing: only the record can pin token, amount and spender", async () => {
+  // The API can cause this itself: one failed status clears a sell with no checkpoints, and the retry still reaches this step.
+  const walletLog = [];
+  const rampBody = { id: "ramp-norecord", type: "SELL", currentPhase: "initial", status: "PENDING", inputCurrency: "NVDA", inputAmount: "5", outputCurrency: "BRL", outputAmount: "5700", createdAt: new Date(NOW).toISOString(), unsignedTxs: [permitTx({ signer: WALLET, amountWei: 5n * 10n ** 18n })] };
+  const { adapter: live, activeRampStore } = adapter({ session: fakeSession({ "/v1/ramp/ramp-norecord": rampBody }) });
+  await assert.rejects(live.resumeSell({ rampId: "ramp-norecord", walletAddress: WALLET, wallet: fakeWallet(walletLog) }), (error) => error.code === "SELL_EXPIRED" && error.details.rampId === "ramp-norecord" && /Não foi possível conferir esta venda neste aparelho/.test(error.message));
+  assert.deepEqual(walletLog, [], "no chain switch, no signature");
+  assert.equal(activeRampStore.get(WALLET), null, "and no record written from the server's numbers");
+  // Past "initial" nothing is signed, so a lost record only means tracking the sell.
+  const running = adapter({ session: fakeSession({ "/v1/ramp/ramp-norecord": { ...rampBody, currentPhase: "fundEphemeral" } }) });
+  assert.equal((await running.adapter.resumeSell({ rampId: "ramp-norecord", walletAddress: WALLET, wallet: fakeWallet(walletLog) })).currentPhase, "fundEphemeral");
+  assert.deepEqual(walletLog, []);
+});
+
+test("a resume with a record from before the ephemeral was pinned, or for an empty list, signs nothing", async () => {
+  const walletLog = [];
+  const body = (unsignedTxs) => ({ id: "ramp-r", type: "SELL", currentPhase: "initial", status: "PENDING", inputCurrency: "NVDA", inputAmount: "0.5", outputCurrency: "BRL", outputAmount: "570", createdAt: new Date(NOW).toISOString(), unsignedTxs });
+  const record = { rampId: "ramp-r", walletAddress: WALLET, rampType: "SELL", stage: "signing", symbol: "NVDA", tokenAddress: NVDA, inputAmount: "0.5" };
+  const unpinned = adapter({ session: fakeSession({ "/v1/ramp/ramp-r": body([permitTx({ signer: WALLET, amountWei: SOLD_WEI })]) }) });
+  unpinned.activeRampStore.save(record);
+  await assert.rejects(unpinned.adapter.resumeSell({ rampId: "ramp-r", walletAddress: WALLET, wallet: fakeWallet(walletLog) }), code("SELL_EXPIRED"));
+  // The API withholds the request until presigning passed: an update that was lost must not read as signed.
+  const withheld = adapter({ session: fakeSession({ "/v1/ramp/ramp-r": body([]) }) });
+  withheld.activeRampStore.save({ ...record, ephemeralEvmAddress: EPHEMERAL });
+  await assert.rejects(withheld.adapter.resumeSell({ rampId: "ramp-r", walletAddress: WALLET, wallet: fakeWallet(walletLog) }), code("WRONG_ROUTE"));
+  assert.equal(withheld.activeRampStore.get(WALLET).stage, "signing");
+  assert.deepEqual(walletLog, []);
+});
+
 // The API refuses startRamp 15 minutes after registration (RAMP_START_EXPIRATION_TIME_SECONDS). A
 // resume after that must not move the tokens for a sell that can never start.
-// phases: the user's transactions; sent: those already broadcast (checkpointed) before the tab closed.
+// phases: the user's requests (the permit, or a transaction for any other phase); sent: those already broadcast (checkpointed) before the tab closed.
 // minutesAgo: registration by the server's createdAt; localMinutesAgo: by this device's own record.
-function staleSell({ minutesAgo, localMinutesAgo = minutesAgo, phases = ["lifiApprove"], sent = [], walletLog = [] }) {
-  const txs = phases.map((phase) => approveTx({ signer: WALLET, amountWei: 5n * 10n ** 17n, phase }));
-  const rampBody = { id: "ramp-old", type: "SELL", currentPhase: "initial", status: "PENDING", inputCurrency: NVDA, inputAmount: "0.5", outputCurrency: "BRL", outputAmount: "570", createdAt: new Date(NOW - minutesAgo * 60_000).toISOString(), unsignedTxs: txs };
+function staleSell({ minutesAgo, localMinutesAgo = minutesAgo, phases = ["stockPermitTransfer"], sent = [], walletLog = [] }) {
+  const txs = phases.map((phase) => (phase === "stockPermitTransfer" ? permitTx({ signer: WALLET, amountWei: SOLD_WEI }) : approveTx({ signer: WALLET, amountWei: SOLD_WEI, phase })));
+  const rampBody = { id: "ramp-old", type: "SELL", currentPhase: "initial", status: "PENDING", inputCurrency: "NVDA", inputAmount: "0.5", outputCurrency: "BRL", outputAmount: "570", createdAt: new Date(NOW - minutesAgo * 60_000).toISOString(), unsignedTxs: txs };
   const setup = adapter({ session: fakeSession({ "/v1/ramp/ramp-old": rampBody }) });
-  setup.activeRampStore.save({ rampId: "ramp-old", walletAddress: WALLET, rampType: "SELL", stage: "signing", symbol: "NVDA", tokenAddress: NVDA, inputAmount: "0.5", createdAt: NOW - localMinutesAgo * 60_000 });
+  setup.activeRampStore.save({ rampId: "ramp-old", walletAddress: WALLET, rampType: "SELL", stage: "signing", symbol: "NVDA", tokenAddress: NVDA, inputAmount: "0.5", ephemeralEvmAddress: EPHEMERAL, createdAt: NOW - localMinutesAgo * 60_000 });
   for (const phase of sent) setup.activeRampStore.checkpoint("ramp-old", phase, TX_HASH);
   return { ...setup, resume: () => setup.adapter.resumeSell({ rampId: "ramp-old", walletAddress: WALLET, wallet: fakeWallet(walletLog) }) };
 }
@@ -377,10 +532,10 @@ test("the start deadline keeps a minute's margin; a transaction already sent mea
   const walletLog = [];
   const inTime = staleSell({ minutesAgo: 13, walletLog });
   assert.equal((await inTime.resume()).id, "ramp-old");
-  assert.ok(walletLog.includes("eth_sendTransaction"), "two minutes left: signed as before");
+  assert.ok(walletLog.includes("eth_signTypedData_v4"), "two minutes left: signed as before");
   assert.equal(inTime.activeRampStore.get(WALLET).stage, "ready");
   const sentLog = [];
-  const sent = staleSell({ minutesAgo: 20, phases: ["lifiApprove", "lifiSwap"], sent: ["lifiApprove"], walletLog: sentLog });
+  const sent = staleSell({ minutesAgo: 20, phases: ["squidRouterNoPermitTransfer", "stockPermitTransfer"], sent: ["squidRouterNoPermitTransfer"], walletLog: sentLog });
   await assert.rejects(sent.resume(), (error) => error.code === "SELL_EXPIRED" && error.details.broadcast === true && /Consulte o suporte com o código da operação/.test(error.message) && !/nova venda/.test(error.message));
   assert.deepEqual(sentLog, [], "the rest is not signed, not even the receipt waited for");
   assert.equal(sent.activeRampStore.get(WALLET).rampId, "ramp-old", "a broadcast sell retains its support/recovery record");
@@ -395,9 +550,17 @@ test("a known broadcast survives age-based abandonment until settlement is confi
   await unsigned.resume(); assert.equal(unsigned.activeRampStore.get(WALLET), null);
 });
 
+test("past the day a known broadcast is released to history, with its hash and code", async () => {
+  const s = staleSell({ minutesAgo: 24 * 60 + 1, phases: ["squidRouterNoPermitTransfer"], sent: ["squidRouterNoPermitTransfer"] });
+  assert.equal((await s.resume()).classification, "failure");
+  assert.equal(s.activeRampStore.get(WALLET), null);
+  const [row] = s.activeRampStore.history(WALLET);
+  assert.deepEqual([row.rampId, row.status, row.explorerLink], ["ramp-old", "failure", `https://robinhoodchain.blockscout.com/tx/${TX_HASH}`]);
+});
+
 test("a rejected wallet request's null checkpoint is not a broadcast at the start deadline", async () => {
   const s = staleSell({ minutesAgo: 20 });
-  s.activeRampStore.checkpoint("ramp-old", "lifiApprove", null);
+  s.activeRampStore.checkpoint("ramp-old", "stockPermitTransfer", null);
   await assert.rejects(s.resume(), error => error.code === "SELL_EXPIRED" && error.details.broadcast === false);
   assert.equal(s.activeRampStore.get(WALLET), null);
 });
@@ -417,18 +580,12 @@ test("the start window also counts on this device's own clock, so a clock runnin
   assert.equal((await inTime.resume()).id, "ramp-old");
 });
 
-test("a resumed sell whose transactions were all sent is finished near or past its deadline, never re-signed", async () => {
-  // Broadcast and checkpointed, then the tab closed before "ready": nothing is left to sign, so the
-  // start window guards nothing here. Refusing it would leave tokens that already moved to support,
-  // although 30 s before the deadline the start still succeeds; past it, the API decides.
-  for (const minutesAgo of [14.5, 20]) {
-    const walletLog = [];
-    const done = staleSell({ minutesAgo, sent: ["lifiApprove"], walletLog });
-    assert.equal((await done.resume()).id, "ramp-old", `${minutesAgo} min`);
-    assert.ok(!walletLog.includes("eth_sendTransaction"), "the saved hash is only awaited");
-    assert.ok(walletLog.includes("receipt"));
-    assert.equal(done.activeRampStore.get(WALLET).stage, "ready", "the flow goes on to startRamp");
-  }
+test("a checkpointed request in a phase this app does not sign is refused, not resumed", async () => {
+  const walletLog = [];
+  const done = staleSell({ minutesAgo: 5, phases: ["squidRouterNoPermitTransfer"], sent: ["squidRouterNoPermitTransfer"], walletLog });
+  await assert.rejects(done.resume(), (error) => error.code === "WALLET_REQUEST_REFUSED");
+  assert.deepEqual(walletLog, []);
+  assert.equal(done.activeRampStore.get(WALLET).stage, "signing");
 });
 
 test("\"Continuar esta venda\" ends on the issue screen for an expired sell, without a retry", () => {
@@ -455,7 +612,155 @@ test("a finished ramp settles: success goes to history and clears the active ram
   assert.equal(row.rampType, "BUY");
 });
 
-test("one operation per device: a new buy or sell never overwrites an unfinished ramp's record", async () => {
+// What this device keeps when a ramp fails. It holds no funds, but it is what lets the user find them.
+function settling({ statuses = [{ currentPhase: "nablaSwap", status: "FAILED" }], record = {}, time = NOW } = {}) {
+  let clock = time;
+  const log = [];
+  const sdk = fakeSdk({ statuses });
+  const s = adapter({ sdk, log, now: () => clock });
+  s.activeRampStore.save({ rampId: "ramp-1", walletAddress: WALLET, rampType: "BUY", stage: "registered", symbol: "NVDA", inputAmount: "500", outputAmount: "0.426", createdAt: NOW, ...record });
+  return { ...s, log, advance: (ms) => { clock += ms; }, read: () => s.adapter.getRamp("ramp-1", { walletAddress: WALLET }) };
+}
+const AGED_OUT = [{ currentPhase: "initial", status: "PENDING" }];
+const HOUR = 60 * 60_000;
+
+test("a failed buy leaves a row with its code and frees the wallet", async () => {
+  const s = settling();
+  assert.equal((await s.read()).classification, "failure");
+  assert.equal(s.activeRampStore.get(WALLET), null);
+  const rows = localHistoryRows(s.activeRampStore.history(WALLET));
+  assert.deepEqual(rows.map((row) => [row.id, row.status, row.direction, row.symbol, row.brlAmount, row.tokenAmount]), [["ramp-1", "failure", "BUY", "NVDA", 500, "0.426"]]);
+});
+
+test("a Pix this device gave up on stays findable, and the worker starting it later shows through", async () => {
+  const s = settling({ statuses: AGED_OUT, time: NOW + HOUR + 1 });
+  assert.equal((await s.read()).classification, "failure");
+  assert.equal(s.activeRampStore.get(WALLET), null, "an unpaid Pix must stop blocking");
+  const local = localHistoryRows(s.activeRampStore.history(WALLET));
+  assert.equal(local[0].id, "ramp-1");
+  const server = serverHistoryRows({ transactions: [{ id: "ramp-1", type: "BUY", from: "pix", to: "robinhood", fromAmount: "500", toAmount: "0.426", toCurrency: "NVDA", status: "PENDING", currentPhase: "nablaSwap", date: new Date(NOW).toISOString() }] }, "robinhood");
+  assert.equal(mergeHistory(local, server)[0].status, "processing");
+});
+
+test("a failed permit sell, whose tokens the server may have moved, leaves a row with its code", async () => {
+  const s = settling({ statuses: [{ type: "SELL", currentPhase: "uniswapSwap", status: "FAILED" }], record: { rampType: "SELL", stage: "ready", inputAmount: "0.5", outputAmount: "570" } });
+  await s.read();
+  assert.equal(s.activeRampStore.get(WALLET), null);
+  const [row] = localHistoryRows(s.activeRampStore.history(WALLET));
+  assert.deepEqual([row.id, row.status, row.direction, row.brlAmount, row.tokenAmount], ["ramp-1", "failure", "SELL", 570, "0.5"]);
+});
+
+for (const [label, statuses] of [["a failed status", [{ type: "SELL", currentPhase: "nablaSwap", status: "FAILED" }]], ["an aged-out ramp", AGED_OUT]]) {
+  for (const [what, checkpoint, link] of [["a hash", TX_HASH, `https://robinhoodchain.blockscout.com/tx/${TX_HASH}`], ["an uncertain send", BROADCAST_PENDING, null]]) {
+    test(`${label} with ${what} keeps the sell's record for a day, then lists it`, async () => {
+      const s = settling({ statuses, record: { rampType: "SELL", stage: "signing", inputAmount: "0.5", outputAmount: "570" }, time: NOW + 2 * HOUR });
+      s.activeRampStore.checkpoint("ramp-1", "squidRouterNoPermitTransfer", checkpoint);
+      assert.equal((await s.read()).classification, "failure");
+      assert.equal(s.activeRampStore.get(WALLET).transactions.squidRouterNoPermitTransfer, checkpoint);
+      assert.deepEqual(s.activeRampStore.history(WALLET), []);
+      s.advance(RETAIN_AFTER_SEND_MS - 2 * HOUR);
+      await s.read();
+      assert.equal(s.activeRampStore.get(WALLET), null, "no longer locked forever");
+      const [row] = s.activeRampStore.history(WALLET);
+      assert.deepEqual([row.rampId, row.status, row.explorerLink], ["ramp-1", "failure", link]);
+    });
+  }
+}
+
+test("when the row cannot be written the record stays, as the only trace", async () => {
+  const s = settling();
+  const addHistory = s.activeRampStore.addHistory;
+  s.activeRampStore.addHistory = () => { throw new Error("Não foi possível salvar a operação. Pare e contate o suporte."); };
+  assert.equal((await s.read()).classification, "failure", "the result is still shown");
+  assert.equal(s.activeRampStore.get(WALLET).rampId, "ramp-1");
+  s.activeRampStore.addHistory = addHistory;
+  await s.read();
+  assert.equal(s.activeRampStore.get(WALLET), null);
+  assert.equal(s.activeRampStore.history(WALLET)[0].rampId, "ramp-1");
+});
+
+test("a failure read without the wallet settles nothing", async () => {
+  const s = settling();
+  assert.equal((await s.adapter.getRamp("ramp-1")).classification, "failure");
+  assert.equal(s.activeRampStore.get(WALLET).rampId, "ramp-1");
+});
+
+const gone = () => Object.assign(new Error("Ramp not found"), { status: 404, isPublic: true });
+const missing = (error) => error.code === "SERVER_ERROR" && error.status === 404 && /não foi encontrada/.test(error.message);
+
+test("a ramp the API no longer has settles its record, in both the read and the poll", async () => {
+  for (const read of [(s) => s.read(), (s) => s.adapter.pollStatus("ramp-1", { walletAddress: WALLET, intervalMs: 1 })]) {
+    const s = settling();
+    s.sdk.client.getRampStatus = async () => { throw gone(); };
+    await assert.rejects(read(s), missing);
+    assert.equal(s.activeRampStore.get(WALLET), null);
+    assert.deepEqual(s.activeRampStore.history(WALLET).map((row) => [row.rampId, row.status]), [["ramp-1", "failure"]]);
+  }
+});
+
+test("a 404 from anything in front of the API is not the API saying the ramp is gone", async () => {
+  const s = settling();
+  s.sdk.client.getRampStatus = async () => { throw Object.assign(new Error("Not Found"), { status: 404 }); };
+  await assert.rejects(s.read());
+  assert.equal(s.activeRampStore.get(WALLET).rampId, "ramp-1");
+  assert.deepEqual(s.activeRampStore.history(WALLET), []);
+});
+
+test("a ramp the API no longer has keeps a possible wallet send's record for the day", async () => {
+  const s = settling({ record: { rampType: "SELL", stage: "signing" } });
+  s.activeRampStore.checkpoint("ramp-1", "squidRouterNoPermitTransfer", TX_HASH);
+  s.sdk.client.getRampStatus = async () => { throw gone(); };
+  await assert.rejects(s.read(), missing);
+  assert.equal(s.activeRampStore.get(WALLET).rampId, "ramp-1");
+});
+
+test("the encrypted ephemeral keys go when a ramp completes, and stay for recovering a failed one", async () => {
+  const done = settling({ statuses: [{ currentPhase: "complete", status: "COMPLETE" }] });
+  await done.read();
+  assert.ok(done.log.includes("delete:ramp-1"));
+  await done.adapter.pollStatus("ramp-1", { walletAddress: WALLET, intervalMs: 1 });
+  const failed = settling();
+  await failed.read();
+  assert.ok(!failed.log.some((entry) => entry.startsWith("delete:")));
+  const unfinished = settling({ statuses: [{ currentPhase: "nablaSwap", status: "PENDING" }] });
+  await unfinished.read();
+  assert.ok(!unfinished.log.some((entry) => entry.startsWith("delete:")));
+});
+
+test("a failed key deletion never touches the result of a completed ramp", async () => {
+  const s = settling({ statuses: [{ currentPhase: "complete", status: "COMPLETE" }] });
+  s.ephemeralStore.delete = async () => { throw new Error("IndexedDB is unavailable"); };
+  assert.equal((await s.read()).classification, "success");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(s.activeRampStore.get(WALLET), null);
+});
+
+test("abandoning an unstarted ramp lists it and frees the wallet", async () => {
+  const s = settling({ statuses: [{ currentPhase: "initial", status: "PENDING" }] });
+  assert.equal((await s.adapter.abandonRamp("ramp-1", { walletAddress: WALLET })).currentPhase, "initial");
+  assert.equal(s.activeRampStore.get(WALLET), null);
+  assert.deepEqual(s.activeRampStore.history(WALLET).map((row) => [row.rampId, row.status]), [["ramp-1", "failure"]]);
+});
+
+test("a ramp that started in the meantime is never abandoned: the paid Pix keeps its record", async () => {
+  const s = settling({ statuses: [{ currentPhase: "brlaOnrampMint", status: "PENDING" }] });
+  assert.equal((await s.adapter.abandonRamp("ramp-1", { walletAddress: WALLET })).currentPhase, "brlaOnrampMint");
+  assert.equal(s.activeRampStore.get(WALLET).rampId, "ramp-1");
+  assert.deepEqual(s.activeRampStore.history(WALLET), []);
+});
+
+test("abandoning works while the corridor is off, and an unread status abandons nothing", async () => {
+  const off = adapter({ enabled: false, sdk: fakeSdk({ statuses: [{ currentPhase: "initial", status: "PENDING" }] }) });
+  off.activeRampStore.save({ rampId: "ramp-1", walletAddress: WALLET });
+  await off.adapter.abandonRamp("ramp-1", { walletAddress: WALLET });
+  assert.equal(off.activeRampStore.get(WALLET), null);
+  const s = settling();
+  s.sdk.client.getRampStatus = async () => { throw new TypeError("Failed to fetch"); };
+  await assert.rejects(s.adapter.abandonRamp("ramp-1", { walletAddress: WALLET }), code("SERVER_ERROR"));
+  assert.equal(s.activeRampStore.get(WALLET).rampId, "ramp-1");
+});
+
+test("one operation per wallet: a new buy or sell never overwrites an unfinished ramp's record", async () => {
   const earlier = { rampId: "sell-earlier", walletAddress: WALLET, rampType: "SELL", stage: "signing", symbol: "NVDA", inputAmount: "0.5", outputAmount: "570" };
   const { adapter: live, sdk, activeRampStore } = adapter({ readBalance: async () => 10n ** 18n });
   activeRampStore.save(earlier);
@@ -487,8 +792,8 @@ test("a record written by another tab during registration stops the key storage 
 
 test("a sell signs nothing the server asks beyond the quoted token and amount", async () => {
   const walletLog = [];
-  // The server asks for an approval above the 0.5 NVDA being sold.
-  const sdk = fakeSdk({ unsignedTransactions: [approveTx({ signer: WALLET, amountWei: 10n ** 18n })] });
+  // The server asks for a permit above the 0.5 NVDA being sold.
+  const sdk = fakeSdk({ unsignedTransactions: [permitTx({ signer: WALLET, amountWei: 10n ** 18n })] });
   const { adapter: live, activeRampStore } = adapter({ sdk, readBalance: async () => 10n ** 18n });
   const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
   await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet(walletLog) }), (error) => error.code === "WALLET_REQUEST_REFUSED");
@@ -496,26 +801,30 @@ test("a sell signs nothing the server asks beyond the quoted token and amount", 
   assert.equal(activeRampStore.get(WALLET).stage, "signing", "the registered ramp keeps its record for support");
   // On resume the cap is the locally recorded amount, even when the server now says more.
   const resumeLog = [];
-  const rampBody = { id: "ramp-r", type: "SELL", currentPhase: "initial", status: "PENDING", inputCurrency: NVDA, inputAmount: "1", outputCurrency: "BRL", outputAmount: "1100", createdAt: new Date(NOW).toISOString(), unsignedTxs: [approveTx({ signer: WALLET, amountWei: 10n ** 18n })] };
+  const rampBody = { id: "ramp-r", type: "SELL", currentPhase: "initial", status: "PENDING", inputCurrency: "NVDA", inputAmount: "1", outputCurrency: "BRL", outputAmount: "1100", createdAt: new Date(NOW).toISOString(), unsignedTxs: [permitTx({ signer: WALLET, amountWei: 10n ** 18n })] };
   const resumed = adapter({ session: fakeSession({ "/v1/ramp/ramp-r": rampBody }) });
-  resumed.activeRampStore.save({ rampId: "ramp-r", walletAddress: WALLET, rampType: "SELL", stage: "signing", symbol: "NVDA", tokenAddress: NVDA, inputAmount: "0.5" });
+  resumed.activeRampStore.save({ rampId: "ramp-r", walletAddress: WALLET, rampType: "SELL", stage: "signing", symbol: "NVDA", tokenAddress: NVDA, inputAmount: "0.5", ephemeralEvmAddress: EPHEMERAL });
   await assert.rejects(resumed.adapter.resumeSell({ rampId: "ramp-r", walletAddress: WALLET, wallet: fakeWallet(resumeLog) }), (error) => error.code === "WALLET_REQUEST_REFUSED");
   assert.deepEqual(resumeLog, []);
-  // Another allowlisted token (SGOV) in the same wallet is never approved from an NVDA sell.
+  // Another allowlisted token (SGOV) in the same wallet is never permitted from an NVDA sell, also not when the server's status names it.
   const sgov = STOCK_TOKENS.find((item) => item.symbol === "SGOV").address;
-  const otherToken = fakeSdk({ unsignedTransactions: [approveTx({ signer: WALLET, amountWei: 1n, token: sgov })] });
+  const otherToken = fakeSdk({ unsignedTransactions: [permitTx({ signer: WALLET, amountWei: SOLD_WEI, token: sgov })] });
   const third = adapter({ sdk: otherToken, readBalance: async () => 10n ** 18n });
   const sell = await third.adapter.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
   await assert.rejects(third.adapter.registerSell({ quote: sell, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet() }), (error) => error.code === "WALLET_REQUEST_REFUSED");
+  const fourth = adapter({ session: fakeSession({ "/v1/ramp/ramp-r": { ...rampBody, inputCurrency: "SGOV", inputAmount: "0.5", unsignedTxs: [permitTx({ signer: WALLET, amountWei: SOLD_WEI, token: sgov })] } }) });
+  fourth.activeRampStore.save({ rampId: "ramp-r", walletAddress: WALLET, rampType: "SELL", stage: "signing", symbol: "NVDA", tokenAddress: NVDA, inputAmount: "0.5", ephemeralEvmAddress: EPHEMERAL });
+  await assert.rejects(fourth.adapter.resumeSell({ rampId: "ramp-r", walletAddress: WALLET, wallet: fakeWallet(resumeLog) }), (error) => error.code === "WALLET_REQUEST_REFUSED");
+  assert.deepEqual(resumeLog, []);
 });
 
-// Proposed gas reserve quote fields.
+// Gas reserve quote fields.
 const RESERVE_FIELDS = { gasReserveAmount: "0.00005", gasReserveCurrency: "ETH", gasReserveFiat: "0.71", gasReserveUsd: "0.135838" };
 // The reserve sits inside the network and total fees: 0.30 + 0.71 = 1.01 and 4.05 + 0.71 = 4.76.
 const withReserve = (overrides = {}) => ({ networkFeeFiat: "1.01", totalFeeFiat: "4.76", networkFeeUsd: "0.193", ...RESERVE_FIELDS, ...overrides });
 
 test("a buy quote request names the wallet, so Vortex can skip the reserve for a funded one", async () => {
-  const base = { network: "robinhood", outputId: NVDA, brlAmount: 500 };
+  const base = { network: "robinhood", outputId: "NVDA", brlAmount: 500 };
   assert.deepEqual(buildStockBuyRequest({ ...base, destinationAddress: WALLET }), { ...buildStockBuyRequest(base), destinationAddress: WALLET });
   for (const destinationAddress of [undefined, null, "", "0x123", "not-an-address"]) {
     assert.ok(!("destinationAddress" in buildStockBuyRequest({ ...base, destinationAddress })), String(destinationAddress));
@@ -545,9 +854,9 @@ test("a buy quote with the gas reserve: its own line, inside the all-in cost and
 });
 
 test("a malformed or misplaced gas reserve fails closed", () => {
-  const buyRequest = buildStockBuyRequest({ network: "robinhood", outputId: NVDA, brlAmount: 500 });
-  const sellRequest = buildStockSellRequest({ network: "robinhood", inputId: NVDA, tokenAmount: "0.5" });
-  const buy = (overrides) => () => validateStockQuote(vortexQuote(buyRequest, withReserve(overrides)), { direction: "BUY", network: "robinhood", id: NVDA, requested: 500, now: NOW });
+  const buyRequest = buildStockBuyRequest({ network: "robinhood", outputId: "NVDA", brlAmount: 500 });
+  const sellRequest = buildStockSellRequest({ network: "robinhood", inputId: "NVDA", tokenAmount: "0.5" });
+  const buy = (overrides) => () => validateStockQuote(vortexQuote(buyRequest, withReserve(overrides)), { direction: "BUY", network: "robinhood", id: "NVDA", requested: 500, now: NOW });
   assert.doesNotThrow(buy({}));
   assert.doesNotThrow(buy({ gasReserveUsd: undefined, networkFeeUsd: undefined }));
   assert.throws(buy({ gasReserveAmount: "0.001" }), code("INVALID_FEES"), "more ETH than one purchase may deliver");
@@ -563,96 +872,8 @@ test("a malformed or misplaced gas reserve fails closed", () => {
   assert.throws(buy({ totalFeeFiat: "500" }), code("INVALID_FEES"), "the fees must stay below the amount paid");
   assert.throws(buy({ networkFeeUsd: "0.057" }), code("INVALID_FEES"), "the reserve left out of networkFeeUsd");
   assert.throws(buy({ inputAmount: "500.71" }), code("AMOUNT_MISMATCH"), "the reserve is never added on top of the amount typed");
-  assert.throws(() => validateStockQuote(vortexQuote(sellRequest, withReserve()), { direction: "SELL", network: "robinhood", id: NVDA, requested: "0.5", now: NOW }), code("INVALID_FEES"), "a sell never charges a reserve");
-  assert.doesNotThrow(() => validateStockQuote(vortexQuote(sellRequest, { gasReserveAmount: "0" }), { direction: "SELL", network: "robinhood", id: NVDA, requested: "0.5", now: NOW }));
-});
-
-const TRANSFER = parseAbi(["function transfer(address to, uint256 amount)"]);
-/** The fallback sell leg: ONE transfer to the 4663 ephemeral, with realistic gas. */
-const transferTx = (amountWei) => ({ phase: "squidRouterNoPermitTransfer", signer: WALLET, network: "robinhood",
-  txData: { to: NVDA, data: encodeFunctionData({ abi: TRANSFER, functionName: "transfer", args: [ROUTER, amountWei] }), value: "0", gas: "85000", maxFeePerGas: "25500000" } });
-
-/** fakeWallet with a chosen ETH balance on Robinhood Chain. */
-function walletWithEth(balanceHex, log = []) {
-  const wallet = fakeWallet(log);
-  const request = wallet.provider.request;
-  wallet.provider.request = async (args) => (args.method === "eth_getBalance" ? (log.push("eth_getBalance"), balanceHex) : request(args));
-  return wallet;
-}
-
-test("a sell whose wallet cannot pay its transfer is refused before registering, so a new buy can top the reserve up", async () => {
-  // Dust left of a used-up reserve: 0.000001 ETH, while one transfer at the 0.02 gwei floor needs
-  // 85,000 x 0.02 gwei x 1.2 = 0.00000204 ETH in the wallet.
-  const walletLog = [];
-  const sdk = fakeSdk({ unsignedTransactions: [transferTx(5n * 10n ** 17n)] });
-  const { adapter: live, activeRampStore } = adapter({ sdk, readBalance: async () => 10n ** 18n });
-  const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
-  await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet(walletLog, { ethWei: 1_000_000_000_000n }) }),
-    (error) => error.code === "INSUFFICIENT_GAS" && error.details.balanceWei === "1000000000000" && error.details.requiredWei === "2040000000000"
-      && /a reserva que vem com a compra está no fim ou a taxa de rede subiu/.test(error.message) && /Comprar de novo repõe a reserva/.test(error.message));
-  assert.equal(sdk.calls.registerRamp.length, 0, "nothing is registered");
-  assert.equal(activeRampStore.get(WALLET), null, "no operation holds this device");
-  assert.deepEqual(walletLog, [], "the wallet was never asked");
-  const buy = await live.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
-  await live.registerBuy({ quote: buy, walletAddress: WALLET });
-  assert.equal(activeRampStore.get(WALLET).rampType, "BUY", "the purchase that tops the reserve up can start right away");
-});
-
-test("the check before registering: a higher fee, the exact boundary, and a permit sell needing no ETH", async () => {
-  const sell = async ({ wallet, quoteOverrides = {} }) => {
-    const sdk = fakeSdk({ quote: (request) => vortexQuote(request, quoteOverrides) });
-    const { adapter: live } = adapter({ sdk, readBalance: async () => 10n ** 18n });
-    const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
-    await live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet });
-    return sdk.calls.registerRamp.length;
-  };
-  // 0.00003 ETH covers a sell at the floor, but not at the 30-day p95 base fee (0.47 gwei): 0.0000479 ETH.
-  await assert.rejects(sell({ wallet: fakeWallet([], { ethWei: 30_000_000_000_000n, gasPriceWei: 470_000_000n }) }),
-    (error) => error.code === "INSUFFICIENT_GAS" && error.details.requiredWei === "47940000000000");
-  assert.equal(await sell({ wallet: fakeWallet([], { ethWei: 30_000_000_000_000n }) }), 1);
-  assert.equal(await sell({ wallet: fakeWallet([], { ethWei: 2_040_000_000_000n }) }), 1, "exactly enough registers");
-  await assert.rejects(sell({ wallet: fakeWallet([], { ethWei: 2_039_999_999_999n }) }), (error) => error.code === "INSUFFICIENT_GAS");
-  await assert.rejects(sell({ wallet: fakeWallet([], { ethWei: 0n }) }), (error) => error.code === "INSUFFICIENT_GAS" && /já não está nesta carteira/.test(error.message));
-  // gasless: true (permit sell): no ETH involved, no ETH read.
-  const noReads = fakeWallet([], { ethWei: 0n });
-  noReads.publicClient.getBalance = async () => { throw new Error("a permit sell reads no ETH"); };
-  assert.equal(await sell({ wallet: noReads, quoteOverrides: { gasless: true } }), 1);
-});
-
-test("the check before registering covers the gas limit Vortex is asked to send, not only the bare estimate", async () => {
-  // Direct transfer: the one transfer carries the estimate plus at most 10 % (gas 85,000) and a max
-  // fee of 1.2 x the base fee, so at the 0.02 gwei floor the wallet needs 85,000 x 0.024 gwei =
-  // 0.00000204 ETH. 0.000002 ETH covers 77,118 x 1.2 x the base fee but not that transaction: it must be
-  // refused before registering, not registered and then refused at the signature.
-  const transfer = transferTx(5n * 10n ** 17n);
-  const sdk = fakeSdk({ unsignedTransactions: [{ ...transfer, txData: { ...transfer.txData, maxFeePerGas: "24000000" } }] });
-  const { adapter: live, activeRampStore } = adapter({ sdk, readBalance: async () => 10n ** 18n });
-  const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
-  const walletLog = [];
-  await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet(walletLog, { ethWei: 2_000_000_000_000n }) }),
-    (error) => error.code === "INSUFFICIENT_GAS" && error.details.requiredWei === "2040000000000");
-  assert.equal(sdk.calls.registerRamp.length, 0, "nothing is registered");
-  assert.equal(activeRampStore.get(WALLET), null, "no operation holds this device, so a new buy can top the reserve up");
-  assert.ok(!walletLog.includes("eth_sendTransaction"));
-});
-
-// The ETH was enough at the fresh check before registering, then not at the signature (the fee rose
-// or the balance changed in between): the sell is registered by then.
-test("a sell whose wallet cannot pay the network fee gets the reserve wording, and nothing is broadcast", async () => {
-  for (const [balanceHex, wording] of [["0x0", /reserva que vem com a compra já não está nesta carteira/], ["0x2540be400", /≈ 0,00000001 ETH.*≈ 0,0000022 ETH.*a reserva está no fim ou a taxa de rede subiu/]]) {
-    const walletLog = [];
-    const sdk = fakeSdk({ unsignedTransactions: [transferTx(5n * 10n ** 17n)] });
-    const { adapter: live, activeRampStore } = adapter({ sdk, readBalance: async () => 10n ** 18n });
-    const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
-    await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: walletWithEth(balanceHex, walletLog) }),
-      (error) => error.code === "INSUFFICIENT_GAS" && wording.test(error.message) && error.details.requiredWei === (85000n * 25500000n).toString());
-    assert.ok(walletLog.includes("eth_getBalance"));
-    assert.ok(!walletLog.includes("eth_sendTransaction"), balanceHex);
-    assert.equal(activeRampStore.get(WALLET).stage, "signing", "the flow offers \"Continuar esta venda\"");
-    // Why the message offers no new purchase (which would top the reserve up): the open sell blocks it.
-    const buy = await live.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
-    await assert.rejects(live.registerBuy({ quote: buy, walletAddress: WALLET }), (error) => error.code === "RAMP_IN_PROGRESS");
-  }
+  assert.throws(() => validateStockQuote(vortexQuote(sellRequest, withReserve()), { direction: "SELL", network: "robinhood", id: "NVDA", requested: "0.5", now: NOW }), code("INVALID_FEES"), "a sell never charges a reserve");
+  assert.doesNotThrow(() => validateStockQuote(vortexQuote(sellRequest, { gasReserveAmount: "0" }), { direction: "SELL", network: "robinhood", id: "NVDA", requested: "0.5", now: NOW }));
 });
 
 test("the kit's INSUFFICIENT_NATIVE_GAS becomes INSUFFICIENT_GAS; other errors map as before", () => {

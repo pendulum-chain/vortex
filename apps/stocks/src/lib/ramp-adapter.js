@@ -21,6 +21,7 @@ export * from "./ramp-contract.js";
  *   registerBuy(a:{quote:object, walletAddress:string}):Promise<import("./ramp-contract.js").StockRamp>,
  *   registerSell(a:{quote:object, walletAddress:string, pixKey:string, wallet:WalletSeam, onRegistered?:(r:object)=>void}):Promise<import("./ramp-contract.js").StockRamp>,
  *   resumeSell(a:{rampId:string, walletAddress:string, wallet:WalletSeam}):Promise<import("./ramp-contract.js").StockRamp>,
+ *   abandonRamp(rampId:string, o:{walletAddress:string}):Promise<import("./ramp-contract.js").StockRamp>,
  *   startRamp(rampId:string):Promise<import("./ramp-contract.js").StockRamp>,
  *   getRamp(rampId:string, o?:{walletAddress?:string}):Promise<import("./ramp-contract.js").StockRamp>,
  *   pollStatus(rampId:string, o?:{signal?:AbortSignal, onUpdate?:(r:object)=>void, intervalMs?:number, timeoutMs?:number, walletAddress?:string}):Promise<import("./ramp-contract.js").StockRamp>
@@ -36,7 +37,7 @@ export * from "./ramp-contract.js";
  */
 export function createRampAdapter(config, deps = {}) {
   if (config?.rampKind === "vortex") {
-    return createVortexStocksAdapter({ ...deps, enabled: config.rampEnabled, network: config.network, apiBase: config.apiBase, publicKey: config.publicKey, rpcOverride: config.robinhoodRpcUrl });
+    return createVortexStocksAdapter({ ...deps, enabled: config.rampEnabled, network: config.network, apiBase: config.apiBase, rpcOverride: config.robinhoodRpcUrl });
   }
   // Demo holdings move only in demo; preview reads the real (usually empty) chain balance.
   return createSimulatedStocksAdapter({ ...deps, demoHoldings: config?.mode === "demo" ? deps.demoHoldings ?? null : null, speed: config?.mode === "demo" ? "fast" : "normal" });

@@ -1,9 +1,9 @@
-// A purchase can deliver an ETH reserve. Selling on Robinhood Chain pays its
-// network fee in ETH, so when the buyer's wallet holds too little ETH the BUY also delivers a small
-// amount (proposed: top up to 0.00005 ETH below 0.00002 ETH), paid by the user as its own fee line.
-// A BUY quote may carry four PROPOSED flat fields; the reserve's BRL value is already inside
-// networkFeeFiat and totalFeeFiat. Absent (or "0") means no reserve: today's API, a wallet that
-// already holds enough ETH, or a reserve target of 0 once a permit (gasless) sell exists.
+// A purchase can deliver an ETH reserve: when the buyer's wallet holds too little ETH the BUY also
+// delivers a small amount (top up to 0.00005 ETH below 0.00002 ETH), paid by the user as its own fee
+// line, which stays in the wallet. A permit sell does not spend it: its network fee comes out of the
+// sell's own quote. A BUY quote may carry four flat fields; the reserve's BRL value is already inside
+// networkFeeFiat and totalFeeFiat. Absent (or "0") means no reserve: a wallet that already holds
+// enough ETH, or a reserve target of 0.
 import { formatUnits, parseUnits } from "viem";
 
 const GAS_RESERVE_FIELDS = ["gasReserveAmount", "gasReserveCurrency", "gasReserveFiat", "gasReserveUsd"];
@@ -24,7 +24,7 @@ const toWei = (value) => { try { return value == null || value === "" ? null : B
  */
 
 /**
- * The reserve in a quote (flat PROPOSED fields) -> GasReserve, or null when none is charged.
+ * The reserve in a quote (flat fields) -> GasReserve, or null when none is charged.
  * Throws an Error naming the problem when the fields are present but unusable: an amount that is
  * not a plain decimal (no sign, no exponent, at most 18 decimals) or above GAS_RESERVE_MAX_WEI, a
  * currency other than ETH, a missing, negative or non-numeric BRL value, or a charge without ETH.
@@ -77,10 +77,10 @@ const cents = (value) => Math.round(value * 100) / 100;
 /** The network fee line without the reserve (the reserve gets its own line). */
 export const networkFeeWithoutReserve = (networkFeeBrl, reserve) => (reserve ? Math.max(0, cents(Number(networkFeeBrl) - reserve.brl)) : Number(networkFeeBrl));
 
-/** The buy review's line about selling later: never promises a reserve the quote does not include. */
+/** The buy review's line about selling later: states only what the reserve is, never that it pays for a sell. */
 export function sellLaterNotePt(quote) {
   return quote?.gasReserve
-    ? "Vender depois tem novas taxas. A reserva fica na sua carteira e paga a taxa de rede das próximas vendas; quando ela fica baixa, uma nova compra a repõe. Você não precisa comprar ETH à parte."
+    ? "Vender depois tem novas taxas. A reserva fica na sua carteira como ETH na Robinhood Chain. A taxa de rede de cada venda aparece antes de você confirmar."
     : "Vender depois tem novas taxas. A taxa de rede da venda aparece antes de você confirmar.";
 }
 
@@ -89,7 +89,7 @@ export function sellLaterNotePt(quote) {
 // is estimated at 77,118 gas, and Vortex is asked to send it with the estimate plus at most 10 % as its
 // gas limit and a max fee of 1.2 x the base fee: 102,000 gas x base fee.
 // The check before registering covers that limit, or a wallet in between is registered and then
-// refused at the signature, holding this device's one operation.
+// refused at the signature, holding this wallet's one operation.
 export const SELL_GAS_LIMIT = 85_000n;
 
 /**
@@ -149,14 +149,10 @@ const twoDigitsWei = (wei, up) => {
 };
 const shortfallPt = (balance, required) => ({ has: formatEthPt(twoDigitsWei(balance, false)), needs: formatEthPt(twoDigitsWei(required, true)) });
 
-export const GAS_RESERVE_LABEL_PT = "Reserva de rede para vender depois";
+export const GAS_RESERVE_LABEL_PT = "Reserva de ETH na sua carteira";
 
-/**
- * "≈ 0,00005 ETH na Robinhood Chain, para a taxa de rede quando você vender". It names no number of
- * sells: 0.00005 ETH pays about 32 at today's base fee, 8 at the 30-day median and 1 at the p95
- *.
- */
-export const gasReserveNotePt = (reserve) => `≈ ${formatEthPt(reserve.amountWei)} ETH na Robinhood Chain, para a taxa de rede quando você vender`;
+/** "≈ 0,00005 ETH na Robinhood Chain, que fica na sua carteira". */
+export const gasReserveNotePt = (reserve) => `≈ ${formatEthPt(reserve.amountWei)} ETH na Robinhood Chain, que fica na sua carteira`;
 
 /** The buy review's reserve line, or null when the quote has none. */
 export function gasReserveLinePt(quote) {
@@ -164,7 +160,7 @@ export function gasReserveLinePt(quote) {
   return reserve ? { label: GAS_RESERVE_LABEL_PT, note: gasReserveNotePt(reserve), brl: reserve.brl } : null;
 }
 
-// The sell is already registered and holds this device's one operation (assertNoOtherActiveRamp;
+// The sell is already registered and holds this wallet's one operation (assertNoOtherActiveRamp;
 // detail-actions.js turns "Comprar" into "Ver operação em andamento"), so a new purchase, which
 // would top the reserve up, cannot start now: only ETH sent to the wallet lets this sell continue.
 const NO_BUY_WHILE_OPEN_PT = "Enquanto esta venda estiver aberta, não é possível fazer uma nova compra.";

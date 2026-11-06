@@ -1,4 +1,4 @@
-// The ETH gas reserve delivered with a purchase: parsing the PROPOSED quote fields,
+// The ETH gas reserve delivered with a purchase: parsing the quote fields,
 // the fee checks, and the pt-BR copy of the buy review and the sell review.
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -19,7 +19,7 @@ const FIELDS = { gasReserveAmount: "0.00005", gasReserveCurrency: "ETH", gasRese
 const RESERVE = { amount: "0.00005", amountWei: "50000000000000", currency: "ETH", brl: 0.71, usd: 0.135838 };
 const QUOTE = { inputAmount: "100.00", networkFeeFiat: "0.84", processingFeeFiat: "1.10", partnerFeeFiat: "0.00", totalFeeFiat: "1.94", networkFeeUsd: "0.161028" };
 
-test("no reserve: the fields absent, empty or zero (today's API, a funded wallet, target 0)", () => {
+test("no reserve: the fields absent, empty or zero (a funded wallet, target 0)", () => {
   assert.equal(parseGasReserve({}), null);
   assert.equal(parseGasReserve(null), null);
   assert.equal(parseGasReserve({ gasReserveAmount: "", gasReserveFiat: null }), null);
@@ -80,10 +80,11 @@ test("the network line excludes the reserve, which gets its own line", () => {
   assert.equal(networkFeeWithoutReserve("0.30", null), 0.3, "unchanged without a reserve");
 });
 
-test("buy review: the selling-later note never promises a reserve the quote does not include", () => {
+test("buy review: the selling-later note says what the reserve is, and never that it pays for a sell", () => {
   const withReserve = sellLaterNotePt({ gasReserve: RESERVE });
-  assert.match(withReserve, /não precisa comprar ETH/);
-  assert.match(withReserve, /paga a taxa de rede das próximas vendas; quando ela fica baixa, uma nova compra a repõe/, "no promise of every future sell");
+  assert.match(withReserve, /A reserva fica na sua carteira como ETH na Robinhood Chain/);
+  assert.match(withReserve, /A taxa de rede de cada venda aparece antes de você confirmar/);
+  assert.doesNotMatch(withReserve, /paga a taxa/, "a permit sell does not spend it");
   const without = sellLaterNotePt({ gasReserve: null });
   assert.match(without, /Vender depois tem novas taxas/);
   assert.doesNotMatch(without, /reserva|não precisa/);
@@ -189,10 +190,8 @@ test("ETH amounts read the pt-BR way, with two significant digits", () => {
 });
 
 test("buy review: the reserve gets its own line, only when the quote includes one", () => {
-  assert.equal(GAS_RESERVE_LABEL_PT, "Reserva de rede para vender depois");
-  assert.equal(gasReserveNotePt(RESERVE), "≈ 0,00005 ETH na Robinhood Chain, para a taxa de rede quando você vender");
-  // 0.00005 ETH pays about 1 sell at the 30-day p95 base fee: no "covers future sells".
-  assert.doesNotMatch(gasReserveNotePt(RESERVE), /cobre|futuras vendas/);
+  assert.equal(GAS_RESERVE_LABEL_PT, "Reserva de ETH na sua carteira");
+  assert.equal(gasReserveNotePt(RESERVE), "≈ 0,00005 ETH na Robinhood Chain, que fica na sua carteira");
   assert.deepEqual(gasReserveLinePt({ gasReserve: RESERVE }), { label: GAS_RESERVE_LABEL_PT, note: gasReserveNotePt(RESERVE), brl: 0.71 });
   assert.equal(gasReserveLinePt({ gasReserve: null }), null);
   assert.equal(gasReserveLinePt(null), null);
@@ -229,3 +228,5 @@ test("the wallet check before a sell transaction: only advice that works while t
     assert.doesNotMatch(text, /faça uma nova compra|repõe a reserva/);
   }
 });
+
+// A permit sell charges its network fee in its own quote, and its execution never touches the seller's ETH.

@@ -17,7 +17,7 @@ const RAMP_TYPES = { id: "string", direction: "string", status: "string", curren
 
 const adapters = {
   vortex() {
-    const sdk = fakeSdk({ statuses: [{ currentPhase: "nablaSwap" }, { currentPhase: "lifiSwap" }, { currentPhase: "complete", status: "COMPLETE" }] });
+    const sdk = fakeSdk({ statuses: [{ currentPhase: "nablaSwap" }, { currentPhase: "relayBridge" }, { currentPhase: "complete", status: "COMPLETE" }] });
     const recovery = stores();
     const adapter = createVortexStocksAdapter({
       enabled: true, apiBase: "https://www.vortexfinance.co/api/production", session: fakeSession(), activeRampStore: recovery.activeRampStore, ephemeralStore: recovery.ephemeralStore,
@@ -99,6 +99,10 @@ for (const [name, make] of Object.entries(adapters)) {
   });
 }
 
+test("giving up an operation is part of the contract, so the flows can call it on either adapter", () => {
+  assert.ok(RAMP_ADAPTER_METHODS.includes("abandonRamp"));
+});
+
 test("the factory picks the adapter from the config", () => {
   const demo = createRampAdapter(readConfig({}), {});
   assert.equal(demo.kind, "simulated");
@@ -142,6 +146,10 @@ test("buying is open only when known: unknown availability promises neither \"Co
   assert.equal(rampOpenState(live, null), null, "the anonymous landing before (or without) the answer");
   assert.equal(rampOpenState(live, uniformAvailability(STOCK_TOKENS, "network_not_supported")), false, "the API does not know the network yet");
   assert.equal(rampOpenState(live, { ...uniformAvailability(STOCK_TOKENS, "token_not_listed"), NVDA: { buy: true, sell: true, reason: null } }), true);
+  assert.equal(rampOpenState(live, uniformAvailability(STOCK_TOKENS, "not_enabled")), false, "the corridor is off");
+  assert.equal(rampOpenState(live, uniformAvailability(STOCK_TOKENS, "error")), null, "a failed listing says nothing about the ramp");
+  const sellOnly = Object.fromEntries(STOCK_TOKENS.map((token) => [token.symbol, { buy: false, sell: true, reason: null }]));
+  assert.equal(rampOpenState(live, sellOnly), false, "sells alone do not open buying with Pix");
   // With the ramp off the FAQ does not say "Compre quando quiser" as if buying were possible today.
   assert.equal(hoursPt(true), SHARED_COPY_PT.hours);
   assert.equal(hoursPt(null), SHARED_COPY_PT.hours);

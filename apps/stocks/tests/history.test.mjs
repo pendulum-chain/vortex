@@ -24,6 +24,15 @@ test("local history entries become rows; simulated ones stay labelled", () => {
   assert.equal(rows[1].simulated, false);
 });
 
+test("a local failure row stays a failure, and the server's word wins when the worker starts the ramp later", () => {
+  const [failed] = localHistoryRows([{ rampId: "r-1", walletAddress: "0xabc", rampType: "BUY", symbol: "NVDA", brlAmount: "500", tokenAmount: "0.42", status: "failure", completedAt: 1000 }]);
+  assert.equal(failed.status, "failure");
+  assert.equal(localHistoryRows([{ rampId: "r-2", walletAddress: "0xabc", rampType: "BUY" }])[0].status, "success", "rows from before failures were listed");
+  const merged = mergeHistory([failed], [{ id: "r-1", direction: "BUY", symbol: null, brlAmount: 500, tokenAmount: "0.42", date: 2000, status: "processing", simulated: false, explorerLink: null }]);
+  assert.equal(merged[0].status, "processing");
+  assert.equal(merged[0].symbol, "NVDA");
+});
+
 test("server history keeps only this network and resolves the token by address", () => {
   const response = { totalCount: 3, transactions: [
     { id: "a", type: "BUY", from: "pix", to: "robinhood", fromAmount: "500", toAmount: "0.4261", fromCurrency: "BRL", toCurrency: NVDA, status: "COMPLETE", currentPhase: "complete", date: "2026-09-26T12:00:00Z", externalTxExplorerLink: "https://robinhoodchain.blockscout.com/tx/0x1" },

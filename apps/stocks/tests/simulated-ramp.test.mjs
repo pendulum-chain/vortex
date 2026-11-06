@@ -202,6 +202,20 @@ test("quotes expire, belong to their adapter and the Pix start window is 15 minu
   assert.equal(activeRampStore.get(WALLET), null);
 });
 
+test("abandoning an unstarted buy lists it as a failed simulation and frees the wallet; a started one is left alone", async () => {
+  const { adapter, activeRampStore } = setup();
+  const quote = () => adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500 });
+  const ramp = await adapter.registerBuy({ quote: await quote(), walletAddress: WALLET });
+  assert.equal((await adapter.abandonRamp(ramp.id, { walletAddress: WALLET })).currentPhase, "initial");
+  assert.equal(activeRampStore.get(WALLET), null);
+  const [row] = activeRampStore.history(WALLET);
+  assert.deepEqual([row.rampId, row.status, row.simulated, row.symbol, row.brlAmount], [ramp.id, "failure", true, "NVDA", "500"]);
+  const started = await adapter.registerBuy({ quote: await quote(), walletAddress: WALLET });
+  await adapter.startRamp(started.id);
+  assert.notEqual((await adapter.abandonRamp(started.id, { walletAddress: WALLET })).currentPhase, "initial");
+  assert.equal(activeRampStore.get(WALLET).rampId, started.id);
+});
+
 test("polling stops when the flow is closed (AbortSignal)", async () => {
   const { adapter } = setup();
   const ramp = await adapter.registerBuy({ quote: await adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500 }), walletAddress: WALLET });
@@ -218,7 +232,7 @@ test("preview (no demo holdings) does not check or move balances", async () => {
   assert.equal((await adapter.pollStatus(ramp.id)).classification, "success");
 });
 
-test("one operation per device: an unpaid simulated buy blocks a second buy or sell until it ends", async () => {
+test("one operation per wallet: an unpaid simulated buy blocks a second buy or sell until it ends", async () => {
   const { adapter, activeRampStore } = setup();
   const first = await adapter.registerBuy({ quote: await adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500 }), walletAddress: WALLET });
   await assert.rejects(adapter.registerBuy({ quote: await adapter.quoteBuy({ symbol: "SPY", brlAmount: 500 }), walletAddress: WALLET }), (error) => error.code === "RAMP_IN_PROGRESS");
