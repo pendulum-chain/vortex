@@ -30,6 +30,8 @@ if (!process.env.RUN_LIVE_TESTS) {
   process.env.ALFREDPAY_BASE_URL = "http://alfredpay.invalid";
   process.env.ALFREDPAY_API_KEY = "test-alfredpay-api-key";
   process.env.ALFREDPAY_API_SECRET = "test-alfredpay-api-secret";
+  process.env.RELAY_API_BASE_URL = "http://relay.invalid";
+  process.env.RELAY_API_KEY = "test-relay-api-key";
   process.env.MONERIUM_API_URL = "http://monerium.invalid";
   process.env.MONERIUM_ISSUE_FEE_EUR = "0";
   process.env.MONERIUM_WHITELABEL_CLIENT_ID = "test-monerium-whitelabel-client-id";
