@@ -6,6 +6,6 @@ import { config } from "./lib/config.js";
 let vortexSession = null;
 
 export function getVortexSession() {
-  if (!vortexSession) vortexSession = createVortexSession({ api: createApi({ apiBase: config.apiBase, publicKey: config.publicKey }) });
+  if (!vortexSession) vortexSession = createVortexSession({ api: createApi({ apiBase: config.apiBase }) });
   return vortexSession;
 }

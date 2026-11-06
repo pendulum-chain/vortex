@@ -469,3 +469,49 @@ test("without a session nothing is read (it never asks for the code), nor while 
 
 // The whole app, as a live build and as a demo build. Node sees no build-time mode, so what is under
 // test is the runtime gate; CI's live-bundle step checks that the chunks are gone too.
+const LIVE = readConfig({ VITE_STOCKS_MODE: "live", VITE_PRIVY_APP_ID: "fake-test-only" });
+const DEMO = readConfig({ VITE_STOCKS_MODE: "demo" });
+const appAuth = (authenticated) => ({ kind: "demo", status: authenticated ? "authenticated" : "anonymous", authenticated, address: authenticated ? WALLET : null, user: authenticated ? { privyDid: "did:privy:fake", email: "fake-test-only@example.com" } : null, login: async () => {}, logout: async () => {} });
+const noNetwork = async () => { throw new TypeError("Failed to fetch"); };
+const renderApp = (s, config, authenticated) => s.render(createElement(App, { auth: appAuth(authenticated), config }));
+const saveSelection = (method, amount) => sessionStorage.setItem(STOCKS_KEYS.purchaseIntent, JSON.stringify({ symbol: "NVDA", method, amount, locale: "pt-BR", createdAt: Date.now() }));
+const englishLink = () => [...document.querySelectorAll("a")].some((link) => link.getAttribute("href") === "/en/stocks/");
+const untilText = async (s, pattern) => { for (let i = 0; i < 2000 && !pattern.test(s.text()); i += 1) await s.wait(); assert.match(s.text(), pattern); };
+
+test("signed out, a demo build offers the USDC simulation and a live build offers Pix only", () => withFetch(noNetwork, () => harness(async (s) => {
+  await renderApp(s, DEMO, false);
+  assert.ok(s.has("USDC · na Base"));
+  assert.ok(englishLink());
+  await renderApp(s, LIVE, false);
+  assert.ok(s.has("Pix · em reais"));
+  assert.ok(!s.has("USDC · na Base"));
+  assert.ok(!englishLink());
+})));
+
+// A saved amount skips the amount step; "Voltar" returns to it.
+const openBuyAmount = async (s, config) => {
+  saveSelection("pix", "500");
+  await renderApp(s, config, true);
+  await untilText(s, /Etapa 2 de 4/);
+  await s.click("Voltar");
+  await untilText(s, /Quanto deseja investir\?/);
+};
+
+test("signed in, the buy offers USDC only outside a live build, and a saved USDC choice opens nothing live", () => withFetch(noNetwork, async () => {
+  await harness(async (s) => {
+    await openBuyAmount(s, DEMO);
+    assert.match(s.text(), /USDC · Base/);
+  });
+  await harness(async (s) => {
+    await openBuyAmount(s, LIVE);
+    assert.doesNotMatch(s.text(), /USDC · Base/);
+  });
+  await harness(async (s) => {
+    saveSelection("usdc", "100");
+    await renderApp(s, LIVE, true);
+    await untilText(s, /NVDA/);
+    for (let i = 0; i < 20; i += 1) await s.wait();
+    assert.equal(document.querySelector(".sheet"), null);
+    assert.doesNotMatch(s.text(), /USDC/);
+  });
+}));

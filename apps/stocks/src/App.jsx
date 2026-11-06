@@ -11,7 +11,7 @@ import { SiteFooter } from "./components/SiteFooter.jsx";
 import { DEMO_USER } from "./DemoAuth.js";
 import { WelcomeSheet } from "./components/Welcome.jsx";
 import { useAvailability, useMarket, useNow, useOnline, usePendingRampRead, usePortfolio, useRuntime } from "./hooks.js";
-import { DEMO_TOOLS } from "./lib/config.js";
+import { DEMO_TOOLS, USDC_CHECKOUT } from "./lib/config.js";
 import { flowFor } from "./lib/detail-actions.js";
 import { localHistoryRows, mergeHistory, ownedHistoryRows } from "./lib/history.js";
 import { homeHash, parseHash, stockHash } from "./lib/routes.js";
@@ -28,7 +28,7 @@ import { StockDetail } from "./screens/StockDetail.jsx";
 const BuyFlow = lazy(() => import("./flows/BuyFlow.jsx"));
 const DEFAULT_TITLE = typeof document === "undefined" ? "" : document.title;
 const SellFlow = lazy(() => import("./flows/SellFlow.jsx"));
-const UsdcFlow = lazy(() => import("./flows/UsdcFlow.jsx"));
+const UsdcFlow = USDC_CHECKOUT ? lazy(() => import("./flows/UsdcFlow.jsx")) : null;
 
 function ModeBanner({ mode }) {
   if (mode === "demo") return <div className="mode-banner" role="note"><span><b>Ambiente de teste.</b> Nenhuma transação real: acesso, preços e Pix são simulados.</span></div>;
@@ -47,6 +47,8 @@ function FlowLoading({ onClose, error }) {
 
 export function App({ auth, config }) {
   const [route, navigate] = useHashRoute();
+  const usdcCheckout = config.mode !== "live";
+  const isFlow = (type) => type === "buy" || type === "sell" || (type === "usdc" && usdcCheckout);
   const market = useMarket(config);
   const now = useNow(30_000);
   const online = useOnline();
@@ -104,7 +106,7 @@ export function App({ auth, config }) {
     if (!next) return;
     clearPurchaseSelection();
     navigate(stockHash(next.symbol));
-    if (["buy", "sell", "usdc"].includes(next.type)) setModal(next);
+    if (isFlow(next.type)) setModal(next);
   }, [navigate]);
 
   // Signed in (after the sheet, after an OAuth return, or a session found on load): restore the
@@ -164,7 +166,7 @@ export function App({ auth, config }) {
   // that one (flowFor) instead of starting a second one that would overwrite its record. Decided
   // once the runtime (and so the store) is loaded; the flow shows FlowLoading until then.
   useEffect(() => {
-    if (!["buy", "sell", "usdc"].includes(modal?.type) || modal.checked || !runtime || !address) return;
+    if (!isFlow(modal?.type) || modal.checked || !runtime || !address) return;
     setModal({ ...modal, ...flowFor(modal, runtime.activeRampStore.get(address)), checked: true });
   }, [modal, runtime, address]);
 
@@ -209,7 +211,7 @@ export function App({ auth, config }) {
     navigate(stockHash(selection.symbol));
     setModal(next);
   };
-  const canPreviewContinue = selection => selection.method === "pix" ? rampOpen : config.mode !== "live";
+  const canPreviewContinue = selection => selection.method === "pix" ? rampOpen : usdcCheckout;
   const resume = () => { if (pending) setModal({ type: pending.paymentMethod === "usdc" ? "usdc" : pending.rampType === "SELL" ? "sell" : "buy", symbol: pending.symbol }); };
   const closeFlow = () => { setModal(null); refreshLocal(); portfolio.refresh(); };
   const onSettled = () => { portfolio.refreshSoon(); refreshLocal(); };
@@ -227,7 +229,7 @@ export function App({ auth, config }) {
     screen = <Landing market={market} rampOpen={rampOpen} onPreview={startPreview} canPreviewContinue={canPreviewContinue} onLearn={() => setModal({ type: "learn" })} now={now} />;
   }
 
-  const flowToken = modal && ["buy", "sell", "usdc"].includes(modal.type) ? findStock(modal.symbol) : null;
+  const flowToken = modal && isFlow(modal.type) ? findStock(modal.symbol) : null;
   const holding = flowToken ? portfolio.valued?.holdings.find((item) => item.symbol === flowToken.symbol) : null;
   const showTabBar = signedIn && route.name !== "stock";
 
@@ -236,7 +238,7 @@ export function App({ auth, config }) {
       <button className="skip-link" type="button" onClick={() => document.getElementById("conteudo")?.focus()}>Pular para o conteúdo</button>
       <ModeBanner mode={config.mode} />
       {!online && <div className="offline-banner" role="status">Você está sem conexão. Os preços podem estar desatualizados.</div>}
-      <AppHeader auth={auth} route={route} demo={config.mode === "demo"} onLogin={() => openLogin()} onLogout={logout} onResetDemo={resetDemo} pendingLogin={pendingLogin} />
+      <AppHeader auth={auth} route={route} demo={config.mode === "demo"} usdcCheckout={usdcCheckout} onLogin={() => openLogin()} onLogout={logout} onResetDemo={resetDemo} pendingLogin={pendingLogin} />
       {screen}
       <SiteFooter signedIn={signedIn} />
       {showTabBar && <TabBar route={route} />}
@@ -248,7 +250,7 @@ export function App({ auth, config }) {
         ? (
           <Suspense fallback={<FlowLoading onClose={() => setModal(null)} />}>
             {modal.type === "usdc" ? <UsdcFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} direction={modal.resume?.rampType || "BUY"} resume={modal.resume} initialAmount={modal.initialAmount} onClose={closeFlow} onSettled={onSettled} /> : modal.type === "buy"
-              ? <BuyFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} resume={modal.resume ?? null} initialAmount={modal.initialAmount} demoQuote={modal.demoQuote === true} onClose={closeFlow} onSettled={onSettled} onPayUsdc={() => setModal({ type: "usdc", symbol: flowToken.symbol })} />
+              ? <BuyFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} resume={modal.resume ?? null} initialAmount={modal.initialAmount} demoQuote={modal.demoQuote === true} onClose={closeFlow} onSettled={onSettled} onPayUsdc={usdcCheckout ? () => setModal({ type: "usdc", symbol: flowToken.symbol }) : undefined} />
               : <SellFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} holdingRaw={holding?.raw ?? 0n} resume={modal.resume ?? null} demoReserveUsed={modal.demoReserveUsed === true} onClose={closeFlow} onSettled={onSettled} />}
           </Suspense>
         )

@@ -1,17 +1,24 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
-import { publicKeyError } from "./src/lib/config.js";
+import { readConfig, secretKeyError } from "./src/lib/config.js";
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
+  const env = loadEnv(mode, process.cwd(), "VITE_");
   // Vite inlines every VITE_* value into the public bundle: a secret key fails the build instead.
-  const keyError = publicKeyError(loadEnv(mode, process.cwd(), "VITE_").VITE_VORTEX_PUBLIC_KEY);
+  const keyError = secretKeyError(env);
   if (keyError) throw new Error(keyError);
+  const stocks = readConfig(env);
+  if (command === "build") {
+    // A bad value would publish an error page, and an unset mode the public demo with its fake login.
+    if (stocks.error) throw new Error(stocks.error);
+    if (process.env.CONTEXT === "production" && stocks.mode !== "live") throw new Error(`Produção precisa de VITE_STOCKS_MODE=live, não "${stocks.mode}".`);
+  }
   return {
     base: "/pt-br/stocks/",
     build: {
       outDir: "dist/client",
       manifest: true,
-      rollupOptions: { input: { main: "index.html", international: "international.html" } },
+      rollupOptions: { input: { main: "index.html", ...(stocks.mode === "live" ? {} : { international: "international.html" }) } },
     },
     resolve: {
       // One copy of each, shared with @vortexfi/consumer-kit (a workspace package with peers).

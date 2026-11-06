@@ -33,8 +33,4 @@ describe("Netlify redirects", () => {
       expect(redirects[index]).toMatchObject({ status: "301", to: from.endsWith("*") ? "/pt-br/stocks/:splat" : "/pt-br/stocks/" });
     }
   });
-
-  it("canonicalizes the English stocks edition without redirecting it to Pix", () => {
-    expect(redirects).toContainEqual({ from: "/en/stocks", status: "301", to: "/en/stocks/" });
-  });
 });

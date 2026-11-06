@@ -60,6 +60,14 @@ test("changing payment method discards the old preview and uses the USDC minimum
   assert.deepEqual(calls, [{ symbol: "NVDA", method: "usdc", amount: "10", locale: "pt-BR" }]);
 }));
 
+test("a method that cannot continue in this build is not offered", () => harness(async s => {
+  await s.render({ canContinue: selection => selection.method === "pix" });
+  assert.equal(s.button("Pix · em reais").getAttribute("aria-pressed"), "true");
+  assert.doesNotMatch(s.text(), /USDC/);
+  await s.click("Simular compra");
+  assert.equal(s.button("Continuar com Pix").disabled, false);
+}));
+
 test("English exposes USDC only and an inactive live rail cannot continue from an estimate", () => harness(async s => {
   const calls = [];
   await s.render({ locale: "en", canContinue: () => false, onContinue: selection => calls.push(selection) });
@@ -87,4 +95,14 @@ test("a missing reference price cannot reuse a previously displayed estimate", (
   assert.equal(s.button("Continuar com Pix").disabled, true);
   assert.match(s.text(), /preço de referência disponível/);
   assert.doesNotMatch(s.text(), /Compra em breve/);
+}));
+
+test("while the ramp's answer is unknown the preview promises neither buying nor \"em breve\"", () => harness(async s => {
+  await s.render({ canContinue: () => null });
+  await s.click("Simular compra");
+  assert.equal(s.button("Continuar com Pix").disabled, true);
+  assert.doesNotMatch(s.text(), /Compra em breve/);
+  await s.render({ canContinue: () => false });
+  assert.equal(s.button("Continuar com Pix").disabled, true);
+  assert.match(s.text(), /Compra em breve/);
 }));

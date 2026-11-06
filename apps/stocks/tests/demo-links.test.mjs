@@ -45,3 +45,11 @@ test("demo deep links are demo-only: behind DEMO_TOOLS and only ever imported dy
   const runtime = sourceFiles().find((file) => file.path === "src/runtime.js").text;
   assert.match(runtime, /function spendDemoReserve\(\) \{\s*demoHoldings\?\.setEthWei\(DEMO_RESERVE_DUST_WEI\);/, "a no-op without demo holdings (preview, live)");
 });
+
+test("a live build drops the simulated USDC checkout: the same kind of constant, behind every lazy import", () => {
+  const read = (path) => sourceFiles().find((file) => file.path === path).text;
+  assert.match(read("src/lib/config.js"), /export const USDC_CHECKOUT = import\.meta\.env\?\.VITE_STOCKS_MODE !== "live";/);
+  assert.match(read("src/App.jsx"), /const UsdcFlow = USDC_CHECKOUT \? lazy\(/);
+  assert.match(read("src/main.jsx"), /const InternationalApp = USDC_CHECKOUT \? lazy\(/);
+  assert.match(read("src/runtime.js"), /const usdc = USDC_CHECKOUT \? createUsdcCheckout\(/);
+});

@@ -230,3 +230,6 @@ test("the wallet check before a sell transaction: only advice that works while t
 });
 
 // A permit sell charges its network fee in its own quote, and its execution never touches the seller's ETH.
+test("no screen says the reserve pays for a sell", () => {
+  for (const file of sourceFiles()) assert.doesNotMatch(file.text, /próximas vendas|vendas? futuras?|taxas futuras|para vender depois|later network fees|network-fee reserve|quando você vender|reserva inicial|com a reserva que a compra inclui/, file.path);
+});

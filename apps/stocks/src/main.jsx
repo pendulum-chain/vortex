@@ -12,13 +12,13 @@ import "./styles.css";
 import { App } from "./App.jsx";
 import { useDemoAuth } from "./DemoAuth.js";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
-import { config } from "./lib/config.js";
+import { USDC_CHECKOUT, config } from "./lib/config.js";
 import { pendingAuth } from "./auth-state.js";
 
 const PrivyShell = lazy(() => import("./PrivyShell.jsx"));
-const InternationalApp = lazy(() => import("./InternationalApp.jsx"));
+const InternationalApp = USDC_CHECKOUT ? lazy(() => import("./InternationalApp.jsx")) : null;
 function StocksApp(props) {
-  return config.locale === "en" ? <Suspense fallback={<main className="fatal">Loading stocks…</main>}><InternationalApp {...props} /></Suspense> : <App {...props} />;
+  return config.locale === "en" && InternationalApp ? <Suspense fallback={<main className="fatal">Loading stocks…</main>}><InternationalApp {...props} /></Suspense> : <App {...props} />;
 }
 
 // Privy keeps its session in localStorage["privy:token"] (a Privy internal): used ONLY to choose

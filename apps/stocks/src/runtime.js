@@ -6,6 +6,7 @@ import { createDemoVerification } from "./lib/demo-verification.js";
 import { serverHistoryRows } from "./lib/history.js";
 import { DEMO_GAS_PRICE_WEI, DEMO_RESERVE_DUST_WEI, createDemoHoldings, createRobinhoodClient, readPortfolio, tokenFlags, valuePortfolio } from "./lib/portfolio.js";
 import { createRampAdapter, withIssuerPauses } from "./lib/ramp-adapter.js";
+import { USDC_CHECKOUT } from "./lib/config.js";
 import { STOCKS_KEYS, createRampStores } from "./lib/stores.js";
 import { getVortexSession } from "./services.js";
 import { createUsdcCheckout } from "./lib/usdc-checkout.js";
@@ -32,9 +33,9 @@ export function createRuntime({ config, market }) {
     }
     return scopedHoldings.get(owner);
   };
-  const usdc = createUsdcCheckout({ mode: config.mode, storage: tabStorage, activeRampStore: stores.activeRamp, holdings: usdcHoldings,
+  const usdc = USDC_CHECKOUT ? createUsdcCheckout({ mode: config.mode, storage: tabStorage, activeRampStore: stores.activeRamp, holdings: usdcHoldings,
     getPrice: (symbol) => { const s = market.peek(); const p = s.status === "unavailable" ? null : s.prices[symbol]; return p ? { usd: p.usd, updatedAt: p.updatedAt ?? s.savedAt } : null; },
-  });
+  }) : null;
   const session = getVortexSession();
   const demoVerification = demo ? createDemoVerification() : null;
   const kyc = demoVerification ? demoVerification.kyc : createBrazilKyc({ session });
@@ -64,7 +65,7 @@ export function createRuntime({ config, market }) {
     return demoHoldings ? DEMO_GAS_PRICE_WEI : chainClient().getGasPrice();
   }
 
-  /** Server history (spec S10), only with a Vortex session already verified in this tab; never prompts. */
+  /** Server history, only with a Vortex session already verified in this tab; never prompts. */
   async function serverHistory({ email, privyDid }) {
     if (adapter.kind !== "vortex" || !adapter.enabled || !session.hasSession({ email, privyDid })) return null;
     return serverHistoryRows(await session.authenticatedApi("/v1/ramp/history?limit=20", { method: "GET" }), config.network);

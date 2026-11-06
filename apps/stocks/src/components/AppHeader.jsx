@@ -78,7 +78,7 @@ function SignIn({ auth, onLogin, pending }) {
   );
 }
 
-export function AppHeader({ auth, route, demo, onLogin, onLogout, onResetDemo, pendingLogin }) {
+export function AppHeader({ auth, route, demo, usdcCheckout, onLogin, onLogout, onResetDemo, pendingLogin }) {
   const signedIn = auth.authenticated;
   const current = (name) => (route.name === name ? "page" : undefined);
   return (
@@ -91,7 +91,7 @@ export function AppHeader({ auth, route, demo, onLogin, onLogout, onResetDemo, p
           {signedIn && <a href={historyHash()} aria-current={current("history")}>Histórico</a>}
         </nav>
         <div className="site-header__right">
-          <a className="link locale-switch" href="/en/stocks/">English · USDC</a>
+          {usdcCheckout && <a className="link locale-switch" href="/en/stocks/">English · USDC</a>}
           {signedIn ? (
             <>
               <span className="secure-pill"><ShieldCheck size={17} weight="fill" aria-hidden="true" /> Protegido</span>
