@@ -17,7 +17,7 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 
 | Layer | What | Where | Runner |
 |---|---|---|---|
-| 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend, `node --test` for `apps/gold/tests/`) |
+| 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend, `node --test` for `apps/gold/tests/`, `apps/stocks/tests/` and `packages/consumer-kit/tests/`) |
 | 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) and the HTTP surface tests (auth OTP flow, webhooks, ramp history, public routes; `http-surface.invariants.test.ts`) | `apps/api/src/tests/` | `bun test` |
 | 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL, BRL stock token, Alfredpay, and Monerium EUR corridors plus persisted Mykobo on/offramp recovery scenarios. | `apps/api/src/tests/corridors/` and block tests | `bun test` |
 | 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
@@ -107,6 +107,10 @@ processor. `test-utils/fake-world/robinhood-chain.ts` enforces chain id, nonces,
 allowances, permits and router swaps, and `fake-relay.ts` scripts the bridge. A live Relay fill, refund or
 funded Uniswap swap on chain 4663 is not exercised; see RISK-029. The widget hides this network, so its
 E2E journey is unavailable, and the Stocks app has its own suite under `apps/stocks/tests`.
+`corridors/stocks-app.e2e.test.ts` runs that app's real adapter, wallet kit and SDK against the real API
+and processor, with only the chain, the providers and the wallet faked. It needs the built SDK:
+CI builds it first in `test:sdk`, and a fresh checkout needs `bun build:sdk` before `cd apps/api && bun test`.
+It runs under bun, so signing with a real embedded wallet in a browser is not exercised.
 
 **Gaps at a glance** (everything not ✅ above): the Alfredpay permit/TokenRelayer cross-chain
 SELL variant is untested (no-permit fallback is); the active EUR onramp lacks an E2E widget

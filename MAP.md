@@ -11,7 +11,7 @@ workspace; use [`docs/README.md`](docs/README.md) to locate durable project cont
 | `apps/frontend` | React widget and public web surface. XState ramp/KYC flows, wallets, and partner embedding. |
 | `apps/demo` | Minimal browser-only React example for a BRL/PIX to BSC USDC onramp through `@vortexfi/sdk`. |
 | `apps/gold` | "ouro. by Vortex" consumer app for BRL/PIX to PAXG through `@vortexfi/sdk`, served by the frontend site at `/pt-br/gold`. |
-| `apps/stocks` | Brazil Stock Tokens pilot, served at `/pt-br/stocks`; its live ramp stays disabled until the app adopts the API's stock route. |
+| `apps/stocks` | Brazil Stock Tokens pilot, served at `/pt-br/stocks`: Pix buys and sells through the API's stock route, off until `VITE_STOCKS_RAMP_ENABLED` and the API's `STOCKS_ENABLED_DIRECTIONS` turn it on. |
 | `apps/dashboard` | React account dashboard. Auth, customer entities, onboarding, recipients, history, and self-ramp flows. |
 | `apps/rebalancer` | Standalone service for cross-chain liquidity correction and profitability-aware rebalancing. |
 
