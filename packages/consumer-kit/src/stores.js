@@ -6,7 +6,8 @@ import { local } from "./storage.js";
 const SAVE_FAILED = "Não foi possível salvar a operação. Pare e contate o suporte.";
 
 /**
- * One active ramp per device (+ transaction-hash checkpoints) and the last completed ramps.
+ * One active ramp per wallet on this device (+ transaction-hash checkpoints) and the last completed ramps.
+ * Stored as {[wallet (lowercase)]: record}, so one wallet's unfinished ramp never blocks another.
  * record: {rampId, walletAddress (lowercase), rampType, stage: "registering"|"registered"|"signing"|"ready",
  *          inputAmount, outputAmount, transactions:{[phase]:hash}, createdAt, ...extra}
  * (extra: app fields such as Stocks' symbol and tokenAddress; they never override the fields above)
@@ -17,33 +18,48 @@ export function createActiveRampStore({ activeKey, historyKey, historyLimit = 12
   // Recovery data must fail closed: a lost record could leave a paid ramp unrecoverable.
   const write = (key, value) => { if (!storage.set(key, value)) throw new Error(SAVE_FAILED); };
 
+  // A rampId at the top level is the single record earlier builds stored, still on users' devices:
+  // it reads as its wallet's entry, and the next write stores the map.
+  function readActive() {
+    const value = storage.get(activeKey, null);
+    if (!value || typeof value !== "object") return {};
+    return value.rampId ? { [value.walletAddress?.toLowerCase()]: value } : value;
+  }
+  const walletOf = (active, rampId) => Object.keys(active).find((wallet) => active[wallet]?.rampId === rampId);
+
   function save({ rampId, walletAddress, inputAmount, outputAmount, rampType = "BUY", stage = "registered", createdAt = Date.now(), ...extra }) {
-    const existing = storage.get(activeKey, null);
-    if (existing && (existing.rampId !== rampId || existing.walletAddress !== walletAddress?.toLowerCase())) {
-      const error = new Error("Há uma operação em andamento neste aparelho. Conclua-a antes de começar outra.");
+    const active = readActive();
+    const wallet = walletAddress?.toLowerCase();
+    const existing = active[wallet];
+    if (existing && existing.rampId !== rampId) {
+      const error = new Error("Há uma operação em andamento nesta carteira. Conclua-a antes de começar outra.");
       error.code = "RAMP_IN_PROGRESS";
       throw error;
     }
-    const record = { ...extra, rampId, walletAddress: walletAddress?.toLowerCase(), inputAmount: String(inputAmount || ""), outputAmount: String(outputAmount || ""), rampType, stage, transactions: existing?.rampId === rampId ? existing.transactions || {} : {}, createdAt };
-    write(activeKey, record);
+    const record = { ...extra, rampId, walletAddress: wallet, inputAmount: String(inputAmount || ""), outputAmount: String(outputAmount || ""), rampType, stage, transactions: existing?.transactions || {}, createdAt };
+    write(activeKey, { ...active, [wallet]: record });
     return record;
   }
 
   function checkpoint(rampId, phase, hash) {
-    const active = storage.get(activeKey, null);
-    if (active?.rampId !== rampId) throw new Error(SAVE_FAILED);
-    write(activeKey, { ...active, transactions: { ...active.transactions, [phase]: hash } });
+    const active = readActive();
+    const wallet = walletOf(active, rampId);
+    if (!wallet) throw new Error(SAVE_FAILED);
+    write(activeKey, { ...active, [wallet]: { ...active[wallet], transactions: { ...active[wallet].transactions, [phase]: hash } } });
   }
 
   function get(walletAddress) {
-    const active = storage.get(activeKey, null);
-    if (!active || !walletAddress || active.walletAddress !== walletAddress.toLowerCase()) return null;
-    return active;
+    return (walletAddress && readActive()[walletAddress.toLowerCase()]) || null;
   }
 
+  // Only a named ramp leaves the store, so a status response without an id can never clear a record.
   function clear(rampId) {
-    const active = storage.get(activeKey, null);
-    if (!rampId || active?.rampId === rampId) storage.remove(activeKey);
+    const active = readActive();
+    const wallet = walletOf(active, rampId);
+    if (!wallet) return;
+    delete active[wallet];
+    if (Object.keys(active).length) storage.set(activeKey, active);
+    else storage.remove(activeKey);
   }
 
   function addHistory(item) {
@@ -57,7 +73,7 @@ export function createActiveRampStore({ activeKey, historyKey, historyLimit = 12
     return storage.get(historyKey, []).filter((item) => item.walletAddress === walletAddress?.toLowerCase());
   }
 
-  return { save, checkpoint, get, hasActive: () => Boolean(storage.get(activeKey, null)), clear, addHistory, history };
+  return { save, checkpoint, get, hasActive: () => Object.keys(readActive()).length > 0, clear, addHistory, history };
 }
 
 const DB_VERSION = 1;
