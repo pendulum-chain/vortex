@@ -9,26 +9,26 @@ const usdc = { ...pix, method: "usdc", amount: "100", locale: "en" };
 
 test("Pix preview includes the full illustrative first-wallet reserve and reconciles the receipt", () => {
   const q = estimatePurchase(pix, 1000);
-  assert.equal(q.total, 3.27);
-  assert.equal(q.net, 496.73);
-  assert.equal(q.tokenAmount, "0.49673");
+  assert.equal(q.total, 4.71);
+  assert.equal(q.net, 495.29);
+  assert.equal(q.tokenAmount, "0.49529");
   assert.equal(q.costs.find(c => c.provider === "reserve").amount, .71);
-  assert.equal(q.costs.find(c => c.provider === "vortex").amount, .25);
+  assert.equal(q.costs.find(c => c.provider === "vortex").amount, .5);
   assert.equal(q.illustrative, true);
   assert.equal(q.quoteId, undefined);
 });
 
 test("USDC preview keeps micro-unit precision and rounds provider fees up", () => {
   const q = estimatePurchase({ ...usdc, amount: "10.000001" }, 100);
-  assert.equal(q.total, .136003);
-  assert.equal(q.net, 9.863998);
-  assert.equal(q.tokenAmount, "0.09863998");
-  assert.equal(q.costs.find(c => c.provider === "relay").amount, .006001);
-  assert.equal(q.costs.some(c => c.provider === "lifi"), false);
+  assert.equal(q.total, .230003);
+  assert.equal(q.net, 9.769998);
+  assert.equal(q.tokenAmount, "0.09769998");
+  assert.equal(q.costs.find(c => c.provider === "relay").amount, .010001);
+  assert.deepEqual(q.costs.map(c => c.provider), ["relay", "uniswap", "vortex", "network", "reserve"]);
 });
 
 test("fractional tokens are available at each existing checkout minimum", () => {
-  assert.equal(estimatePurchase({ ...pix, amount: "100" }, 1000).tokenAmount, "0.09793");
+  assert.equal(estimatePurchase({ ...pix, amount: "100" }, 1000).tokenAmount, "0.09689");
   assert.ok(Number(estimatePurchase({ ...usdc, amount: "10" }, 1000).tokenAmount) < 1);
   for (const input of [{ ...pix, amount: "99" }, { ...usdc, amount: "9.999999" }]) assert.equal(estimatePurchase(input, 100), null);
 });

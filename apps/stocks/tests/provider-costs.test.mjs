@@ -8,7 +8,7 @@ function demoQuote(reserve = null) {
   return { routingStrategy: "direct", providerCosts: simulatedProviderCosts(1000), totalFeeFiat: fees.total + (reserve?.brl || 0), partnerFeeFiat: 0 };
 }
 
-test("the direct demo has only one own revenue fee and no LI.FI or product surcharge", () => {
+test("the direct demo has only one own revenue fee, no other provider and no product surcharge", () => {
   const raw = demoQuote();
   assert.equal(providerCostProblem(raw), null);
   const result = quoteProviderCosts(raw, { simulated: true });
@@ -16,10 +16,10 @@ test("the direct demo has only one own revenue fee and no LI.FI or product surch
   assert.equal(result.complete, true);
   assert.equal(result.extraProductFee, 0);
   assert.equal(SIM_FEES.productRate, 0);
-  assert.equal(result.rows.find((r) => r.id === "vortex").amount, 0.5);
-  assert.equal(costBps(0.5, 1000), 5);
-  assert.equal(result.identifiedTotal, 4.06);
-  assert.ok(result.rows.every((r) => !/lifi/i.test(r.provider)));
+  assert.equal(result.rows.find((r) => r.id === "vortex").amount, 1);
+  assert.equal(costBps(1, 1000), 10);
+  assert.equal(result.identifiedTotal, 6);
+  assert.deepEqual(result.rows.map((r) => r.id), ["ramp", "conversion", "bridge", "swap", "vortex", "network"]);
 });
 
 test("an ETH reserve is included once and never assigned to network execution gas", () => {
@@ -27,31 +27,31 @@ test("an ETH reserve is included once and never assigned to network execution ga
   const raw = demoQuote(reserve);
   assert.equal(providerCostProblem(raw, reserve), null);
   const details = quoteProviderCosts(raw, { reserve });
-  assert.equal(details.rows.find((r) => r.id === "network").amount, 0.3);
-  assert.equal(details.identifiedTotal, 4.77);
-  assert.ok(Math.abs(costBps(details.identifiedTotal, 1000) - 47.7) < 1e-9);
+  assert.equal(details.rows.find((r) => r.id === "network").amount, 1);
+  assert.equal(details.identifiedTotal, 6.71);
+  assert.ok(Math.abs(costBps(details.identifiedTotal, 1000) - 67.1) < 1e-9);
 });
 
 test("rate-embedded costs are never deducted twice or confused with reported fees", () => {
   const raw = demoQuote();
   for (const r of raw.providerCosts) if (["conversion", "bridge", "swap"].includes(r.id)) r.includedIn = "rate";
-  raw.totalFeeFiat = 1.56; // Avenia + Vortex + gas; pool/bridge/swap costs are already in the output rate.
+  raw.totalFeeFiat = 3; // Avenia + Vortex + gas; pool/bridge/swap costs are already in the output rate.
   assert.equal(providerCostProblem(raw), null);
   const details = quoteProviderCosts(raw);
-  assert.equal(details.identifiedTotal, 4.06);
-  assert.equal(raw.totalFeeFiat, 1.56, "normalisation never changes the executable quote");
+  assert.equal(details.identifiedTotal, 6);
+  assert.equal(raw.totalFeeFiat, 3, "normalisation never changes the executable quote");
   raw.providerCosts.find((r) => r.id === "conversion").amountFiat = -0.3;
   assert.equal(providerCostProblem(raw), null, "favourable curve/FX effects can be negative");
-  assert.equal(quoteProviderCosts(raw).identifiedTotal, 2.26);
+  assert.equal(quoteProviderCosts(raw).identifiedTotal, 4.7);
 });
 
 test("unknown provider costs stay unknown, while a quoted zero remains zero", () => {
-  const details = quoteProviderCosts({ routingStrategy: "direct", totalFeeFiat: "1.56", anchorFeeFiat: "0.76", vortexFeeFiat: "0", networkFeeFiat: "0.80" }, { reserve: { brl: 0.5 } });
+  const details = quoteProviderCosts({ routingStrategy: "direct", totalFeeFiat: "2.00", anchorFeeFiat: "1.00", vortexFeeFiat: "0", networkFeeFiat: "1.00" }, { reserve: { brl: 0.5 } });
   assert.equal(details.complete, false);
   assert.equal(details.identifiedTotal, null);
   assert.equal(details.rows.find((r) => r.id === "bridge").amount, null);
   assert.equal(details.rows.find((r) => r.id === "vortex").amount, 0);
-  assert.ok(Math.abs(details.rows.find((r) => r.id === "network").amount - 0.3) < 1e-9);
+  assert.ok(Math.abs(details.rows.find((r) => r.id === "network").amount - 0.5) < 1e-9);
   assert.equal(quoteProviderCosts({}).routing, "unconfirmed");
   assert.equal(costBps(null, 1000), null);
   assert.equal(costBps(1, 0), null);
@@ -61,7 +61,7 @@ test("malformed, mismatched or double-counted provider costs cannot pass validat
   for (const mutate of [
     (r) => { r.providerCosts = {}; },
     (r) => { r.providerCosts.push(r.providerCosts[0]); },
-    (r) => { r.providerCosts[2].provider = "lifi"; },
+    (r) => { r.providerCosts[2].provider = "other-router"; },
     (r) => { r.providerCosts[0].amountFiat = ""; },
     (r) => { r.providerCosts[0].amountFiat = Infinity; },
     (r) => { r.providerCosts[0].amountFiat = -0.1; },

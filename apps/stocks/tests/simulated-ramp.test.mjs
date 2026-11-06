@@ -41,8 +41,8 @@ function trapWallet(calls) {
 }
 
 test("fees follow the illustrative model and are deterministic", () => {
-  assert.deepEqual(simulatedFees(500), { network: 0.3, service: 2.26, total: 2.56, currency: "BRL" });
-  assert.deepEqual(simulatedFees(1000), { network: 0.3, service: 3.76, total: 4.06, currency: "BRL" });
+  assert.deepEqual(simulatedFees(500), { network: 1, service: 3, total: 4, currency: "BRL" });
+  assert.deepEqual(simulatedFees(1000), { network: 1, service: 5, total: 6, currency: "BRL" });
   assert.deepEqual(simulatedFees(100), simulatedFees(100));
 });
 
@@ -51,9 +51,9 @@ test("a buy quote floors the tokens to 18 decimals and never overpays", async ()
   demoHoldings.apply({ direction: "BUY", symbol: "NVDA", tokenAmountWei: 0n, gasReserveWei: SIM_GAS_RESERVE.targetWei }); // a funded wallet: no reserve
   const quote = await adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
   assert.equal(quote.gasReserve, null);
-  const expected = (parseUnits("497.44", 18) * WEI) / parseUnits("1163.89", 18);
+  const expected = (parseUnits("496", 18) * WEI) / parseUnits("1163.89", 18);
   assert.equal(quote.tokenAmountWei, expected.toString());
-  assert.ok(BigInt(quote.tokenAmountWei) * parseUnits("1163.89", 18) <= parseUnits("497.44", 18) * WEI);
+  assert.ok(BigInt(quote.tokenAmountWei) * parseUnits("1163.89", 18) <= parseUnits("496", 18) * WEI);
   assert.equal(quote.simulated, true);
   assert.equal(quote.gasless, false);
   assert.match(quote.id, /^sim-q-\d+$/);
@@ -63,7 +63,7 @@ test("a buy quote floors the tokens to 18 decimals and never overpays", async ()
   await assert.rejects(adapter.quoteBuy({ symbol: "NU", brlAmount: 500 }), (error) => error.code === "TOKEN_NOT_ALLOWED");
 });
 
-test("the reserve follows the proposed rule: below 0.00002 ETH, top up to 0.00005 ETH", () => {
+test("the reserve follows the rule: below 0.00002 ETH, top up to 0.00005 ETH", () => {
   assert.equal(SIM_GAS_RESERVE.targetWei, 50_000_000_000_000n);
   assert.equal(SIM_GAS_RESERVE.thresholdWei, 20_000_000_000_000n);
   assert.deepEqual({ ...simulatedGasReserve(0n) }, { amount: "0.00005", amountWei: "50000000000000", currency: "ETH", brl: 0.71, usd: null });
@@ -80,8 +80,8 @@ test("the first demo buy includes the reserve inside the total; after it settles
   assert.equal(demoHoldings.ethWei(), DEMO_ETH_WEI);
   const first = await adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
   assert.equal(first.gasReserve.amountWei, "40000000000000");
-  assert.deepEqual(first.fees, { network: 0.3, service: 2.26, total: 3.13, currency: "BRL" }, "network excludes the reserve; total includes it");
-  assert.equal(first.tokenAmountWei, ((parseUnits("496.87", 18) * WEI) / parseUnits("1163.89", 18)).toString(), "the reserve is paid out of the amount");
+  assert.deepEqual(first.fees, { network: 1, service: 3, total: 4.57, currency: "BRL" }, "network excludes the reserve; total includes it");
+  assert.equal(first.tokenAmountWei, ((parseUnits("495.43", 18) * WEI) / parseUnits("1163.89", 18)).toString(), "the reserve is paid out of the amount");
   assert.ok(Math.abs(first.impliedBrlPerToken - 1163.89) / 1163.89 < 1e-9, "the price guard still sees ~0%");
   assert.equal((await adapter.quoteSell({ symbol: "NVDA", tokenAmount: "0.1" })).gasReserve, null, "a sell has no reserve");
   const ramp = await adapter.registerBuy({ quote: first, walletAddress: WALLET });
@@ -90,14 +90,14 @@ test("the first demo buy includes the reserve inside the total; after it settles
   assert.equal(demoHoldings.ethWei(), SIM_GAS_RESERVE.targetWei, "the ETH arrived with the tokens");
   const second = await adapter.quoteBuy({ symbol: "SPY", brlAmount: 500, walletAddress: WALLET });
   assert.equal(second.gasReserve, null);
-  assert.equal(second.fees.total, 2.56);
+  assert.equal(second.fees.total, 4);
 });
 
 test("preview (no demo holdings) quotes the full reserve, as Vortex does without a wallet address", async () => {
   const { adapter } = setup({ holdings: false });
   const quote = await adapter.quoteBuy({ symbol: "NVDA", brlAmount: 500, walletAddress: WALLET });
   assert.equal(quote.gasReserve.amountWei, "50000000000000");
-  assert.equal(quote.fees.total, 3.27);
+  assert.equal(quote.fees.total, 4.71);
 });
 
 test("a buy walks to complete, credits the demo holding and settles into history", async () => {

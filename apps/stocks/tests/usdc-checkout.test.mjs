@@ -54,7 +54,7 @@ test("quotes disclose direct provider costs, a single Vortex fee and zero produc
   assert.equal(q.routingStrategy, "direct"); assert.equal(q.chainId, 8453);
   assert.equal(q.productFeeRaw, "0");
   assert.deepEqual(q.costs.map((c) => c.provider), ["Relay", "Uniswap", "Vortex", "Networks", "ETH reserve"]);
-  assert.equal(q.costs.find((c) => c.id === "vortex").raw, "50000");
+  assert.equal(q.costs.find((c) => c.id === "vortex").raw, "100000");
   assert.equal(q.costs.reduce((a, c) => a + BigInt(c.raw), 0n), BigInt(q.totalFeesRaw));
   assert.equal(BigInt(q.outputRaw) * parseUnits("200", 18) / 10n ** 30n, BigInt(q.grossRaw) - BigInt(q.totalFeesRaw));
 });

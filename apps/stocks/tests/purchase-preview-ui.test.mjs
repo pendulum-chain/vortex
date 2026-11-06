@@ -41,7 +41,7 @@ test("anonymous Pix preview needs no sign-in and hands off only the selected amo
   assert.equal(document.querySelector("input").value, "100");
   await s.click("Simular compra");
   assert.match(s.text(), /Sua estimativa/);
-  assert.match(s.text().replace(/\u00a0/g, " "), /R\$ 2,07/);
+  assert.match(s.text().replace(/\u00a0/g, " "), /R\$ 3,11/);
   assert.equal(calls.length, 0);
   await s.click("Continuar com Pix");
   assert.deepEqual(calls, [{ symbol: "NVDA", method: "pix", amount: "100", locale: "pt-BR" }]);

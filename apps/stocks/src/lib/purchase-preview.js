@@ -30,7 +30,7 @@ export function estimatePurchase(input, referencePrice) {
   const bps = value => Number((raw * BigInt(value) + 9999n) / 10000n) / 1e6;
   // Unknown wallet: illustrate a full reserve. The final quote checks the actual wallet.
   const costs = pix ? [...simulatedProviderCosts(amount).map(c => ({ provider: c.provider, amount: c.amountFiat })), { provider: "reserve", amount: 0.71 }]
-    : [{ provider: "relay", amount: bps(6) }, { provider: "uniswap", amount: bps(5) }, { provider: "vortex", amount: bps(5) }, { provider: "network", amount: 0.02 }, { provider: "reserve", amount: 0.10 }];
+    : [{ provider: "relay", amount: bps(10) }, { provider: "uniswap", amount: bps(10) }, { provider: "vortex", amount: bps(10) }, { provider: "network", amount: 0.10 }, { provider: "reserve", amount: 0.10 }];
   const digits = pix ? 2 : 6;
   const total = Number(costs.reduce((sum, cost) => sum + cost.amount, 0).toFixed(digits));
   const net = Number((amount - total).toFixed(digits));

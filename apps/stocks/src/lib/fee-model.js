@@ -1,6 +1,6 @@
-// Illustrative direct-routing costs, not live tariffs. Vortex is the only own revenue fee;
-// Stocks adds no markup. Real quotes always use the server's partner pricing and provider data.
-export const SIM_FEES = Object.freeze({ fixed: 0.76, vortexRate: 0.0005, nablaRate: 0.0015, relayRate: 0.0005, swapRate: 0.0005, productRate: 0, network: 0.3 });
+// Illustrative direct-routing costs: round placeholders, not any provider's rates. Vortex is the only
+// own revenue fee; Stocks adds no markup. Real quotes always use the server's pricing and provider data.
+export const SIM_FEES = Object.freeze({ fixed: 1, vortexRate: 0.001, nablaRate: 0.001, relayRate: 0.001, swapRate: 0.001, productRate: 0, network: 1 });
 
 const cents = (value) => Math.round(value * 100) / 100;
 

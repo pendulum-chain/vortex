@@ -1,6 +1,5 @@
-// Frontend checkout seam. Demo/preview implements a deterministic, persisted simulation. The
-// live implementation stays disabled until Vortex confirms its crypto quote/order contract.
-// No network, wallet call, payable address or live execution endpoint is invented here.
+// Frontend checkout seam, in demo and preview builds only: a deterministic, persisted simulation with
+// illustrative round costs. No network, wallet call, payable address or execution endpoint exists here.
 import { formatUnits, parseUnits } from "viem";
 import { STOCKS_KEYS } from "./stores.js";
 import { findStock } from "./stocks.js";
@@ -56,10 +55,10 @@ export function createUsdcCheckout({ mode, storage, activeRampStore, holdings, g
     if (gross < 10_000_000n) fail("The minimum order is 10 USDC.");
     const reserve = direction === "BUY" && (holdingFor(wallet)?.ethWei() || 0n) < 20_000_000_000_000n ? 100_000n : 0n;
     const costs = [
-      { id: "bridge", provider: "Relay", label: "Base USDC ↔ Robinhood Chain USDG", raw: fee(gross, 6).toString() },
-      { id: "swap", provider: "Uniswap", label: "USDG ↔ Stock Token", raw: fee(gross, 5).toString() },
-      { id: "vortex", provider: "Vortex", label: "Service and execution · 5 bps", raw: fee(gross, 5).toString() },
-      { id: "network", provider: "Networks", label: "Execution gas on Base and Robinhood Chain", raw: "20000" },
+      { id: "bridge", provider: "Relay", label: "Base USDC ↔ Robinhood Chain USDG", raw: fee(gross, 10).toString() },
+      { id: "swap", provider: "Uniswap", label: "USDG ↔ Stock Token", raw: fee(gross, 10).toString() },
+      { id: "vortex", provider: "Vortex", label: "Service and execution · 10 bps", raw: fee(gross, 10).toString() },
+      { id: "network", provider: "Networks", label: "Execution gas on Base and Robinhood Chain", raw: "100000" },
       { id: "reserve", provider: "ETH reserve", label: "Delivered to your wallet for later selling costs", raw: reserve.toString() },
     ];
     const total = costs.reduce((sum, c) => sum + BigInt(c.raw), 0n);
