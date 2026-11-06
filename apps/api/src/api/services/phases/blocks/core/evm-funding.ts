@@ -1,4 +1,4 @@
-import { EvmNetworks } from "@vortexfi/shared";
+import { EvmClientManager, EvmNetworks } from "@vortexfi/shared";
 import { type PrivateKeyAccount, privateKeyToAccount } from "viem/accounts";
 import { EVM_FUNDING_PRIVATE_KEY } from "../../../../../config/vars";
 import { abortableCall, throwIfAborted } from "./cancellation";
@@ -53,4 +53,19 @@ export async function runSerializedEvmFundingOperation<Result>(
   })();
 
   return abortableCall(signal, () => completion);
+}
+
+/** Sends from the funding account at a pinned nonce, so a retried send cannot pay twice. Call inside the serialized operation. */
+export async function sendEvmFundingTransaction(
+  network: EvmNetworks,
+  transaction: { data?: `0x${string}`; gas?: bigint; to: `0x${string}`; value?: bigint }
+): Promise<`0x${string}`> {
+  const manager = EvmClientManager.getInstance();
+  const account = getEvmFundingAccount(network);
+  const client = manager.getClient(network);
+  const [{ maxFeePerGas, maxPriorityFeePerGas }, nonce] = await Promise.all([
+    client.estimateFeesPerGas(),
+    client.getTransactionCount({ address: account.address, blockTag: "pending" })
+  ]);
+  return manager.sendTransactionWithBlindRetry(network, account, { ...transaction, maxFeePerGas, maxPriorityFeePerGas, nonce });
 }

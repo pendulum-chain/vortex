@@ -371,6 +371,21 @@ describe.each(cases)("$name EVM top-up", testCase => {
     expect(executor.createSubsidy).toHaveBeenCalledWith(expect.anything(), 5, EvmToken.USDC, fundingAccount.address, TX_HASH);
   });
 
+  it("values the quote output on the quote's own network", async () => {
+    balances("95000000");
+    const executor = arrange(testCase, testCase.baseMetadata);
+    findQuote.mockResolvedValue({
+      metadata: testCase.baseMetadata,
+      network: Networks.Robinhood,
+      outputAmount: "100",
+      outputCurrency: EvmToken.NVDA
+    });
+
+    await executor.executePhase(makeState(testCase));
+
+    expect(priceFeedService.convertCurrency).toHaveBeenCalledWith("100", EvmToken.NVDA, EvmToken.USDC, null, Networks.Robinhood);
+  });
+
   it("skips the transfer and the subsidy record when the destination already holds the target", async () => {
     balances("100000000");
     const executor = arrange(testCase, testCase.baseMetadata);

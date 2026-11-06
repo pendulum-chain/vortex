@@ -110,9 +110,14 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
             ? destinationGasQuote
               ? MOONBEAM_EVM_SOURCE_STARTING_BALANCE_UNITS
               : LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS[Networks.Moonbeam]
-            : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
+            : sourceNetwork === Networks.Robinhood
+              ? "0"
+              : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
       const fixedFundingRaw = BigInt(multiplyByPowerOfTen(fixedFundingUnits, chain.nativeCurrency.decimals).toFixed());
       const plannedNativeValueRaw = getNativePrefunding(state.state.transactionPlan, sourceNetwork, evmEphemeralAddress);
+      // What a same-network destination plans is already in plannedNativeValueRaw.
+      const plannedOnDestinationRaw = (network: EvmNetworks) =>
+        network === sourceNetwork ? 0n : getNativePrefunding(state.state.transactionPlan, network, evmEphemeralAddress);
       const destinationNetwork = getNetworkFromDestination(state.to);
       const dynamicDestinationNetwork = destinationGasQuote
         ? getDynamicDestinationEvmFundingNetwork(
@@ -126,11 +131,9 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         if (!destinationGasQuote) {
           throw new Error(`FundEphemeralExecutor: missing ${dynamicDestinationNetwork} destination gas quote`);
         }
-        destinationFundingRaw = await this.getDestinationEvmFundingRequirementRaw(
-          state,
-          dynamicDestinationNetwork,
-          destinationGasQuote
-        );
+        destinationFundingRaw =
+          (await this.getDestinationEvmFundingRequirementRaw(state, dynamicDestinationNetwork, destinationGasQuote)) +
+          plannedOnDestinationRaw(dynamicDestinationNetwork);
       }
       const sameNetworkDestinationLiabilityRaw = dynamicDestinationNetwork === sourceNetwork ? destinationFundingRaw : 0n;
       const requiredFundingRaw = calculateSourceEvmFundingRequirementRaw(
@@ -186,15 +189,27 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         if (!legacyChain) {
           throw new Error(`FundEphemeralExecutor: Could not get chain info for ${legacyDestinationNetwork}`);
         }
-        const legacyRequiredRaw = BigInt(
-          multiplyByPowerOfTen(
-            LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS[legacyDestinationNetwork],
-            legacyChain.nativeCurrency.decimals
-          ).toFixed()
-        );
+        const legacyRequiredRaw =
+          BigInt(
+            multiplyByPowerOfTen(
+              LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS[legacyDestinationNetwork],
+              legacyChain.nativeCurrency.decimals
+            ).toFixed()
+          ) + plannedOnDestinationRaw(legacyDestinationNetwork);
         if (!(await isDestinationEvmEphemeralFunded(evmEphemeralAddress, legacyDestinationNetwork, legacyRequiredRaw))) {
           logger.info(`Legacy-funding EVM ephemeral account ${evmEphemeralAddress} on ${legacyDestinationNetwork}`);
           await this.fundLegacyDestinationEvmEphemeralAccount(state, legacyDestinationNetwork, legacyRequiredRaw, signal);
+        }
+      }
+
+      // Selling from Robinhood runs the Base phases too, and they spend ETH before the bridged USDC arrives.
+      if (state.type === RampDirection.SELL && sourceNetwork === Networks.Robinhood) {
+        const baseRequiredRaw =
+          BigInt(multiplyByPowerOfTen(BASE_EPHEMERAL_STARTING_BALANCE_UNITS, 18).toFixed()) +
+          plannedOnDestinationRaw(Networks.Base);
+        if (!(await isDestinationEvmEphemeralFunded(evmEphemeralAddress, Networks.Base, baseRequiredRaw))) {
+          logger.info(`Funding the Base reserve of EVM ephemeral account ${evmEphemeralAddress}`);
+          await this.fundLegacyDestinationEvmEphemeralAccount(state, Networks.Base, baseRequiredRaw, signal);
         }
       }
     } catch (e) {
