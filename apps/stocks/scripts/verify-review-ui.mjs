@@ -103,7 +103,7 @@ try {
   assert.equal(await confirmPix.isEnabled(), true); await confirmPix.click();
   assert.equal(await page.evaluate(() => window.review.pix.confirmations), 1);
   report.push("maintenance on bank return hides Pix QR/copy and disables payment; clear status re-enables the same order");
-  await page.evaluate(() => { window.review.pix.holdNext = true; window.dispatchEvent(new Event("blur")); window.dispatchEvent(new Event("focus")); });
+  await page.evaluate(() => { window.review.pix.holdNext = true; window.dispatchEvent(new Event("focus")); });
   await page.waitForFunction(() => typeof window.review.pix.release === "function" && !document.querySelector(".pix .copy-code") && document.querySelector(".pix .btn--primary")?.disabled);
   assert.equal(await page.locator(".pix .qr").count(), 0);
   await page.evaluate(() => window.review.pix.release({ active: true, details: { end_datetime: new Date(Date.now() + 60 * 60_000).toISOString() } }));

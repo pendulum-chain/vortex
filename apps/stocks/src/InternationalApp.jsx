@@ -69,7 +69,7 @@ export default function InternationalApp({ auth, config }) {
   const startPreview = selection => {
     if (!signed) {
       savePurchaseSelection(selection);
-      intent.current = null; // The validated, expiring per-tab draft owns the handoff.
+      intent.current = null; // The validated, expiring per-tab draft carries the selection through sign-in.
       setModal({ type: "login" });
       return;
     }

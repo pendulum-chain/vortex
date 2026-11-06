@@ -1,4 +1,4 @@
-// S3 welcome sheet, once per Privy user on this device.
+// Welcome sheet, once per Privy user on this device.
 import { ArrowRight, Fingerprint, ShieldCheck, Wallet } from "./icons.js";
 import { CONSUMER_SIGN_IN } from "@vortexfi/consumer-kit";
 import { shortAddress } from "../format.js";

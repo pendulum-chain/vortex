@@ -1,4 +1,4 @@
-// S5 explore (#/explorar?c=&q=): collections as filters and an accent-insensitive search that
+// Explore (#/explorar?c=&q=): collections as filters and an accent-insensitive search that
 // understands B3 BDR tickers. Names that are not launch tokens are listed but never buyable.
 import { useEffect, useState } from "react";
 import { MagnifyingGlass, X } from "../components/icons.js";

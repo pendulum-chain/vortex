@@ -14,7 +14,7 @@ try {
     const page = await browser.newPage({ viewport, reducedMotion: "reduce" });
     const errors = [], forbidden = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.route(/\/api\/(production|staging)|api\.vortexfinance|li\.quest|order\.li\.fi|api\.relay\.link/, async (route) => { forbidden.push(route.request().url()); await route.abort(); });
+    await page.route(/\/api\/(production|staging)|api\.vortexfinance|api\.relay\.link/, async (route) => { forbidden.push(route.request().url()); await route.abort(); });
     await page.goto(url, { waitUntil: "networkidle" });
     await page.getByRole("heading", { level: 1 }).waitFor();
     assert.match(await page.title(), /fatia/i);
@@ -40,7 +40,6 @@ try {
     const ownFee = costs.locator('[data-cost-id="product"]');
     assert.match(await ownFee.innerText(), /0,00/);
     assert.match(await ownFee.innerText(), /0 bps/);
-    assert.equal(await costs.getByText(/LI\.FI/).count(), 0);
     assert.ok(await page.evaluate(() => document.querySelector(".sheet").scrollWidth <= document.querySelector(".sheet").clientWidth + 1), "Quote detail overflows its modal");
     await page.evaluate(() => { document.querySelector(".sheet").scrollTop = 0; });
     await page.screenshot({ path: `${output}/buy-providers-${viewport.width}.png` });

@@ -1,4 +1,4 @@
-// Every showcase page ends with the B2B band and the issuer / risk lines (brand-final §4).
+// Every showcase page ends with the B2B band and the issuer / risk lines.
 import { ArrowRight } from "./icons.js";
 import { LEGAL_URLS } from "@vortexfi/consumer-kit";
 import { BRAND, FAMILY_LINKS } from "../brand.js";

@@ -1,5 +1,4 @@
-// Balances on Robinhood Chain: ONE viem multicall (Multicall3 is deployed on 4663; 18 reads took
-// 132 ms on the public RPC [P5]) through a plain http client, not the Privy provider, so showing a
+// Balances on Robinhood Chain: ONE viem multicall (Multicall3 is deployed on 4663) through a plain http client, not the Privy provider, so showing a
 // balance never switches the embedded wallet's chain. Tokens outside the allowlist are ignored.
 import { robinhoodChain, rpcUrl, session, withRpcOverride } from "@vortexfi/consumer-kit";
 import { createPublicClient, formatUnits, getAddress, http, parseAbi, parseUnits } from "viem";
@@ -15,7 +14,7 @@ export const STOCK_TOKEN_ABI = parseAbi([
 ]);
 export const MULTICALL3_ABI = parseAbi(["function getEthBalance(address) view returns (uint256)"]);
 
-/** Public RPC by default (rate-limited, "not recommended for production"); an origin-restricted override (A8). */
+/** Public RPC by default (rate-limited, "not recommended for production"); an origin-restricted override. */
 export function createRobinhoodClient({ rpcOverride = "" } = {}) {
   const chain = withRpcOverride(robinhoodChain, rpcOverride);
   return createPublicClient({ chain, transport: http(rpcUrl(chain), { timeout: 10_000, retryCount: 2 }) });

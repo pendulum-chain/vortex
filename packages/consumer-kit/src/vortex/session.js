@@ -30,7 +30,7 @@ function jwtExpiresAt(token) {
   } catch { return 0; }
 }
 
-// Per-tab by default (decision B1): closing the tab ends the Vortex session. A localStorage
+// Per-tab by default: closing the tab ends the Vortex session. A localStorage
 // backend is possible by injecting `storage`, but it is off until a CSP and timeouts exist.
 const tabStorage = () => (typeof window === "undefined" ? null : window.sessionStorage);
 
@@ -118,7 +118,7 @@ export function createVortexSession({ api, storage = tabStorage, key = VORTEX_SE
       clear();
       throw new VortexError("Sua sessão de segurança expirou. Solicite um novo código.", { status: 401, code: "SESSION_EXPIRED" });
     }
-    // Only a 401 means the refresh token is invalid (security spec, Supabase OTP rule 9); a network
+    // Only a 401 means the refresh token is invalid; a network
     // error or a 503 must keep the session so the user is not logged out mid-operation.
     // A logout or user switch may clear (or replace) the session while the refresh is in flight:
     // then neither its result nor its rejection may touch what is stored now.

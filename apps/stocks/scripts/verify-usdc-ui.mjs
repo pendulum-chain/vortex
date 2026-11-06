@@ -12,7 +12,7 @@ try {
     const page = await browser.newPage({ viewport, reducedMotion:"reduce" });
     const errors = [], forbidden = [];
     page.on("pageerror", e => errors.push(e.message));
-    await page.route(/\/api\/(production|staging)|api\.vortexfinance|li\.quest|order\.li\.fi|api\.relay\.link|api\.coingecko\.com|economia\.awesomeapi/, async r => { forbidden.push(r.request().url()); await r.abort(); });
+    await page.route(/\/api\/(production|staging)|api\.vortexfinance|api\.relay\.link|api\.coingecko\.com|economia\.awesomeapi/, async r => { forbidden.push(r.request().url()); await r.abort(); });
     await page.goto(`${origin}/en/stocks/`,{waitUntil:"networkidle"});
     await page.getByRole("heading", {name:/Big companies/}).waitFor();
     assert.equal(await page.locator("html").getAttribute("lang"),"en");
@@ -62,7 +62,7 @@ try {
     await preview.getByLabel("Your investment amount").fill("10");
     await preview.getByRole("button",{name:"Preview purchase",exact:true}).click();
     await preview.getByRole("button",{name:"Continue with USDC",exact:true}).click();
-    await page.getByRole("button",{name:"Continue to USDC payment"}).waitFor();
+    await page.getByRole("button",{name:"Buy with USDC balance"}).waitFor();
     await page.getByRole("checkbox",{name:/I approve this amount/}).check();
     await page.getByRole("button",{name:"Buy with USDC balance"}).click();
     await page.getByRole("heading",{name:"Your NVDA Stock Tokens have arrived",exact:true}).waitFor({timeout:15000});

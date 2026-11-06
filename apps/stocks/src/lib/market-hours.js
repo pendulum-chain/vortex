@@ -182,7 +182,7 @@ const brasiliaDayMonth = new Intl.DateTimeFormat("pt-BR", { timeZone: SAO_PAULO,
 const brasiliaMoment = (date) => `${brasiliaWeekday.format(date).replace(/\.$/, "")} ${brasiliaDayMonth.format(date)} ${brasiliaTime.format(date)}`;
 
 /**
- * Detail-screen notice for expectedIssuerPause() (spec S6: corporate-action pause), in Brasília
+ * Detail-screen notice for expectedIssuerPause() (a corporate-action pause), in Brasília
  * time. null when there is no pause or it is more than ISSUER_PAUSE_NOTICE_DAYS away.
  * @returns {null|{active:boolean, title:string, text:string}}
  */

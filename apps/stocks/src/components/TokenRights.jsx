@@ -1,4 +1,4 @@
-// "É um token, não a ação" (spec S6): facts only, with the issuer's documentation and the contract.
+// "É um token, não a ação": facts only, with the issuer's documentation and the contract.
 import { ArrowSquareOut, CheckCircle } from "./icons.js";
 import { explorerUrl, robinhoodChain } from "@vortexfi/consumer-kit";
 import { tokenizationWindowPt } from "../lib/market-hours.js";

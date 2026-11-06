@@ -48,7 +48,7 @@ export function createRampStores({ simulated, localStorage = local, sessionStora
 
 const WELCOMED_LIMIT = 20;
 
-/** Privy DIDs that already saw the welcome sheet on this device (spec S3). */
+/** Privy DIDs that already saw the welcome sheet on this device. */
 export function createWelcomeStore(storage = local) {
   const list = () => {
     const value = storage.get(STOCKS_KEYS.welcomed, []);

@@ -1,6 +1,5 @@
-// Client-side deviation guard (defence in depth; the control belongs server-side, open decision M4).
-// Why: on 2026-09-26 large caps quoted between -0.53% and +0.45% of fair value at $1,000, NU at
-// +1.37%, and SCHD at +14.9%. Thresholds exclude fees, which the confirm screen shows separately.
+// Client-side deviation guard (defence in depth; the control is the server's price guard).
+// Thresholds exclude fees, which the confirm screen shows separately.
 import { formatNumber } from "@vortexfi/consumer-kit";
 
 export const PRICE_GUARD = Object.freeze({ warnPct: Object.freeze({ A: 1.0, B: 2.0 }), blockPct: 5.0, maxReferenceAgeMs: 15 * 60_000 });

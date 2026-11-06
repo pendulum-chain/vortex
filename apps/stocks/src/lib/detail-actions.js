@@ -1,4 +1,4 @@
-// The detail screen's buy/sell buttons and the line under them (spec S6 availability states), as a
+// The detail screen's buy/sell buttons and the line under them (the availability states), as a
 // pure function so every state is unit-tested: signed out ("Comprar" asks to sign in, "Em breve"
 // while the ramp is off), wallet not ready, an unfinished operation (resume it), availability still
 // loading, not listed / paused by the issuer, and "Vender" only with a balance.

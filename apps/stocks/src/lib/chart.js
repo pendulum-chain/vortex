@@ -1,6 +1,6 @@
 // Detail-screen price chart data. Fetched lazily, one token at a time, only when a detail screen
-// opens: on 2026-09-26 about eight rapid market_chart calls from one IP were answered with HTTP 429
-// for minutes [P3]. So: 6 h cache per series, at most 8 cached series, one request per id at a
+// opens: about eight rapid market_chart calls from one IP were answered with HTTP 429 for minutes.
+// So: 6 h cache per series, at most 8 cached series, one request per id at a
 // time, and a cool-down after a 429 during which only cached series are shown.
 // Most tokens use the CoinGecko xStocks series of the same share as a labelled reference (another
 // issuer's token); SGOV uses its own token series. Any length >= 2 points works.
@@ -62,7 +62,7 @@ export function maxPeriodLabelPt(points) {
   return `${MAX_PERIOD} (desde ${month}/${year})`;
 }
 
-/** Source caption under the chart (spec S6); every statistic names its source and period. */
+/** Source caption under the chart; every statistic names its source and period. */
 export function chartCaptionPt(token, result) {
   if (result?.status !== "ok" || !result.points.length) return "";
   const first = fullDate.format(new Date(result.points[0].t));

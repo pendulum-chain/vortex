@@ -1,5 +1,5 @@
 // Browser Web Locks serialize payment work across tabs on the same origin. The non-browser
-// queue supports Node 18 unit tests; a browser lacking Web Locks must fail closed.
+// queue supports unit tests; a browser lacking Web Locks must fail closed.
 import { VortexError } from "./vortex/api.js";
 const queues = new Map();
 export async function withConsumerLock(name, run) {

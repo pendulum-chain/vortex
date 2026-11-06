@@ -1,4 +1,4 @@
-// Shared test helpers (not a test file: the runner only picks *.test.mjs). Node 18 compatible.
+// Shared test helpers (not a test file: the runner only picks *.test.mjs).
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +7,6 @@ import { createJsonStorage } from "@vortexfi/consumer-kit";
 export const APP = fileURLToPath(new URL("../", import.meta.url));
 export const REPO = fileURLToPath(new URL("../../../", import.meta.url));
 
-// readdirSync's `recursive` option needs Node 20; CI runs Node 18.
 export const walk = (dir) => readdirSync(dir).flatMap((name) => {
   const path = join(dir, name);
   return statSync(path).isDirectory() ? walk(path) : [path];

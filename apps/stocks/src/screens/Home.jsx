@@ -1,4 +1,4 @@
-// S4 home (#/, signed in): portfolio in reais, holdings (multiplier-aware), market status,
+// Home (#/, signed in): portfolio in reais, holdings (multiplier-aware), market status,
 // collections and the latest operations.
 import { ArrowRight, Clock, Eye, EyeSlash, Receipt, Wallet } from "../components/icons.js";
 import { CONSUMER_SIGN_IN } from "@vortexfi/consumer-kit";

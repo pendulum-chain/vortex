@@ -1,5 +1,4 @@
-// Buy/sell amount rules. MIN_BUY R$100 follows the brand board's quick values (decision A5): fees
-// are partly fixed (about R$0.75 per ramp), so they weigh more on small buys.
+// Buy/sell amount rules. MIN_BUY is R$100: fees are partly fixed, so they weigh more on small buys.
 import { tokensToWei } from "./token.js";
 
 export const MIN_BUY = 100;

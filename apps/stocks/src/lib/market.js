@@ -1,7 +1,7 @@
 // Display prices: ONE batched CoinGecko simple/price call for every launch token (BRL + USD, 24 h
-// change), cached in localStorage. Keyless, CORS "*", 17/17 ids answered on 2026-09-26 [P2].
+// change), cached in localStorage. Keyless, CORS "*".
 // Execution always uses the Vortex quote; these prices only display and feed the price guard.
-// Robinhood brand rule: every figure names its source and time (sourceLinePt).
+// Every figure names its source and time (sourceLinePt).
 import { local } from "@vortexfi/consumer-kit";
 import { STOCK_TOKENS } from "./stocks.js";
 import { STOCKS_KEYS } from "./stores.js";
@@ -13,7 +13,7 @@ export const PRICE_MAX_AGE_MS = 15 * 60_000;
 export const FX_FRESH_MS = 5 * 60_000;
 export const FX_MAX_AGE_MS = 24 * 3_600_000;
 
-// Demo only (labelled "valores ilustrativos"): CoinGecko BRL per token, 2026-09-26 13:50 UTC [P2].
+// Demo only (labelled "valores ilustrativos"): CoinGecko BRL per token, 2026-09-26 13:50 UTC.
 export const DEMO_PRICES_AT = Date.parse("2026-09-26T13:50:00Z");
 export const DEMO_USD_BRL = 5.1866;
 export const DEMO_PRICES_BRL = Object.freeze({

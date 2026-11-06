@@ -1,4 +1,4 @@
-// S6 stock detail (#/acao/<SYMBOL>): price in reais with its source and time, the lazy 1-year
+// Stock detail (#/acao/<SYMBOL>): price in reais with its source and time, the lazy 1-year
 // chart, market status, the token-vs-share explainer, the issuer pause notice and buy/sell.
 import { Suspense, lazy } from "react";
 import { ArrowLeft, ArrowSquareOut, CalendarBlank } from "../components/icons.js";

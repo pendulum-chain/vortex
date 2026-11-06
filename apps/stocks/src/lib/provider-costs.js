@@ -13,7 +13,7 @@ const cents = (value) => Math.round(value * 100) / 100;
 const validAmount = (value) => (typeof value === "number" || typeof value === "string")
   && String(value).trim() !== "" && /^-?\d+(?:\.\d+)?$/.test(String(value)) && Number.isFinite(Number(value));
 
-/** PROPOSED Vortex extension: providerCosts[{id, provider, amountFiat, includedIn:"fees"|"rate"}].
+/** The quote's providerCosts[{id, provider, amountFiat, includedIn:"fees"|"rate"}].
  * "fees" entries partition totalFeeFiat (reserve excluded). "rate" entries are signed price
  * effects already embedded in outputAmount, outside totalFeeFiat. Never deduct either twice.
  */

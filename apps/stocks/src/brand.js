@@ -62,7 +62,7 @@ export const BRAND = Object.freeze({
     appIcon180: "brand/fatia-app-icon-180.png", // apple-touch-icon
     og: "brand/fatia-og-1200x630.png",
   }),
-  // "Operado por …" (brand-final §4 rule 4): the owner supplies the entity text; null hides the line.
+  // "Operado por …": the entity text, once supplied; null hides the line.
   operatorPt: null,
   touchTargetPx: 48, // the 60+ audience: 48 px hit areas
   privy: Object.freeze({

@@ -1,4 +1,4 @@
-// S2 sign-in sheet: shared Vortex identity, with Google and email both visible.
+// Sign-in sheet: shared Vortex identity, with Google and email both visible.
 import { EnvelopeSimple, Fingerprint, Wallet } from "./icons.js";
 import { CONSUMER_SIGN_IN, LEGAL_URLS } from "@vortexfi/consumer-kit";
 import { Modal } from "./Modal.jsx";

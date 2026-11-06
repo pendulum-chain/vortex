@@ -1,4 +1,4 @@
-// S10 history (#/historico): the device's finished operations for this wallet, merged with the
+// History (#/historico): the device's finished operations for this wallet, merged with the
 // Vortex server history when this tab already has a verified Vortex session (never prompts).
 import { ArrowRight, Clock, Receipt } from "../components/icons.js";
 import { CONSUMER_SIGN_IN } from "@vortexfi/consumer-kit";
