@@ -374,6 +374,23 @@ for (const [name, Flow, phase] of [["buy", BuyFlow, "nablaSwap"], ["sell", SellF
   })));
 }
 
+for (const [name, Flow] of [["buy", BuyFlow], ["sell", SellFlow]]) {
+  test(`a ${name} that fails after a good code leaves the code step, so the used code is not sent again`, () => harness(async (s) => {
+    let verified = 0;
+    const props = fixtures(approved);
+    props.runtime.verification = { ...verifying, hasSession: () => false, verifyOtp: async () => { verified += 1; } };
+    props.runtime.adapter.getAvailability = async () => ({ NVDA: { buy: false, sell: false, reason: "paused" } });
+    await s.render(createElement(Flow, { ...props, holdingRaw: 10n ** 18n }));
+    if (name === "sell") await sellAmount(s); else await s.click("Continuar");
+    await s.click("Enviar código por e-mail");
+    await s.type(".otp-input", "123456");
+    await s.click("Confirmar código");
+    assert.equal(verified, 1);
+    assert.match(s.text(), /Negociação pausada pelo emissor/);
+    assert.equal(s.has("Confirmar código"), false);
+  }));
+}
+
 test("a sell that still needs its permit goes back to the wallet step after the code", () => harness(async (s) => {
   const { props } = resumed({ ramp: initial({ depositQrCode: null }), stage: "signing", verification: verifying, adapter: { resumeSell: async () => { throw Object.assign(new Error("Confirme seu e-mail com o código antes de continuar."), { code: "AUTH_REQUIRED", status: 401 }); } } });
   await s.render(createElement(SellFlow, { ...props, holdingRaw: 10n ** 18n }));

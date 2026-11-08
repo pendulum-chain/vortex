@@ -254,7 +254,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
     const next = stepAfterCode({ direction: "SELL", rampId: ramp?.id, resuming: Boolean(resume) });
     if (next === "sign") setStep(backToTracking.current ? "processing" : "sign");
     else if (next === "existing") await loadExisting();
-    else await prepare();
+    else { setStep("amount"); await prepare(); } // the code is used up: a failure shows on the amount, not under it
   });
   const execute = () => run(async () => {
     if (quoteNeedsRefresh(quote)) {

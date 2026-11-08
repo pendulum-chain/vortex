@@ -228,7 +228,7 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume: r
   const verifyOtp = () => run(async () => {
     await verification.verifyOtp(email, otp, { privyDid });
     if (stepAfterCode({ direction: "BUY", rampId: ramp?.id, resuming: Boolean(resume) }) === "existing") await loadExisting(ramp?.id ?? resume.rampId);
-    else await prepare();
+    else { setStep("amount"); await prepare(); } // the code is used up: a failure shows on the amount, not under it
   });
   const generatePix = () => run(async () => {
     if (quoteNeedsRefresh(quote)) {
