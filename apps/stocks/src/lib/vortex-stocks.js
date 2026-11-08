@@ -30,6 +30,9 @@ export const RESUME_SIGN_MARGIN_MS = 60_000;
 const SELL_EXPIRED_PT = "O prazo para confirmar esta venda terminou, e nada saiu da sua carteira. Comece uma nova venda.";
 const SELL_EXPIRED_AFTER_BROADCAST_PT = "O prazo para iniciar esta venda terminou, e uma transação dela já tinha saído da sua carteira. Consulte o suporte com o código da operação antes de fazer outra operação.";
 const SELL_UNVERIFIABLE_PT = "Não foi possível conferir esta venda neste aparelho. Consulte o suporte com o código da operação.";
+// The API keeps one stock sale open per account and wallet; one that was never confirmed closes 15
+// minutes after its registration (RAMP_START_EXPIRATION_TIME_SECONDS).
+const SELL_ALREADY_OPEN_PT = "Outra venda sua ainda está aberta na Vortex, por isso esta não foi registrada, e nada saiu da sua carteira. Se aquela venda não foi confirmada, você poderá começar uma nova até 15 minutos depois do registro dela; se está em andamento, quando ela terminar.";
 const BUY_UNVERIFIABLE_PT = "Esta compra não confere com a cotação, por isso o código Pix não foi mostrado. Não faça nenhum pagamento e consulte o suporte com o código da operação.";
 
 // The one thing this app's wallet signs on a sell: the seller's EIP-2612 permit. Its spender is the
@@ -499,7 +502,12 @@ export function createVortexStocksAdapter({
     assertSellBalance(await (readBalance ?? defaultReadBalance)({ owner: walletAddress, token, wallet }), quote.tokenAmountWei);
     const sdk = await client();
     const recovery = { walletAddress, inputAmount: quote.tokenAmount, outputAmount: quote.brlAmount, rampType: "SELL", symbol: token.symbol, tokenAddress: token.address, createdAt: now() };
-    const { rampProcess, unsignedTransactions } = await withRecovery(recovery, () => sdk.registerRamp(quote.rawQuote, { walletAddress, pixDestination: String(pixKey || "").trim() }));
+    const { rampProcess, unsignedTransactions } = await withRecovery(recovery, () => sdk.registerRamp(quote.rawQuote, { walletAddress, pixDestination: String(pixKey || "").trim() }))
+      .catch((error) => {
+        // A 409 from the API that no other entry words is its one-open-sale rule.
+        if (Number(error?.status) === 409 && typeof error?.isPublic === "boolean" && !serverErrorPt(String(error.message))) throw new StocksRampError("RAMP_IN_PROGRESS", SELL_ALREADY_OPEN_PT, { status: 409, cause: error });
+        throw error;
+      });
     activeRampStore.save({ ...recovery, rampId: rampProcess.id, stage: "signing" });
     const ramp = toStockRamp(rampProcess, { symbolHint: token.symbol, now: now() });
     onRegistered?.(ramp);

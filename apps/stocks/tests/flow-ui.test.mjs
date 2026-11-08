@@ -239,6 +239,7 @@ test("a sell whose registration never finished is released, with no retry", () =
   await s.render(createElement(SellFlow, { ...props, holdingRaw: 10n ** 18n }));
   assert.deepEqual(calls.abandon, [["ramp-1", WALLET]]);
   assert.match(s.text(), /O registro desta venda não foi concluído, e nada saiu da sua carteira/);
+  assert.match(s.text(), /nova venda até 15 minutos depois deste registro/, "the open-sale rule can refuse a new one until then");
   assert.equal(s.has("Tentar novamente"), false);
 }));
 

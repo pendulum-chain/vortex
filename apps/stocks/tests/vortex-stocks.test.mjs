@@ -445,6 +445,21 @@ test("an empty or padded request list is not signed and never counts as signed",
   }
 });
 
+test("a sell refused because another sale is still open says so, and when to try again", async () => {
+  const conflict = (message) => Object.assign(new Error(message), { name: "VortexSdkError", status: 409, isPublic: true });
+  for (const message of ["A stock sale is already in progress (ramp-other); wait for it to finish before starting another", "Another stock sale is open for this account"]) {
+    const { adapter: live, activeRampStore } = adapter({ sdk: fakeSdk({ registerError: conflict(message) }), readBalance: async () => 10n ** 18n });
+    const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+    await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet() }), (error) => error.code === "RAMP_IN_PROGRESS" && error.status === 409
+      && /Outra venda sua ainda está aberta/.test(error.message) && /15 minutos/.test(error.message) && !/Tente novamente em instantes/.test(error.message));
+    assert.equal(activeRampStore.get(WALLET), null);
+  }
+  // A 409 the table already words keeps its own message.
+  const { adapter: live } = adapter({ sdk: fakeSdk({ registerError: conflict("Quote already consumed") }), readBalance: async () => 10n ** 18n });
+  const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+  await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet() }), (error) => error.code === "INVALID_QUOTE" && /Atualize a cotação/.test(error.message));
+});
+
 test("a sell above the on-chain balance is refused before registering", async () => {
   const sdk = fakeSdk();
   const { adapter: live } = adapter({ sdk, readBalance: async () => 10n ** 17n });
