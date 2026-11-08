@@ -490,6 +490,44 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
     60000
   );
 
+  it(
+    "neither blocks another account's sale from the same wallet nor shows it the open one",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      const other = await createTestUser();
+      await createTestTaxId(other.id, { subAccountId: "test-subaccount-id-2", taxId: "10987654321" });
+      const quote = await post<{ id: string }>("/v1/quotes", {
+        from: Networks.Robinhood,
+        inputAmount: SOLD,
+        inputCurrency: EvmToken.NVDA,
+        network: Networks.Robinhood,
+        outputCurrency: FiatToken.BRL,
+        rampType: RampDirection.SELL,
+        to: "pix"
+      });
+
+      const response = await app.request("/v1/ramp/register", {
+        body: JSON.stringify({
+          additionalData: {
+            pixDestination: PIX_KEY,
+            receiverTaxId: RECEIVER_TAX_ID,
+            taxId: "10987654321",
+            walletAddress: setup.owner.address
+          },
+          quoteId: quote.id,
+          signingAccounts: [{ address: privateKeyToAccount(generatePrivateKey()).address, type: "EVM" }]
+        }),
+        headers: jsonHeaders(other.id),
+        method: "POST"
+      });
+
+      const body = await response.text();
+      expect(response.status, body).toBeLessThan(300);
+      expect(body).not.toContain(setup.rampId);
+    },
+    60000
+  );
+
   it.each([EvmToken.AMZN, EvmToken.SGOV] as const)(
     "completes for %s too, whose address sorts differently and whose pool fee differs",
     async token => {

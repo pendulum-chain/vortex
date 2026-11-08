@@ -18,10 +18,11 @@ export interface StockPermitSourceRegistrationFacts {
 }
 
 /**
- * The stock sale, if any, that this account or wallet still has open: every non-terminal one except an unstarted one
- * whose start window has closed. Sales from one wallet share its permit nonce, so only one of them could ever pull.
+ * The stock sale, if any, that this account still has open: every non-terminal one except an unstarted one whose start
+ * window has closed. Only the account is matched: registration does not prove control of the wallet, so another
+ * account's sale from it neither blocks nor is revealed to this one.
  */
-async function findActiveStockSale(userId: string, owner: string, transaction?: Transaction): Promise<string | null> {
+async function findActiveStockSale(userId: string, transaction?: Transaction): Promise<string | null> {
   if (transaction) {
     await sequelize.query("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))", {
       replacements: { key: `stocks:sell:user:${userId}` },
@@ -34,15 +35,7 @@ async function findActiveStockSale(userId: string, owner: string, transaction?: 
     where: {
       [Op.and]: [
         sequelize.literal("state->'blockState'->'stockPermitSource' IS NOT NULL"),
-        {
-          [Op.or]: [
-            { userId },
-            sequelize.where(
-              sequelize.fn("lower", sequelize.literal("state->'blockState'->'stockPermitSource'->>'owner'")),
-              owner.toLowerCase()
-            )
-          ]
-        },
+        { userId },
         { currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut"] } },
         {
           [Op.or]: [
@@ -69,7 +62,7 @@ export async function registerStockPermitSource(
   validateOfframpQuote(ctx.quote as Parameters<typeof validateOfframpQuote>[0], [...ctx.signingAccounts], {
     requireSubstrateEphemeral: false
   });
-  const activeRampId = await findActiveStockSale(ctx.authenticatedUser.id, walletAddress, ctx.transaction);
+  const activeRampId = await findActiveStockSale(ctx.authenticatedUser.id, ctx.transaction);
   if (activeRampId) {
     throw new APIError({
       isPublic: true,
