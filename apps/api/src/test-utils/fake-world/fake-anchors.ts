@@ -165,6 +165,8 @@ export class FakeBrla {
   payinTicketStatus: AveniaTicketStatus = AveniaTicketStatus.PAID;
   /** Status reported for every payout ticket by getAveniaPayoutTicket. */
   payoutTicketStatus: AveniaTicketStatus = AveniaTicketStatus.PAID;
+  /** Called before createPayOutQuote answers; throw from it to script an Avenia error. */
+  onPayOutQuote?: () => void;
   /** Called after createPixOutputTicket succeeds; use it to apply the on-chain mint effect. */
   onPixOutputTicket?: (ticket: { id: string; walletAddress?: string }) => void;
   readonly pixInputTickets: Array<{ id: string; brCode: string }> = [];
@@ -181,15 +183,18 @@ export class FakeBrla {
       outputAmount: (Number(quoteParams.inputAmount) * this.payInRate).toString(),
       quoteToken: `payin-quote-token-${++this.counter}`
     }),
-    createPayOutQuote: async (quoteParams: { outputAmount: string }) => ({
-      appliedFees: [],
-      basePrice: "1",
-      inputAmount: (Number(quoteParams.outputAmount) / this.payOutRate).toString(),
-      inputCurrency: "BRLA",
-      inputPaymentMethod: "INTERNAL",
-      outputAmount: quoteParams.outputAmount,
-      quoteToken: `payout-quote-token-${++this.counter}`
-    }),
+    createPayOutQuote: async (quoteParams: { outputAmount: string }) => {
+      this.onPayOutQuote?.();
+      return {
+        appliedFees: [],
+        basePrice: "1",
+        inputAmount: (Number(quoteParams.outputAmount) / this.payOutRate).toString(),
+        inputCurrency: "BRLA",
+        inputPaymentMethod: "INTERNAL",
+        outputAmount: quoteParams.outputAmount,
+        quoteToken: `payout-quote-token-${++this.counter}`
+      };
+    },
     createPixInputTicket: async () => {
       const ticket = {
         brCode: `brcode-${++this.counter}`,
