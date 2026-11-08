@@ -8,7 +8,7 @@ import { overrideFees } from "../../core/fees";
 import type { GasReserveQuote } from "../../core/metadata";
 import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
 import { AveniaMintContext, type AveniaMintMetadata, simulateAveniaMint } from "../avenia-mint/simulation";
-import { UNISWAP_APPROVE_GAS_LIMIT, UNISWAP_SWAP_GAS_LIMIT } from "../uniswap-v3-fixed-swap/contract";
+import { STOCK_SWAP_GAS_LIMIT, UNISWAP_APPROVE_GAS_LIMIT } from "../uniswap-v3-fixed-swap/contract";
 
 const USD = EvmToken.USDC as RampCurrency;
 
@@ -47,7 +47,7 @@ export async function simulateAveniaStockMint(
   const [swapFeeUsd, gasReserve] = await Promise.all([
     (dependencies.estimateExecutionFeeUsd ?? estimatePresignedExecutionFeeUsd)(
       Networks.Robinhood,
-      UNISWAP_APPROVE_GAS_LIMIT + UNISWAP_SWAP_GAS_LIMIT
+      UNISWAP_APPROVE_GAS_LIMIT + STOCK_SWAP_GAS_LIMIT
     ),
     quoteGasReserve(ctx, dependencies)
   ]);

@@ -66,7 +66,7 @@ function reference(priceUsd: string, ageHours = 1) {
   return async () => ({ priceUsd: new Big(priceUsd), updatedAt: new Date(NOW_MS - ageHours * 3_600_000) });
 }
 
-type QuoteSwap = (path: `0x${string}`, amountIn: bigint) => Promise<bigint>;
+type QuoteSwap = (path: `0x${string}`, amountIn: bigint, maxGasEstimate?: bigint) => Promise<bigint>;
 
 const simulateBuy = (priceUsd = "181", quoteSwap: QuoteSwap = async () => STOCK_OUT, ageHours = 1) =>
   simulateStockRouteBuy(NVDA, buyInput, ctx, {
@@ -224,6 +224,17 @@ describe("simulateStockRouteBuy", () => {
     const expected = new Big(output.amountRaw).mul(new Big(1).minus(new Big(config.stocks.settlementSubsidyMaxUsd).div(usdg)));
     expect(metadata.swap.softMinimumOutputRaw).toBe(expected.toFixed(0, 0));
     expect(BigInt(metadata.swap.softMinimumOutputRaw)).toBeGreaterThan((BigInt(output.amountRaw) * 9_970n) / 10_000n);
+  });
+
+  it("bounds the swap's quoted gas in both directions", async () => {
+    const bounds: unknown[] = [];
+    const quoteSwap = async (_path: `0x${string}`, amountIn: bigint, maxGasEstimate?: bigint) => {
+      bounds.push(maxGasEstimate);
+      return amountIn === BigInt(STOCK_IN) ? USDG_OUT : STOCK_OUT;
+    };
+    await simulateBuy("181", quoteSwap);
+    await simulateSell("181", quoteSwap);
+    expect(bounds).toEqual([900_000n, 900_000n]);
   });
 
   it("is rejected with the price message when the fill is 3% worse than the reference", async () => {
@@ -388,7 +399,8 @@ describe("prepareStockRouteBuyTxs", () => {
       ["relayApprove", "73112", "6500000", "1000000", "0"],
       ["relayBridge", "75909", "6500000", "1000000", "0"],
       ["uniswapApprove", "100000", "30000000", "0", "0"],
-      ["uniswapSwap", "500000", "30000000", "0", "0"],
+      // Covers the ~840k a swap at the corridor limit was measured to use.
+      ["uniswapSwap", "1200000", "30000000", "0", "0"],
       ["stockBackupApprove", "100000", "30000000", "0", "0"]
     ]);
   });
@@ -396,7 +408,7 @@ describe("prepareStockRouteBuyTxs", () => {
   it("prefunds the two 4663 main transactions at the worst-case fee, and nothing Relay priced", async () => {
     const { intents } = await prepareBuy();
     expect(aggregateNativePrefunding(intents)).toEqual({
-      [`${Networks.Robinhood}:${ephemeral.address.toLowerCase()}`]: ((100_000n + 500_000n) * FEES.maxFeePerGas * 3n).toString()
+      [`${Networks.Robinhood}:${ephemeral.address.toLowerCase()}`]: ((100_000n + 1_200_000n) * FEES.maxFeePerGas * 3n).toString()
     });
     expect(intents.find(intent => intent.phase === "uniswapApprove")?.prefundNativeValueRaw).toBeDefined();
     expect(intents.find(intent => intent.phase === "uniswapSwap")?.prefundNativeValueRaw).toBeDefined();
@@ -581,7 +593,7 @@ describe("prepareStockRouteSellTxs", () => {
       expect([typeof gas, maxFeePerGas, maxPriorityFeePerGas]).toEqual(["string", "30000000", "0"]);
     }
     expect(aggregateNativePrefunding(intents)).toEqual({
-      [`${Networks.Robinhood}:${ephemeral.address.toLowerCase()}`]: ((100_000n + 500_000n) * FEES.maxFeePerGas * 3n).toString()
+      [`${Networks.Robinhood}:${ephemeral.address.toLowerCase()}`]: ((100_000n + 1_200_000n) * FEES.maxFeePerGas * 3n).toString()
     });
 
     const stockBackup = txData(intents, "stockBackupApprove");

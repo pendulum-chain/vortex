@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { type EvmTransactionData, Networks, type PresignedTx, RampDirection } from "@vortexfi/shared";
+import { type EvmTransactionData, Networks, type PresignedTx, QuoteError, RampDirection } from "@vortexfi/shared";
 import { decodeFunctionData, decodeFunctionResult, encodeFunctionData, encodePacked, erc20Abi, keccak256, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../../config/logger";
@@ -414,6 +414,20 @@ describe("stock deployment verification and quote", () => {
       return [42n, [1n], [0], 100_000n] as const;
     };
     expect(await quoteStockSwap(path, 7n)).toBe(42n);
+  });
+
+  it("refuses a quote whose swap needs more gas than the presigned limit leaves room for", async () => {
+    const path = stockSwapPath("NVDA" as StockSymbol, RampDirection.BUY);
+    let gasEstimate = 900_001n;
+    fakeEvm.onSimulateContract = () => [42n, [1n], [30], gasEstimate] as const;
+    await expect(quoteStockSwap(path, 7n, 900_000n)).rejects.toMatchObject({
+      isPublic: true,
+      message: QuoteError.StockPriceUnavailable
+    });
+    // Execution reads the price without the bound; the simulation at the signed limit guards the swap.
+    expect(await quoteStockSwap(path, 7n)).toBe(42n);
+    gasEstimate = 900_000n;
+    expect(await quoteStockSwap(path, 7n, 900_000n)).toBe(42n);
   });
 
   it("route.quote and route.verifyDeployment reach the stock's own pins", async () => {

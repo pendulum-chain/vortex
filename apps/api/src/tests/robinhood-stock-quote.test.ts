@@ -471,7 +471,8 @@ describe("Robinhood Chain stock quotes, end to end", () => {
         const reserve = Number(empty.gasReserveFiat);
         expect(reserve).toBeGreaterThan(0);
         expect(Number(empty.networkFeeFiat) - Number(paid.networkFeeFiat)).toBeCloseTo(reserve, 5);
-        expect(Number(empty.totalFeeFiat) - Number(paid.totalFeeFiat)).toBeCloseTo(reserve, 2);
+        // Each total is rounded to the cent on its own, so their difference can be off by one.
+        expect(Math.abs(Number(empty.totalFeeFiat) - Number(paid.totalFeeFiat) - reserve)).toBeLessThanOrEqual(0.01);
         expect(Number(empty.networkFeeUsd) - Number(paid.networkFeeUsd)).toBeCloseTo(Number(empty.gasReserveUsd), 5);
         expect(cost(empty, "network")).toBeCloseTo(cost(paid, "network"), 2);
       });

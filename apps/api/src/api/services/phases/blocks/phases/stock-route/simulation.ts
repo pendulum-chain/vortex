@@ -25,7 +25,7 @@ import {
 } from "../../core/robinhood-stocks";
 import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
 import { stockSettlementSubsidyCapUsd } from "../stock-settlement/simulation";
-import { stockSwapPath, stockSwapTokens } from "../uniswap-v3-fixed-swap/contract";
+import { STOCK_SWAP_MAX_QUOTED_GAS, stockSwapPath, stockSwapTokens } from "../uniswap-v3-fixed-swap/contract";
 import { STOCK_ROUTE_CONTEXT_KEY, type StockRouteSwapMetadata, type StockRouteSwapState } from "../uniswap-v3-fixed-swap/route";
 import { quoteStockSwap, verifyStockSwapDeployment } from "../uniswap-v3-fixed-swap/simulation";
 
@@ -129,7 +129,11 @@ export async function simulateStockRouteBuy<Token extends StockSymbol>(
     .toFixed(0, 0);
   if (BigInt(usdgRaw) <= 0n) throw new Error(`StockRoute: Relay leaves no USDG from ${input.amountRaw} USDC`);
 
-  const stockRaw = await (dependencies.quoteSwap ?? quoteStockSwap)(stockSwapPath(token, RampDirection.BUY), BigInt(usdgRaw));
+  const stockRaw = await (dependencies.quoteSwap ?? quoteStockSwap)(
+    stockSwapPath(token, RampDirection.BUY),
+    BigInt(usdgRaw),
+    STOCK_SWAP_MAX_QUOTED_GAS
+  );
   if (stockRaw <= 0n) throw new Error(`StockRoute: Uniswap returned no ${token} for ${usdgRaw} USDG`);
 
   const usdg = toDecimal(usdgRaw, STABLECOIN_DECIMALS);
@@ -183,7 +187,8 @@ export async function simulateStockRouteSell<Token extends StockSymbol>(
 
   const usdgRaw = await (dependencies.quoteSwap ?? quoteStockSwap)(
     stockSwapPath(token, RampDirection.SELL),
-    BigInt(input.amountRaw)
+    BigInt(input.amountRaw),
+    STOCK_SWAP_MAX_QUOTED_GAS
   );
   if (usdgRaw <= 0n) throw new Error(`StockRoute: Uniswap returned no USDG for ${input.amountRaw} ${token}`);
 

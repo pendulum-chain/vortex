@@ -153,7 +153,7 @@ function stockTradingPausedError(): APIError {
   return new APIError({ isPublic: true, message: QuoteError.StockTradingPaused, status: httpStatus.SERVICE_UNAVAILABLE });
 }
 
-function stockPriceUnavailableError(): APIError {
+export function stockPriceUnavailableError(): APIError {
   return new APIError({ isPublic: true, message: QuoteError.StockPriceUnavailable, status: httpStatus.SERVICE_UNAVAILABLE });
 }
 

@@ -26,6 +26,13 @@ export const POLYGON_EURE_USDC_PATH = encodePacked(
 );
 export const UNISWAP_APPROVE_GAS_LIMIT = 100_000n;
 export const UNISWAP_SWAP_GAS_LIMIT = 500_000n;
+/**
+ * A stock swap crosses more initialized ticks than the Polygon route: about 840k gas for 21,800 USD of QQQ at the
+ * corridor limit on 2026-11-08. A quote whose QuoterV2 estimate exceeds the second bound is refused, which leaves room
+ * for the router's own ~100-175k and for ticks that move before the swap.
+ */
+export const STOCK_SWAP_GAS_LIMIT = 1_200_000n;
+export const STOCK_SWAP_MAX_QUOTED_GAS = 900_000n;
 
 export const uniswapV3PoolAbi = parseAbi([
   "function factory() view returns (address)",

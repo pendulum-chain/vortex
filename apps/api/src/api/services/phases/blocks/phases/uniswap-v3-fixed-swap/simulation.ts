@@ -9,7 +9,8 @@ import {
   ROBINHOOD_UNISWAP_QUOTER_V2,
   ROBINHOOD_UNISWAP_SWAP_ROUTER_02,
   ROBINHOOD_USDG_ADDRESS,
-  type StockSymbol
+  type StockSymbol,
+  stockPriceUnavailableError
 } from "../../core/robinhood-stocks";
 import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
 import { MONERIUM_EURE } from "../monerium-issue/simulation";
@@ -135,16 +136,18 @@ export async function quotePolygonEureToUsdc(amountIn: bigint): Promise<bigint> 
   return result;
 }
 
-export async function quoteStockSwap(path: `0x${string}`, amountIn: bigint): Promise<bigint> {
+/** With `maxGasEstimate`, a swap whose QuoterV2 gas estimate exceeds it is refused like a price outside the guard. */
+export async function quoteStockSwap(path: `0x${string}`, amountIn: bigint, maxGasEstimate?: bigint): Promise<bigint> {
   const client = EvmClientManager.getInstance().getClient(Networks.Robinhood);
   const {
-    result: [amountOut]
+    result: [amountOut, , , gasEstimate]
   } = await client.simulateContract({
     abi: uniswapV3QuoterV2Abi,
     address: ROBINHOOD_UNISWAP_QUOTER_V2,
     args: [path, amountIn],
     functionName: "quoteExactInput"
   });
+  if (maxGasEstimate !== undefined && gasEstimate > maxGasEstimate) throw stockPriceUnavailableError();
   return amountOut;
 }
 

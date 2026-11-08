@@ -13,7 +13,6 @@ import { BrlaOnrampMintExecutor } from "../phases/avenia-mint/execution";
 import { registerAveniaMint } from "../phases/avenia-mint/registration";
 import { AveniaMintContext } from "../phases/avenia-mint/simulation";
 import { simulateAveniaStockMint } from "../phases/avenia-stock-mint/simulation";
-import { UNISWAP_APPROVE_GAS_LIMIT, UNISWAP_SWAP_GAS_LIMIT } from "../phases/uniswap-v3-fixed-swap/contract";
 
 const DESTINATION = "0x1111111111111111111111111111111111111111";
 const ETH_USD = 4000;
@@ -88,7 +87,7 @@ describe("AveniaStockMint", () => {
     const { fees, output } = await simulateAveniaStockMint(input, context, { estimateExecutionFeeUsd });
 
     // 5e13 wei at $4000 is $0.20.
-    expect(estimateExecutionFeeUsd).toHaveBeenCalledWith(Networks.Robinhood, UNISWAP_APPROVE_GAS_LIMIT + UNISWAP_SWAP_GAS_LIMIT);
+    expect(estimateExecutionFeeUsd).toHaveBeenCalledWith(Networks.Robinhood, 1_300_000n);
     expect(fees?.usd?.network).toBe("0.6");
     expect(fees?.displayFiat?.network).toBe("3");
     expect(new Big(fees?.usd?.anchor ?? "0").gt(0)).toBe(true);

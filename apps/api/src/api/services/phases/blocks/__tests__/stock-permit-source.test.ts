@@ -630,7 +630,7 @@ describe("StockPermitSource simulation", () => {
       networkFeeUsd: "0.4",
       token: NVDA
     });
-    expect(estimateExecutionFeeUsd).toHaveBeenCalledWith(Networks.Robinhood, 1_000_000n);
+    expect(estimateExecutionFeeUsd).toHaveBeenCalledWith(Networks.Robinhood, 1_700_000n);
     expect(result.fees?.usd?.network).toBe("0.4");
     expect(result.fees?.displayFiat?.network).toBe("2");
     expect(result.fees?.usd?.vortex).toBe("0.1");

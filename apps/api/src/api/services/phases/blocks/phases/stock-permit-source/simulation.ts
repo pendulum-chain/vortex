@@ -6,7 +6,7 @@ import { defineContext } from "../../core/metadata";
 import { ROBINHOOD_STOCKS, type StockSymbol } from "../../core/robinhood-stocks";
 import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
 import { resolveAlfredpayPermitDomain } from "../alfredpay-offramp/permit";
-import { UNISWAP_APPROVE_GAS_LIMIT, UNISWAP_SWAP_GAS_LIMIT } from "../uniswap-v3-fixed-swap/contract";
+import { STOCK_SWAP_GAS_LIMIT, UNISWAP_APPROVE_GAS_LIMIT } from "../uniswap-v3-fixed-swap/contract";
 
 /** Per transaction: the funding wallet's `permit`, measured at up to 107k live, and the ephemeral's `transferFrom`. */
 export const STOCK_PERMIT_GAS_LIMIT = 200_000n;
@@ -81,7 +81,7 @@ export async function simulateStockPermitSource<Token extends StockSymbol>(
     (dependencies.probePermit ?? probeStockPermit)(token, zeroAddress),
     (dependencies.estimateExecutionFeeUsd ?? estimatePresignedExecutionFeeUsd)(
       Networks.Robinhood,
-      2n * STOCK_PERMIT_GAS_LIMIT + UNISWAP_APPROVE_GAS_LIMIT + UNISWAP_SWAP_GAS_LIMIT
+      2n * STOCK_PERMIT_GAS_LIMIT + UNISWAP_APPROVE_GAS_LIMIT + STOCK_SWAP_GAS_LIMIT
     )
   ]);
   const usd = EvmToken.USDC as RampCurrency;

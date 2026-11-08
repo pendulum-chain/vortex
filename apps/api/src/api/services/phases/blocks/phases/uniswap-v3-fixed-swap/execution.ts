@@ -60,6 +60,8 @@ function defaultDependencies(route: UniswapRoute): UniswapV3ExecutionDependencie
           serializedTransaction: transaction as Parameters<typeof recoverTransactionAddress>[0]["serializedTransaction"]
         }),
         data: parsed.data,
+        // At the signed limit, so a swap that would run out of gas is held instead of burning its nonce.
+        gas: parsed.gas,
         to: parsed.to,
         value: parsed.value
       });
@@ -182,11 +184,12 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
         return { hash };
       },
       provider: route.network,
+      // Only a stock route sends again: the Polygon route fails the ramp on a mined revert, so it keeps pausing.
       reconcile: async () =>
         settle(
           settledReceipt ??
             (await dependencies.getReceipt(deterministicHash)) ??
-            (await resendPresignedTransaction(transaction, dependencies))
+            (route.stock ? await resendPresignedTransaction(transaction, dependencies) : null)
         ),
       request: { network: route.network, signedTransaction: transaction },
       signal

@@ -25,7 +25,7 @@ import { APIError } from "../../../../../errors/api-error";
 import { requireAccount } from "../../core/accounts";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import type { PrepareCtx, PreparedPhaseTxs, TxIntent } from "../../core/types";
-import { encodeUniswapSwap, UNISWAP_APPROVE_GAS_LIMIT, UNISWAP_SWAP_GAS_LIMIT } from "../uniswap-v3-fixed-swap/contract";
+import { encodeUniswapSwap, STOCK_SWAP_GAS_LIMIT, UNISWAP_APPROVE_GAS_LIMIT } from "../uniswap-v3-fixed-swap/contract";
 import type { StockRouteSwapMetadata } from "../uniswap-v3-fixed-swap/route";
 import type { UniswapV3TransactionDependencies } from "../uniswap-v3-fixed-swap/transactions";
 import { RELAY_SELL_SLIPPAGE_TOLERANCE_BPS, type StockRouteMetadata, type StockRouteState } from "./simulation";
@@ -91,7 +91,7 @@ function swapIntents(
       lane: "main",
       network: Networks.Robinhood,
       phase: "uniswapSwap",
-      prefundNativeValueRaw: prefund(UNISWAP_SWAP_GAS_LIMIT),
+      prefundNativeValueRaw: prefund(STOCK_SWAP_GAS_LIMIT),
       signer,
       txData: {
         data: encodeUniswapSwap(swap.routerKind, {
@@ -102,7 +102,7 @@ function swapIntents(
           recipient: toAddress(recipient)
         }),
         ...fees,
-        gas: UNISWAP_SWAP_GAS_LIMIT.toString(),
+        gas: STOCK_SWAP_GAS_LIMIT.toString(),
         to: toAddress(swap.router),
         value: "0"
       }
