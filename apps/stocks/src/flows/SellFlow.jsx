@@ -199,7 +199,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
       if (resume.stage === "registering" && current.currentPhase === "initial") {
         // The wallet is asked only after this stage, so nothing can have moved: this device can let it go.
         await adapter.abandonRamp(resume.rampId, { walletAddress: wallet });
-        setError("O registro desta venda não foi concluído, e nada saiu da sua carteira. Você poderá começar uma nova venda até 15 minutos depois deste registro.");
+        setError("O registro desta venda não foi concluído, e nada saiu da sua carteira. Você poderá começar uma nova venda em até 15 minutos contados deste registro.");
         setErrorCode("SELL_EXPIRED"); // it cannot be continued: no retry
         setStep("issue");
         return;

@@ -451,7 +451,7 @@ test("a sell refused because another sale is still open says so, and when to try
     const { adapter: live, activeRampStore } = adapter({ sdk: fakeSdk({ registerError: conflict(message) }), readBalance: async () => 10n ** 18n });
     const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
     await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet() }), (error) => error.code === "RAMP_IN_PROGRESS" && error.status === 409
-      && /Outra venda sua ainda está aberta/.test(error.message) && /15 minutos/.test(error.message) && !/Tente novamente em instantes/.test(error.message));
+      && /Outra venda sua ainda está aberta/.test(error.message) && /em até 15 minutos contados do registro dela/.test(error.message) && !/Tente novamente em instantes/.test(error.message));
     assert.equal(activeRampStore.get(WALLET), null);
   }
   // A 409 the table already words keeps its own message.

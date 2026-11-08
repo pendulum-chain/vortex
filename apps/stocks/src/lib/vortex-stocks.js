@@ -30,9 +30,9 @@ export const RESUME_SIGN_MARGIN_MS = 60_000;
 const SELL_EXPIRED_PT = "O prazo para confirmar esta venda terminou, e nada saiu da sua carteira. Comece uma nova venda.";
 const SELL_EXPIRED_AFTER_BROADCAST_PT = "O prazo para iniciar esta venda terminou, e uma transação dela já tinha saído da sua carteira. Consulte o suporte com o código da operação antes de fazer outra operação.";
 const SELL_UNVERIFIABLE_PT = "Não foi possível conferir esta venda neste aparelho. Consulte o suporte com o código da operação.";
-// The API keeps one stock sale open per account and wallet; one that was never confirmed closes 15
+// The API keeps one stock sale open per account; one that was never confirmed closes 15
 // minutes after its registration (RAMP_START_EXPIRATION_TIME_SECONDS).
-const SELL_ALREADY_OPEN_PT = "Outra venda sua ainda está aberta na Vortex, por isso esta não foi registrada, e nada saiu da sua carteira. Se aquela venda não foi confirmada, você poderá começar uma nova até 15 minutos depois do registro dela; se está em andamento, quando ela terminar.";
+const SELL_ALREADY_OPEN_PT = "Outra venda sua ainda está aberta na Vortex, por isso esta não foi registrada, e nada saiu da sua carteira. Se aquela venda não foi confirmada, você poderá começar uma nova em até 15 minutos contados do registro dela; se está em andamento, quando ela terminar.";
 const BUY_UNVERIFIABLE_PT = "Esta compra não confere com a cotação, por isso o código Pix não foi mostrado. Não faça nenhum pagamento e consulte o suporte com o código da operação.";
 
 // The one thing this app's wallet signs on a sell: the seller's EIP-2612 permit. Its spender is the
