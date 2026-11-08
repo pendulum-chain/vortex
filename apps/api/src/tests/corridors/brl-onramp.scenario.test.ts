@@ -516,6 +516,39 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     30000
   );
 
+  /** Captures Slack webhook posts made while `run` executes. */
+  async function captureSlackAlerts(run: () => Promise<RampState | null>): Promise<{ alerts: string[]; final: RampState | null }> {
+    const alerts: string[] = [];
+    const slackToken = config.integrations.slack.webhookToken;
+    config.integrations.slack.webhookToken = "test-token";
+    const guardedFetch = globalThis.fetch;
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).startsWith("https://hooks.slack.com/")) {
+        alerts.push(JSON.parse(String(init?.body)).text);
+        return new Response("ok");
+      }
+      return guardedFetch(input, init);
+    }) as typeof fetch);
+    try {
+      return { alerts, final: await run() };
+    } finally {
+      fetchSpy.mockRestore();
+      config.integrations.slack.webhookToken = slackToken;
+    }
+  }
+
+  it(
+    "payment window: a paid Pix still unminted past 30 minutes keeps waiting and alerts operators once",
+    async () => {
+      const { alerts, final } = await captureSlackAlerts(() => runMintPastPaymentWindow(AveniaTicketStatus.PAID));
+
+      expect(final?.currentPhase).toBe("brlaOnrampMint");
+      // Every retry of the phase reaches the window check, but operators hear about it once.
+      expect(alerts).toEqual([expect.stringContaining(`Ramp ${final?.id} is past its Pix payment window`)]);
+    },
+    30000
+  );
+
   it(
     "payment window: an unpaid Pix still cancels the ramp after 30 minutes",
     async () => {

@@ -21,6 +21,7 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../../../config/logger";
+import { config } from "../../../../../../config/vars";
 import FinancialOperation from "../../../../../../models/financialOperation.model";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
@@ -28,6 +29,7 @@ import { APIError } from "../../../../../errors/api-error";
 import { findAveniaCustomerByTaxId } from "../../../../avenia/avenia-customer.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { SlackNotifier } from "../../../../slack.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { isAnchorMockingEnabled } from "../anchor-test-mode";
@@ -54,6 +56,9 @@ const RECEIVED_PAYIN_STATUSES = new Set<string>([
 ]);
 
 export class BrlaOnrampMintExecutor extends BasePhaseHandler {
+  /** One instance, so its cooldown repeats an identical alert at most every six hours. */
+  private slackNotifier?: SlackNotifier;
+
   public getPhaseName(): RampPhase {
     return "brlaOnrampMint";
   }
@@ -304,7 +309,8 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
 
   /**
    * The payment window cancels only a ramp whose Pix Avenia has not received. Once the pay-in ticket
-   * is processing, held for compliance review, or paid, the ramp keeps waiting for the BRLA.
+   * is processing, held for compliance review, or paid, the ramp keeps waiting for the BRLA and
+   * operators are alerted.
    */
   private async isPaymentWindowClosed(
     state: RampState,
@@ -322,7 +328,22 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       .find(ticket => ticket.id === state.state.aveniaTicketId)
       ?.status.trim()
       .toUpperCase();
-    return !RECEIVED_PAYIN_STATUSES.has(status ?? "");
+    if (!RECEIVED_PAYIN_STATUSES.has(status ?? "")) return true;
+
+    await this.alertWaitingPastWindow(state.id, status as string);
+    return false;
+  }
+
+  /** A failed alert is only logged. */
+  private async alertWaitingPastWindow(rampId: string, ticketStatus: string): Promise<void> {
+    if (!this.slackNotifier && config.integrations.slack.webhookToken) this.slackNotifier = new SlackNotifier();
+    try {
+      await this.slackNotifier?.sendMessage({
+        text: `Ramp ${rampId} is past its Pix payment window with pay-in ticket status ${ticketStatus} and is still waiting for its BRLA mint.`
+      });
+    } catch (error) {
+      logger.warn(`Payment-window alert for ${rampId} failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   protected isPaymentTimeoutReached(state: RampState): boolean {
