@@ -117,6 +117,8 @@ interface WorldOptions {
   relay?: "refund" | { fillOnPoll: number };
   /** The fill, in bps of what the deposit should yield. Below 10,000 it fell short of the quote. */
   fillBps?: bigint;
+  /** The stock amount sold. Default: SOLD. */
+  sold?: string;
   token?: StockSymbol;
 }
 
@@ -247,18 +249,19 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
 
   /** Quote, registration through the real hooks, the shared signer for the ephemeral, the seller's wallet, /v1/ramp/update. */
   async function setUpRegisteredRamp(options: WorldOptions = {}): Promise<SellSetup> {
-    const { token = EvmToken.NVDA } = options;
+    const { sold = SOLD, token = EvmToken.NVDA } = options;
+    const soldRaw = parseUnits(sold, 18);
     const stock = ROBINHOOD_STOCKS[token].address;
     const ephemeralSecret = generatePrivateKey();
     const ephemeral = privateKeyToAccount(ephemeralSecret);
     const owner = privateKeyToAccount(generatePrivateKey());
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
-    world.evm.setErc20Balance(Networks.Robinhood, stock, owner.address, SOLD_RAW);
+    world.evm.setErc20Balance(Networks.Robinhood, stock, owner.address, soldRaw);
 
     const quote = await post<{ gasless?: boolean; id: string; outputAmount: string }>("/v1/quotes", {
       from: Networks.Robinhood,
-      inputAmount: SOLD,
+      inputAmount: sold,
       inputCurrency: token,
       network: Networks.Robinhood,
       outputCurrency: FiatToken.BRL,
@@ -330,7 +333,7 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
       assertSellRequests([userBlueprint], {
         chainId: robinhoodChain.id,
         from: owner.address,
-        maxAmountWei: SOLD_RAW,
+        maxAmountWei: soldRaw,
         network: Networks.Robinhood,
         phases: { stockPermitTransfer: ["permit"] },
         spenders: [ephemeral.address],
@@ -768,4 +771,20 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
     },
     60000
   );
+  // The order is sized at 95% of the swap output, so this is a fill that pays only the order. Under the top-up's
+  // 1 USD floor it completes on a subsidy; above it, it waits for an operator before any payout.
+  it.each([
+    ["0.08", "complete"],
+    ["0.5", "subsidizePreSwap"]
+  ] as const)("a sale of %s NVDA filled only up to the order ends in %s", async (sold, phase) => {
+    world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, FUNDING, parseUnits("1000", 6));
+    const setup = await setUpRegisteredRamp({ fillBps: 9_500n, sold });
+    const pixOutBefore = world.brla.pixOutputTickets.length;
+
+    const final = await startAndSettle(setup);
+
+    expect(final.currentPhase).toBe(phase);
+    const subsidies = await Subsidy.count({ where: { phase: "subsidizePreSwap", rampId: setup.rampId } });
+    expect([subsidies, world.brla.pixOutputTickets.length - pixOutBefore]).toEqual(phase === "complete" ? [1, 1] : [0, 0]);
+  }, 60000);
 });
