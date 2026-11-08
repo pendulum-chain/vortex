@@ -492,6 +492,8 @@ export function createVortexStocksAdapter({
   // deadline nothing is signed: the API would refuse the start after the tokens moved. That sell can
   // never start (only a paid Pix ramp starts late). With no broadcast it is abandoned now; with
   // a broadcast its recovery record is retained for support. SELL_EXPIRED explains which applies.
+  // A sell already signed ("ready") gets the same answer once the deadline itself has passed, as the
+  // API would refuse its start.
   // When every request was already broadcast (only
   // receipts are awaited), the tokens have moved and nothing is signed: the start decides.
   // The deadline is the earlier of the server's (its createdAt) and this device's (the record's
@@ -511,21 +513,25 @@ export function createVortexStocksAdapter({
     const ramp = toStockRamp(raw, { symbolHint: base.symbol, now: now() });
     if (ramp.classification === "success" || ramp.classification === "failure") return settle(ramp, walletAddress);
     if (!ownRecord && ramp.currentPhase === "initial") throw new StocksRampError("SELL_EXPIRED", SELL_UNVERIFIABLE_PT, { details: { rampId } });
-    if (ownRecord?.stage !== "ready" && ramp.currentPhase === "initial") {
+    if (ramp.currentPhase === "initial") {
+      const ready = ownRecord.stage === "ready";
       // Left to sign: typed data, or a transaction without a checkpointed hash.
-      const unsigned = ownRequests(raw?.unsignedTxs, walletAddress).some((tx) => !ownRecord?.transactions?.[tx?.phase]);
-      const localDeadline = Number.isFinite(ownRecord?.createdAt) ? ownRecord.createdAt + RAMP_START_WINDOW_MS : null;
+      const unsigned = !ready && ownRequests(raw?.unsignedTxs, walletAddress).some((tx) => !ownRecord.transactions?.[tx?.phase]);
+      const localDeadline = Number.isFinite(ownRecord.createdAt) ? ownRecord.createdAt + RAMP_START_WINDOW_MS : null;
       const deadline = Math.min(...[ramp.startDeadline, localDeadline].filter(Number.isFinite));
-      if (unsigned && now() >= deadline - RESUME_SIGN_MARGIN_MS) {
-        const broadcast = Object.values(ownRecord?.transactions ?? {}).some(Boolean);
+      // A signed sell ("ready") only needs its start, which the API refuses after the deadline.
+      if ((unsigned && now() >= deadline - RESUME_SIGN_MARGIN_MS) || (ready && now() >= deadline)) {
+        const broadcast = Object.values(ownRecord.transactions ?? {}).some(Boolean);
         if (!broadcast) settle({ ...ramp, classification: "failure" }, walletAddress);
         throw new StocksRampError("SELL_EXPIRED", broadcast ? SELL_EXPIRED_AFTER_BROADCAST_PT : SELL_EXPIRED_PT, { details: { rampId, broadcast } });
       }
-      // The most this sell may move: the amount recorded at registration, never the server's.
-      const amount = canonicalAmount(ownRecord.inputAmount);
-      if (amount === null) throw new StocksRampError("INVALID_QUOTE", "Não foi possível conferir a quantidade desta venda. Consulte o suporte com o código da operação.");
-      const expect = { token: ownRecord.tokenAddress, maxAmountWei: parseUnits(amount, 18) };
-      await signOnRobinhoodChain(await client(), rampId, raw?.unsignedTxs, walletAddress, wallet, expect, ramp);
+      if (!ready) {
+        // The most this sell may move: the amount recorded at registration, never the server's.
+        const amount = canonicalAmount(ownRecord.inputAmount);
+        if (amount === null) throw new StocksRampError("INVALID_QUOTE", "Não foi possível conferir a quantidade desta venda. Consulte o suporte com o código da operação.");
+        const expect = { token: ownRecord.tokenAddress, maxAmountWei: parseUnits(amount, 18) };
+        await signOnRobinhoodChain(await client(), rampId, raw?.unsignedTxs, walletAddress, wallet, expect, ramp);
+      }
     }
     activeRampStore.save({ ...base, rampId, stage: "ready" });
     return ramp;

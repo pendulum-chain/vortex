@@ -98,7 +98,9 @@ the sibling of `apps/gold`.
   the deadline on, the earlier of the server's (`startDeadline`) and this device's (the record's
   `createdAt`, taken just before `registerRamp`, + the kit's `RAMP_START_WINDOW_MS`), so a device
   clock running behind the server's never signs late. With no broadcast it clears the abandoned
-  record and throws `SELL_EXPIRED`; with any broadcast it retains recovery for support. Both known
+  record and throws `SELL_EXPIRED`; with any broadcast it retains recovery for support. A sell already
+  signed (stage `ready`) gets the same answer once that deadline itself has passed, since the API
+  would refuse its start. Both known
   hashes and uncertain-send markers survive failed or hour-old status for a day from registration
   (`RETAIN_AFTER_SEND_MS`), then move to the history with the code and any hash; a null checkpoint
   after a definite wallet rejection is not a broadcast. When every wallet request

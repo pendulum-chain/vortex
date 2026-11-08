@@ -558,6 +558,21 @@ test("the start deadline keeps a minute's margin; a transaction already sent mea
   assert.equal(sent.activeRampStore.get(WALLET).rampId, "ramp-old", "a broadcast sell retains its support/recovery record");
 });
 
+test("a signed sell past its start window is settled and asks for a new sell, without a start", async () => {
+  const walletLog = [];
+  const late = staleSell({ minutesAgo: 20, walletLog });
+  late.activeRampStore.save({ ...late.activeRampStore.get(WALLET), stage: "ready" });
+  await assert.rejects(late.resume(), (error) => error.code === "SELL_EXPIRED" && error.details.broadcast === false && /nada saiu da sua carteira\. Comece uma nova venda\./.test(error.message));
+  assert.deepEqual(walletLog, []);
+  assert.equal(late.activeRampStore.get(WALLET), null, "the wallet is free for a new operation");
+  assert.equal(late.sdk.calls.startRamp.length, 0);
+  // Inside the window a signed sell still goes on to its start.
+  const inTime = staleSell({ minutesAgo: 14.5 });
+  inTime.activeRampStore.save({ ...inTime.activeRampStore.get(WALLET), stage: "ready" });
+  assert.equal((await inTime.resume()).id, "ramp-old");
+  assert.equal(inTime.activeRampStore.get(WALLET).stage, "ready");
+});
+
 test("a known broadcast survives age-based abandonment until settlement is confirmed", async () => {
   const s = staleSell({ minutesAgo: 61, phases: ["squidRouterNoPermitTransfer"], sent: ["squidRouterNoPermitTransfer"] });
   assert.equal((await s.resume()).classification, "failure");

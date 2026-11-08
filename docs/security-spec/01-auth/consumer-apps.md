@@ -72,7 +72,8 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
   status for a day from registration, because a server failure is not proof of refund; the record
   then moves to the device history, so a dead operation cannot hold the wallet forever. A definite wallet rejection's null checkpoint is
   not a broadcast. Known hashes resume by awaiting receipts. The start-window check runs before
-  registration and immediately before signing or sending. An open wallet confirmation cannot be
+  registration and immediately before signing or sending; a resumed sell already signed but not
+  started is released once the window has closed, as its start would be refused. An open wallet confirmation cannot be
   revoked reliably by the client, but a permit signed past the window moves nothing, because the
   API refuses its update and the start. API integrity and server validation remain part of the
   trust boundary.
