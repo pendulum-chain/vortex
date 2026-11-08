@@ -222,6 +222,8 @@ export const SERVER_ERRORS_PT = Object.freeze({
   "Authenticated user does not own this provider-bound quote.": { code: "INVALID_QUOTE", pt: NEW_QUOTE_PT },
   "The bridge quote is no longer available. Please request a new quote.": { code: "INVALID_QUOTE", pt: NEW_QUOTE_PT },
   "This quote was created for a different destination address. Please request a new quote.": { code: "INVALID_QUOTE", pt: NEW_QUOTE_PT },
+  // The API's cap of three started sales that failed among an account's sales registered in the last 24 hours.
+  "Too many stock sales failed in the last 24 hours; try again later": { code: "SERVER_ERROR", pt: "Várias das suas vendas recentes não foram concluídas, por isso esta não foi registrada, e nada saiu da sua carteira. Você poderá começar uma nova venda 24 horas depois do registro da mais antiga delas." },
   "Selling this token is temporarily unavailable. Please try again later.": { code: "TOKEN_UNAVAILABLE", pt: "A venda deste token está indisponível no momento. Nada foi registrado e seus tokens continuam na sua carteira. Tente novamente mais tarde." },
   // Registration: the user, their limits and their Pix key.
   "This endpoint requires authentication.": { code: "AUTH_REQUIRED" },

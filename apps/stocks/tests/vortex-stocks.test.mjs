@@ -460,6 +460,15 @@ test("a sell refused because another sale is still open says so, and when to try
   await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet() }), (error) => error.code === "INVALID_QUOTE" && /Atualize a cotação/.test(error.message));
 });
 
+test("a sell refused because recent sales failed says so, and when a new one is possible", async () => {
+  const tooMany = Object.assign(new Error("Too many stock sales failed in the last 24 hours; try again later"), { name: "VortexSdkError", status: 429, isPublic: true });
+  const { adapter: live, activeRampStore } = adapter({ sdk: fakeSdk({ registerError: tooMany }), readBalance: async () => 10n ** 18n });
+  const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+  await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet() }), (error) => error.status === 429
+    && /vendas recentes não foram concluídas/.test(error.message) && /24 horas depois do registro da mais antiga/.test(error.message) && !/Tente novamente em instantes/.test(error.message));
+  assert.equal(activeRampStore.get(WALLET), null);
+});
+
 test("a sell above the on-chain balance is refused before registering", async () => {
   const sdk = fakeSdk();
   const { adapter: live } = adapter({ sdk, readBalance: async () => 10n ** 17n });
