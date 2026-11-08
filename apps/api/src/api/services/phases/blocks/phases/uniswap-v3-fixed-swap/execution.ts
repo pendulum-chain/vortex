@@ -198,11 +198,14 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
       },
       provider: route.network,
       // Only a stock route sends again: the Polygon route fails the ramp on a mined revert, so it keeps pausing.
-      reconcile: async () =>
+      // Only a claimed row may have been sent; an unclaimed one goes through the claim first.
+      reconcile: async operation =>
         settle(
           settledReceipt ??
             (await dependencies.getReceipt(deterministicHash)) ??
-            (route.stock ? await resendPresignedTransaction(transaction, dependencies) : null)
+            (route.stock && operation.status !== "not_started"
+              ? await resendPresignedTransaction(transaction, dependencies)
+              : null)
         ),
       request: { network: route.network, signedTransaction: transaction },
       signal

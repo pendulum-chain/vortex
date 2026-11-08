@@ -25,6 +25,7 @@ import { ROBINHOOD_STOCKS, type StockSymbol } from "../../api/services/phases/bl
 import { AveniaMintContext } from "../../api/services/phases/blocks/phases/avenia-mint/simulation";
 import { DistributeFeesContext } from "../../api/services/phases/blocks/phases/distribute-fees/simulation";
 import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-swap/simulation";
+import { RelayBridgeExecutor } from "../../api/services/phases/blocks/phases/stock-route/execution";
 import { StockRouteContext } from "../../api/services/phases/blocks/phases/stock-route/simulation";
 import { StockSettlementContext } from "../../api/services/phases/blocks/phases/stock-settlement/simulation";
 import phaseProcessor from "../../api/services/phases/phase-processor";
@@ -589,6 +590,40 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
 
       expectDelivered(setup, final);
       expect(final.errorLogs.map(log => [log.phase, log.recoverable])).toEqual([["uniswapApprove", true]]);
+    },
+    60000
+  );
+
+  it(
+    "waits for the deposit's input before its first broadcast, even when the phase re-enters",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptPaidWorld(setup);
+      // For the first three entries of relayBridge, part of the USDC is off the ephemeral.
+      const proto = RelayBridgeExecutor.prototype as unknown as { executePhase: (...args: unknown[]) => Promise<unknown> };
+      const executePhase = proto.executePhase;
+      let entries = 0;
+      let moved = 0n;
+      const entry = spyOn(proto, "executePhase").mockImplementation(async function (this: unknown, ...args: unknown[]) {
+        entries += 1;
+        const usdc = () => world.evm.erc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address);
+        if (entries === 1) {
+          moved = usdc() / 2n;
+          world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, usdc() - moved);
+        }
+        if (entries === 4) world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, usdc() + moved);
+        return executePhase.apply(this, args);
+      });
+
+      try {
+        const final = await startAndSettle(setup);
+
+        expectDelivered(setup, final);
+        expect(entries).toBe(4);
+        expect(final.errorLogs.map(log => log.error).every(error => error.includes("not on the ephemeral yet"))).toBe(true);
+      } finally {
+        entry.mockRestore();
+      }
     },
     60000
   );

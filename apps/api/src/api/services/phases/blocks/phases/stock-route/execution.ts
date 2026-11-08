@@ -207,9 +207,11 @@ export class RelayBridgeExecutor extends BasePhaseHandler {
         return assertMined(await dependencies.waitForReceipt(sentHash), sentHash);
       },
       provider: Networks.Base,
-      reconcile: async () => {
+      // Only a claimed row may have been sent; an unclaimed one goes through beforePerform and the claim first.
+      reconcile: async operation => {
         const receipt =
-          (await dependencies.getReceipt(deterministicHash)) ?? (await resendPresignedTransaction(transaction, dependencies));
+          (await dependencies.getReceipt(deterministicHash)) ??
+          (operation.status === "not_started" ? null : await resendPresignedTransaction(transaction, dependencies));
         return receipt && assertMined(receipt, deterministicHash);
       },
       request: { network: Networks.Base, signedTransaction: transaction },

@@ -109,7 +109,9 @@ runtime validation, and startup wiring checks therefore remain mandatory.
     new attempt: its signed bytes fix its hash and nonce, so when no receipt exists the
     executor sends those exact bytes again (`uniswap-presigned-broadcast`,
     `relay-approve`, `relay-deposit`). They can land at most once, and the operation
-    stays `unknown` until a receipt settles it.
+    stays `unknown` until a receipt settles it. A `not_started` row was never claimed,
+    so it is not resent: it settles only from a receipt, or else runs its pre-claim
+    checks and the claim like a first attempt.
 16. **Request-schema rollout is status-aware.** A target-balance EVM subsidy may adopt
     the stable authorization hash for a legacy `not_started` row, or replay a legacy
     `confirmed` response only after verifying its mined ERC-20 sender, token,
