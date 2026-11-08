@@ -144,7 +144,7 @@ The provider-hosted alternative remains available: `POST /v1/brl/kyb/new-level-1
 
 Where enabled, stock tokens on the `"robinhood"` network use this corridor and its onboarding: `"from": "pix"` to buy, and `"to": "pix"` to sell. No other fiat rail reaches this network. See [Quotes And Pricing](https://api-docs.vortexfinance.co/quotes-and-pricing) for the request and the response fields.
 
-An account can have one stock sale open at a time. Registering another while one is still open returns `409 A stock sale is already in progress (<rampId>)`; wait until that ramp completes or fails, or until an unstarted one's start window closes.
+An account can have one stock sale open at a time. Registering another while one is still open returns `409 A stock sale is already in progress (<rampId>)`; wait until that ramp completes or fails, or until an unstarted one's start window closes. Once three of an account's stock sales from the last 24 hours have failed after the sale was funded, registering another returns `429 Too many stock sales failed in the last 24 hours; try again later` until the oldest of them is a day old.
 
 ## USD, MXN, COP, ARS (Bank Transfers)
 

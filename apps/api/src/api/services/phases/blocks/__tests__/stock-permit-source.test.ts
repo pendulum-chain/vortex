@@ -739,6 +739,7 @@ describe("StockPermitSource simulation", () => {
 describe("StockPermitSource registration", () => {
   function register(walletAddress?: string) {
     spyOn(RampState, "findOne").mockResolvedValue(null);
+    spyOn(RampState, "count").mockResolvedValue(0 as never);
     return registerStockPermitSource({
       authenticatedUser: { id: "user" },
       input: { walletAddress },

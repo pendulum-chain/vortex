@@ -491,6 +491,63 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
   );
 
   it(
+    "refuses an account's sales for a day once three of its funded sales have failed",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      const registerSale = async () => {
+        const quote = await post<{ id: string }>("/v1/quotes", {
+          from: Networks.Robinhood,
+          inputAmount: SOLD,
+          inputCurrency: EvmToken.NVDA,
+          network: Networks.Robinhood,
+          outputCurrency: FiatToken.BRL,
+          rampType: RampDirection.SELL,
+          to: "pix"
+        });
+        return app.request("/v1/ramp/register", {
+          body: JSON.stringify({
+            additionalData: {
+              pixDestination: PIX_KEY,
+              receiverTaxId: RECEIVER_TAX_ID,
+              taxId: TAX_ID,
+              walletAddress: setup.owner.address
+            },
+            quoteId: quote.id,
+            signingAccounts: [{ address: privateKeyToAccount(generatePrivateKey()).address, type: "EVM" }]
+          }),
+          headers: jsonHeaders(setup.userId),
+          method: "POST"
+        });
+      };
+      const failAfter = (rampId: string, ...phases: RampPhase[]) =>
+        RampState.update(
+          {
+            currentPhase: "failed",
+            phaseHistory: ["initial", ...phases].map(phase => ({ phase, timestamp: new Date() })) as never
+          },
+          { where: { id: rampId } }
+        );
+      const registered = async () => {
+        const response = await registerSale();
+        const body = (await response.json()) as { id: string };
+        expect(response.status, JSON.stringify(body)).toBeLessThan(300);
+        return body.id;
+      };
+
+      await failAfter(setup.rampId, "fundEphemeral", "stockPermitTransfer");
+      await failAfter(await registered(), "fundEphemeral", "stockPermitTransfer");
+      // A sale that ended before funding cost nothing, so it does not count.
+      await failAfter(await registered(), "fundEphemeral");
+      await failAfter(await registered(), "fundEphemeral", "stockPermitTransfer");
+
+      const refused = await registerSale();
+      expect(refused.status).toBe(429);
+      expect(await refused.text()).toContain("Too many stock sales failed");
+    },
+    60000
+  );
+
+  it(
     "neither blocks another account's sale from the same wallet nor shows it the open one",
     async () => {
       const setup = await setUpRegisteredRamp();

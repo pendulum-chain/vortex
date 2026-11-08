@@ -49,6 +49,25 @@ async function findActiveStockSale(userId: string, transaction?: Transaction): P
   return ramp?.id ?? null;
 }
 
+/** A sale that fails after funding has spent the funding wallet's gas, so an account gets this many a day. */
+const MAX_FUNDED_FAILED_SALES_PER_DAY = 3;
+
+/** This account's sales from the last day that were funded (reached `stockPermitTransfer`) and then failed. */
+function countFundedFailedStockSales(userId: string, transaction?: Transaction): Promise<number> {
+  return RampState.count({
+    ...(transaction ? { transaction } : {}),
+    where: {
+      [Op.and]: [
+        sequelize.literal("state->'blockState'->'stockPermitSource' IS NOT NULL"),
+        sequelize.literal(`phase_history @> '[{"phase": "stockPermitTransfer"}]'::jsonb`),
+        { userId },
+        { currentPhase: "failed" },
+        { createdAt: { [Op.gt]: new Date(Date.now() - 24 * 60 * 60 * 1000) } }
+      ]
+    }
+  });
+}
+
 export async function registerStockPermitSource(
   ctx: RegisterCtx<StockPermitSourceMetadata, StockPermitSourceRegistrationInput>
 ): Promise<RegistrationResult<StockPermitSourceRegistrationFacts, StockPermitSourceMetadata>> {
@@ -68,6 +87,13 @@ export async function registerStockPermitSource(
       isPublic: true,
       message: `A stock sale is already in progress (${activeRampId}); wait for it to finish before starting another`,
       status: httpStatus.CONFLICT
+    });
+  }
+  if ((await countFundedFailedStockSales(ctx.authenticatedUser.id, ctx.transaction)) >= MAX_FUNDED_FAILED_SALES_PER_DAY) {
+    throw new APIError({
+      isPublic: true,
+      message: "Too many stock sales failed in the last 24 hours; try again later",
+      status: httpStatus.TOO_MANY_REQUESTS
     });
   }
   return { facts: { owner: walletAddress } };
