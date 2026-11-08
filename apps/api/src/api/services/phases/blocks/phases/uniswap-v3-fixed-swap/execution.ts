@@ -71,6 +71,9 @@ function defaultDependencies(route: UniswapRoute): UniswapV3ExecutionDependencie
   };
 }
 
+/** How long a swap may wait for its price or the issuer before an operator is alerted. */
+const HOLD_ALERT_MS = 60 * 60 * 1000;
+
 abstract class UniswapV3Executor extends BasePhaseHandler {
   constructor(private readonly injectedDependencies?: UniswapV3ExecutionDependencies) {
     super();
@@ -102,9 +105,19 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
     }
   }
 
+  /** A hold retries; one that has lasted past HOLD_ALERT_MS pauses instead, so an operator is told while recovery still retries it. */
   protected hold(state: RampState, route: UniswapRoute, reason: string): PhaseError {
     logger.warn(`UNISWAP_SWAP_HELD: ${reason}. ramp=${state.id} network=${route.network}`);
-    return this.createRecoverableError(reason);
+    const entered = [...(state.phaseHistory ?? [])].reverse().find(entry => entry.phase === this.getPhaseName());
+    const heldMs = Date.now() - new Date(entered?.timestamp ?? state.createdAt).getTime();
+    return heldMs > HOLD_ALERT_MS ? this.createReconciliationRequiredError(reason) : this.createRecoverableError(reason);
+  }
+
+  /** An expired swap can never settle, so neither transaction goes out and an operator unwinds the input. */
+  protected pauseAfterDeadline(route: UniswapRoute): void {
+    if (BigInt(route.deadline) <= BigInt(Math.floor(Date.now() / 1000))) {
+      throw this.createReconciliationRequiredError("Uniswap fixed swap signature expired before settlement");
+    }
   }
 
   protected async holdWhileStockPaused(
@@ -210,6 +223,7 @@ export class UniswapApproveExecutor extends UniswapV3Executor {
     signal?: AbortSignal
   ): Promise<RampState> {
     const transaction = await this.validatedTransaction(state, route, "approval", validateUniswapApproval);
+    this.pauseAfterDeadline(route);
     await this.holdWhileStockPaused(state, route, dependencies);
     if (route.stock) {
       // A mined approval burns the first main nonce and with it the backup approval, so hold while that exit is still open.
@@ -244,9 +258,7 @@ export class UniswapSwapExecutor extends UniswapV3Executor {
     const receipt = await dependencies.getReceipt(keccak256(transaction));
     const settledReceipt = receipt?.status === "success" ? receipt : undefined;
     if (!settledReceipt) {
-      if (BigInt(route.deadline) <= BigInt(Math.floor(Date.now() / 1000))) {
-        throw this.createRecoverableError("Uniswap fixed swap signature expired before settlement");
-      }
+      this.pauseAfterDeadline(route);
       await this.holdWhileStockPaused(state, route, dependencies);
       await dependencies.verifyDeployment();
       const [inputBalance, allowance, currentQuote] = await Promise.all([

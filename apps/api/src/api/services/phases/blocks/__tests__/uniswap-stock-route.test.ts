@@ -814,12 +814,39 @@ describe("stock route execution", () => {
     expect(error).not.toBeInstanceOf(UnrecoverablePhaseError);
   });
 
-  it("keeps retrying past the signed deadline, as the Polygon route does", async () => {
-    const { route, state } = await rampState(RampDirection.BUY, "uniswapSwap", "1000");
-    const { deps } = dependencies(route);
-    const error = await run(UniswapSwapExecutor, state, deps);
-    expect(error).toBeInstanceOf(RecoverablePhaseError);
+  it.each([
+    ["uniswapSwap", UniswapSwapExecutor],
+    ["uniswapApprove", UniswapApproveExecutor]
+  ] as const)("pauses %s past the signed deadline, sending nothing", async (phase, Executor) => {
+    const { route, state } = await rampState(RampDirection.BUY, phase, "1000");
+    const { deps, sendRawTransaction } = dependencies(route);
+    const error = await run(Executor, state, deps);
+    expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
     expect((error as Error).message).toContain("expired");
+    expect(sendRawTransaction).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["uniswapSwap", UniswapSwapExecutor],
+    ["uniswapApprove", UniswapApproveExecutor]
+  ] as const)("pauses %s for an operator once its hold has lasted over an hour", async (phase, Executor) => {
+    const { route, state } = await rampState(RampDirection.BUY, phase);
+    const { deps, sendRawTransaction } = dependencies(route, { quote: async () => BigInt(route.softMinimumOutputRaw) - 1n });
+    const entered = (minutesAgo: number) => [
+      { phase: "relayBridge", timestamp: new Date(Date.now() - 300 * 60_000) },
+      { phase, timestamp: new Date(Date.now() - minutesAgo * 60_000) }
+    ];
+
+    state.phaseHistory = entered(59) as never;
+    const held = await run(Executor, state, deps);
+    expect(held).toBeInstanceOf(RecoverablePhaseError);
+    expect(held).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
+
+    state.phaseHistory = entered(61) as never;
+    const paused = await run(Executor, state, deps);
+    expect(paused).toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect((paused as Error).message).toContain("soft minimum");
+    expect(sendRawTransaction).not.toHaveBeenCalled();
   });
 
   it("uses the route's own chain and tokens through the default dependencies", async () => {

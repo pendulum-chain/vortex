@@ -466,9 +466,9 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
     }
   }
 
-  it("retries later when the signed deadline has already passed", async () => {
+  it("pauses for an operator when the signed deadline has already passed", async () => {
     const error = await runSwap({}, Date.now() - 8 * 24 * 60 * 60 * 1000);
-    expect(error).toBeInstanceOf(RecoverablePhaseError);
+    expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
     expect((error as Error).message).toContain("expired");
     expect(operationAttempts).toEqual([]);
   });
