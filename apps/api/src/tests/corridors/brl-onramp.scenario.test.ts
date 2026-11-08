@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { EvmToken, evmTokenConfig, FiatToken, Networks, RampDirection, type RampPhase } from "@vortexfi/shared";
-import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
+import { decodeFunctionData, encodeFunctionData, erc20Abi, keccak256, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import FinancialOperation from "../../models/financialOperation.model";
@@ -317,6 +317,33 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
         status: "unknown"
       });
       expect(submissionsOf(setup.signedTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(0n);
+    },
+    30000
+  );
+
+  it(
+    "reverted destination transfer: holds the ramp in destinationTransfer instead of completing",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      // A reverted transfer moves no tokens.
+      world.evm.onTransaction = undefined;
+      world.evm.revertedReceiptHashes.add(keccak256(setup.signedTransfer));
+
+      await phaseProcessor.processRamp(setup.rampId);
+      // A later recovery cycle must not advance the ramp either.
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("destinationTransfer");
+      expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
+      expect(final?.state.destinationTransferTxHash).toBeUndefined();
+      expect(final?.errorLogs.some(log => log.error.includes("requires manual reconciliation"))).toBe(true);
+      expect(await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })).toMatchObject({
+        status: "failed"
+      });
+      expect(submissionsOf(setup.signedTransfer)).toBe(1);
       expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(0n);
     },
     30000

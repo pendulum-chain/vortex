@@ -10,6 +10,7 @@ import { decodeFunctionData, erc20Abi, keccak256, parseTransaction } from "viem"
 import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
+import { APIError } from "../../../../../errors/api-error";
 import { PhaseError, UnrecoverablePhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
@@ -171,6 +172,14 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
           const hash = await abortableCall(signal, () =>
             evmClientManager.sendRawTransactionWithRetry(destinationNetwork, signedTransaction)
           );
+          // The ramp completes only on a successful delivery receipt. A reverted transfer spends the
+          // presigned nonce and leaves the funds on the ephemeral, so the phase must not advance.
+          const receipt = await abortableCall(signal, () =>
+            destinationClient.waitForTransactionReceipt({ hash: hash as `0x${string}` })
+          );
+          if (receipt.status !== "success") {
+            throw new FinancialOperationRejectedError(`Destination transfer ${hash} failed`);
+          }
           return { hash };
         },
         provider: destinationNetwork,
@@ -203,6 +212,13 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
       return state;
     } catch (error) {
       if (error instanceof PhaseError) throw error;
+      // A reverted or definitively failed delivery cannot be retried with the spent presigned
+      // transaction; hold the ramp in this phase for manual reconciliation.
+      if (error instanceof APIError) {
+        throw this.createReconciliationRequiredError(
+          `DestinationTransferExecutor: delivery requires manual reconciliation - ${error.message}`
+        );
+      }
       throw this.createRecoverableError(
         `DestinationTransferExecutor: Error during phase execution - ${(error as Error).message}`
       );
