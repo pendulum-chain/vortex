@@ -570,6 +570,29 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
   );
 
   it(
+    "sends a presigned transaction the node refused once again, and delivers",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptPaidWorld(setup);
+      const onTransaction = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        onTransaction?.(tx);
+        // The next broadcast is the approval, and the node refuses it before it reaches the chain.
+        if (tx.serialized === setup.signed.relayBridge) {
+          world.evm.failNextSends = 1;
+          world.evm.sendFailureMessage = "max fee per gas less than block base fee";
+        }
+      };
+
+      const final = await startAndSettle(setup);
+
+      expectDelivered(setup, final);
+      expect(final.errorLogs.map(log => [log.phase, log.recoverable])).toEqual([["uniswapApprove", true]]);
+    },
+    60000
+  );
+
+  it(
     "keeps polling through a Relay status outage until the fill arrives",
     async () => {
       const setup = await setUpRegisteredRamp();

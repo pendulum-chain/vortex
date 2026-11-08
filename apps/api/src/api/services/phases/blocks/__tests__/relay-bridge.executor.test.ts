@@ -419,12 +419,26 @@ describe("buy broadcast", () => {
     expect(ramp.state.relayFillHash).toBe(FILL_TX);
   });
 
-  it("pauses instead of resending when a crash left a deposit with no receipt", async () => {
+  it("sends the same signed deposit again when a crash left it with no receipt, and settles it", async () => {
+    const ramp = await rampState(RampDirection.BUY);
+    const [approveHash, depositHash] = signedHashes(ramp);
+    operationRows.set("relay-approve", { response: { hash: approveHash }, status: "confirmed" });
+    operationRows.set("relay-deposit", { status: "submitted" });
+    const { deps, sendRawTransaction } = world([SUCCESS], FUNDED_ARRIVAL);
+    await run(ramp, deps);
+    expect(sendRawTransaction.mock.calls).toEqual([[ramp.presignedTxs[1].txData as `0x${string}`]]);
+    expect(ramp.state.relayBridgeHash).toBe(depositHash);
+  });
+
+  it("pauses when the node refuses the deposit again", async () => {
     const ramp = await rampState(RampDirection.BUY);
     const [approveHash] = signedHashes(ramp);
     operationRows.set("relay-approve", { response: { hash: approveHash }, status: "confirmed" });
     operationRows.set("relay-deposit", { status: "submitted" });
     const { deps, sendRawTransaction, state } = world([SUCCESS], FUNDED_ARRIVAL);
+    deps.sendRawTransaction = mock(async () => {
+      throw new Error("nonce too low");
+    });
     await expect(run(ramp, deps)).rejects.toBeInstanceOf(ReconciliationRequiredPhaseError);
     expect(sendRawTransaction).not.toHaveBeenCalled();
     expect(state.statusCalls).toBe(0);

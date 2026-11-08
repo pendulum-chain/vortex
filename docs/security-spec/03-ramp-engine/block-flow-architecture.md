@@ -105,6 +105,11 @@ runtime validation, and startup wiring checks therefore remain mandatory.
     HTTP status classes alone MUST NOT establish that proof. A submitted or ambiguous
     result, or reuse of an operation key with a different authorization, MUST halt for
     reconciliation and MUST NOT be repeated automatically.
+    Reconciling a presigned raw transaction is the one exception that does not create a
+    new attempt: its signed bytes fix its hash and nonce, so when no receipt exists the
+    executor sends those exact bytes again (`uniswap-presigned-broadcast`,
+    `relay-approve`, `relay-deposit`). They can land at most once, and the operation
+    stays `unknown` until a receipt settles it.
 16. **Request-schema rollout is status-aware.** A target-balance EVM subsidy may adopt
     the stable authorization hash for a legacy `not_started` row, or replay a legacy
     `confirmed` response only after verifying its mined ERC-20 sender, token,

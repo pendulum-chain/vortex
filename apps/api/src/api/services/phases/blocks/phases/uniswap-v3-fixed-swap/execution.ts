@@ -7,6 +7,7 @@ import type { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { validatePresignedEvmTransactionAgainstUnsigned } from "../../../../transactions/validation";
 import { throwIfAborted } from "../../core/cancellation";
+import { resendPresignedTransaction } from "../../core/evm-transactions";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { readStockFlags } from "../../core/robinhood-stocks";
 import { classifyStockRouteFailure, resolveUniswapRoute, type UniswapRoute } from "./route";
@@ -181,7 +182,12 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
         return { hash };
       },
       provider: route.network,
-      reconcile: async () => settle(settledReceipt ?? (await dependencies.getReceipt(deterministicHash))),
+      reconcile: async () =>
+        settle(
+          settledReceipt ??
+            (await dependencies.getReceipt(deterministicHash)) ??
+            (await resendPresignedTransaction(transaction, dependencies))
+        ),
       request: { network: route.network, signedTransaction: transaction },
       signal
     });

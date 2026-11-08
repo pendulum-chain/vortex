@@ -19,6 +19,7 @@ import type { StateMetadata } from "../../../../phases/meta-state-types";
 import { getSquidRouterPayTimeoutMs } from "../../../../phases/phase-processor-config";
 import { validatePresignedEvmTransactionAgainstUnsigned } from "../../../../transactions/validation";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
+import { resendPresignedTransaction } from "../../core/evm-transactions";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { classifyStockRouteFailure } from "../uniswap-v3-fixed-swap/route";
@@ -207,7 +208,8 @@ export class RelayBridgeExecutor extends BasePhaseHandler {
       },
       provider: Networks.Base,
       reconcile: async () => {
-        const receipt = await dependencies.getReceipt(deterministicHash);
+        const receipt =
+          (await dependencies.getReceipt(deterministicHash)) ?? (await resendPresignedTransaction(transaction, dependencies));
         return receipt && assertMined(receipt, deterministicHash);
       },
       request: { network: Networks.Base, signedTransaction: transaction },

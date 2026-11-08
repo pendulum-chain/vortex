@@ -1,4 +1,5 @@
 import { EvmClientManager, type EvmNetworks, type EvmTransactionData } from "@vortexfi/shared";
+import { keccak256 } from "viem";
 import { encodeFunctionData } from "viem/utils";
 import erc20ABI from "../../../../../contracts/ERC20";
 import { EVM_ERC20_TRANSFER_GAS_LIMIT, EVM_NATIVE_TRANSFER_GAS_LIMIT } from "./evm-destination-gas";
@@ -81,4 +82,27 @@ export async function createDestinationApprovalTransaction(params: {
     to: tokenAddress,
     value: "0"
   };
+}
+
+/**
+ * Reconciles a presigned transaction that has no receipt by sending its exact bytes again. The bytes fix its hash and
+ * nonce, so it can land at most once. A node that refuses them (already known, nonce used, fee below the base fee) or
+ * a receipt that does not arrive yields null, and the journal keeps the operation for the next pass.
+ */
+export async function resendPresignedTransaction<Receipt>(
+  transaction: `0x${string}`,
+  {
+    sendRawTransaction,
+    waitForReceipt
+  }: {
+    sendRawTransaction(transaction: `0x${string}`): Promise<`0x${string}`>;
+    waitForReceipt(hash: `0x${string}`): Promise<Receipt>;
+  }
+): Promise<Receipt | null> {
+  try {
+    await sendRawTransaction(transaction);
+    return await waitForReceipt(keccak256(transaction));
+  } catch {
+    return null;
+  }
 }
