@@ -29,8 +29,12 @@ import { STOCK_ROUTE_CONTEXT_KEY, type StockRouteSwapMetadata, type StockRouteSw
 import { quoteStockSwap, verifyStockSwapDeployment } from "../uniswap-v3-fixed-swap/simulation";
 
 const STABLECOIN_DECIMALS = 6;
-/** Taken off the Relay output a buy swaps, so the order placed at registration still costs at most the quoted input. */
+/**
+ * Taken off the Relay output a buy swaps, so the order placed at registration still costs at most the quoted input.
+ * The floor covers the fixed part of an EXACT_OUTPUT order's cost, about 0.0013 USDG, which 2 bps alone misses on small buys.
+ */
 const RELAY_FEE_DRIFT_MARGIN = 0.0002;
+const RELAY_FEE_DRIFT_MARGIN_MIN_RAW = 3000;
 export const RELAY_SELL_SLIPPAGE_TOLERANCE_BPS = "50";
 
 export interface StockRouteMetadata {
@@ -116,7 +120,11 @@ export async function simulateStockRouteBuy<Token extends StockSymbol>(
     tradeType: "EXACT_INPUT",
     user: RELAY_PLACEHOLDER_ADDRESS
   });
-  const usdgRaw = new Big(relayQuote.details.currencyOut.amount).mul(new Big(1).minus(RELAY_FEE_DRIFT_MARGIN)).toFixed(0, 0);
+  const relayOutputRaw = new Big(relayQuote.details.currencyOut.amount);
+  const driftMargin = relayOutputRaw.mul(RELAY_FEE_DRIFT_MARGIN);
+  const usdgRaw = relayOutputRaw
+    .minus(driftMargin.gt(RELAY_FEE_DRIFT_MARGIN_MIN_RAW) ? driftMargin : RELAY_FEE_DRIFT_MARGIN_MIN_RAW)
+    .toFixed(0, 0);
   if (BigInt(usdgRaw) <= 0n) throw new Error(`StockRoute: Relay leaves no USDG from ${input.amountRaw} USDC`);
 
   const stockRaw = await (dependencies.quoteSwap ?? quoteStockSwap)(stockSwapPath(token, RampDirection.BUY), BigInt(usdgRaw));

@@ -42,6 +42,8 @@ type FakeRelayFault = "malformed" | "timeout" | Error;
 export class FakeRelay {
   /** Spread Relay keeps, in bps of the input. Default mirrors the live 200-unit quotes. */
   feeBps = 6n;
+  /** Live EXACT_OUTPUT orders cost about this much more input than the spread alone, whatever their size. */
+  exactOutputFixedFeeRaw = 1300n;
   /** Consumed by the next quote or status call, for fail-then-succeed scenarios. */
   nextQuoteFault: FakeRelayFault | null = null;
   nextStatusFault: FakeRelayFault | null = null;
@@ -102,7 +104,7 @@ export class FakeRelay {
 
     const amount = BigInt(request.amount);
     const isExactInput = request.tradeType === "EXACT_INPUT";
-    const inputAmount = isExactInput ? amount : (amount * 10_000n) / (10_000n - this.feeBps) + 1n;
+    const inputAmount = isExactInput ? amount : (amount * 10_000n) / (10_000n - this.feeBps) + 1n + this.exactOutputFixedFeeRaw;
     const outputAmount = isExactInput ? (amount * (10_000n - this.feeBps)) / 10_000n : amount;
     const slippageBps = BigInt(request.slippageTolerance ?? "200");
     const minimumAmount = isExactInput ? (outputAmount * (10_000n - slippageBps)) / 10_000n : outputAmount;

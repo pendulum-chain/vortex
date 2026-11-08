@@ -339,6 +339,16 @@ describe("prepareStockRouteBuyTxs", () => {
     ]);
   });
 
+  it("orders a $5 buy within its quoted input, despite the fixed part of Relay's EXACT_OUTPUT cost", async () => {
+    const { metadata } = await simulateStockRouteBuy(NVDA, { ...buyInput, amount: new Big("5"), amountRaw: "5000000" }, ctx, {
+      quoteSwap: async (_path, amountIn) => (amountIn * 10n ** 12n) / 181n,
+      readReference: reference("181"),
+      verifyDeployment: async () => {}
+    });
+    const { state } = await prepareStockRouteBuyTxs(prepareCtx(metadata), transactionDependencies);
+    expect(BigInt((state as Record<string, string>).relayInputAmountRaw)).toBeLessThanOrEqual(5_000_000n);
+  });
+
   it("allocates the Base and 4663 lanes, with the backup on the first 4663 nonce", async () => {
     const { intents } = await prepareBuy();
     expect(lanes(allocateNonces(intents))).toEqual([

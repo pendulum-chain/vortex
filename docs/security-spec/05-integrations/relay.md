@@ -24,7 +24,8 @@ transaction is signed before it passes the validators in `packages/shared/src/se
 ### Buy: calldata deposit (Base USDC to USDG)
 
 1. **Quote.** `simulateStockRouteBuy` takes an `EXACT_INPUT` quote with a placeholder user, and swaps its output less a
-   2 bps drift margin. That reduced amount is `Y`, the exact USDG the ramp needs.
+   drift margin of 2 bps, at least 0.003 USDG. That reduced amount is `Y`, the exact USDG the ramp needs. The floor covers
+   the fixed part of an `EXACT_OUTPUT` order's cost, about 0.0013 USDG, so a small buy's order still fits its quote.
 2. **Registration.** `prepareStockRouteBuyTxs` asks for an `EXACT_OUTPUT` order of `Y` with `user`, `recipient` and
    `refundTo` all set to the ephemeral. `validateRelayCalldataDeposit` returns the `approve` and `depositErc20`
    transactions that become the presigned `relayApprove` and `relayBridge`.
