@@ -34,10 +34,11 @@ const BUY_UNVERIFIABLE_PT = "Esta compra não confere com a cotação, por isso 
 
 // The one thing this app's wallet signs on a sell: the seller's EIP-2612 permit. Its spender is the
 // ephemeral this device generated for the ramp, kept on the recovery record (signOnRobinhoodChain),
-// never an address the API names, and its nonce is the token's current one, read from the chain, so a
-// sell signed again (a resume) yields no second permit the token would accept. That bounds what the
-// wallet signs, not what the API may ask the ephemeral to presign, so the wallet-side limit is this
-// token and this amount.
+// never an address the API names. Its nonce is the token's nonce when the sale is first signed, pinned
+// on the same record: a sell signed again (a resume) signs at that nonce while the token is still at
+// it, and signs nothing once the token has moved past it, so the token accepts at most one of the
+// sale's permits. That bounds what the wallet signs, not what the API may ask the ephemeral to
+// presign, so the wallet-side limit is this token and this amount.
 const SELL_PHASES = Object.freeze({ stockPermitTransfer: Object.freeze(["permit"]) });
 
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
@@ -373,13 +374,20 @@ export function createVortexStocksAdapter({
   }
 
   async function signOnRobinhoodChain(sdk, rampId, unsignedTxs, walletAddress, wallet, expect, ramp) {
-    const ephemeral = activeRampStore.get(walletAddress)?.ephemeralEvmAddress;
+    const record = activeRampStore.get(walletAddress);
+    const ephemeral = record?.ephemeralEvmAddress;
     if (!ephemeral) throw new StocksRampError("SELL_EXPIRED", SELL_UNVERIFIABLE_PT, { details: { rampId } });
     const own = ownRequests(unsignedTxs, walletAddress);
     // Every stock sell has exactly one user request, and the API withholds it until presigning passed.
     if (own.length !== 1) throw new StocksRampError("WRONG_ROUTE", "A carteira não recebeu o pedido desta venda. Consulte o suporte com o código da operação.");
-    const permitNonce = await robinhoodReader(wallet).readContract({ address: expect.token, abi: STOCK_TOKEN_ABI, functionName: "nonces", args: [walletAddress] });
+    const chainNonce = String(await robinhoodReader(wallet).readContract({ address: expect.token, abi: STOCK_TOKEN_ABI, functionName: "nonces", args: [walletAddress] }));
+    // Pinned before the first signature. A token past it while the sale has not started means an
+    // earlier permit of this sale was used: nothing more is signed.
+    const permitNonce = record.permitNonce ?? chainNonce;
+    if (permitNonce !== chainNonce) throw new StocksRampError("SELL_EXPIRED", SELL_UNVERIFIABLE_PT, { details: { rampId } });
+    if (record.permitNonce == null) activeRampStore.save({ ...record, permitNonce });
     await submitWalletTransactions({ client: sdk, rampId, transactions: own, expect: { ...expect, spenders: [ephemeral], phases: SELL_PHASES, network, permitNonce }, beforeSign: async () => { await assertMaintenanceAvailable(getMaintenanceStatus); assertSellDeadline(ramp, activeRampStore.get(walletAddress)); }, from: walletAddress, provider: wallet.provider, chain: robinhoodChain, publicClient: robinhoodReader(wallet), ...checkpointsFor(walletAddress) });
+    return permitNonce;
   }
 
   const settle = (ramp, walletAddress) => {
@@ -481,8 +489,8 @@ export function createVortexStocksAdapter({
     const ramp = toStockRamp(rampProcess, { symbolHint: token.symbol, now: now() });
     onRegistered?.(ramp);
     assertSellDeadline(ramp, activeRampStore.get(walletAddress));
-    await signOnRobinhoodChain(sdk, rampProcess.id, unsignedTransactions, walletAddress, wallet, { token: token.address, maxAmountWei: quote.tokenAmountWei }, ramp);
-    activeRampStore.save({ ...recovery, rampId: rampProcess.id, stage: "ready" });
+    const permitNonce = await signOnRobinhoodChain(sdk, rampProcess.id, unsignedTransactions, walletAddress, wallet, { token: token.address, maxAmountWei: quote.tokenAmountWei }, ramp);
+    activeRampStore.save({ ...recovery, rampId: rampProcess.id, stage: "ready", permitNonce });
     return ramp;
   }
 
@@ -509,7 +517,7 @@ export function createVortexStocksAdapter({
     const raw = await getRampWithUnsignedTxs(session, rampId);
     const record = activeRampStore.get(walletAddress);
     const ownRecord = record?.rampId === rampId ? record : null;
-    const base = { walletAddress, inputAmount: raw?.inputAmount ?? ownRecord?.inputAmount, outputAmount: raw?.outputAmount ?? ownRecord?.outputAmount, rampType: "SELL", symbol: ownRecord?.symbol ?? toStockRamp(raw).symbol, tokenAddress: ownRecord?.tokenAddress, ephemeralEvmAddress: ownRecord?.ephemeralEvmAddress, createdAt: ownRecord?.createdAt ?? now() };
+    const base = { walletAddress, inputAmount: raw?.inputAmount ?? ownRecord?.inputAmount, outputAmount: raw?.outputAmount ?? ownRecord?.outputAmount, rampType: "SELL", symbol: ownRecord?.symbol ?? toStockRamp(raw).symbol, tokenAddress: ownRecord?.tokenAddress, ephemeralEvmAddress: ownRecord?.ephemeralEvmAddress, permitNonce: ownRecord?.permitNonce, createdAt: ownRecord?.createdAt ?? now() };
     const ramp = toStockRamp(raw, { symbolHint: base.symbol, now: now() });
     if (ramp.classification === "success" || ramp.classification === "failure") return settle(ramp, walletAddress);
     if (!ownRecord && ramp.currentPhase === "initial") throw new StocksRampError("SELL_EXPIRED", SELL_UNVERIFIABLE_PT, { details: { rampId } });
@@ -530,7 +538,7 @@ export function createVortexStocksAdapter({
         const amount = canonicalAmount(ownRecord.inputAmount);
         if (amount === null) throw new StocksRampError("INVALID_QUOTE", "Não foi possível conferir a quantidade desta venda. Consulte o suporte com o código da operação.");
         const expect = { token: ownRecord.tokenAddress, maxAmountWei: parseUnits(amount, 18) };
-        await signOnRobinhoodChain(await client(), rampId, raw?.unsignedTxs, walletAddress, wallet, expect, ramp);
+        base.permitNonce = await signOnRobinhoodChain(await client(), rampId, raw?.unsignedTxs, walletAddress, wallet, expect, ramp);
       }
     }
     activeRampStore.save({ ...base, rampId, stage: "ready" });

@@ -61,10 +61,12 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
   sell quote that is not `gasless` is refused before registration. Signing the backend's one-transfer
   fallback in the app stays off (RISK-034). The permit must match the chain,
   the sold token and the recorded amount exactly, with the seller as owner, a deadline at most
-  3900 s away, the token's current nonce read from the chain right before signing, and as spender
-  the ephemeral this device generated for the ramp, kept on its recovery record and never taken from
-  the API. A sell signed again therefore shares the earlier permit's nonce, and the token accepts at
-  most one of them. A resume without that record signs nothing. Other typed
+  3900 s away, and as spender the ephemeral this device generated for the ramp, kept on its recovery
+  record and never taken from the API. The nonce is the token's nonce when the sale is first signed,
+  pinned on that record before the signature. A sell signed again signs only at that nonce and only
+  while the chain still reads it; a chain nonce past it while the sale has not started signs nothing
+  and sends the user to support. The token therefore accepts at most one of the sale's permits. A
+  resume without that record signs nothing. Other typed
   data, router calls and native value fail closed. The kit's validator also accepts exact token
   approve/transfer calldata for a policy that lists them, which this app's does not.
   This bounds what the wallet signs, not what the API asks the ephemeral to presign: the SDK

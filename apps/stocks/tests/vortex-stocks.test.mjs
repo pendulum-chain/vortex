@@ -489,6 +489,33 @@ test("a sell signed again signs only at the token's current nonce, so the token 
   assert.ok(walletLog.includes("eth_signTypedData_v4"));
 });
 
+test("a sell signs again only at the nonce its first signature pinned, and not at all once the token is past it", async () => {
+  const walletLog = [];
+  const signatures = () => walletLog.filter((entry) => entry === "eth_signTypedData_v4").length;
+  const sdk = fakeSdk({ unsignedTransactions: [permitTx({ signer: WALLET, amountWei: SOLD_WEI, nonce: 7 })] });
+  const submit = sdk.client.submitUserTransactions;
+  // The signature is taken, then the update answers 500: the record stays at "signing".
+  sdk.client.submitUserTransactions = async (...args) => { await submit(...args); throw Object.assign(new Error("Internal server error"), { status: 500, isPublic: true }); };
+  let served = 8;
+  const session = fakeSession({ "/v1/ramp/ramp-fake-1": () => ({ id: "ramp-fake-1", type: "SELL", currentPhase: "initial", status: "PENDING", inputCurrency: "NVDA", inputAmount: "0.5", outputCurrency: "BRL", outputAmount: "570", createdAt: new Date(NOW).toISOString(), unsignedTxs: [permitTx({ signer: WALLET, amountWei: SOLD_WEI, nonce: served })] }) });
+  const { adapter: live, activeRampStore } = adapter({ sdk, session, readBalance: async () => 10n ** 18n });
+  const quote = await live.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+  await assert.rejects(live.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet(walletLog, { permitNonce: 7n }) }), code("SERVER_ERROR"));
+  assert.equal(signatures(), 1);
+  assert.equal(activeRampStore.get(WALLET).permitNonce, "7");
+  // Permit 7 was used without a start: the token is at 8 and the API asks for a permit at 8.
+  await assert.rejects(live.resumeSell({ rampId: "ramp-fake-1", walletAddress: WALLET, wallet: fakeWallet(walletLog, { permitNonce: 8n }) }), (error) => error.code === "SELL_EXPIRED" && /Consulte o suporte/.test(error.message));
+  assert.equal(signatures(), 1, "no second permit");
+  assert.equal(activeRampStore.get(WALLET).stage, "signing", "kept for support");
+  // The token still at the pinned nonce: signed again at it, and the pin stays on the record.
+  served = 7;
+  sdk.client.submitUserTransactions = submit;
+  await live.resumeSell({ rampId: "ramp-fake-1", walletAddress: WALLET, wallet: fakeWallet(walletLog, { permitNonce: 7n }) });
+  assert.equal(signatures(), 2);
+  assert.equal(activeRampStore.get(WALLET).stage, "ready");
+  assert.equal(activeRampStore.get(WALLET).permitNonce, "7");
+});
+
 test("a resume without this device's record signs nothing: only the record can pin token, amount and spender", async () => {
   // The API can cause this itself: one failed status clears a sell with no checkpoints, and the retry still reaches this step.
   const walletLog = [];
