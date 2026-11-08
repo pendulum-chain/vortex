@@ -474,9 +474,13 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
    * Runs brlaOnrampMint 31 minutes after the phase began, with no BRLA credited yet and each
    * Avenia balance wait ending in its chunk timeout at once.
    */
-  async function runMintPastPaymentWindow(payinTicketStatus: AveniaTicketStatus): Promise<RampState | null> {
+  async function runMintPastPaymentWindow(
+    payinTicketStatus: AveniaTicketStatus,
+    options: { ticketListed?: boolean } = {}
+  ): Promise<RampState | null> {
     const setup = await setUpRegisteredRamp();
     world.brla.payinTicketStatus = payinTicketStatus;
+    if (options.ticketListed === false) world.brla.pixInputTickets.length = 0;
     const now = Date.now();
     await RampState.update(
       {
@@ -545,6 +549,19 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       expect(final?.currentPhase).toBe("brlaOnrampMint");
       // Every retry of the phase reaches the window check, but operators hear about it once.
       expect(alerts).toEqual([expect.stringContaining(`Ramp ${final?.id} is past its Pix payment window`)]);
+    },
+    30000
+  );
+
+  it(
+    "payment window: a pay-in ticket missing from the ticket list does not cancel the ramp",
+    async () => {
+      const { alerts, final } = await captureSlackAlerts(() =>
+        runMintPastPaymentWindow(AveniaTicketStatus.PAID, { ticketListed: false })
+      );
+
+      expect(final?.currentPhase).toBe("brlaOnrampMint");
+      expect(alerts).toEqual([expect.stringContaining("pay-in ticket status not listed")]);
     },
     30000
   );

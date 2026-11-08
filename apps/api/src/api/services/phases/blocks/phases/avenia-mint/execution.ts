@@ -309,8 +309,8 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
 
   /**
    * The payment window cancels only a ramp whose Pix Avenia has not received. Once the pay-in ticket
-   * is processing, held for compliance review, or paid, the ramp keeps waiting for the BRLA and
-   * operators are alerted.
+   * is processing, held for compliance review, or paid, or when the ticket list does not show it, the
+   * ramp keeps waiting for the BRLA and operators are alerted.
    */
   private async isPaymentWindowClosed(
     state: RampState,
@@ -328,9 +328,9 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       .find(ticket => ticket.id === state.state.aveniaTicketId)
       ?.status.trim()
       .toUpperCase();
-    if (!RECEIVED_PAYIN_STATUSES.has(status ?? "")) return true;
+    if (status !== undefined && !RECEIVED_PAYIN_STATUSES.has(status)) return true;
 
-    await this.alertWaitingPastWindow(state.id, status as string);
+    await this.alertWaitingPastWindow(state.id, status ?? "not listed");
     return false;
   }
 
