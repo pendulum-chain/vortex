@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import * as shared from "@vortexfi/shared";
 import {
   AveniaTicketStatus,
@@ -12,6 +12,8 @@ import {
 import { decodeFunctionData, encodeFunctionData, erc20Abi, keccak256, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { SlackNotifier } from "../../api/services/slack.service";
+import { config } from "../../config/vars";
 import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
@@ -336,9 +338,19 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       scriptHappyWorld(setup);
       world.evm.failNextSends = 1;
       world.evm.sendFailureMessage = "FakeEvm: scripted RPC outage";
+      const slackToken = config.integrations.slack.webhookToken;
+      config.integrations.slack.webhookToken = "test-token";
+      const alert = spyOn(SlackNotifier.prototype, "sendMessage").mockResolvedValue();
 
-      await phaseProcessor.processRamp(setup.rampId);
+      await phaseProcessor.processRamp(setup.rampId).finally(() => {
+        config.integrations.slack.webhookToken = slackToken;
+      });
 
+      // The operator hears about it.
+      expect(alert).toHaveBeenCalledWith({
+        text: expect.stringContaining(`Ramp ${setup.rampId} is paused in destinationTransfer`)
+      });
+      alert.mockRestore();
       const final = await RampState.findByPk(setup.rampId);
       expect(final?.currentPhase).toBe("destinationTransfer");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
