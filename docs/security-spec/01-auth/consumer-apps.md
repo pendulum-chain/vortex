@@ -87,7 +87,9 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
   validates CPF check digits and ignores responses after the flow closes. A returning user's
   readiness refreshes the provider's attempt first: an attempt in review opens no form, and a state
   it cannot read is an error, never “not started”. A submission the API refuses goes back to the form;
-  one with an unknown outcome keeps the same payload, which the server needs to reconcile it. A
+  one with an unknown outcome keeps the same payload, which the server needs to reconcile it. The
+  selfie window starts as the app's own `about:blank`, so the kit accepts only an `https` liveness
+  URL and closes the window on anything else. A
   terminal Privy initialization error offers a reload instead of queuing login indefinitely.
 
 ## Hosting and verification

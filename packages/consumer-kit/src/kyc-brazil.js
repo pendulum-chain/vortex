@@ -6,6 +6,8 @@ import { isTransientError } from "./ramp-tracking.js";
 
 /** @typedef {{kycStatus:"approved"|"pending"|"not_started", canBuy:boolean, canSell:boolean}} Readiness */
 
+const isHttpsUrl = (value) => { try { return new URL(value).protocol === "https:"; } catch { return false; } };
+
 export const cleanCpf = (value) => String(value || "").replace(/\D/g, "").slice(0, 11);
 
 export function isValidCpf(value) {
@@ -90,8 +92,14 @@ export function createBrazilKyc({ session, fetchImpl }) {
   const createSubaccount = ({ name, taxId, quoteId, sessionId }) =>
     authed("/v1/brl/createSubaccount", { method: "POST", body: JSON.stringify({ accountType: "INDIVIDUAL", name, taxId, quoteId, sessionId }) });
 
-  const getUploadUrls = ({ taxId, documentType, isDoubleSided }) =>
-    authed("/v1/brl/getUploadUrls", { method: "POST", body: JSON.stringify({ taxId, documentType, isDoubleSided }) });
+  // The app opens the liveness URL in a window that starts as its own about:blank, so only an https
+  // page is accepted: any other scheme would run on the app's origin.
+  async function getUploadUrls({ taxId, documentType, isDoubleSided }) {
+    const uploads = await authed("/v1/brl/getUploadUrls", { method: "POST", body: JSON.stringify({ taxId, documentType, isDoubleSided }) });
+    const liveness = uploads?.selfieUpload?.livenessUrl;
+    if (liveness && !isHttpsUrl(liveness)) throw new VortexError("Não foi possível abrir a verificação da Avenia. Tente novamente mais tarde.", { code: "INVALID_LIVENESS_URL" });
+    return uploads;
+  }
 
   // Presigned upload URL: unauthenticated on purpose.
   async function uploadDocument(uploadUrl, file) {

@@ -129,6 +129,18 @@ test("KYC calls hit the Gold endpoints with the OTP bearer", async () => {
   assert.ok(seen.every((call) => /^Bearer /.test(call.auth)));
 });
 
+test("a liveness URL that is not https is refused before the app can open it", async () => {
+  const { kyc } = signedIn();
+  for (const livenessUrl of ["javascript:alert(1)", "data:text/html,<script>1</script>", "http://liveness.example", "not a url"]) {
+    await withFetch(async () => json({ idUpload: { id: "doc" }, selfieUpload: { id: "selfie", livenessUrl } }), async () => {
+      await assert.rejects(kyc.getUploadUrls({ taxId: "12345678909", documentType: "ID", isDoubleSided: false }), { code: "INVALID_LIVENESS_URL" }, livenessUrl);
+    });
+  }
+  await withFetch(async () => json({ idUpload: { id: "doc" }, selfieUpload: { id: "selfie", livenessUrl: "https://liveness.example/s" } }), async () => {
+    assert.equal((await kyc.getUploadUrls({ taxId: "12345678909", documentType: "ID", isDoubleSided: false })).selfieUpload.livenessUrl, "https://liveness.example/s");
+  });
+});
+
 test("document upload goes to the presigned URL without the Vortex bearer", async () => {
   const { kyc } = signedIn();
   const seen = [];
