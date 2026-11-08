@@ -49,7 +49,7 @@ function rampState() {
 }
 
 function fakeChain(overrides: Partial<Dependencies> = {}) {
-  const sends: Array<{ to: string; value: bigint }> = [];
+  const sends: Array<{ gas: bigint; to: string; value: bigint }> = [];
   const dependencies: Dependencies = {
     getNativeBalance: async () => AMOUNT * 2n,
     getReceipt: async () => ({ status: "success" }),
@@ -74,13 +74,13 @@ describe("GasReserveTopUpExecutor", () => {
     expect(journal.attempts).toEqual([]);
   });
 
-  it("sends exactly the quoted wei to the destination", async () => {
+  it("sends exactly the quoted wei to the destination, with a fixed gas limit", async () => {
     quoteWith({ amountRaw: AMOUNT.toString(), quotedFor: DESTINATION });
     const { executor, sends } = fakeChain();
 
     await executor.execute(rampState());
 
-    expect(sends).toEqual([{ to: DESTINATION, value: AMOUNT }]);
+    expect(sends).toEqual([{ gas: 100_000n, to: DESTINATION, value: AMOUNT }]);
     expect(journal.attempts).toEqual(["gas-reserve-top-up"]);
   });
 

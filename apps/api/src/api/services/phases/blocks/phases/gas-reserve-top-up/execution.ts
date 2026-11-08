@@ -9,6 +9,9 @@ import { FinancialOperationRejectedError } from "../../core/financial-operation"
 import { getBlockMetadata } from "../../core/metadata";
 import { GasReserveTopUpContext } from "./simulation";
 
+/** Covers a contract wallet's `receive`. Robinhood Chain adds no L1 gas to a plain transfer. */
+export const GAS_RESERVE_GAS_LIMIT = 100_000n;
+
 interface Receipt {
   status: "success" | "reverted";
 }
@@ -16,7 +19,7 @@ interface Receipt {
 export interface GasReserveTopUpDependencies {
   getNativeBalance(address: `0x${string}`): Promise<bigint>;
   getReceipt(hash: `0x${string}`): Promise<Receipt | null>;
-  send(transaction: { to: `0x${string}`; value: bigint }): Promise<`0x${string}`>;
+  send(transaction: { gas: bigint; to: `0x${string}`; value: bigint }): Promise<`0x${string}`>;
   waitForReceipt(hash: `0x${string}`): Promise<Receipt>;
 }
 
@@ -84,7 +87,7 @@ export class GasReserveTopUpExecutor extends BasePhaseHandler {
             },
             externalId: result => result.hash,
             perform: async () => {
-              const hash = await dependencies.send({ to: destination, value: amount });
+              const hash = await dependencies.send({ gas: GAS_RESERVE_GAS_LIMIT, to: destination, value: amount });
               await this.updateTxHash(state, hash);
               const result = settle(hash, await dependencies.waitForReceipt(hash));
               if (!result) throw new Error(`Gas reserve transfer ${hash} has no receipt`);
