@@ -58,6 +58,15 @@ test("merge by id: the server status wins, the list is newest first", () => {
   assert.equal(merged[1].explorerLink, "https://x");
 });
 
+test("merge: a server \"processing\" never overrides a final status this device recorded, except a Pix that started", () => {
+  const server = (currentPhase) => serverHistoryRows({ transactions: [{ id: "a", type: "BUY", from: "pix", to: "robinhood", fromAmount: "500", toAmount: "0.42", toCurrency: "NVDA", status: "PENDING", currentPhase, date: new Date().toISOString() }] }, "robinhood");
+  const local = (status) => [{ id: "a", direction: "BUY", symbol: "NVDA", brlAmount: 500, tokenAmount: "0.42", date: 1000, status, simulated: false, explorerLink: null }];
+  assert.equal(mergeHistory(local("failure"), server("initial"))[0].status, "failure", "a Pix given up while unpaid");
+  assert.equal(mergeHistory(local("success"), server("nablaSwap"))[0].status, "success", "an older server snapshot");
+  assert.equal(mergeHistory(local("failure"), server("nablaSwap"))[0].status, "processing", "paid after all: the server shows it running");
+  assert.equal(mergeHistory([], server("initial"))[0].status, "processing");
+});
+
 test("merge keeps the local explorer link and amounts when the server row has none", () => {
   const link = "https://robinhoodchain.blockscout.com/tx/0xab";
   const local = [{ id: "a", direction: "BUY", symbol: "NVDA", brlAmount: 500, tokenAmount: "0.4", date: 1000, status: "success", simulated: false, explorerLink: link }];

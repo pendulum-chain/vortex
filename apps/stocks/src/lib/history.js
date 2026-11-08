@@ -5,7 +5,8 @@ import { classifyRamp } from "@vortexfi/consumer-kit";
 import { resolveSymbol } from "./ramp-contract.js";
 
 /** @typedef {{ id:string, direction:"BUY"|"SELL", symbol:string|null, brlAmount:number|null, tokenAmount:string|null,
- *   date:number|null, status:"success"|"failure"|"processing", simulated:boolean, explorerLink:string|null }} HistoryRow */
+ *   date:number|null, status:"success"|"failure"|"processing", simulated:boolean, explorerLink:string|null, phase?:string|null }} HistoryRow
+ *   phase: the server's currentPhase (server rows only) */
 
 const numberOrNull = (value) => (value === "" || value == null || !Number.isFinite(Number(value)) ? null : Number(value));
 const decimalOrNull = (value) => (/^\d+(?:\.\d+)?$/.test(String(value ?? "")) ? String(value) : null);
@@ -47,19 +48,25 @@ export function serverHistoryRows(response, network) {
       status: classification === "success" || classification === "failure" ? classification : "processing",
       simulated: false,
       explorerLink: item.externalTxExplorerLink || null,
+      phase: item.currentPhase || null,
     };
   }).filter((row) => row.id);
 }
 
 /**
  * Merged by id, newest first: the server wins (it knows the final status) except where it has no
- * value, so a local symbol or explorer link is never replaced by a server null.
+ * value, so a local symbol or explorer link is never replaced by a server null. A server "processing"
+ * never replaces a final status this device recorded (the server rows can be an older snapshot, and
+ * a Pix given up while `initial` is still "processing" there for an hour), unless the device recorded
+ * a failure and the server shows the ramp has left `initial` since: a Pix paid after all.
  */
 export function mergeHistory(local = [], server = []) {
   const byId = new Map(local.map((row) => [row.id, row]));
   for (const row of server) {
+    const own = byId.get(row.id);
     const known = Object.fromEntries(Object.entries(row).filter(([, value]) => value != null));
-    byId.set(row.id, { ...row, ...byId.get(row.id), ...known });
+    if (own && row.status === "processing" && !(own.status === "failure" && row.phase !== "initial")) delete known.status;
+    byId.set(row.id, { ...row, ...own, ...known });
   }
   return [...byId.values()].sort((a, b) => (b.date ?? 0) - (a.date ?? 0));
 }
