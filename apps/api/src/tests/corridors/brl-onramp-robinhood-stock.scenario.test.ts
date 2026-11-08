@@ -30,6 +30,7 @@ import { StockSettlementContext } from "../../api/services/phases/blocks/phases/
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import baseChainPostProcessHandler from "../../api/services/phases/post-process/base-chain-post-process-handler";
 import robinhoodPostProcessHandler from "../../api/services/phases/post-process/robinhood-post-process-handler";
+import { SlackNotifier } from "../../api/services/slack.service";
 import RampRecoveryWorker from "../../api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "../../api/workers/unhandled-payment.worker";
 import sequelize from "../../config/database";
@@ -643,8 +644,19 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
       setup.ledger.swapFillBps = 9_600n;
       const usdgBefore = parseUnits("1000", 6);
       world.evm.setErc20Balance(Networks.Robinhood, USDG_ON_ROBINHOOD, FUNDING, usdgBefore);
+      const slackToken = config.integrations.slack.webhookToken;
+      config.integrations.slack.webhookToken = "test-token";
+      const alert = spyOn(SlackNotifier.prototype, "sendMessage").mockResolvedValue();
 
-      const paused = await startAndSettle(setup);
+      const paused = await startAndSettle(setup).finally(() => {
+        config.integrations.slack.webhookToken = slackToken;
+      });
+
+      // The operator hears about it.
+      expect(alert).toHaveBeenCalledWith({
+        text: expect.stringContaining(`Ramp ${setup.rampId} is paused in stockSettlementTopUp`)
+      });
+      alert.mockRestore();
 
       expect(paused.currentPhase).toBe("stockSettlementTopUp");
       const pausedLog = paused.errorLogs.at(-1);

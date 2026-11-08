@@ -12,6 +12,7 @@ import {
   UnrecoverablePhaseError
 } from "../../errors/phase-error";
 import { enqueueRampCompletedEmail } from "../email/ramp-completion";
+import { SlackNotifier } from "../slack.service";
 import { getBlockFlowByIdentity } from "./blocks/flows/catalog";
 import { StateMetadata } from "./meta-state-types";
 import { isMoonbeamRuntimeDisabledForState } from "./moonbeam-runtime";
@@ -30,6 +31,8 @@ export class PhaseProcessor {
   // Overridable so tests don't wait 30s between recoverable-error retries.
   private readonly DEFAULT_RETRY_DELAY_MS = getPhaseProcessorRetryDelayMs();
   private lockedRamps = new Set<string>();
+  /** One instance, so its cooldown repeats an identical alert at most every six hours. */
+  private slackNotifier?: SlackNotifier;
 
   /**
    * Get the singleton instance
@@ -39,6 +42,18 @@ export class PhaseProcessor {
       PhaseProcessor.instance = new PhaseProcessor();
     }
     return PhaseProcessor.instance;
+  }
+
+  /** A paused ramp waits for an operator, so tell one. A failed alert is only logged. */
+  private async alertPaused(rampId: string, phase: RampPhase): Promise<void> {
+    if (!this.slackNotifier && config.integrations.slack.webhookToken) this.slackNotifier = new SlackNotifier();
+    try {
+      await this.slackNotifier?.sendMessage({
+        text: `Ramp ${rampId} is paused in ${phase} until an operator reconciles it. Its error logs hold the reason.`
+      });
+    } catch (error) {
+      logger.warn(`Paused-ramp alert for ${rampId} failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -348,6 +363,7 @@ export class PhaseProcessor {
             `Pausing ramp ${errorUpdatedState.id} in phase ${state.currentPhase}: financial outcome requires reconciliation`
           );
           this.retriesMap.delete(errorUpdatedState.id);
+          await this.alertPaused(errorUpdatedState.id, state.currentPhase);
           return;
         }
 
