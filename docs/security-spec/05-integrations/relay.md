@@ -94,7 +94,7 @@ Vortex has no Relay webhook: state comes from polling and from on-chain reads. `
 | **Stuck or late fill** | The solver never fills, or fills after the poll has ended | The ramp keeps re-entering and waits on the ephemeral's balance, so a late fill is still seen. Fees distributed earlier stay final under RISK-010. This behaviour has test coverage only, tracked under RISK-029. |
 | **Refund to the wrong party** | An order pays refunds elsewhere | Every refund recipient must be the ephemeral. |
 | **Destination call injection** | An order includes destination calls | `output.calls` must be empty. |
-| **Provider rate limit** | Quote traffic exceeds Relay's budget | A `429` at quote time produces no quote, and a `429` at registration returns the public 503. A status `429` counts as an unavailable status. |
+| **Provider rate limit** | Quote traffic exceeds Relay's budget | Relay's budget belongs to the API key and is shared by every caller, so stock quotes are limited per IP (`STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE`, default 20). A `429` at quote time produces no quote, and a `429` at registration returns the public 503. A status `429` counts as an unavailable status. |
 | **TLS downgrade** | MITM on the API connection | HTTPS base URL by default. The validators limit a tampered response, with the strict deposit address as the residual risk above. |
 
 ## Audit Checklist
@@ -112,4 +112,5 @@ Vortex has no Relay webhook: state comes from polling and from on-chain reads. `
 - [ ] Strict deposit address ownership: not verifiable offline, accepted under RISK-027
 - [ ] Late fills, refunds, overpayment scaling and the operator recovery approvals: not exercised with real funds, tracked under RISK-029
 - [ ] Live shape of `POST /quote/v2` and `GET /intents/status/v3`: covered by `apps/api/src/tests/contracts/relay.contract.test.ts` behind `RUN_LIVE_TESTS`, not a PR-blocking check. It sends the stock route's exact quote and order requests, which a hermetic test pins against the production code, and a refused request other than `401`, `403` or `429` fails it
+- [ ] Production `RELAY_API_KEY` on Relay's elevated quote budget: Relay's default of 50 quotes per minute is below what a few IPs may request under the per-IP limit; deployment-dependent
 - [ ] `CONTRACT_RELAY_API_KEY` for the nightly contract job: deployment-dependent; the job runs unkeyed without it

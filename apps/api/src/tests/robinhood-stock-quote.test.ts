@@ -159,6 +159,23 @@ describe("Robinhood Chain stock quotes, end to end", () => {
       globals: { gasReserve?: { amountRaw: string; quotedFor?: string; usd: string }; request: { destinationAddress?: string } };
     };
 
+  it("limits stock quotes per address, without counting other quotes", async () => {
+    const limit = config.stocks.quoteRateLimitPerMinute;
+    config.stocks.quoteRateLimitPerMinute = 2;
+    try {
+      const from = { "X-Forwarded-For": "203.0.113.7" };
+      const statuses: number[] = [];
+      for (const body of [buyBody, sellBody, buyBody]) statuses.push((await postQuote(body, from)).status);
+      expect(statuses).toEqual([201, 201, 429]);
+
+      const otherQuote = { ...buyBody, network: Networks.Polygon, outputCurrency: EvmToken.USDC, to: Networks.Polygon };
+      expect((await postQuote(otherQuote, from)).status).not.toBe(429);
+      expect((await postQuote(buyBody, { "X-Forwarded-For": "203.0.113.8" })).status).toBe(201);
+    } finally {
+      config.stocks.quoteRateLimitPerMinute = limit;
+    }
+  });
+
   describe("route pricing", () => {
     it.each([
       ["BUY", buyBody, "BrlOnrampRobinhoodStock", "0.25"],

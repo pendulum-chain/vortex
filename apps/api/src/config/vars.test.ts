@@ -401,6 +401,7 @@ describe("vars stocks corridor", () => {
       gasReserveThresholdWei: "20000000000000",
       maxPriceDeviationBps: 200,
       priceReferenceMaxAgeHours: 72,
+      quoteRateLimitPerMinute: 20,
       settlementSubsidyMaxBps: 250,
       settlementSubsidyMaxUsd: "50"
     });
@@ -416,6 +417,7 @@ describe("vars stocks corridor", () => {
     [{ STOCKS_ENABLED_DIRECTIONS: "BUY,HOLD" }, "STOCKS_ENABLED_DIRECTIONS contains unknown directions: HOLD"],
     [{ STOCKS_MAX_PRICE_DEVIATION_BPS: "0" }, "STOCKS_MAX_PRICE_DEVIATION_BPS must be a positive integer"],
     [{ STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS: "1.5" }, "STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS must be a positive integer"],
+    [{ STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE: "0" }, "STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE must be a positive integer"],
     [{ STOCKS_SETTLEMENT_SUBSIDY_MAX_USD: "free" }, "STOCKS_SETTLEMENT_SUBSIDY_MAX_USD must be a positive number"],
     [{ ROBINHOOD_GAS_RESERVE_TARGET_WEI: "1e15" }, "ROBINHOOD_GAS_RESERVE_TARGET_WEI must be a non-negative integer"],
     [{ ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI: "60000000000000" }, "ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI must not exceed"]

@@ -258,6 +258,7 @@ interface Config {
     gasReserveThresholdWei: bigint;
     maxPriceDeviationBps: number;
     priceReferenceMaxAgeHours: number;
+    quoteRateLimitPerMinute: number;
     settlementSubsidyMaxBps: number;
     settlementSubsidyMaxUsd: string;
   };
@@ -549,6 +550,7 @@ export const config: Config = {
     gasReserveThresholdWei: readWeiEnv("ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI", "20000000000000"),
     maxPriceDeviationBps: readPositiveIntegerEnv("STOCKS_MAX_PRICE_DEVIATION_BPS", "200"),
     priceReferenceMaxAgeHours: readPositiveIntegerEnv("STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS", "72"),
+    quoteRateLimitPerMinute: readPositiveIntegerEnv("STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE", "20"),
     settlementSubsidyMaxBps: readPositiveIntegerEnv("STOCKS_SETTLEMENT_SUBSIDY_MAX_BPS", "250"),
     settlementSubsidyMaxUsd: readPositiveDecimalEnv("STOCKS_SETTLEMENT_SUBSIDY_MAX_USD", "50")
   },

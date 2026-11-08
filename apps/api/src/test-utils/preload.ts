@@ -65,6 +65,7 @@ if (!process.env.RUN_LIVE_TESTS) {
 
   // Keep rate limiting out of the way of HTTP-level tests.
   process.env.RATE_LIMIT_MAX_REQUESTS = "100000";
+  process.env.STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE = "100000";
 
   // Fast retries so recoverable-error scenarios don't wait 30s per attempt.
   process.env.PHASE_PROCESSOR_RETRY_DELAY_MS = "25";
