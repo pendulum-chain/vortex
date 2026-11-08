@@ -35,6 +35,7 @@ import UnhandledPaymentWorker from "../../api/workers/unhandled-payment.worker";
 import sequelize from "../../config/database";
 import { config } from "../../config/vars";
 import { up as seedStocksPartner } from "../../database/migrations/089-add-stocks-partner";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
@@ -644,6 +645,36 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
       const final = (await RampState.findByPk(setup.rampId)) as RampState;
       expectDelivered(setup, final);
       expect(usdgOf(FUNDING)).toBe(usdgBefore);
+    },
+    60000
+  );
+
+  it(
+    "holds a paid ramp while the funding wallet has no ETH on Robinhood Chain, and resumes once it is refilled",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptPaidWorld(setup);
+      world.evm.setNativeBalance(Networks.Robinhood, FUNDING, 0n);
+
+      const held = await startAndSettle(setup);
+
+      expect(held.currentPhase).toBe("fundEphemeral");
+      expect(held.errorLogs.every(log => log.phase === "fundEphemeral" && log.recoverable)).toBe(true);
+      expect(held.errorLogs.at(-1)?.error).toContain("native wei on robinhood");
+      expect(world.evm.nativeBalance(Networks.Robinhood, setup.ephemeral.address)).toBe(0n);
+      const funding = await FinancialOperation.findOne({
+        where: { attemptClass: "destination-evm-native-funding-v2", scopeId: setup.rampId }
+      });
+      expect(funding?.status).toBe("not_started");
+
+      // Treasury refills the wallet. The worker picks the stale ramp up again.
+      world.evm.setNativeBalance(Networks.Robinhood, FUNDING, parseEther("10"));
+      await sequelize.query("UPDATE ramp_states SET updated_at = NOW() - INTERVAL '11 minutes' WHERE id = :id", {
+        replacements: { id: setup.rampId }
+      });
+      await (new RampRecoveryWorker("*/5 * * * *", false) as unknown as { recover: () => Promise<void> }).recover();
+
+      expectDelivered(setup, (await RampState.findByPk(setup.rampId)) as RampState);
     },
     60000
   );

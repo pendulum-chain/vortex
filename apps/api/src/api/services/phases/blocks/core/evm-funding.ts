@@ -1,7 +1,10 @@
 import { EvmClientManager, EvmNetworks } from "@vortexfi/shared";
 import { type PrivateKeyAccount, privateKeyToAccount } from "viem/accounts";
+import logger from "../../../../../config/logger";
 import { EVM_FUNDING_PRIVATE_KEY } from "../../../../../config/vars";
+import { RecoverablePhaseError } from "../../../../errors/phase-error";
 import { abortableCall, throwIfAborted } from "./cancellation";
+import { getEvmNativeFeeCurrency } from "./evm-destination-gas";
 
 let cachedAccount: PrivateKeyAccount | undefined;
 const operationTails = new Map<string, Promise<void>>();
@@ -68,4 +71,25 @@ export async function sendEvmFundingTransaction(
     client.getTransactionCount({ address: account.address, blockTag: "pending" })
   ]);
   return manager.sendTransactionWithBlindRetry(network, account, { ...transaction, maxFeePerGas, maxPriorityFeePerGas, nonce });
+}
+
+/**
+ * Holds a funding send the wallet cannot pay for: its value plus its gas at the fee cap. Call it before the journal
+ * claims the send, so a short wallet leaves the operation unclaimed and a refill resumes the ramp.
+ */
+export function assertEvmFundingNativeBalance(
+  availableRaw: bigint,
+  requiredRaw: bigint,
+  context: { network: EvmNetworks; phase: string; rampId: string }
+): void {
+  if (availableRaw >= requiredRaw) return;
+  logger.error("EVM_FUNDING_TOKEN_BALANCE_LOW", {
+    ...context,
+    availableRaw: availableRaw.toString(),
+    requiredRaw: requiredRaw.toString(),
+    token: getEvmNativeFeeCurrency(context.network)
+  });
+  throw new RecoverablePhaseError(
+    `Funding wallet holds ${availableRaw} native wei on ${context.network}, below the ${requiredRaw} this send may cost`
+  );
 }

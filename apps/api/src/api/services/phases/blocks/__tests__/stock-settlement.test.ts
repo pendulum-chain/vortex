@@ -38,6 +38,7 @@ const TARGET = 1_000_000_000_000_000_000n;
 const SHORTFALL = 10_000_000_000_000_000n;
 const PRICE_USD = new Big("180");
 const USDG_IN = 1_810_000n;
+const MAX_FEE_PER_GAS = 30_000_000n;
 
 const metadata: StockSettlementMetadata = {
   amountRaw: TARGET.toString(),
@@ -82,6 +83,7 @@ function rampState() {
 
 interface FakeChain {
   balances: Map<string, bigint>;
+  fundingEth: bigint;
   receiptStatus: "success" | "reverted";
   sends: Array<{ data: `0x${string}`; gas: bigint; to: `0x${string}` }>;
 }
@@ -90,11 +92,13 @@ const key = (token: string, owner: string) => `${token}:${owner}`.toLowerCase();
 
 function fakeChain({
   ephemeralStock = TARGET - SHORTFALL,
+  fundingEth = 10n ** 18n,
   fundingStock = 0n,
   fundingUsdg = 1_000_000_000n,
   overrides = {}
 }: {
   ephemeralStock?: bigint;
+  fundingEth?: bigint;
   fundingStock?: bigint;
   fundingUsdg?: bigint;
   overrides?: Partial<Dependencies>;
@@ -105,10 +109,13 @@ function fakeChain({
       [key(STOCK, funding), fundingStock],
       [key(ROBINHOOD_USDG_ADDRESS, funding), fundingUsdg]
     ]),
+    fundingEth,
     receiptStatus: "success",
     sends: []
   };
   const dependencies: Dependencies = {
+    estimateMaxFeePerGas: async () => MAX_FEE_PER_GAS,
+    getNativeBalance: async owner => (owner === funding ? chain.fundingEth : 0n),
     getTokenBalance: async (token, owner) => chain.balances.get(key(token, owner)) ?? 0n,
     quoteUsdgIn: async () => USDG_IN,
     readStockPriceUsd: async () => PRICE_USD,
@@ -226,6 +233,33 @@ describe("StockSettlementExecutor", () => {
     expect(thrown).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
     expect(chain.sends).toEqual([]);
     expect(error).toHaveBeenCalledWith("EVM_FUNDING_TOKEN_BALANCE_LOW", expect.objectContaining({ token: ROBINHOOD_USDG_ADDRESS }));
+  });
+
+  it.each<[string, bigint, bigint]>([
+    ["the transfer path", SHORTFALL, 100_000n],
+    ["the USDG path", 0n, UNISWAP_APPROVE_GAS_LIMIT + UNISWAP_SWAP_GAS_LIMIT]
+  ])("holds unclaimed while the funding wallet cannot pay the gas on %s, and delivers once it is refilled", async (_label, fundingStock, gas) => {
+    const error = spyOn(logger, "error");
+    const required = gas * MAX_FEE_PER_GAS;
+    const { chain, executor } = fakeChain({ fundingEth: required - 1n, fundingStock });
+    const state = rampState();
+
+    const thrown = await executor.execute(state).catch(value => value);
+
+    expect(thrown).toBeInstanceOf(RecoverablePhaseError);
+    expect(thrown).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect(chain.sends).toEqual([]);
+    expect(journal.rows.get("stock-settlement-top-up")).toBeUndefined();
+    expect(error).toHaveBeenCalledWith(
+      "EVM_FUNDING_TOKEN_BALANCE_LOW",
+      expect.objectContaining({ requiredRaw: required.toString(), token: "ETH" })
+    );
+
+    chain.fundingEth = required;
+    await executor.execute(state);
+
+    expect(chain.balances.get(key(STOCK, ephemeral))).toBe(TARGET);
+    expect(journal.rows.get("stock-settlement-top-up")?.status).toBe("confirmed");
   });
 
   it("retries while the price reference is unavailable", async () => {

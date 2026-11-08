@@ -46,7 +46,7 @@ import {
   calculateQuotedPresignedExecutionBudgetRaw,
   EVM_DESTINATION_FUNDING_PROGRAM_VERSION
 } from "../../core/evm-destination-gas";
-import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../core/evm-funding";
+import { assertEvmFundingNativeBalance, getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../core/evm-funding";
 import { type EvmDestinationGasQuote, getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
 import { getNativePrefunding } from "../../core/prepare";
 import { ROBINHOOD_STOCKS } from "../../core/robinhood-stocks";
@@ -488,6 +488,13 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
             beforePerform: async () => {
               const fees = await destinationClient.estimateFeesPerGas();
               await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, destinationNetwork, fees.maxFeePerGas);
+              assertEvmFundingNativeBalance(
+                await destinationClient.getBalance({ address: fundingAccount.address }),
+                fundingAmountRaw +
+                  BigInt(destinationGasQuote.fundingGasLimit) * fees.maxFeePerGas +
+                  BigInt(destinationGasQuote.maximumFundingL1FeeRaw ?? "0"),
+                { network: destinationNetwork, phase: this.getPhaseName(), rampId: state.id }
+              );
               checkedFees = fees;
             },
             externalId: result => result.hash,

@@ -1,10 +1,14 @@
 import { EvmClientManager, Networks, type RampPhase } from "@vortexfi/shared";
-import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../../models/rampState.model";
 import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
-import { getEvmFundingAccount, runSerializedEvmFundingOperation, sendEvmFundingTransaction } from "../../core/evm-funding";
+import {
+  assertEvmFundingNativeBalance,
+  getEvmFundingAccount,
+  runSerializedEvmFundingOperation,
+  sendEvmFundingTransaction
+} from "../../core/evm-funding";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata } from "../../core/metadata";
 import { GasReserveTopUpContext } from "./simulation";
@@ -17,6 +21,7 @@ interface Receipt {
 }
 
 export interface GasReserveTopUpDependencies {
+  estimateMaxFeePerGas(): Promise<bigint>;
   getNativeBalance(address: `0x${string}`): Promise<bigint>;
   getReceipt(hash: `0x${string}`): Promise<Receipt | null>;
   send(transaction: { gas: bigint; to: `0x${string}`; value: bigint }): Promise<`0x${string}`>;
@@ -26,6 +31,7 @@ export interface GasReserveTopUpDependencies {
 function defaultDependencies(): GasReserveTopUpDependencies {
   const client = EvmClientManager.getInstance().getClient(Networks.Robinhood);
   return {
+    estimateMaxFeePerGas: async () => (await client.estimateFeesPerGas()).maxFeePerGas,
     getNativeBalance: address => client.getBalance({ address }),
     async getReceipt(hash) {
       try {
@@ -73,17 +79,15 @@ export class GasReserveTopUpExecutor extends BasePhaseHandler {
           this.runFinancialOperation(state, {
             attemptClass: "gas-reserve-top-up",
             beforePerform: async () => {
-              const available = await dependencies.getNativeBalance(funding);
-              if (available >= amount) return;
-              logger.error("EVM_FUNDING_TOKEN_BALANCE_LOW", {
-                availableRaw: available.toString(),
+              const [available, maxFeePerGas] = await Promise.all([
+                dependencies.getNativeBalance(funding),
+                dependencies.estimateMaxFeePerGas()
+              ]);
+              assertEvmFundingNativeBalance(available, amount + GAS_RESERVE_GAS_LIMIT * maxFeePerGas, {
                 network: Networks.Robinhood,
                 phase: this.getPhaseName(),
-                rampId: state.id,
-                requiredRaw: amountRaw,
-                token: "ETH"
+                rampId: state.id
               });
-              throw this.createRecoverableError(`Gas reserve: funding wallet holds ${available}, below ${amountRaw} wei`);
             },
             externalId: result => result.hash,
             perform: async () => {

@@ -23,6 +23,7 @@ afterEach(() => mock.restore());
 
 const DESTINATION = "0x1111111111111111111111111111111111111111";
 const AMOUNT = 30_000_000_000_000n;
+const MAX_FEE_PER_GAS = 30_000_000n;
 const HASH = `0x${"ab".repeat(32)}` as const;
 
 function quoteWith(metadata: GasReserveTopUpMetadata) {
@@ -51,6 +52,7 @@ function rampState() {
 function fakeChain(overrides: Partial<Dependencies> = {}) {
   const sends: Array<{ gas: bigint; to: string; value: bigint }> = [];
   const dependencies: Dependencies = {
+    estimateMaxFeePerGas: async () => MAX_FEE_PER_GAS,
     getNativeBalance: async () => AMOUNT * 2n,
     getReceipt: async () => ({ status: "success" }),
     send: async transaction => {
@@ -133,6 +135,31 @@ describe("GasReserveTopUpExecutor", () => {
     expect(sends).toEqual([]);
     expect(journal.rows.get("gas-reserve-top-up")).toBeUndefined();
     expect(error).toHaveBeenCalledWith("EVM_FUNDING_TOKEN_BALANCE_LOW", expect.objectContaining({ token: "ETH" }));
+  });
+
+  it("holds unclaimed while the funding wallet cannot also pay the gas, and sends once it is refilled", async () => {
+    quoteWith({ amountRaw: AMOUNT.toString() });
+    const error = spyOn(logger, "error");
+    let balance = AMOUNT;
+    const { executor, sends } = fakeChain({ getNativeBalance: async () => balance });
+    const state = rampState();
+
+    const thrown = await executor.execute(state).catch(value => value);
+
+    expect(thrown).toBeInstanceOf(RecoverablePhaseError);
+    expect(thrown).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect(sends).toEqual([]);
+    expect(journal.rows.get("gas-reserve-top-up")).toBeUndefined();
+    expect(error).toHaveBeenCalledWith(
+      "EVM_FUNDING_TOKEN_BALANCE_LOW",
+      expect.objectContaining({ requiredRaw: (AMOUNT + 100_000n * MAX_FEE_PER_GAS).toString(), token: "ETH" })
+    );
+
+    balance = AMOUNT + 100_000n * MAX_FEE_PER_GAS;
+    await executor.execute(state);
+
+    expect(sends).toHaveLength(1);
+    expect(journal.rows.get("gas-reserve-top-up")?.status).toBe("confirmed");
   });
 
   it.each([

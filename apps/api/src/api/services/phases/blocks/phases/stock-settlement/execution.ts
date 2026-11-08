@@ -6,7 +6,12 @@ import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../../models/rampState.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { EVM_ERC20_TRANSFER_GAS_LIMIT } from "../../core/evm-destination-gas";
-import { getEvmFundingAccount, runSerializedEvmFundingOperation, sendEvmFundingTransaction } from "../../core/evm-funding";
+import {
+  assertEvmFundingNativeBalance,
+  getEvmFundingAccount,
+  runSerializedEvmFundingOperation,
+  sendEvmFundingTransaction
+} from "../../core/evm-funding";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata } from "../../core/metadata";
 import {
@@ -48,6 +53,8 @@ interface TopUpPlan {
 }
 
 export interface StockSettlementDependencies {
+  estimateMaxFeePerGas(): Promise<bigint>;
+  getNativeBalance(owner: `0x${string}`): Promise<bigint>;
   getTokenBalance(token: `0x${string}`, owner: `0x${string}`): Promise<bigint>;
   quoteUsdgIn(symbol: StockSymbol, stockOut: bigint): Promise<bigint>;
   readStockPriceUsd(symbol: StockSymbol): Promise<Big>;
@@ -58,6 +65,8 @@ export interface StockSettlementDependencies {
 function defaultDependencies(): StockSettlementDependencies {
   const client = EvmClientManager.getInstance().getClient(Networks.Robinhood);
   return {
+    estimateMaxFeePerGas: async () => (await client.estimateFeesPerGas()).maxFeePerGas,
+    getNativeBalance: owner => client.getBalance({ address: owner }),
     getTokenBalance: (token, owner) =>
       client.readContract({ abi: erc20Abi, address: token, args: [owner], functionName: "balanceOf" }),
     async quoteUsdgIn(symbol, stockOut) {
@@ -202,6 +211,7 @@ export class StockSettlementExecutor extends BasePhaseHandler {
     if ((await dependencies.getTokenBalance(stock, funding)) >= shortfall) {
       const stockOut = new Big(formatUnits(shortfall, STOCK_TOKEN_DECIMALS));
       assertWithinCap(stockOut.mul(await dependencies.readStockPriceUsd(token)));
+      await this.assertFundingCanPayGas(state, dependencies, funding, EVM_ERC20_TRANSFER_GAS_LIMIT);
       return { shortfall };
     }
 
@@ -222,7 +232,25 @@ export class StockSettlementExecutor extends BasePhaseHandler {
         `StockSettlement: funding wallet holds neither ${shortfall} ${token} nor ${amountInMaximum} USDG`
       );
     }
+    await this.assertFundingCanPayGas(state, dependencies, funding, UNISWAP_APPROVE_GAS_LIMIT + UNISWAP_SWAP_GAS_LIMIT);
     return { amountInMaximum, shortfall };
+  }
+
+  private async assertFundingCanPayGas(
+    state: RampState,
+    dependencies: StockSettlementDependencies,
+    funding: `0x${string}`,
+    gas: bigint
+  ): Promise<void> {
+    const [available, maxFeePerGas] = await Promise.all([
+      dependencies.getNativeBalance(funding),
+      dependencies.estimateMaxFeePerGas()
+    ]);
+    assertEvmFundingNativeBalance(available, gas * maxFeePerGas, {
+      network: Networks.Robinhood,
+      phase: this.getPhaseName(),
+      rampId: state.id
+    });
   }
 
   private async performTopUp(
