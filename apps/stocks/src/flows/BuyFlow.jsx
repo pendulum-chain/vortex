@@ -304,7 +304,7 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume: r
           <button className="btn btn--primary btn--lg btn--full" type="button" style={{ marginTop: 8 }} onClick={onClose}>Concluir</button>
         </div>
       )}
-      {step === "issue" && <FlowIssue message={error} onRetry={retry} onClose={onClose} />}
+      {step === "issue" && <FlowIssue message={error} onRetry={ramp?.classification === "failure" ? null : retry} onClose={onClose} />}
       {operationId && step !== "success" && <p className="op-ref">Código da operação: <code>{operationId}</code></p>}
       {["otp", "kyc", "confirm"].includes(step) && !busy && !ramp && <div className="flow-foot" style={{ marginTop: 8 }}><button className="back-button" type="button" onClick={() => { setError(""); setStep("amount"); }}><ArrowLeft size={16} aria-hidden="true" /> Voltar</button></div>}
       {step === "amount" && <p className="legal-note" style={{ marginTop: 16 }}><Info size={14} aria-hidden="true" style={{ display: "inline", verticalAlign: "-2px" }} /> Você recebe um Stock Token, não a ação. O custo total aparece antes do Pix.</p>}

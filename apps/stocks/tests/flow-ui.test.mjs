@@ -256,6 +256,25 @@ test("a failed buy tells a payer what to do", () => harness(async (s) => {
   assert.match(s.text(), /Código da operação: ramp-1/);
 }));
 
+test("a buy that failed after its Pix keeps its code and offers no new purchase", () => harness(async (s) => {
+  const props = fixtures(approved);
+  Object.assign(props.runtime.adapter, {
+    enabled: true, getMaintenanceStatus: async () => ({ active: false, details: null }), registerBuy: async () => initial(),
+    startRamp: async () => initial({ currentPhase: "brlaOnrampMint", classification: "processing", depositQrCode: null }),
+    pollStatus: async () => initial({ currentPhase: "nablaSwap", classification: "failure", depositQrCode: null }),
+  });
+  await s.render(createElement(BuyFlow, props));
+  await s.click("Continuar");
+  await s.check();
+  await s.click("Gerar Pix de R$ 500,00");
+  await s.wait();
+  await s.click("Já fiz o Pix");
+  await s.wait();
+  assert.match(s.text(), /Se houve débito, consulte o suporte com o código da operação/);
+  assert.match(s.text(), /Código da operação: ramp-1/);
+  assert.equal(s.has("Tentar novamente"), false);
+}));
+
 for (const [name, Flow] of [["buy", BuyFlow], ["sell", SellFlow]]) {
   test(`a ${name} that cannot be read still shows the code its message asks for`, () => harness(async (s) => {
     const { props } = resumed({ ramp: initial(), adapter: { getRamp: async () => { throw Object.assign(new Error("Esta operação não foi encontrada. Consulte o suporte com o código da operação."), { status: 404 }); } } });
