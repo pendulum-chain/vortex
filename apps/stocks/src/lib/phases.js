@@ -37,8 +37,17 @@ export function stepFor(direction, phase, previousIndex = 0) {
 // after minutes: until it is done, nothing says the Pix was received.
 const PIX_UNCONFIRMED = Object.freeze(["initial", "brlaOnrampMint", "onHoldForComplianceCheck"]);
 
-/** The waiting screen's copy, claiming only what the phase shows. */
-export function waitingCopyPt(direction, phase, symbol) {
+// A ramp still running this long after registration is no longer on its normal path (the API can
+// hold it for an operator), so the screens stop promising that it continues and point to support.
+export const SLOW_RAMP_MS = 60 * 60_000;
+export const isSlowRamp = (createdAt, now = Date.now()) => now - (typeof createdAt === "number" ? createdAt : Date.parse(createdAt)) > SLOW_RAMP_MS;
+
+/** The waiting screen's copy, claiming only what the phase and the ramp's age show. */
+export function waitingCopyPt(direction, phase, symbol, { createdAt = null, now = Date.now() } = {}) {
+  // A compliance hold says itself that it can take longer.
+  if (phase !== "onHoldForComplianceCheck" && isSlowRamp(createdAt, now)) {
+    return { title: "Esta operação está demorando mais que o normal", text: "Consulte o suporte com o código da operação abaixo." };
+  }
   if (direction === "SELL") {
     return { title: stepFor("SELL", phase) >= SELL_STEPS.indexOf("payout") ? "Seu Pix está a caminho" : "Vendendo seus tokens", text: "Você pode fechar esta tela: a venda continua e aparece no Início e no Histórico." };
   }

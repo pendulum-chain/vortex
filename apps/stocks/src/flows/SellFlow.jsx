@@ -297,7 +297,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
   const refresh = () => run(async () => { await readBalances(); await quoteNow(); setNotice("Cotação e saldo atualizados."); });
 
   const operationId = ramp?.id ?? resume?.rampId;
-  const waiting = waitingCopyPt("SELL", ramp?.currentPhase);
+  const waiting = waitingCopyPt("SELL", ramp?.currentPhase, token.symbol, { createdAt: ramp?.createdAt });
   const progress = PROGRESS_INDEX[step];
   const title = step === "success" ? "Venda concluída" : `Vender ${token.symbol}`;
   const closeDisabled = busy && ["review", "sign", "resuming"].includes(step);

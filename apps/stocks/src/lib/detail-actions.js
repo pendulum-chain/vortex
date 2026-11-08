@@ -4,6 +4,7 @@
 // loading, not listed / paused by the issuer, and "Vender" only with a balance.
 import { UNAVAILABLE_COPY_PT, isComingSoon } from "./ramp-contract.js";
 import { MIN_BUY } from "./purchase-options.js";
+import { isSlowRamp } from "./phases.js";
 
 /**
  * @param {{ auth:{authenticated:boolean, address:string|null}, availability:Record<string,{buy:boolean, sell:boolean, reason:string|null}>|null,
@@ -11,9 +12,10 @@ import { MIN_BUY } from "./purchase-options.js";
  *   balanceStatus?:"ok"|"loading"|"rpc_error"|"idle" }} args
  *   pending: the wallet's unfinished operation on this device (activeRampStore.get)
  *   balanceStatus: usePortfolio's status; only "ok" lets a missing holding mean "no tokens"
+ *   now: the clock for a pending operation's age
  * @returns {{ buy:{label:string, disabled:boolean, loading?:boolean}, sell:{label:string, disabled:boolean}|null, note:string|null }}
  */
-export function detailActions({ auth, availability, comingSoon, holding, symbol, pending = null, balanceStatus = "ok" }) {
+export function detailActions({ auth, availability, comingSoon, holding, symbol, pending = null, balanceStatus = "ok", now = Date.now() }) {
   const entry = availability?.[symbol] ?? null;
   const owns = Boolean(holding && holding.raw > 0n);
   if (!auth.authenticated) {
@@ -23,7 +25,8 @@ export function detailActions({ auth, availability, comingSoon, holding, symbol,
   if (!auth.address) return { buy: { label: "Preparando sua carteira…", disabled: true }, sell: { label: "Vender", disabled: true }, note: "Sua carteira está sendo preparada." };
   if (pending) {
     const what = `${pending.rampType === "SELL" ? "uma venda" : "uma compra"}${pending.symbol ? ` de ${pending.symbol}` : ""}`;
-    return { buy: { label: "Ver operação em andamento", disabled: false }, sell: null, note: `Você tem ${what} em andamento. Conclua-a antes de começar outra.` };
+    const note = isSlowRamp(pending.createdAt, now) ? `Você tem ${what} em andamento há mais de uma hora. Abra-a para ver como ela está e o código da operação.` : `Você tem ${what} em andamento. Conclua-a antes de começar outra.`;
+    return { buy: { label: "Ver operação em andamento", disabled: false }, sell: null, note };
   }
   if (!entry) return { buy: { label: "Comprar", disabled: true, loading: true }, sell: { label: "Vender", disabled: true }, note: null };
   const buy = entry.buy ? { label: "Comprar", disabled: false } : { label: UNAVAILABLE_COPY_PT[entry.reason] || "Indisponível no momento", disabled: true };

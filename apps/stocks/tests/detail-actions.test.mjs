@@ -64,6 +64,11 @@ test("signed in with an unfinished operation: one button that resumes it, no sec
   const loading = detailActions({ auth: signedIn, availability: null, comingSoon: true, holding: null, symbol: "TSLA", pending: { rampId: "r", rampType: "BUY", symbol: "SPY" } });
   assert.equal(loading.buy.disabled, false, "resuming works while availability loads or the ramp is off");
   assert.match(loading.note, /uma compra de SPY/);
+  const now = Date.parse("2026-11-08T12:00:00Z");
+  const old = detailActions({ auth: signedIn, availability: open, comingSoon: false, holding, symbol: "TSLA", pending: { ...pending, createdAt: now - 61 * 60_000 }, now });
+  assert.doesNotMatch(old.note, /Conclua-a/, "past an hour it may be held for an operator");
+  assert.match(old.note, /há mais de uma hora/);
+  assert.match(detailActions({ auth: signedIn, availability: open, comingSoon: false, holding, symbol: "TSLA", pending: { ...pending, createdAt: now - 5 * 60_000 }, now }).note, /Conclua-a/);
 });
 
 test("a buy or sell request resumes the pending operation instead of starting a second one (Gold)", () => {

@@ -428,6 +428,13 @@ test("the buy's tokens are on the way once the Pix is confirmed", () => harness(
 test("the sell's waiting screen says it is selling until the payout", () => harness(async (s) => {
   assert.equal(await headingAt(s, SellFlow, "uniswapSwap"), "Vendendo seus tokens");
 }));
+test("a ramp held for days no longer says it is on the way", () => harness(async (s) => {
+  const { props } = resumed({ ramp: initial({ currentPhase: "relayBridge", classification: "processing", depositQrCode: null, createdAt: new Date(Date.now() - 3 * 24 * 60 * 60_000).toISOString() }) });
+  await s.render(createElement(BuyFlow, props));
+  assert.equal(s.heading(), "Esta operação está demorando mais que o normal");
+  assert.doesNotMatch(s.text(), /a caminho|a compra continua/);
+  assert.match(s.text(), /Código da operação: ramp-1/);
+}));
 test("the sell's Pix is on the way from the payout on", () => harness(async (s) => {
   assert.equal(await headingAt(s, SellFlow, "brlaPayoutOnBase"), "Seu Pix está a caminho");
 }));

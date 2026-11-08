@@ -40,7 +40,7 @@ export function StockDetail({ symbol, auth, market, portfolio, availability, com
   const holding = portfolio.valued?.holdings.find((item) => item.symbol === symbol) ?? null;
   const date = new Date(now);
   const pause = issuerPauseNotePt(expectedIssuerPause(symbol, date), date);
-  const actions = detailActions({ auth, availability, comingSoon, holding, symbol, pending, balanceStatus: portfolio.status });
+  const actions = detailActions({ auth, availability, comingSoon, holding, symbol, pending, balanceStatus: portfolio.status, now });
   const usd = price?.usd ?? (price?.brl && fx?.bid ? price.brl / fx.bid : null);
   const risks = riskNotesPt(token);
   const priceMissing = !loading && !(Number(price?.brl) > 0);

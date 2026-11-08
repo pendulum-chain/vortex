@@ -71,6 +71,16 @@ test("a buy says its tokens are on the way only after the Pix is confirmed", () 
   for (const phase of ["fundEphemeral", "nablaSwap", "relayBridge", "destinationTransfer"]) assert.equal(waitingCopyPt("BUY", phase, "NVDA").title, "Seus tokens NVDA estão a caminho", phase);
   assert.match(waitingCopyPt("BUY", "onHoldForComplianceCheck", "NVDA").text, /verificação de conformidade, o que pode levar mais tempo/);
   assert.doesNotMatch(waitingCopyPt("BUY", "brlaOnrampMint", "NVDA").text, /conformidade/);
+  // A ramp held past an hour no longer promises that it continues.
+  const now = Date.parse("2026-11-08T12:00:00Z");
+  for (const [direction, phase] of [["BUY", "relayBridge"], ["BUY", "brlaOnrampMint"], ["SELL", "uniswapSwap"], ["SELL", "brlaPayoutOnBase"]]) {
+    const slow = waitingCopyPt(direction, phase, "NVDA", { createdAt: new Date(now - 61 * 60_000).toISOString(), now });
+    assert.equal(slow.title, "Esta operação está demorando mais que o normal", phase);
+    assert.match(slow.text, /Consulte o suporte com o código da operação/);
+    assert.doesNotMatch(`${slow.title} ${slow.text}`, /a caminho|continua/);
+    assert.equal(waitingCopyPt(direction, phase, "NVDA", { createdAt: new Date(now - 59 * 60_000).toISOString(), now }).text.includes("continua"), true, "within the hour, as before");
+  }
+  assert.match(waitingCopyPt("BUY", "onHoldForComplianceCheck", "NVDA", { createdAt: new Date(now - 3 * 60 * 60_000).toISOString(), now }).text, /conformidade/);
   assert.ok(sharedRampPhases().has("onHoldForComplianceCheck"), "the name the status response uses");
 });
 

@@ -270,7 +270,7 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume: r
 
   const tokenLabel = quote ? `${formatTokenAmount(quote.tokenAmount)} ${token.symbol} (token)` : `tokens ${token.symbol}`;
   const operationId = ramp?.id ?? resume?.rampId;
-  const waiting = waitingCopyPt("BUY", ramp?.currentPhase, token.symbol);
+  const waiting = waitingCopyPt("BUY", ramp?.currentPhase, token.symbol, { createdAt: ramp?.createdAt });
   const progress = PROGRESS_INDEX[step];
   const closeDisabled = busy && ["confirm", "resuming"].includes(step);
   const title = step === "success" ? "Compra concluída" : `Comprar ${token.symbol}`;
