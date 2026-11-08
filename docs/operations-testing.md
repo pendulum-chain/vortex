@@ -320,7 +320,9 @@ payout tickets hermetically only — creating one live would move funds), Moneri
 read-only sandbox checks behind white-label credentials and fixture IDs; every persistent or
 value-moving call behind its own `MONERIUM_CONTRACT_RUN_*` gate; excluded from `contracts.yml`
 until credentials and known fixtures are provisioned), Relay (`/quote/v2` and `/intents/status/v3`
-live, with `CONTRACT_RELAY_API_KEY` when set; no deposit is ever made), and the CoinGecko
+live, with `CONTRACT_RELAY_API_KEY` when set; no deposit is ever made. It sends the exact requests the stock route
+sends, pinned hermetically against the production code, and a `4xx` other than `401`, `403` or `429` fails it rather
+than being inconclusive), and the CoinGecko
 `simple/price` feed (schema in `apps/api/src/api/services/priceFeed.schemas.ts` — the price fake
 patches above the HTTP seam, so its hermetic half is fixture-based). Client methods with no
 production consumers are deliberately uncovered. Next per the PRD: milestone 5, warn-only

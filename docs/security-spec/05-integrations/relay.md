@@ -111,5 +111,5 @@ Vortex has no Relay webhook: state comes from polling and from on-chain reads. `
 - [x] The fake provider covers these paths in BUY and SELL corridor scenarios
 - [ ] Strict deposit address ownership: not verifiable offline, accepted under RISK-027
 - [ ] Late fills, refunds, overpayment scaling and the operator recovery approvals: not exercised with real funds, tracked under RISK-029
-- [ ] Live shape of `POST /quote/v2` and `GET /intents/status/v3`: covered by `apps/api/src/tests/contracts/relay.contract.test.ts` behind `RUN_LIVE_TESTS`, not a PR-blocking check
+- [ ] Live shape of `POST /quote/v2` and `GET /intents/status/v3`: covered by `apps/api/src/tests/contracts/relay.contract.test.ts` behind `RUN_LIVE_TESTS`, not a PR-blocking check. It sends the stock route's exact quote and order requests, which a hermetic test pins against the production code, and a refused request other than `401`, `403` or `429` fails it
 - [ ] `CONTRACT_RELAY_API_KEY` for the nightly contract job: deployment-dependent; the job runs unkeyed without it
