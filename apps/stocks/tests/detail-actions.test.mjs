@@ -49,6 +49,12 @@ test("signed in: 'em breve', issuer pause and an unlisted token disable the butt
   assert.deepEqual([unlisted.buy.label, unlisted.buy.disabled], ["Indisponível no momento", true]);
 });
 
+test("a holder whose sell direction is off is told why \"Vender\" is disabled", () => {
+  const buyOnly = detailActions({ auth: signedIn, availability: { ...open, NVDA: { buy: true, sell: false, reason: null } }, comingSoon: false, holding, symbol: "NVDA" });
+  assert.deepEqual([buyOnly.buy.disabled, buyOnly.sell.disabled], [false, true]);
+  assert.equal(buyOnly.note, "A venda está indisponível no momento. Seus tokens continuam na sua carteira.");
+});
+
 test("signed in with an unfinished operation: one button that resumes it, no second operation", () => {
   const pending = { rampId: "ramp-1", rampType: "SELL", symbol: "NVDA", stage: "signing" };
   const actions = detailActions({ auth: signedIn, availability: open, comingSoon: false, holding, symbol: "TSLA", pending });

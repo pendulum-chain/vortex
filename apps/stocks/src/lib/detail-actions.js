@@ -31,6 +31,7 @@ export function detailActions({ auth, availability, comingSoon, holding, symbol,
   let note = null;
   if (isComingSoon(entry.reason)) note = "A compra com Pix será liberada em breve. Enquanto isso, acompanhe o preço.";
   else if (entry.reason === "paused") note = "O emissor pausou a negociação deste token (por exemplo, num evento corporativo). Tente mais tarde.";
+  else if (owns && !entry.sell) note = "A venda está indisponível no momento. Seus tokens continuam na sua carteira.";
   else if (!owns && balanceStatus === "rpc_error") note = "Saldo indisponível agora. Tente novamente em instantes.";
   else if (!owns && entry.sell && balanceStatus === "ok") note = `Você ainda não tem tokens ${symbol}. Compre a partir de R$ ${MIN_BUY} com Pix.`;
   return { buy, sell, note };
