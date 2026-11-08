@@ -7,11 +7,13 @@ import { MIN_BUY } from "./purchase-options.js";
 
 /**
  * @param {{ auth:{authenticated:boolean, address:string|null}, availability:Record<string,{buy:boolean, sell:boolean, reason:string|null}>|null,
- *   comingSoon:boolean, holding:{raw:bigint}|null, symbol:string, pending?:{rampType:string, symbol?:string}|null }} args
+ *   comingSoon:boolean, holding:{raw:bigint}|null, symbol:string, pending?:{rampType:string, symbol?:string}|null,
+ *   balanceStatus?:"ok"|"loading"|"rpc_error"|"idle" }} args
  *   pending: the wallet's unfinished operation on this device (activeRampStore.get)
+ *   balanceStatus: usePortfolio's status; only "ok" lets a missing holding mean "no tokens"
  * @returns {{ buy:{label:string, disabled:boolean, loading?:boolean}, sell:{label:string, disabled:boolean}|null, note:string|null }}
  */
-export function detailActions({ auth, availability, comingSoon, holding, symbol, pending = null }) {
+export function detailActions({ auth, availability, comingSoon, holding, symbol, pending = null, balanceStatus = "ok" }) {
   const entry = availability?.[symbol] ?? null;
   const owns = Boolean(holding && holding.raw > 0n);
   if (!auth.authenticated) {
@@ -29,7 +31,8 @@ export function detailActions({ auth, availability, comingSoon, holding, symbol,
   let note = null;
   if (isComingSoon(entry.reason)) note = "A compra com Pix será liberada em breve. Enquanto isso, acompanhe o preço.";
   else if (entry.reason === "paused") note = "O emissor pausou a negociação deste token (por exemplo, num evento corporativo). Tente mais tarde.";
-  else if (!owns && entry.sell) note = `Você ainda não tem tokens ${symbol}. Compre a partir de R$ ${MIN_BUY} com Pix.`;
+  else if (!owns && balanceStatus === "rpc_error") note = "Saldo indisponível agora. Tente novamente em instantes.";
+  else if (!owns && entry.sell && balanceStatus === "ok") note = `Você ainda não tem tokens ${symbol}. Compre a partir de R$ ${MIN_BUY} com Pix.`;
   return { buy, sell, note };
 }
 

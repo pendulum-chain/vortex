@@ -40,7 +40,7 @@ export function StockDetail({ symbol, auth, market, portfolio, availability, com
   const holding = portfolio.valued?.holdings.find((item) => item.symbol === symbol) ?? null;
   const date = new Date(now);
   const pause = issuerPauseNotePt(expectedIssuerPause(symbol, date), date);
-  const actions = detailActions({ auth, availability, comingSoon, holding, symbol, pending });
+  const actions = detailActions({ auth, availability, comingSoon, holding, symbol, pending, balanceStatus: portfolio.status });
   const usd = price?.usd ?? (price?.brl && fx?.bid ? price.brl / fx.bid : null);
   const risks = riskNotesPt(token);
   const priceMissing = !loading && !(Number(price?.brl) > 0);
@@ -91,7 +91,7 @@ export function StockDetail({ symbol, auth, market, portfolio, availability, com
             {risks.length > 0 && <Notice tone="warning">{risks.join(" ")}</Notice>}
           </> : <>
           <section className="card action-card">
-            <h2>{holding ? "Sua posição" : `Comprar tokens ${token.symbol}`}</h2>
+            <h2>{holding || portfolio.status !== "ok" ? "Sua posição" : `Comprar tokens ${token.symbol}`}</h2>
             {holding && (
               <dl className="position">
                 <div><dt>Tokens</dt><dd>{formatTokenAmount(holding.tokenAmount)}</dd></div>

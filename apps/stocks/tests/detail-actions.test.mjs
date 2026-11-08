@@ -30,6 +30,15 @@ test("signed in: wallet not ready, availability loading, open, and sell only wit
   assert.match(empty.note, /ainda não tem tokens NVDA/);
 });
 
+test("signed in with the balance unknown: never \"no tokens\", and a failed read says so", () => {
+  const loading = detailActions({ auth: signedIn, availability: open, comingSoon: false, holding: null, symbol: "NVDA", balanceStatus: "loading" });
+  assert.deepEqual([loading.sell.disabled, loading.note], [true, null]);
+  const failed = detailActions({ auth: signedIn, availability: open, comingSoon: false, holding: null, symbol: "NVDA", balanceStatus: "rpc_error" });
+  assert.equal(failed.note, "Saldo indisponível agora. Tente novamente em instantes.");
+  const known = detailActions({ auth: signedIn, availability: open, comingSoon: false, holding, symbol: "NVDA", balanceStatus: "rpc_error" });
+  assert.deepEqual([known.sell.disabled, known.note], [false, null], "a holding from the last good read still sells");
+});
+
 test("signed in: 'em breve', issuer pause and an unlisted token disable the buttons with the reason", () => {
   const soon = detailActions({ auth: signedIn, availability: uniformAvailability(STOCK_TOKENS, "network_not_supported"), comingSoon: true, holding, symbol: "SPY" });
   assert.deepEqual([soon.buy.label, soon.buy.disabled, soon.sell.disabled], ["Em breve", true, true]);
