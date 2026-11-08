@@ -14,7 +14,8 @@ describe("full Express app", () => {
 
   afterAll(() => server.close());
 
-  it("logs request paths without their query string", async () => {
+  /** Returns the request-log line containing `marker` written for a request to `path`. */
+  async function loggedLine(path: string, marker: string, init?: RequestInit): Promise<string | undefined> {
     const written: string[] = [];
     const originalWrite = process.stdout.write;
     process.stdout.write = ((chunk: string | Uint8Array) => {
@@ -22,16 +23,27 @@ describe("full Express app", () => {
       return true;
     }) as typeof process.stdout.write;
     try {
-      const response = await fetch(`${baseUrl}/v1/request-log-probe?taxId=00000000191`);
+      const response = await fetch(`${baseUrl}${path}`, init);
       await response.text();
       await new Promise(resolve => setTimeout(resolve, 50));
     } finally {
       process.stdout.write = originalWrite;
     }
+    return written.find(entry => entry.includes(marker));
+  }
 
-    const line = written.find(entry => entry.includes("/v1/request-log-probe"));
+  it("logs request paths without their query string", async () => {
+    const line = await loggedLine("/v1/request-log-probe?taxId=00000000191", "/v1/request-log-probe");
     expect(line).toBeDefined();
     expect(line).not.toContain("00000000191");
+  });
+
+  it("logs recipient invite paths without their token", async () => {
+    const line = await loggedLine("/v1/recipients/invite/invite-token-secret-123/accept", "/v1/recipients/invite/", {
+      method: "POST"
+    });
+    expect(line).toContain("/v1/recipients/invite/:token/accept");
+    expect(line).not.toContain("invite-token-secret-123");
   });
 
   it("applies Helmet to the auth-first token import route", async () => {
