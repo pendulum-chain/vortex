@@ -1,5 +1,14 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { EvmToken, evmTokenConfig, FiatToken, Networks, RampDirection, type RampPhase } from "@vortexfi/shared";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import * as shared from "@vortexfi/shared";
+import {
+  AveniaTicketStatus,
+  EvmToken,
+  evmTokenConfig,
+  FiatToken,
+  Networks,
+  RampDirection,
+  type RampPhase
+} from "@vortexfi/shared";
 import { decodeFunctionData, encodeFunctionData, erc20Abi, keccak256, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
@@ -66,6 +75,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;
     world.brla.accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
+    world.brla.payinTicketStatus = AveniaTicketStatus.PAID;
   });
 
   async function createQuoteViaApi(): Promise<{ id: string; outputAmount: string }> {
@@ -363,6 +373,62 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
       expect(final?.errorLogs.some(log => log.error.includes("nonce gap") && log.recoverable === true)).toBe(true);
       expect(submissionsOf(setup.signedTransfer)).toBe(0);
+    },
+    30000
+  );
+
+  /**
+   * Runs brlaOnrampMint 31 minutes after the phase began, with no BRLA credited yet and each
+   * Avenia balance wait ending in its chunk timeout at once.
+   */
+  async function runMintPastPaymentWindow(payinTicketStatus: AveniaTicketStatus): Promise<RampState | null> {
+    const setup = await setUpRegisteredRamp();
+    world.brla.payinTicketStatus = payinTicketStatus;
+    const now = Date.now();
+    await RampState.update(
+      {
+        currentPhase: "brlaOnrampMint",
+        phaseHistory: [
+          { phase: "initial", timestamp: new Date(now - 32 * 60 * 1000) },
+          { phase: "brlaOnrampMint", timestamp: new Date(now - 31 * 60 * 1000) }
+        ]
+      },
+      { where: { id: setup.rampId } }
+    );
+    const realWait = shared.waitUntilTrueWithTimeout;
+    mock.module("@vortexfi/shared", () => ({
+      ...shared,
+      waitUntilTrueWithTimeout: async (test: () => Promise<boolean>) => {
+        if (await test()) return;
+        throw new Error("Timeout waiting for condition after 300000 ms");
+      }
+    }));
+    try {
+      await phaseProcessor.processRamp(setup.rampId);
+    } finally {
+      mock.module("@vortexfi/shared", () => ({ ...shared, waitUntilTrueWithTimeout: realWait }));
+    }
+    return RampState.findByPk(setup.rampId);
+  }
+
+  it(
+    "payment window: a Pix held for compliance review keeps waiting past 30 minutes",
+    async () => {
+      const final = await runMintPastPaymentWindow(AveniaTicketStatus.ON_HOLD);
+
+      expect(final?.currentPhase).toBe("brlaOnrampMint");
+      expect(final?.state.onHold).toBe(true);
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+    },
+    30000
+  );
+
+  it(
+    "payment window: an unpaid Pix still cancels the ramp after 30 minutes",
+    async () => {
+      const final = await runMintPastPaymentWindow(AveniaTicketStatus.PENDING);
+
+      expect(final?.currentPhase).toBe("failed");
     },
     30000
   );

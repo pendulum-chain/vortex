@@ -1,5 +1,6 @@
 import {
   AveniaPaymentMethod,
+  AveniaTicketStatus,
   BalanceCheckError,
   BalanceCheckErrorType,
   BlockchainSendMethod,
@@ -44,6 +45,13 @@ const AVENIA_HOLD_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
 // in the recovery shortcut so that an already-funded ephemeral is not missed.
 const EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95;
 const MINT_TICKET_ATTEMPT_CLASS = "provider-mint-ticket";
+
+// Pay-in ticket statuses that show Avenia has received the Pix (or holds it for compliance review).
+const RECEIVED_PAYIN_STATUSES = new Set<string>([
+  AveniaTicketStatus.PROCESSING,
+  AveniaTicketStatus.ON_HOLD,
+  AveniaTicketStatus.PAID
+]);
 
 export class BrlaOnrampMintExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -178,7 +186,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       );
     } catch (error) {
       const isCheckTimeout = error instanceof Error && error.message.includes("Timeout");
-      if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
+      if (isCheckTimeout && (await this.isPaymentWindowClosed(state, brlaApiService, aveniaSubAccountId))) {
         logger.error("Payment timeout. Cancelling ramp.");
         return this.transitionToNextPhase(state, "failed");
       }
@@ -254,7 +262,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       if (!(error instanceof BalanceCheckError)) throw error;
 
       const isCheckTimeout = error.type === BalanceCheckErrorType.Timeout;
-      if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
+      if (isCheckTimeout && (await this.isPaymentWindowClosed(state, brlaApiService, aveniaSubAccountId))) {
         logger.error("Payment timeout. Cancelling ramp.");
         return this.transitionToNextPhase(state, "failed");
       }
@@ -292,6 +300,29 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       );
       return false;
     }
+  }
+
+  /**
+   * The payment window cancels only a ramp whose Pix Avenia has not received. Once the pay-in ticket
+   * is processing, held for compliance review, or paid, the ramp keeps waiting for the BRLA.
+   */
+  private async isPaymentWindowClosed(
+    state: RampState,
+    brlaApiService: BrlaApiService,
+    subAccountId: string
+  ): Promise<boolean> {
+    if (!this.isPaymentTimeoutReached(state)) return false;
+    let tickets: { id: string; status: string }[];
+    try {
+      tickets = await brlaApiService.getAveniaPayinTickets(subAccountId);
+    } catch (error) {
+      throw this.createRecoverableError(`BrlaOnrampMintExecutor: could not read the Avenia pay-in ticket: ${error}`);
+    }
+    const status = tickets
+      .find(ticket => ticket.id === state.state.aveniaTicketId)
+      ?.status.trim()
+      .toUpperCase();
+    return !RECEIVED_PAYIN_STATUSES.has(status ?? "");
   }
 
   protected isPaymentTimeoutReached(state: RampState): boolean {
