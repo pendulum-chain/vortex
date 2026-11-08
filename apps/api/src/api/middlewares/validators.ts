@@ -29,6 +29,7 @@ import {
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
 } from "@vortexfi/shared";
+import Big from "big.js";
 import { Request, RequestHandler, Response } from "express";
 import httpStatus from "http-status";
 import { z } from "zod";
@@ -374,6 +375,17 @@ const validateSupportedFiatCurrency = (
   return true;
 };
 
+// Quote amounts are expanded to fixed-point strings downstream, so their size is bounded here.
+function isBoundedAmount(value: unknown): boolean {
+  const text = String(value);
+  if (text.length > 64) return false;
+  try {
+    return Math.abs(new Big(text).e) <= 64;
+  } catch {
+    return false;
+  }
+}
+
 export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQuoteRequest> = (req, res, next) => {
   if (req.body) {
     req.body.inputCurrency = normalizeAxlUsdcCurrency(req.body.inputCurrency) as CreateQuoteRequest["inputCurrency"];
@@ -385,6 +397,12 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
   if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
     observeQuoteValidationFailure(req, "quote_create");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
+    return;
+  }
+
+  if (!isBoundedAmount(inputAmount)) {
+    observeQuoteValidationFailure(req, "quote_create");
+    res.status(httpStatus.BAD_REQUEST).json({ message: "Invalid amount parameter. Not a number." });
     return;
   }
 
@@ -413,6 +431,12 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Crea
   if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
     observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
+    return;
+  }
+
+  if (!isBoundedAmount(inputAmount)) {
+    observeQuoteValidationFailure(req, "quote_create_best");
+    res.status(httpStatus.BAD_REQUEST).json({ message: "Invalid amount parameter. Not a number." });
     return;
   }
 

@@ -7299,6 +7299,7 @@ export interface operations {
              * @description Bad Request. Possible reasons:
              *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
              *     - Invalid ramp type (must be "BUY" or "SELL")
+             *     - Invalid amount (inputAmount is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude)
              */
             400: {
                 headers: {
@@ -7425,6 +7426,7 @@ export interface operations {
              * @description Bad Request. Possible reasons:
              *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
              *     - Invalid ramp type (must be "BUY" or "SELL")
+             *     - Invalid amount (inputAmount is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude)
              */
             400: {
                 headers: {

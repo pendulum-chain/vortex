@@ -9535,7 +9535,7 @@
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")",
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")\n- Invalid amount (inputAmount is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude)",
             "headers": {}
           },
           "401": {
@@ -9822,7 +9822,7 @@
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")",
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")\n- Invalid amount (inputAmount is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude)",
             "headers": {}
           },
           "401": {
