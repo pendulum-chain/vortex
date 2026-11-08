@@ -213,48 +213,63 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
       if (receipt.status !== "success") throw new FinancialOperationRejectedError(`Stock permit ${hash} reverted`);
       return { hash };
     };
-    await runSerializedEvmFundingOperation(
-      Networks.Robinhood,
-      () =>
-        this.runFinancialOperation(state, {
-          attemptClass: "stock-permit",
-          beforePerform: () => this.assertOwnerHoldsAmount(dependencies, expectation),
-          externalId: value => value.hash,
-          perform: async () => {
-            throwIfAborted(signal);
-            const hash = await dependencies.sendPermit(tokenAddress, [
+    try {
+      await runSerializedEvmFundingOperation(
+        Networks.Robinhood,
+        () =>
+          this.runFinancialOperation(state, {
+            attemptClass: "stock-permit",
+            beforePerform: () => this.assertOwnerHoldsAmount(dependencies, expectation),
+            externalId: value => value.hash,
+            perform: async () => {
+              throwIfAborted(signal);
+              const hash = await dependencies.sendPermit(tokenAddress, [
+                owner,
+                ephemeral,
+                BigInt(amountRaw),
+                permit.deadline,
+                permit.signature.v,
+                permit.signature.r,
+                permit.signature.s
+              ]);
+              await this.updateState(state, { permitTxHash: hash });
+              const result = settle(hash, await dependencies.waitForReceipt(hash));
+              if (!result) throw new Error(`Stock permit ${hash} has no receipt`);
+              return result;
+            },
+            provider: Networks.Robinhood,
+            reconcile: async () => {
+              const hash = this.getState(state).permitTxHash;
+              return hash ? settle(hash, await dependencies.getReceipt(hash)) : null;
+            },
+            request: {
+              deadline: permit.deadline.toString(),
+              nonce: permit.nonce.toString(),
               owner,
-              ephemeral,
-              BigInt(amountRaw),
-              permit.deadline,
-              permit.signature.v,
-              permit.signature.r,
-              permit.signature.s
-            ]);
-            await this.updateState(state, { permitTxHash: hash });
-            const result = settle(hash, await dependencies.waitForReceipt(hash));
-            if (!result) throw new Error(`Stock permit ${hash} has no receipt`);
-            return result;
-          },
-          provider: Networks.Robinhood,
-          reconcile: async () => {
-            const hash = this.getState(state).permitTxHash;
-            return hash ? settle(hash, await dependencies.getReceipt(hash)) : null;
-          },
-          request: {
-            deadline: permit.deadline.toString(),
-            nonce: permit.nonce.toString(),
-            owner,
-            spender: ephemeral,
-            tokenAddress,
-            value: amountRaw
-          },
-          retryFailed: true,
-          settleAfterAbort: true,
-          signal
-        }),
-      signal
-    );
+              spender: ephemeral,
+              tokenAddress,
+              value: amountRaw
+            },
+            retryFailed: true,
+            settleAfterAbort: true,
+            signal
+          }),
+        signal
+      );
+    } catch (error) {
+      if (!(error instanceof FinancialOperationRejectedError)) throw error;
+      // A mined revert moved nothing. Resending cannot change it, unless another transaction consumed the nonce and
+      // set the allowance, which the pull then uses.
+      const observedNonce = await dependencies.getPermitNonce(tokenAddress, owner);
+      if (observedNonce <= permit.nonce) {
+        throw this.createUnrecoverableError(`StockPermitSource: ${error.message}, so the seller still holds the tokens`);
+      }
+      await this.updateState(state, {
+        permitInvalidation: { observedNonce: observedNonce.toString(), reason: "nonce-consumed" },
+        permitTxHash: undefined
+      });
+      return;
+    }
     const consumedNonce = await dependencies.getPermitNonce(tokenAddress, owner);
     if (consumedNonce <= permit.nonce) {
       throw this.createReconciliationRequiredError("Stock permit receipt succeeded without consuming its token nonce");
@@ -273,15 +288,13 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
     const persistedAllowance = this.getState(state).allowanceBeforeTransferRaw;
     const allowanceBefore = persistedAllowance ? BigInt(persistedAllowance) : observedAllowance;
     if (allowanceBefore < BigInt(amountRaw)) {
+      // The allowance is persisted before the pull, so without one the pull never ran and the seller holds the tokens.
       const invalidation = this.getState(state).permitInvalidation;
-      if (invalidation?.reason === "expired") {
-        throw this.createUnrecoverableError(
-          "StockPermitSource: the permit expired unused, so the seller still holds the tokens"
-        );
-      }
       if (invalidation) {
-        throw this.createReconciliationRequiredError(
-          `StockPermitSource: owner nonce ${invalidation.observedNonce} consumed the permit and no allowance remains`
+        throw this.createUnrecoverableError(
+          invalidation.reason === "expired"
+            ? "StockPermitSource: the permit expired unused, so the seller still holds the tokens"
+            : `StockPermitSource: owner nonce ${invalidation.observedNonce} consumed the permit and no allowance remains, so the seller still holds the tokens`
         );
       }
       throw this.createRecoverableError("StockPermitSource: the permit did not establish the transfer allowance");

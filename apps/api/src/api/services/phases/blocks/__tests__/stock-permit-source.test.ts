@@ -225,7 +225,7 @@ function fakeChain(overrides: Partial<Dependencies> = {}, start: Partial<FakeCha
     },
     ...overrides
   };
-  return { chain, executor: new StockPermitTransferExecutor(dependencies) };
+  return { chain, dependencies, executor: new StockPermitTransferExecutor(dependencies) };
 }
 
 describe("StockPermitSource transactions", () => {
@@ -378,13 +378,51 @@ describe("StockPermitTransferExecutor", () => {
     expect(journal.attempts).toEqual(["stock-permit-transfer-from"]);
   });
 
-  it("pauses when the permit's nonce was consumed and no allowance remains", async () => {
+  it("fails the ramp when the permit's nonce was consumed and no allowance remains, since nothing was pulled", async () => {
     const { chain, executor } = fakeChain({}, { permitNonce: PERMIT_NONCE + 1n });
 
-    await expect(executor.execute(await signedRamp())).rejects.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    await expect(executor.execute(await signedRamp())).rejects.toBeInstanceOf(UnrecoverablePhaseError);
 
     expect(chain.permits).toHaveLength(0);
     expect(chain.raw).toHaveLength(0);
+  });
+
+  /** The funding wallet's permit mines reverted; `landedFirst` has the same permit consumed by another sender before it. */
+  function revertingPermitChain(landedFirst: boolean) {
+    const fake = fakeChain();
+    fake.dependencies.sendPermit = async (_token, args) => {
+      fake.chain.permits.push([...args]);
+      if (landedFirst) {
+        fake.chain.permitNonce += 1n;
+        fake.chain.allowance = args[2];
+      }
+      const hash = keccak256(`0x${fake.chain.permits.length.toString(16).padStart(2, "0")}`);
+      fake.chain.receipts.set(hash, { status: "reverted" });
+      return hash;
+    };
+    return fake;
+  }
+
+  it("fails the ramp on a mined permit revert that left the nonce unused, instead of resending it", async () => {
+    const { chain, executor } = revertingPermitChain(false);
+
+    await expect(executor.execute(await signedRamp())).rejects.toBeInstanceOf(UnrecoverablePhaseError);
+
+    expect(chain.permits).toHaveLength(1);
+    expect(chain.raw).toHaveLength(0);
+    expect(chain.ownerBalance).toBe(AMOUNT);
+  });
+
+  it("pulls with the allowance when the same permit landed first and its own copy reverted", async () => {
+    const { chain, executor } = revertingPermitChain(true);
+    const state = await signedRamp();
+
+    await executor.execute(state);
+    await executor.execute(state);
+
+    expect(chain.permits).toHaveLength(1);
+    expect(chain.raw).toHaveLength(1);
+    expect(chain.ownerBalance).toBe(0n);
   });
 
   it("fails the ramp on an expired unconsumed permit, because the seller still holds the tokens", async () => {
