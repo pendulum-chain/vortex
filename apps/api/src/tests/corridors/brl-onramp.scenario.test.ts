@@ -74,6 +74,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
   beforeEach(async () => {
     await resetTestDatabase();
     world.evm.failNextSends = 0;
+    world.evm.failNextReceiptReads = 0;
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;
     world.brla.accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
@@ -392,6 +393,61 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       });
       expect(submissionsOf(setup.signedTransfer)).toBe(1);
       expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(0n);
+    },
+    30000
+  );
+
+  it(
+    "destination receipt wait fails after the delivery mined: a later pass completes from its receipt",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      // The delivery empties the ephemeral, so a rerun cannot pass the pre-broadcast balance check.
+      const credit = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        credit?.(tx);
+        if (tx.serialized === setup.signedTransfer) {
+          world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, 0n);
+        }
+      };
+      world.evm.failNextReceiptReads = 1;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.state.destinationTransferTxHash).toBe(keccak256(setup.signedTransfer));
+      expect(await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })).toMatchObject({
+        status: "confirmed"
+      });
+      expect(submissionsOf(setup.signedTransfer)).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(setup.amountRaw);
+    },
+    30000
+  );
+
+  it(
+    "destination receipt read error on a rerun with a stored hash: retries instead of failing",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      const ramp = await RampState.findByPk(setup.rampId);
+      const now = Date.now();
+      await ramp?.update({
+        currentPhase: "destinationTransfer",
+        phaseHistory: [
+          { phase: "initial", timestamp: new Date(now - 60_000) },
+          { phase: "destinationTransfer", timestamp: new Date(now - 30_000) }
+        ],
+        state: { ...ramp.state, destinationTransferTxHash: keccak256(setup.signedTransfer) }
+      });
+      world.evm.failNextReceiptReads = 1;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.errorLogs.some(log => log.error.includes("scripted receipt read failure") && log.recoverable)).toBe(true);
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
     },
     30000
   );

@@ -92,22 +92,28 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
       logger.warn("DestinationTransferExecutor: No destinationAddress in state metadata, skipping recipient validation");
     }
     if (destinationTransferTxHash) {
+      let receipt: { status: string } | undefined;
       try {
         const client = evmClientManager.getClient(destinationNetwork);
-        const receipt = await abortableCall(signal, () =>
+        receipt = await abortableCall(signal, () =>
           client.getTransactionReceipt({ hash: destinationTransferTxHash as `0x${string}` })
         );
-
-        if (receipt.status === "success") {
-          return state;
-        } else {
-          throw new Error(`Transaction ${destinationTransferTxHash} failed on chain.`);
-        }
       } catch (error) {
-        if (error instanceof Error && error.name !== "TransactionReceiptNotFoundError") {
-          throw error;
+        throwIfAborted(signal);
+        // A delivery that is not mined yet proceeds to the normal flow; any other read error is retried.
+        if (!(error instanceof Error && error.name === "TransactionReceiptNotFoundError")) {
+          throw this.createRecoverableError(
+            `DestinationTransferExecutor: could not read the delivery receipt - ${(error as Error).message}`
+          );
         }
-        // If receipt not found, proceed to normal flow
+      }
+      if (receipt?.status === "success") {
+        return state;
+      }
+      if (receipt) {
+        throw this.createReconciliationRequiredError(
+          `DestinationTransferExecutor: delivery requires manual reconciliation - transaction ${destinationTransferTxHash} failed on chain.`
+        );
       }
     }
 
@@ -153,21 +159,24 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
     }
 
     try {
-      await checkEvmBalanceForToken({
-        amountDesiredRaw: expectedAmountRaw,
-        chain: destinationNetwork,
-        intervalMs: BALANCE_POLLING_TIME_MS,
-        ownerAddress: state.state.evmEphemeralAddress,
-        signal,
-        timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
-        tokenDetails: outTokenDetails
-      });
-
       const signedTransaction = destinationTransfer as `0x${string}`;
       const deterministicHash = keccak256(signedTransaction);
       const destinationClient = evmClientManager.getClient(destinationNetwork);
       const { hash: txHash } = await this.runFinancialOperation(state, {
         attemptClass: "destination-presigned-broadcast",
+        // Checked only before a first broadcast: once one was attempted, the delivery may already
+        // have emptied the ephemeral, and the journal settles it from the transfer's receipt instead.
+        beforePerform: async () => {
+          await checkEvmBalanceForToken({
+            amountDesiredRaw: expectedAmountRaw,
+            chain: destinationNetwork,
+            intervalMs: BALANCE_POLLING_TIME_MS,
+            ownerAddress: state.state.evmEphemeralAddress,
+            signal,
+            timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
+            tokenDetails: outTokenDetails
+          });
+        },
         externalId: result => result.hash,
         perform: async () => {
           throwIfAborted(signal);
