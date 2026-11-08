@@ -28,10 +28,13 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
   across payment rails. Another wallet cannot replace it or inspect its contents, and is not blocked
   by it. Records stored in the earlier single-slot format remain readable and convert on the next write.
 - A failed or abandoned operation leaves a device history row with its operation code and any known
-  hash, written before its record is cleared; if the row cannot be written the record stays. The API's
-  worker can still start a paid Pix ramp up to 3 days later, so an expired Pix is abandoned only on
-  the user's word, or when its registration never finished here and so no code was shown, and only
-  while the server still reports `initial`; a started ramp keeps its record.
+  hash, written before its record is cleared; if the row cannot be written the record stays. An
+  expired Pix the server still reports as `initial` is released on the user's word, when its
+  registration never finished here and so no code was shown, or by any status read (including the
+  silent one on Home) once the ramp is an hour old and still `initial`, which counts as failed. The
+  API's worker can still start a paid Pix ramp up to 3 days later: the history row keeps its code,
+  and a server history row showing the ramp past `initial` then replaces the device's failure. A
+  started ramp keeps its record.
 - A quote is bound to direction, network, token symbol, input amount and expiry. Invalid,
   missing or inconsistent fee fields fail closed before presentation or registration.
 - A registered buy shows no Pix code unless its one delivery transfer sends the quoted token to this
