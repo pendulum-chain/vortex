@@ -44,6 +44,10 @@ export class FakeRelay {
   feeBps = 6n;
   /** Live EXACT_OUTPUT orders cost about this much more input than the spread alone, whatever their size. */
   exactOutputFixedFeeRaw = 1300n;
+  /** Overrides how long an order lives, in seconds. Defaults to Relay's 7 days, or 180 for a deposit address. */
+  orderLifetimeSeconds?: number;
+  /** Overrides the one-time deposit address of a strict order. */
+  depositAddress?: string;
   /** Consumed by the next quote or status call, for fail-then-succeed scenarios. */
   nextQuoteFault: FakeRelayFault | null = null;
   nextStatusFault: FakeRelayFault | null = null;
@@ -111,7 +115,10 @@ export class FakeRelay {
 
     const nonce = this.quoteRequests.length;
     const requestId = keccak256(toHex(`fake-relay-request-${nonce}`));
-    const deadline = Math.floor(Date.now() / 1000) + (request.useDepositAddress ? HUNDRED_EIGHTY_DAYS_S : SEVEN_DAYS_S);
+    const deadline =
+      Math.floor(Date.now() / 1000) +
+      (this.orderLifetimeSeconds ?? (request.useDepositAddress ? HUNDRED_EIGHTY_DAYS_S : SEVEN_DAYS_S));
+    const depositAddress = this.depositAddress ?? fakeDepositAddress(nonce);
     const extraData = `0x${"00".repeat(12)}0729e2a4716d9f7dd17858d5d504426d228697f7`;
     const refundLeg = (end: RouteEnd) => ({
       chainId: end.chain,
@@ -171,13 +178,13 @@ export class FakeRelay {
             {
               data: encodeFunctionData({
                 abi: erc20Abi,
-                args: [fakeDepositAddress(nonce), inputAmount],
+                args: [depositAddress as `0x${string}`, inputAmount],
                 functionName: "transfer"
               }),
               gas: "86070",
               to: origin.token
             },
-            fakeDepositAddress(nonce)
+            depositAddress
           )
         ]
       : [

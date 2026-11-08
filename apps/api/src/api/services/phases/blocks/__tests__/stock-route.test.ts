@@ -137,7 +137,11 @@ beforeEach(() => {
   fakeRelay.feeBps = 6n;
   fakeRelay.quoteRequests.length = 0;
   fakeRelay.nextQuoteFault = null;
+  fakeRelay.orderLifetimeSeconds = undefined;
+  fakeRelay.depositAddress = undefined;
 });
+
+const DAY_S = 24 * 60 * 60;
 
 describe("StockRoute factories", () => {
   it("buy bridges, then swaps", () => {
@@ -441,6 +445,14 @@ describe("prepareStockRouteBuyTxs", () => {
     });
   });
 
+  it("refuses an order that ends before a paid ramp can no longer be recovered", async () => {
+    const metadata = await buyMetadata();
+    fakeRelay.orderLifetimeSeconds = 4 * DAY_S - 60;
+    await expect(prepareStockRouteBuyTxs(prepareCtx(metadata), transactionDependencies)).rejects.toMatchObject({
+      check: "output.deadline"
+    });
+  });
+
   it("asks for a new quote when Relay is unreachable", async () => {
     const metadata = await buyMetadata();
     fakeRelay.nextQuoteFault = "timeout";
@@ -572,6 +584,22 @@ describe("prepareStockRouteSellTxs", () => {
     await expect(prepareStockRouteSellTxs(prepareCtx(metadata), transactionDependencies)).rejects.toMatchObject({
       isPublic: true,
       status: 503
+    });
+  });
+
+  it("refuses an order that ends before the swap's deadline", async () => {
+    const metadata = await sellMetadata();
+    fakeRelay.orderLifetimeSeconds = config.swap.deadlineMinutes * 60 - 60;
+    await expect(prepareStockRouteSellTxs(prepareCtx(metadata), transactionDependencies)).rejects.toMatchObject({
+      check: "output.deadline"
+    });
+  });
+
+  it("refuses the swap router as the deposit address", async () => {
+    const metadata = await sellMetadata();
+    fakeRelay.depositAddress = ROBINHOOD_UNISWAP_SWAP_ROUTER_02;
+    await expect(prepareStockRouteSellTxs(prepareCtx(metadata), transactionDependencies)).rejects.toMatchObject({
+      check: "depositAddress"
     });
   });
 
