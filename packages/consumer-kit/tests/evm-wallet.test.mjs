@@ -26,7 +26,7 @@ const ROUTER = "0xce16F69375520ab01377ce7B88f5BA8C48F8D666";
 const ATTACKER = "0x000000000000000000000000000000000000dEaD";
 const OTHER_TOKEN = "0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5";
 const AMOUNT = 5n * 10n ** 17n;
-const EXPECT = { token, from: address, chainId: 4663, maxAmountWei: AMOUNT.toString(), spenders: [ROUTER], phases: { squidRouterApprove: ["approve"], squidRouterNoPermitTransfer: ["transfer"], secondTransfer: ["transfer"], stockPermitTransfer: ["permit"] } };
+const EXPECT = { token, from: address, chainId: 4663, maxAmountWei: AMOUNT.toString(), spenders: [ROUTER], permitNonce: "0", phases: { squidRouterApprove: ["approve"], squidRouterNoPermitTransfer: ["transfer"], secondTransfer: ["transfer"], stockPermitTransfer: ["permit"] } };
 const call = (functionName, args) => encodeFunctionData({ abi: ERC20, functionName, args });
 const txTo = (to, data, phase = "squidRouterApprove") => ({ phase, signer: address, txData: { to, data, value: "0", gas: "150000" } });
 const nowSeconds = () => Math.floor(Date.now() / 1000);
@@ -252,6 +252,8 @@ test("every field that decides what a permit allows is pinned to the policy", ()
   refused("another signer", { ...permit(), signer: ATTACKER });
   refused("another network", { ...permit(), network: "base" }, { ...EXPECT, network: "robinhood" });
   refused("no amount consented", permit(), { ...EXPECT, maxAmountWei: "0" });
+  refused("another nonce", withMessage({ nonce: "1" }));
+  refused("no nonce read", permit(), { ...EXPECT, permitNonce: undefined });
   refused("other typed data", permit({ primaryType: "PermitSingle" }));
   refused("a null primaryType", permit({ primaryType: null }));
   // Typed data carrying a transaction too: the SDK would sign it as typed data.

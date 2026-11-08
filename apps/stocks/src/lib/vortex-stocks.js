@@ -15,7 +15,7 @@
 import { RAMP_START_WINDOW_MS, createApi, createVortexClient, formatBRL, getRampWithUnsignedTxs, pollRamp, robinhoodChain, startRampSafely, submitWalletTransactions, withConsumerLock } from "@vortexfi/consumer-kit";
 import { decodeFunctionData, formatUnits, parseAbi, parseUnits } from "viem";
 import { gasReserveFeeProblem, gasShortfallPt, networkFeeWithoutReserve, parseGasReserve } from "./gas-reserve.js";
-import { createRobinhoodClient, readTokenBalance } from "./portfolio.js";
+import { STOCK_TOKEN_ABI, createRobinhoodClient, readTokenBalance } from "./portfolio.js";
 import { providerCostProblem } from "./provider-costs.js";
 import { MAINTENANCE_ACTIVE_PT, assertMaintenanceAvailable, createMaintenanceReader } from "./maintenance.js";
 import { StocksRampError, assertNoOtherActiveRamp, isNetworkNotSupportedError, settleRamp, toStockRamp, uniformAvailability } from "./ramp-contract.js";
@@ -34,8 +34,10 @@ const BUY_UNVERIFIABLE_PT = "Esta compra não confere com a cotação, por isso 
 
 // The one thing this app's wallet signs on a sell: the seller's EIP-2612 permit. Its spender is the
 // ephemeral this device generated for the ramp, kept on the recovery record (signOnRobinhoodChain),
-// never an address the API names. That bounds what the wallet signs, not what the API may ask the
-// ephemeral to presign, so the wallet-side limit is this token and this amount.
+// never an address the API names, and its nonce is the token's current one, read from the chain, so a
+// sell signed again (a resume) yields no second permit the token would accept. That bounds what the
+// wallet signs, not what the API may ask the ephemeral to presign, so the wallet-side limit is this
+// token and this amount.
 const SELL_PHASES = Object.freeze({ stockPermitTransfer: Object.freeze(["permit"]) });
 
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
@@ -376,7 +378,8 @@ export function createVortexStocksAdapter({
     const own = ownRequests(unsignedTxs, walletAddress);
     // Every stock sell has exactly one user request, and the API withholds it until presigning passed.
     if (own.length !== 1) throw new StocksRampError("WRONG_ROUTE", "A carteira não recebeu o pedido desta venda. Consulte o suporte com o código da operação.");
-    await submitWalletTransactions({ client: sdk, rampId, transactions: own, expect: { ...expect, spenders: [ephemeral], phases: SELL_PHASES, network }, beforeSign: async () => { await assertMaintenanceAvailable(getMaintenanceStatus); assertSellDeadline(ramp, activeRampStore.get(walletAddress)); }, from: walletAddress, provider: wallet.provider, chain: robinhoodChain, publicClient: robinhoodReader(wallet), ...checkpointsFor(walletAddress) });
+    const permitNonce = await robinhoodReader(wallet).readContract({ address: expect.token, abi: STOCK_TOKEN_ABI, functionName: "nonces", args: [walletAddress] });
+    await submitWalletTransactions({ client: sdk, rampId, transactions: own, expect: { ...expect, spenders: [ephemeral], phases: SELL_PHASES, network, permitNonce }, beforeSign: async () => { await assertMaintenanceAvailable(getMaintenanceStatus); assertSellDeadline(ramp, activeRampStore.get(walletAddress)); }, from: walletAddress, provider: wallet.provider, chain: robinhoodChain, publicClient: robinhoodReader(wallet), ...checkpointsFor(walletAddress) });
   }
 
   const settle = (ramp, walletAddress) => {

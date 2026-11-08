@@ -33,7 +33,7 @@ Robinhood Chain, id 4663). Logic is lifted from the post-fix Gold code (`apps/go
 - **Wallet signing fails closed:** `submitWalletTransactions` requires durable checkpoints and an
   explicit code-owned `expect` policy with token, maximum aggregate amount, counterparties and phases.
   It pins signer/chain, accepts exact token approve/transfer calldata and EIP-2612 permits (exact token,
-  chain, owner, spender and value, deadline at most 3900 s away) in the phases the policy lists for them,
+  chain, owner, spender and value, the policy's `permitNonce`, deadline at most 3900 s away) in the phases the policy lists for them,
   and refuses native value, unknown router calls and other typed data. Never derive trusted
   counterparties from the unsigned requests.
   Web Locks serialize phases across tabs; an uncertain-send marker is persisted before broadcasting.

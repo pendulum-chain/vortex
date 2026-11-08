@@ -106,6 +106,7 @@ const CHAIN_READS = parseAbi([
   "function paused() view returns (bool)",
   "function oraclePaused() view returns (bool)",
   "function getEthBalance(address) view returns (uint256)",
+  "function nonces(address) view returns (uint256)",
   "struct Call3 { address target; bool allowFailure; bytes callData; }",
   "struct Result { bool success; bytes returnData; }",
   "function aggregate3(Call3[] calls) view returns (Result[])"

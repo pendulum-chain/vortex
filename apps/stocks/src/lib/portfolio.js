@@ -11,6 +11,7 @@ export const STOCK_TOKEN_ABI = parseAbi([
   "function uiMultiplier() view returns (uint256)",
   "function paused() view returns (bool)",
   "function oraclePaused() view returns (bool)",
+  "function nonces(address) view returns (uint256)",
 ]);
 export const MULTICALL3_ABI = parseAbi(["function getEthBalance(address) view returns (uint256)"]);
 

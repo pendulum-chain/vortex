@@ -89,7 +89,8 @@ the sibling of `apps/gold`.
   ETH to the copyable address shown. A `gasless: true` quote (permit sell) skips the card, and live
   `validateStockQuote` refuses any other sell quote, so the card now only shows in demo and preview.
   Live sells sign one permit (`SELL_PHASES`) for the ephemeral this device generated, kept on the
-  recovery record as `ephemeralEvmAddress`. Every "venda
+  recovery record as `ephemeralEvmAddress`, at the token's current `nonces(owner)`, read right before
+  signing. Every "venda
   e receba no Pix" promise says the fee is covered (`SELL_NETWORK_FEE_PT`;
   `tests/stocks-allowlist.test.mjs`).
 - **Resumed sell and the start window:** the API refuses `startRamp` 15 minutes after registration.

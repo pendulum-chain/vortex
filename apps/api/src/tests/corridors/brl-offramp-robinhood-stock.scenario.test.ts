@@ -335,6 +335,7 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
         from: owner.address,
         maxAmountWei: soldRaw,
         network: Networks.Robinhood,
+        permitNonce: setup.ledger.permitNonce(stock, owner.address),
         phases: { stockPermitTransfer: ["permit"] },
         spenders: [ephemeral.address],
         token: stock

@@ -472,6 +472,23 @@ test("resuming a sell signs the permit once, keeps the pinned ephemeral and stay
   assert.deepEqual(walletLog, []);
 });
 
+test("a sell signed again signs only at the token's current nonce, so the token takes one of its permits", async () => {
+  const rampBody = (nonce) => ({ id: "ramp-fake-1", type: "SELL", currentPhase: "initial", status: "PENDING", inputCurrency: "NVDA", inputAmount: "0.5", outputCurrency: "BRL", outputAmount: "570", createdAt: new Date(NOW).toISOString(), unsignedTxs: [permitTx({ signer: WALLET, amountWei: SOLD_WEI, nonce })] });
+  const record = { rampId: "ramp-fake-1", walletAddress: WALLET, rampType: "SELL", stage: "signing", symbol: "NVDA", tokenAddress: NVDA, inputAmount: "0.5", ephemeralEvmAddress: EPHEMERAL, createdAt: NOW };
+  // The first signature reached the server, which answers the resume with the next nonce: refused.
+  const walletLog = [];
+  const next = adapter({ session: fakeSession({ "/v1/ramp/ramp-fake-1": rampBody(8) }) });
+  next.activeRampStore.save(record);
+  await assert.rejects(next.adapter.resumeSell({ rampId: "ramp-fake-1", walletAddress: WALLET, wallet: fakeWallet(walletLog, { permitNonce: 7n }) }), (error) => error.code === "WALLET_REQUEST_REFUSED");
+  assert.ok(!walletLog.includes("eth_signTypedData_v4"));
+  assert.equal(next.activeRampStore.get(WALLET).stage, "signing");
+  // The same nonce again: only one of the two signatures can ever be used.
+  const same = adapter({ session: fakeSession({ "/v1/ramp/ramp-fake-1": rampBody(7) }) });
+  same.activeRampStore.save(record);
+  await same.adapter.resumeSell({ rampId: "ramp-fake-1", walletAddress: WALLET, wallet: fakeWallet(walletLog, { permitNonce: 7n }) });
+  assert.ok(walletLog.includes("eth_signTypedData_v4"));
+});
+
 test("a resume without this device's record signs nothing: only the record can pin token, amount and spender", async () => {
   // The API can cause this itself: one failed status clears a sell with no checkpoints, and the retry still reaches this step.
   const walletLog = [];

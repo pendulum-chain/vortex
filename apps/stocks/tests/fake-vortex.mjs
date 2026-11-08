@@ -29,11 +29,11 @@ const PERMIT_FIELDS = [{ name: "owner", type: "address" }, { name: "spender", ty
  * The request a stock sell asks of the seller's wallet: an EIP-2612 permit for this ramp's ephemeral, as the backend
  * issues it. The wallet reads the real clock, so the deadline does too, whatever the adapter's injected `now` says.
  */
-export const permitTx = ({ signer, amountWei, token = NVDA, spender = EPHEMERAL, phase = "stockPermitTransfer", deadline = Math.floor(Date.now() / 1000) + 3600 }) => ({
+export const permitTx = ({ signer, amountWei, token = NVDA, spender = EPHEMERAL, phase = "stockPermitTransfer", deadline = Math.floor(Date.now() / 1000) + 3600, nonce = "0" }) => ({
   phase, signer, network: "robinhood",
   txData: {
     domain: { chainId: 4663, name: "NVIDIA", verifyingContract: token, version: "1" },
-    message: { deadline: String(deadline), nonce: "0", owner: signer, spender, value: String(amountWei) },
+    message: { deadline: String(deadline), nonce: String(nonce), owner: signer, spender, value: String(amountWei) },
     primaryType: "Permit",
     types: { Permit: PERMIT_FIELDS },
   },
@@ -138,9 +138,10 @@ export function stores(log = []) {
 /**
  * A fake embedded wallet on Robinhood Chain that logs every provider call (and receipt waits). Its
  * public client also answers, unlogged, the fresh ETH and base-fee reads before a sell is registered
- * (`ethWei`, `gasPriceWei`: 1 ETH and the chain's 0.02 gwei floor unless given) and eth_estimateGas.
+ * (`ethWei`, `gasPriceWei`: 1 ETH and the chain's 0.02 gwei floor unless given), eth_estimateGas and the
+ * token's permit nonce (`permitNonce`, 0 unless given, as `permitTx` signs).
  */
-export function fakeWallet(log = [], { ethWei = 10n ** 18n, gasPriceWei = 20_000_000n } = {}) {
+export function fakeWallet(log = [], { ethWei = 10n ** 18n, gasPriceWei = 20_000_000n, permitNonce = 0n } = {}) {
   const provider = {
     async request({ method, params }) {
       log.push(method === "wallet_switchEthereumChain" ? `${method}:${params[0].chainId}` : method);
@@ -159,6 +160,7 @@ export function fakeWallet(log = [], { ethWei = 10n ** 18n, gasPriceWei = 20_000
     chain: { id: 4663 },
     async getBalance() { return ethWei; },
     async getGasPrice() { return gasPriceWei; },
+    async readContract({ functionName }) { if (functionName === "nonces") return permitNonce; throw new Error(`unexpected ${functionName}`); },
     async request({ method }) { if (method === "eth_estimateGas") return "0x12d3e"; throw new Error(`unexpected ${method}`); },
     async waitForTransactionReceipt() { log.push("receipt"); return { status: "success" }; },
   };

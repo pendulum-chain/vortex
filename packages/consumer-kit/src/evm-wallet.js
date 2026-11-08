@@ -71,7 +71,9 @@ const sortedKeys = (object) => Object.keys(object).sort().join();
 /**
  * An EIP-2612 permit is an allowance on the sold token, so every field that decides what it allows
  * is pinned to the policy: this chain, this token, this owner, a pinned spender, the exact amount,
- * a short deadline. Only name and version stay free: a wrong one yields a signature the token rejects.
+ * a short deadline, and the nonce the app read from the token (`permitNonce`), so every permit the
+ * owner signs before one is used shares it and the token executes at most one of them. Only name and
+ * version stay free: a wrong one yields a signature the token rejects.
  */
 function assertPermit(item, expect, phase) {
   let ok = false;
@@ -93,6 +95,7 @@ function assertPermit(item, expect, phase) {
       && sameAddress(message.owner, expect.from)
       && expect.spenders.some((spender) => sameAddress(message.spender, spender))
       && BigInt(message.value) === BigInt(expect.maxAmountWei)
+      && expect.permitNonce != null && BigInt(message.nonce) === BigInt(expect.permitNonce)
       && BigInt(expect.maxAmountWei) > 0n
       && deadline > now && deadline <= now + PERMIT_MAX_LIFETIME_S
       && expect.phases[phase]?.includes("permit") === true;
