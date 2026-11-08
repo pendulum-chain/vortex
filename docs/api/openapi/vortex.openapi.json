@@ -3607,7 +3607,7 @@
             "type": "boolean"
           },
           "gasReserveAmount": {
-            "description": "Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in wei. It is already included in the network fee. Omitted when no reserve is due.",
+            "description": "Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in ETH as a plain decimal string such as `0.00005`. It is already included in the network fee. Omitted when no reserve is due.",
             "type": "string"
           },
           "gasReserveCurrency": {
@@ -3882,7 +3882,7 @@
             "description": "The source network or payment method."
           },
           "gasReserveAmount": {
-            "description": "Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in wei. It is already included in the network fee. Omitted when no reserve is due.",
+            "description": "Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in ETH as a plain decimal string such as `0.00005`. It is already included in the network fee. Omitted when no reserve is due.",
             "type": "string"
           },
           "gasReserveCurrency": {

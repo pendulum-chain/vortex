@@ -3351,7 +3351,7 @@ export interface components {
             from?: components["schemas"]["DestinationType"];
             /** @description Stock corridor SELL only: whether the token supports a permit, so the seller needs no native gas. When true, registration issues that permit or answers 503. When false, it normally issues one wallet transfer, which needs native gas. */
             gasless?: boolean;
-            /** @description Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in wei. It is already included in the network fee. Omitted when no reserve is due. */
+            /** @description Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in ETH as a plain decimal string such as `0.00005`. It is already included in the network fee. Omitted when no reserve is due. */
             gasReserveAmount?: string;
             /** @enum {string} */
             gasReserveCurrency?: "ETH";
@@ -3442,7 +3442,7 @@ export interface components {
             feeCurrency?: components["schemas"]["RampCurrency"];
             /** @description The source network or payment method. */
             from: components["schemas"]["DestinationType"];
-            /** @description Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in wei. It is already included in the network fee. Omitted when no reserve is due. */
+            /** @description Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in ETH as a plain decimal string such as `0.00005`. It is already included in the network fee. Omitted when no reserve is due. */
             gasReserveAmount?: string;
             /** @enum {string} */
             gasReserveCurrency?: "ETH";
