@@ -277,7 +277,14 @@ export class UniswapSwapExecutor extends UniswapV3Executor {
         );
       }
       this.holdBelowSoftMinimum(state, route, currentQuote);
-      await dependencies.simulateTransaction(transaction);
+      // A swap that would revert as signed, for example out of gas, keeps its nonce and the input stays on the ephemeral.
+      await dependencies.simulateTransaction(transaction).catch(error => {
+        throw this.hold(
+          state,
+          route,
+          `Uniswap fixed swap simulation failed: ${error instanceof Error ? error.message : error}`
+        );
+      });
     }
     await this.broadcast(state, route, transaction, dependencies, signal, settledReceipt);
     const remainingAllowance = await dependencies.getAllowance(route.signer);

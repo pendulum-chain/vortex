@@ -473,6 +473,18 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
     expect(operationAttempts).toEqual([]);
   });
 
+  it("holds a swap whose simulation at the signed gas fails, sending nothing and never failing the ramp", async () => {
+    const error = await runSwap({
+      simulateTransaction: async () => {
+        throw new Error("out of gas");
+      }
+    });
+    expect(error).toBeInstanceOf(RecoverablePhaseError);
+    expect(error).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect((error as Error).message).toContain("simulation failed: out of gas");
+    expect(operationAttempts).toEqual([]);
+  });
+
   it("retries later while the EURe has not reached the ephemeral", async () => {
     const error = await runSwap({ getBalance: async () => 0n });
     expect(error).toBeInstanceOf(RecoverablePhaseError);
