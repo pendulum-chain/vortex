@@ -491,7 +491,7 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
   );
 
   it(
-    "refuses an account's sales for a day once three of its funded sales have failed",
+    "refuses an account's sales for a day once three of its started sales have failed",
     async () => {
       const setup = await setUpRegisteredRamp();
       const registerSale = async () => {
@@ -535,9 +535,10 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
       };
 
       await failAfter(setup.rampId, "fundEphemeral", "stockPermitTransfer");
-      await failAfter(await registered(), "fundEphemeral", "stockPermitTransfer");
-      // A sale that ended before funding cost nothing, so it does not count.
+      // A sale that failed in fundEphemeral may already have been funded, so it counts.
       await failAfter(await registered(), "fundEphemeral");
+      // A sale that never started cost nothing, so it does not count.
+      await failAfter(await registered());
       await failAfter(await registered(), "fundEphemeral", "stockPermitTransfer");
 
       const refused = await registerSale();

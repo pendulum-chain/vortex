@@ -49,17 +49,20 @@ async function findActiveStockSale(userId: string, transaction?: Transaction): P
   return ramp?.id ?? null;
 }
 
-/** A sale that fails after funding has spent the funding wallet's gas, so an account gets this many a day. */
-const MAX_FUNDED_FAILED_SALES_PER_DAY = 3;
+/** A started sale that fails may have spent the funding wallet's gas, so an account gets this many a day. */
+const MAX_STARTED_FAILED_SALES_PER_DAY = 3;
 
-/** This account's sales from the last day that were funded (reached `stockPermitTransfer`) and then failed. */
-function countFundedFailedStockSales(userId: string, transaction?: Transaction): Promise<number> {
+/**
+ * This account's sales registered in the last day that were started (left `initial`) and then failed. Funding is sent
+ * in `fundEphemeral`, and a sale can still fail there after it was sent, so every started sale counts.
+ */
+function countStartedFailedStockSales(userId: string, transaction?: Transaction): Promise<number> {
   return RampState.count({
     ...(transaction ? { transaction } : {}),
     where: {
       [Op.and]: [
         sequelize.literal("state->'blockState'->'stockPermitSource' IS NOT NULL"),
-        sequelize.literal(`phase_history @> '[{"phase": "stockPermitTransfer"}]'::jsonb`),
+        sequelize.literal(`jsonb_path_exists(phase_history, '$[*] ? (@.phase != "initial")')`),
         { userId },
         { currentPhase: "failed" },
         { createdAt: { [Op.gt]: new Date(Date.now() - 24 * 60 * 60 * 1000) } }
@@ -89,7 +92,7 @@ export async function registerStockPermitSource(
       status: httpStatus.CONFLICT
     });
   }
-  if ((await countFundedFailedStockSales(ctx.authenticatedUser.id, ctx.transaction)) >= MAX_FUNDED_FAILED_SALES_PER_DAY) {
+  if ((await countStartedFailedStockSales(ctx.authenticatedUser.id, ctx.transaction)) >= MAX_STARTED_FAILED_SALES_PER_DAY) {
     throw new APIError({
       isPublic: true,
       message: "Too many stock sales failed in the last 24 hours; try again later",
