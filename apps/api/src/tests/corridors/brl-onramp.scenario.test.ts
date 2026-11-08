@@ -100,11 +100,12 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     quoteId: string,
     userId: string,
     ephemeral: PrivateKeyAccount,
-    destination: `0x${string}`
+    destination: `0x${string}`,
+    extraAdditionalData: Record<string, unknown> = {}
   ): Promise<{ id: string }> {
     const response = await app.request("/v1/ramp/register", {
       body: JSON.stringify({
-        additionalData: { destinationAddress: destination, taxId: TAX_ID },
+        additionalData: { destinationAddress: destination, taxId: TAX_ID, ...extraAdditionalData },
         quoteId,
         signingAccounts: [{ address: ephemeral.address, type: "EVM" }]
       }),
@@ -211,6 +212,30 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
   function submissionsOf(signedTransfer: `0x${string}`): number {
     return world.evm.sentTransactions.filter(tx => tx.serialized === signedTransfer).length;
   }
+
+  it("registration stores only the documented additionalData inputs in ramp state", async () => {
+    const ephemeral = privateKeyToAccount(generatePrivateKey());
+    const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const quote = await createQuoteViaApi();
+
+    const ramp = await registerViaApi(quote.id, user.id, ephemeral, destination, {
+      depositQrCode: "client-qr",
+      destinationTransferTxHash: "0x1234",
+      distributeFeeHash: "0xabcd",
+      presignChecksPass: true,
+      sessionId: "session-1"
+    });
+
+    const state = (await RampState.findByPk(ramp.id))?.state as unknown as Record<string, unknown>;
+    expect(state.destinationAddress).toBe(destination);
+    expect(state.sessionId).toBe("session-1");
+    expect(state.depositQrCode).not.toBe("client-qr");
+    for (const key of ["destinationTransferTxHash", "distributeFeeHash", "presignChecksPass"]) {
+      expect(Object.hasOwn(state, key)).toBe(false);
+    }
+  });
 
   it(
     "happy path: processes initial → brlaOnrampMint → fundEphemeral → destinationTransfer → complete",

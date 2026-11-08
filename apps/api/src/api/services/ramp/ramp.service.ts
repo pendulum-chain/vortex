@@ -56,6 +56,22 @@ import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRampV2, mapPhaseToTransactionStatus } from "./helpers";
 
+// The documented RegisterRampRequest.additionalData inputs. Registration hooks see the whole
+// request, but only these keys are copied into ramp state; every other state key is server-owned.
+const CLIENT_REGISTER_INPUT_FIELDS = [
+  "customerType",
+  "destinationAddress",
+  "email",
+  "fiatAccountId",
+  "ipAddress",
+  "paymentData",
+  "pixDestination",
+  "receiverTaxId",
+  "sessionId",
+  "taxId",
+  "walletAddress"
+] as const;
+
 const CLIENT_WRITABLE_RAMP_STATE_FIELDS = new Set([
   "assethubToPendulumHash",
   "squidRouterApproveHash",
@@ -388,7 +404,12 @@ export class RampService extends BaseRampService {
             evmEphemeralAddress: ephemerals.EVM,
             ibanPaymentData,
             substrateEphemeralAddress: ephemerals.Substrate,
-            ...request.additionalData,
+            ...Object.fromEntries(
+              CLIENT_REGISTER_INPUT_FIELDS.filter(key => Object.hasOwn(additionalData ?? {}, key)).map(key => [
+                key,
+                additionalData?.[key]
+              ])
+            ),
             ...stateMeta
           } as StateMetadata,
           to: quote.to,
