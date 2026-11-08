@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import logger from "../../config/logger";
+import logger, { loggableUrl } from "../../config/logger";
 import { sendError } from "../helpers/sendError";
 import {
   buildApiClientRequestMetadata,
@@ -106,7 +106,7 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
           logger.warn("Supabase access-token verification failed", {
             category: unavailable ? "provider_unavailable" : "verification_error",
             error: error.message,
-            path: req.path,
+            path: loggableUrl(req.originalUrl),
             requestId: req.headers["x-request-id"]
           });
           recordDualAuthFailure(req, unavailable ? 503 : 401, unavailable ? "service_unavailable" : "auth_invalid_api_key");

@@ -1,5 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
+import { AccessTokenVerificationError, SupabaseAuthService } from "../api/services/auth";
 import app from "./express";
+import logger from "./logger";
 
 describe("full Express app", () => {
   let server: ReturnType<typeof app.listen>;
@@ -44,6 +46,26 @@ describe("full Express app", () => {
     });
     expect(line).toContain("/v1/recipients/invite/:token/accept");
     expect(line).not.toContain("invite-token-secret-123");
+  });
+
+  it("keeps the recipient invite token out of the auth verification-failure log", async () => {
+    const verify = spyOn(SupabaseAuthService, "verifyToken").mockRejectedValue(
+      new AccessTokenVerificationError("provider unavailable", true)
+    );
+    const warn = spyOn(logger, "warn");
+    try {
+      const response = await fetch(`${baseUrl}/v1/recipients/invite/invite-token-secret-456/accept`, {
+        headers: { Authorization: "Bearer valid-looking" },
+        method: "POST"
+      });
+      expect(response.status).toBe(503);
+      const logged = JSON.stringify(warn.mock.calls);
+      expect(logged).toContain("/v1/recipients/invite/:token/accept");
+      expect(logged).not.toContain("invite-token-secret-456");
+    } finally {
+      verify.mockRestore();
+      warn.mockRestore();
+    }
   });
 
   it("applies Helmet to the auth-first token import route", async () => {

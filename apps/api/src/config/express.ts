@@ -15,6 +15,7 @@ import aveniaWebhookRoutes from "../api/routes/v1/avenia-webhook.route";
 import brlaKycImportRoutes from "../api/routes/v1/brla-kyc-import.route";
 
 import { corsOptions } from "./corsConfig";
+import { loggableUrl } from "./logger";
 import { config } from "./vars";
 
 const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = config;
@@ -49,8 +50,7 @@ app.use(cookieParser());
 app.use(requestContext);
 
 // request logging. dev: console | production: file
-// Log the path only: query strings carry tax IDs and Pix keys, and recipient invite paths carry a bearer token.
-morgan.token<express.Request>("url", req => req.originalUrl.split("?")[0].replace(/(\/recipients\/invite\/)[^/]+/, "$1:token"));
+morgan.token<express.Request>("url", req => loggableUrl(req.originalUrl));
 app.use(morgan(logs));
 
 // secure apps by setting various HTTP headers
