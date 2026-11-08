@@ -49,6 +49,8 @@ app.use(cookieParser());
 app.use(requestContext);
 
 // request logging. dev: console | production: file
+// Log the path only: query strings carry tax IDs and Pix keys.
+morgan.token<express.Request>("url", req => req.originalUrl.split("?")[0]);
 app.use(morgan(logs));
 
 // secure apps by setting various HTTP headers

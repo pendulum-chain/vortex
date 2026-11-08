@@ -14,6 +14,26 @@ describe("full Express app", () => {
 
   afterAll(() => server.close());
 
+  it("logs request paths without their query string", async () => {
+    const written: string[] = [];
+    const originalWrite = process.stdout.write;
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      written.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      const response = await fetch(`${baseUrl}/v1/request-log-probe?taxId=00000000191`);
+      await response.text();
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+
+    const line = written.find(entry => entry.includes("/v1/request-log-probe"));
+    expect(line).toBeDefined();
+    expect(line).not.toContain("00000000191");
+  });
+
   it("applies Helmet to the auth-first token import route", async () => {
     const response = await fetch(`${baseUrl}/v1/brla/kyc/import-token`, {
       body: "{",
