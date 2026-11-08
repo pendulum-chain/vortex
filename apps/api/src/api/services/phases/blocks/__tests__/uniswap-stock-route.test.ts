@@ -702,6 +702,21 @@ describe("stock route execution", () => {
     expect(deps.simulateTransaction).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["uniswapSwap", UniswapSwapExecutor],
+    ["uniswapApprove", UniswapApproveExecutor]
+  ] as const)("retries %s when the quote cannot be read, without failing the ramp", async (phase, Executor) => {
+    const { route, state } = await rampState(RampDirection.BUY, phase);
+    QuoteTicket.findByPk = mock(async () => {
+      throw new Error("Connection terminated unexpectedly");
+    }) as typeof QuoteTicket.findByPk;
+    const { deps, sendRawTransaction } = dependencies(route);
+    const error = await run(Executor, state, deps);
+    expect(error).toBeInstanceOf(RecoverablePhaseError);
+    expect(error).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect(sendRawTransaction).not.toHaveBeenCalled();
+  });
+
   it("retries a preflight read failure without failing the ramp", async () => {
     const { route, state } = await rampState(RampDirection.BUY, "uniswapSwap");
     const { deps, sendRawTransaction } = dependencies(route, {

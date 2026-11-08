@@ -81,7 +81,12 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
   ): Promise<RampState>;
 
   protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
-    const quote = await QuoteTicket.findByPk(state.quoteId);
+    // The input is already on the ephemeral, so a failed read is retried.
+    const quote = await QuoteTicket.findByPk(state.quoteId).catch(error => {
+      throw this.createRecoverableError(
+        `Uniswap fixed swap quote cannot be read: ${error instanceof Error ? error.message : error}`
+      );
+    });
     if (!quote) throw this.createUnrecoverableError("Uniswap fixed swap quote is missing");
     const signer = state.state.evmEphemeralAddress;
     if (!signer) throw this.createUnrecoverableError("Uniswap fixed swap is missing its EVM ephemeral account");
