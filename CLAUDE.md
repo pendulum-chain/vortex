@@ -318,3 +318,6 @@ unbounded review round can use a large share of it.
 - Don't leave a run going on a laptop that may sleep: keep it awake on power, or stop the
   run before the lid closes. A sleeping Mac still wakes for a few seconds about every
   15 minutes, and each wake makes every running agent resend its whole context.
+- Give each parallel agent its own worktree, and tell it not to use `git stash`: the stash is
+  shared by every worktree of a repository, so two agents' pushes and pops swap their changes.
+  Save work with `git diff > file` and `git apply` instead.
