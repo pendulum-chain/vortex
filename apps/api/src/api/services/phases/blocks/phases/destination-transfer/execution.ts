@@ -143,7 +143,9 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
       }
 
       if (presignedNonce > liveNonce) {
-        throw this.createUnrecoverableError(
+        // Pause rather than fail: a lagging RPC can report a stale nonce, and the recovery worker
+        // re-reads it, while a real gap stays parked with the funds on the ephemeral for review.
+        throw this.createReconciliationRequiredError(
           `DestinationTransferExecutor: presigned nonce ${presignedNonce} is ahead of the ephemeral live nonce ${liveNonce}. ` +
             "The transfer can never broadcast (nonce gap); manual review required."
         );

@@ -115,7 +115,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
    * destinationTransfer. Pass a recipient to sign a transfer that pays someone
    * other than the registered destination.
    */
-  async function setUpRegisteredRamp(options: { recipient?: `0x${string}` } = {}): Promise<CorridorSetup> {
+  async function setUpRegisteredRamp(options: { nonce?: number; recipient?: `0x${string}` } = {}): Promise<CorridorSetup> {
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
 
@@ -135,7 +135,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       gas: 100_000n,
       maxFeePerGas: 1_000_000_000n,
       maxPriorityFeePerGas: 1_000_000_000n,
-      nonce: 0,
+      nonce: options.nonce ?? 0,
       to: BRLA_ON_BASE,
       type: "eip1559"
     });
@@ -149,7 +149,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
         {
           meta: {},
           network: Networks.Base,
-          nonce: 0,
+          nonce: options.nonce ?? 0,
           phase: "destinationTransfer",
           signer: ephemeral.address,
           txData: signedTransfer
@@ -345,6 +345,24 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       });
       expect(submissionsOf(setup.signedTransfer)).toBe(1);
       expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(0n);
+    },
+    30000
+  );
+
+  it(
+    "destination nonce gap: pauses for reconciliation instead of failing the ramp",
+    async () => {
+      // The live ephemeral nonce (0) trails the presigned transfer's nonce, as a lagging RPC read would report.
+      const setup = await setUpRegisteredRamp({ nonce: 1 });
+      scriptHappyWorld(setup);
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("destinationTransfer");
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(final?.errorLogs.some(log => log.error.includes("nonce gap") && log.recoverable === true)).toBe(true);
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
     },
     30000
   );
