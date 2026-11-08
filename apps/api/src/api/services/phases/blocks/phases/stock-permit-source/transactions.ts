@@ -7,6 +7,7 @@ import {
 } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { encodeFunctionData, erc20Abi } from "viem";
+import logger from "../../../../../../config/logger";
 import { APIError } from "../../../../../errors/api-error";
 import { requireAccount } from "../../core/accounts";
 import { ROBINHOOD_STOCKS } from "../../core/robinhood-stocks";
@@ -112,8 +113,17 @@ export async function prepareStockPermitSourceTxs(
   const ephemeral = requireAccount(ctx.accounts, EphemeralAccountType.EVM).address;
   const { amountRaw, token } = ctx.ownMetadata;
   const tokenAddress = ROBINHOOD_STOCKS[token].address;
+  const probe = (dependencies.probePermit ?? probeStockPermit)(token, facts.owner as `0x${string}`);
   const [permit, fees] = await Promise.all([
-    (dependencies.probePermit ?? probeStockPermit)(token, facts.owner as `0x${string}`),
+    // A gasless quote is bound to the permit path, so a permit that cannot be read gets the same answer as a missing one.
+    ctx.ownMetadata.gasless
+      ? probe.catch(error => {
+          logger.warn(
+            `StockPermitSource: permit read failed at registration: ${error instanceof Error ? error.message : error}`
+          );
+          return null;
+        })
+      : probe,
     dependencies.probeFees
       ? dependencies.probeFees()
       : EvmClientManager.getInstance().getClient(Networks.Robinhood).estimateFeesPerGas()

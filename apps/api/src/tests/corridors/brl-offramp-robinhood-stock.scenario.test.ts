@@ -483,7 +483,7 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
 
   it.each([
     ["the token no longer answers as having a permit", () => scriptTokenWithoutPermit(), 503],
-    ["the read failed", () => scriptNoncesFailure(new HttpRequestError({ status: 503, url: "https://rpc.invalid" })), 500]
+    ["the read failed", () => scriptNoncesFailure(new HttpRequestError({ status: 503, url: "https://rpc.invalid" })), 503]
   ] as const)(
     "registers nothing and keeps the gasless quote when %s",
     async (_label, script, status) => {

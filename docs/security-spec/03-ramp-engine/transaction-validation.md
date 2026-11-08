@@ -41,7 +41,8 @@ permit and an ephemeral-signed exact `transferFrom`. Its typed data is released 
 user-wallet transactions, and `startRamp` requires it. A token without a permit instead issues one
 user-wallet `squidRouterNoPermitTransfer`, verified by hash as listed above. A `gasless` quote binds
 registration to the permit path: if the token no longer answers as having one, registration returns
-503. A failed RPC read is not an answer, so it fails the quote or the registration. `relayApprove` and `relayBridge` are strict ephemeral-signed Base
+503. A failed RPC read is not an answer, so it never selects the transfer: it fails the quote, and a `gasless`
+registration returns the same 503. `relayApprove` and `relayBridge` are strict ephemeral-signed Base
 transactions whose blueprints come from a validated Relay order (`05-integrations/relay.md`).
 `stockBackupApprove`, `relayBackupApprove` and `robinhoodCleanupStock` are strict ephemeral-signed
 approvals to the funding account, for operator recovery and cleanup only. The funding wallet sends
