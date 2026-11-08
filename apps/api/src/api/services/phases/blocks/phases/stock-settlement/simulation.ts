@@ -15,6 +15,14 @@ export interface StockSettlementMetadata {
 
 export const StockSettlementContext = defineContext<StockSettlementMetadata>()("stockSettlement");
 
+/** What a top-up may cost: a share of the swap input, capped, but never below the final-settlement floor. */
+export function stockSettlementSubsidyCapUsd(inputUsd: Big): Big {
+  const { settlementSubsidyMaxBps, settlementSubsidyMaxUsd } = config.stocks;
+  const share = inputUsd.mul(settlementSubsidyMaxBps).div(10_000);
+  const ceiling = share.lt(settlementSubsidyMaxUsd) ? share : new Big(settlementSubsidyMaxUsd);
+  return ceiling.gt(MAX_FINAL_SETTLEMENT_SUBSIDY_USD) ? ceiling : new Big(MAX_FINAL_SETTLEMENT_SUBSIDY_USD);
+}
+
 /** Pass-through. Records the exact amount promised and how much Vortex may spend to deliver it. */
 export async function simulateStockSettlement<Token extends StockSymbol>(
   token: Token,
@@ -24,10 +32,7 @@ export async function simulateStockSettlement<Token extends StockSymbol>(
   if (input.chain !== Networks.Robinhood || input.token !== token || !input.requestInputAmountUsd) {
     throw new Error(`StockSettlement requires ${token} on ${Networks.Robinhood} with its USD value`);
   }
-  const { settlementSubsidyMaxBps, settlementSubsidyMaxUsd } = config.stocks;
-  const share = input.requestInputAmountUsd.mul(settlementSubsidyMaxBps).div(10_000);
-  const ceiling = share.lt(settlementSubsidyMaxUsd) ? share : new Big(settlementSubsidyMaxUsd);
-  const maxSubsidyUsd = ceiling.gt(MAX_FINAL_SETTLEMENT_SUBSIDY_USD) ? ceiling : new Big(MAX_FINAL_SETTLEMENT_SUBSIDY_USD);
+  const maxSubsidyUsd = stockSettlementSubsidyCapUsd(input.requestInputAmountUsd);
   ctx.addNote(`StockSettlement: promising ${input.amountRaw} raw ${token}, top-up capped at ${maxSubsidyUsd.toFixed(2)} USD`);
   return {
     metadata: {

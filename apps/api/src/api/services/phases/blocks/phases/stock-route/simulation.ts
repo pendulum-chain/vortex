@@ -24,6 +24,7 @@ import {
   type StockSymbol
 } from "../../core/robinhood-stocks";
 import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
+import { stockSettlementSubsidyCapUsd } from "../stock-settlement/simulation";
 import { stockSwapPath, stockSwapTokens } from "../uniswap-v3-fixed-swap/contract";
 import { STOCK_ROUTE_CONTEXT_KEY, type StockRouteSwapMetadata, type StockRouteSwapState } from "../uniswap-v3-fixed-swap/route";
 import { quoteStockSwap, verifyStockSwapDeployment } from "../uniswap-v3-fixed-swap/simulation";
@@ -83,9 +84,10 @@ function swapMetadata(
   direction: RampDirection,
   inputAmountRaw: string,
   outputAmountRaw: string,
-  costUsd: Big
+  costUsd: Big,
+  softMargin: Big.BigSource = AMM_MINIMUM_OUTPUT_SOFT_MARGIN
 ): StockRouteSwapMetadata {
-  const minimum = (margin: number) => new Big(outputAmountRaw).mul(new Big(1).minus(margin)).toFixed(0, 0);
+  const minimum = (margin: Big.BigSource) => new Big(outputAmountRaw).mul(new Big(1).minus(margin)).toFixed(0, 0);
   return {
     costUsd: costUsd.toFixed(6),
     hardMinimumOutputRaw: minimum(AMM_MINIMUM_OUTPUT_HARD_MARGIN),
@@ -98,7 +100,7 @@ function swapMetadata(
     quoter: ROBINHOOD_UNISWAP_QUOTER_V2,
     router: ROBINHOOD_UNISWAP_SWAP_ROUTER_02,
     routerKind: "swapRouter02",
-    softMinimumOutputRaw: minimum(AMM_MINIMUM_OUTPUT_SOFT_MARGIN)
+    softMinimumOutputRaw: minimum(softMargin)
   };
 }
 
@@ -140,6 +142,8 @@ export async function simulateStockRouteBuy<Token extends StockSymbol>(
     reference
   });
   ctx.addNote(`StockRoute: ${input.amount.toFixed()} USDC -> ${usdg.toFixed()} USDG -> ${stock.toFixed()} ${token}`);
+  // The swap waits for a fill StockSettlement can still top up within its cap, while the USDG can still be recovered.
+  const settlementMargin = stockSettlementSubsidyCapUsd(usdg).div(usdg);
 
   return {
     metadata: {
@@ -154,7 +158,14 @@ export async function simulateStockRouteBuy<Token extends StockSymbol>(
       },
       direction: RampDirection.BUY,
       reference: { deviationBps, priceUsd: reference.priceUsd.toString(), updatedAt: reference.updatedAt.toISOString() },
-      swap: swapMetadata(token, RampDirection.BUY, usdgRaw, stockRaw.toString(), usdg.minus(stock.mul(reference.priceUsd))),
+      swap: swapMetadata(
+        token,
+        RampDirection.BUY,
+        usdgRaw,
+        stockRaw.toString(),
+        usdg.minus(stock.mul(reference.priceUsd)),
+        settlementMargin.lt(AMM_MINIMUM_OUTPUT_SOFT_MARGIN) ? settlementMargin : AMM_MINIMUM_OUTPUT_SOFT_MARGIN
+      ),
       token
     },
     output: { ...evmIO(token, Networks.Robinhood, stock, stockRaw.toString()), requestInputAmountUsd: usdg }

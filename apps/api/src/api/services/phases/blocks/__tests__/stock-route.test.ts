@@ -211,6 +211,21 @@ describe("simulateStockRouteBuy", () => {
     expect(metadata.reference.deviationBps).toBeCloseTo(37.14, 1);
   });
 
+  it("holds a large buy's swap to a fill the settlement cap can still top up", async () => {
+    const input = { amount: new Big("21800"), amountRaw: "21800000000", chain: Networks.Base, token: EvmToken.USDC } as const;
+    const { metadata, output } = await simulateStockRouteBuy(NVDA, input, ctx, {
+      quoteSwap: async (_path, usdgIn) => (usdgIn * 10n ** 12n) / 181n,
+      readReference: reference("181"),
+      verifyDeployment: async () => {}
+    });
+
+    // A $50 cap on about $21,787 of USDG allows a fill about 0.23% short, not the usual 2%.
+    const usdg = output.requestInputAmountUsd as Big;
+    const expected = new Big(output.amountRaw).mul(new Big(1).minus(new Big(config.stocks.settlementSubsidyMaxUsd).div(usdg)));
+    expect(metadata.swap.softMinimumOutputRaw).toBe(expected.toFixed(0, 0));
+    expect(BigInt(metadata.swap.softMinimumOutputRaw)).toBeGreaterThan((BigInt(output.amountRaw) * 9_970n) / 10_000n);
+  });
+
   it("is rejected with the price message when the fill is 3% worse than the reference", async () => {
     await expect(simulateBuy("176")).rejects.toMatchObject({
       isPublic: true,
