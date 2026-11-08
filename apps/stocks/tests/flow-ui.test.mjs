@@ -354,6 +354,14 @@ test("a sell that still needs its permit goes back to the wallet step after the 
   assert.match(s.text(), /Confirme na sua carteira/);
 }));
 
+test("a sell held by maintenance is not told about a Pix payment", () => harness(async (s) => {
+  const { props } = resumed({ ramp: initial({ depositQrCode: null }), stage: "ready", adapter: { resumeSell: async () => { throw Object.assign(new Error("A Vortex está em manutenção. Aguarde para continuar; não faça um novo Pix agora."), { code: "MAINTENANCE_ACTIVE" }); } } });
+  await s.render(createElement(SellFlow, { ...props, holdingRaw: 10n ** 18n }));
+  await s.click("Continuar esta venda");
+  assert.match(s.text(), /Aguarde para continuar esta venda/);
+  assert.doesNotMatch(s.text(), /Pix agora/);
+}));
+
 const headingAt = async (s, Flow, phase) => {
   const { props } = resumed({ ramp: processingAt(phase) });
   await s.render(createElement(Flow, { ...props, holdingRaw: 10n ** 18n }));

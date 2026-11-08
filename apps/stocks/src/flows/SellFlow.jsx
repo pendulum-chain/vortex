@@ -25,6 +25,12 @@ const PROGRESS_INDEX = { amount: 0, otp: 1, kyc: 1, review: 2, sign: 3 };
 
 const toInput = (decimal) => String(decimal).replace(".", ",");
 
+// The maintenance messages are worded for a Pix payment; a sell pays none.
+const SELL_MAINTENANCE_PT = {
+  MAINTENANCE_ACTIVE: "A Vortex está em manutenção. Aguarde para continuar esta venda.",
+  MAINTENANCE_STATUS_UNAVAILABLE: "Não conseguimos verificar a disponibilidade da Vortex. Aguarde e tente novamente.",
+};
+
 function WalletAddress({ address }) {
   const [copied, copy] = useCopy();
   return (
@@ -137,7 +143,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
     catch (nextError) {
       if (nextError?.name === "AbortError") return;
       if (needsCode(nextError) && verification.required) askForCode();
-      else { setError(errorMessage(nextError)); setErrorCode(nextError?.code || ""); }
+      else { setError(SELL_MAINTENANCE_PT[nextError?.code] ?? errorMessage(nextError)); setErrorCode(nextError?.code || ""); }
     } finally { lock.current = false; setBusy(false); }
   }
 
