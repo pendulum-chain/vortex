@@ -9,6 +9,7 @@ import {
 import httpStatus from "http-status";
 import { encodeFunctionData, erc20Abi, keccak256, parseAbi } from "viem";
 import logger from "../../../../../../config/logger";
+import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../../models/rampState.model";
 import { APIError } from "../../../../../errors/api-error";
 import { PhaseError } from "../../../../../errors/phase-error";
@@ -21,6 +22,7 @@ import { FinancialOperationRejectedError } from "../../core/financial-operation"
 import { getBlockState } from "../../core/metadata";
 import { ROBINHOOD_STOCKS, readStockFlags } from "../../core/robinhood-stocks";
 import { moneriumPermitAbi } from "../monerium-self-transfer/contract";
+import { resolveUniswapRoute } from "../uniswap-v3-fixed-swap/route";
 import { STOCK_PERMIT_GAS_LIMIT, StockPermitSourceContext } from "./simulation";
 import type { StockPermitSourceState } from "./transactions";
 import { readStockPermit, readStockTransfer, type StockPermitExpectation, type ValidatedStockPermit } from "./validation";
@@ -48,6 +50,8 @@ export interface StockPermitExecutionDependencies {
   getReceipt(hash: `0x${string}`): Promise<Receipt | null>;
   getTransactionCount(address: `0x${string}`): Promise<number>;
   now(): number;
+  /** What the pinned pool pays now for the sold amount, and the swap's soft minimum. */
+  quoteSale(state: RampState, ephemeral: `0x${string}`): Promise<{ outputRaw: bigint; softMinimumOutputRaw: bigint }>;
   readStockFlags: typeof readStockFlags;
   sendPermit(
     token: `0x${string}`,
@@ -78,6 +82,15 @@ function defaultDependencies(): StockPermitExecutionDependencies {
     },
     getTransactionCount: address => client.getTransactionCount({ address }),
     now: Date.now,
+    async quoteSale(state, ephemeral) {
+      const quote = await QuoteTicket.findByPk(state.quoteId);
+      if (!quote) throw new Error("the quote is missing");
+      const route = resolveUniswapRoute(quote.metadata, state.state, ephemeral);
+      return {
+        outputRaw: await route.quote(BigInt(route.amountInRaw)),
+        softMinimumOutputRaw: BigInt(route.softMinimumOutputRaw)
+      };
+    },
     readStockFlags,
     sendPermit: (token, args) =>
       sendEvmFundingTransaction(Networks.Robinhood, {
@@ -175,13 +188,21 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
     }
   }
 
-  private async assertOwnerHoldsAmount(
+  /** The swap holds below its soft minimum, so the tokens wait in the seller's wallet rather than on the ephemeral. */
+  private async assertSaleCanProceed(
+    state: RampState,
     dependencies: StockPermitExecutionDependencies,
-    { amountRaw, owner, tokenAddress }: StockPermitExpectation
+    { amountRaw, ephemeral, owner, tokenAddress }: StockPermitExpectation
   ): Promise<void> {
     const balance = await dependencies.getBalance(tokenAddress, owner);
     if (balance < BigInt(amountRaw)) {
       throw this.createRecoverableError(`StockPermitSource: owner holds ${balance}, below the ${amountRaw} sold`);
+    }
+    const { outputRaw, softMinimumOutputRaw } = await dependencies.quoteSale(state, ephemeral);
+    if (outputRaw < softMinimumOutputRaw) {
+      throw this.createRecoverableError(
+        `StockPermitSource: the pool pays ${outputRaw}, below the swap's soft minimum ${softMinimumOutputRaw}`
+      );
     }
   }
 
@@ -219,7 +240,7 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
         () =>
           this.runFinancialOperation(state, {
             attemptClass: "stock-permit",
-            beforePerform: () => this.assertOwnerHoldsAmount(dependencies, expectation),
+            beforePerform: () => this.assertSaleCanProceed(state, dependencies, expectation),
             externalId: value => value.hash,
             perform: async () => {
               throwIfAborted(signal);
@@ -338,7 +359,7 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
         attemptClass: "stock-permit-transfer-from",
         beforePerform: () => {
           assertBeforeDeadline();
-          return this.assertOwnerHoldsAmount(dependencies, expectation);
+          return this.assertSaleCanProceed(state, dependencies, expectation);
         },
         externalId: value => value.hash,
         perform: async () => {

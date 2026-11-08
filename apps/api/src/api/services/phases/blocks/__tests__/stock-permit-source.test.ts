@@ -177,7 +177,10 @@ interface FakeChain {
   permits: unknown[][];
   raw: `0x${string}`[];
   receipts: Map<string, { status: "success" | "reverted" }>;
+  saleOutputRaw: bigint;
 }
+
+const SOFT_MINIMUM_OUTPUT_RAW = 9_800n;
 
 function fakeChain(overrides: Partial<Dependencies> = {}, start: Partial<FakeChain> = {}) {
   const chain: FakeChain = {
@@ -189,6 +192,7 @@ function fakeChain(overrides: Partial<Dependencies> = {}, start: Partial<FakeCha
     permits: [],
     raw: [],
     receipts: new Map(),
+    saleOutputRaw: 10_000n,
     ...start
   };
   const dependencies: Dependencies = {
@@ -198,6 +202,7 @@ function fakeChain(overrides: Partial<Dependencies> = {}, start: Partial<FakeCha
     getReceipt: async hash => chain.receipts.get(hash) ?? null,
     getTransactionCount: async () => chain.ephemeralNonce,
     now: () => PREPARED_AT_MS + 1000,
+    quoteSale: async () => ({ outputRaw: chain.saleOutputRaw, softMinimumOutputRaw: SOFT_MINIMUM_OUTPUT_RAW }),
     readStockFlags: async () => ({ paused: chain.paused }),
     sendPermit: async (_token, args) => {
       chain.permits.push([...args]);
@@ -471,6 +476,35 @@ describe("StockPermitTransferExecutor", () => {
     expect(error).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
     expect(chain.permits).toHaveLength(0);
     expect(journal.rows.get("stock-permit")).toBeUndefined();
+  });
+
+  it("keeps the tokens with the seller while the pool pays below the swap's soft minimum", async () => {
+    const { chain, executor } = fakeChain({}, { saleOutputRaw: SOFT_MINIMUM_OUTPUT_RAW - 1n });
+
+    const error = await executor.execute(await signedRamp()).catch(value => value);
+
+    expect(error).toBeInstanceOf(RecoverablePhaseError);
+    expect(error).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect(chain.permits).toHaveLength(0);
+    expect(chain.ownerBalance).toBe(AMOUNT);
+  });
+
+  it("does not pull a landed permit's tokens until the pool pays the soft minimum again", async () => {
+    const { chain, dependencies, executor } = fakeChain();
+    dependencies.quoteSale = async () => ({
+      outputRaw: chain.permits.length ? SOFT_MINIMUM_OUTPUT_RAW - 1n : SOFT_MINIMUM_OUTPUT_RAW,
+      softMinimumOutputRaw: SOFT_MINIMUM_OUTPUT_RAW
+    });
+    const state = await signedRamp();
+
+    await expect(executor.execute(state)).rejects.toBeInstanceOf(RecoverablePhaseError);
+    expect(chain.allowance).toBe(AMOUNT);
+    expect(chain.raw).toHaveLength(0);
+
+    chain.saleOutputRaw = SOFT_MINIMUM_OUTPUT_RAW;
+    dependencies.quoteSale = async () => ({ outputRaw: chain.saleOutputRaw, softMinimumOutputRaw: SOFT_MINIMUM_OUTPUT_RAW });
+    await executor.execute(state);
+    expect(chain.raw).toHaveLength(1);
   });
 
   it("fails the ramp on a mined transferFrom revert: its nonce is spent and the tokens never left", async () => {
