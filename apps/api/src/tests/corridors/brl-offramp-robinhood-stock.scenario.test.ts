@@ -827,4 +827,27 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
     const subsidies = await Subsidy.count({ where: { phase: "subsidizePreSwap", rampId: setup.rampId } });
     expect([subsidies, world.brla.pixOutputTickets.length - pixOutBefore]).toEqual(phase === "complete" ? [1, 1] : [0, 0]);
   }, 60000);
+
+  it(
+    "pauses instead of topping up a fill whose shortfall exceeds the stock sale's USD ceiling",
+    async () => {
+      const usdcBefore = parseUnits("1000", 6);
+      world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, FUNDING, usdcBefore);
+      const { saleSubsidyMaxUsd } = config.stocks;
+      config.stocks.saleSubsidyMaxUsd = "0.1";
+      try {
+        const setup = await setUpRegisteredRamp({ fillBps: 9_970n });
+
+        const paused = await startAndSettle(setup);
+
+        expect(paused.currentPhase).toBe("subsidizePreSwap");
+        expect(paused.errorLogs.at(-1)?.error).toContain("exceeds the stock sale cap");
+        expect(await Subsidy.count()).toBe(0);
+        expect(world.evm.erc20Balance(Networks.Base, USDC_ON_BASE, FUNDING)).toBe(usdcBefore);
+      } finally {
+        config.stocks.saleSubsidyMaxUsd = saleSubsidyMaxUsd;
+      }
+    },
+    60000
+  );
 });

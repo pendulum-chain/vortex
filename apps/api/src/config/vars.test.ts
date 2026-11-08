@@ -402,6 +402,7 @@ describe("vars stocks corridor", () => {
       maxPriceDeviationBps: 200,
       priceReferenceMaxAgeHours: 72,
       quoteRateLimitPerMinute: 20,
+      saleSubsidyMaxUsd: "500",
       settlementSubsidyMaxBps: 250,
       settlementSubsidyMaxUsd: "50"
     });

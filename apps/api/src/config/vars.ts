@@ -259,6 +259,8 @@ interface Config {
     maxPriceDeviationBps: number;
     priceReferenceMaxAgeHours: number;
     quoteRateLimitPerMinute: number;
+    /** Absolute USD ceiling on a stock sale's pre-swap top-up, on top of the quote-fraction cap. */
+    saleSubsidyMaxUsd: string;
     settlementSubsidyMaxBps: number;
     settlementSubsidyMaxUsd: string;
   };
@@ -551,6 +553,7 @@ export const config: Config = {
     maxPriceDeviationBps: readPositiveIntegerEnv("STOCKS_MAX_PRICE_DEVIATION_BPS", "200"),
     priceReferenceMaxAgeHours: readPositiveIntegerEnv("STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS", "72"),
     quoteRateLimitPerMinute: readPositiveIntegerEnv("STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE", "20"),
+    saleSubsidyMaxUsd: readPositiveDecimalEnv("STOCKS_SALE_SUBSIDY_MAX_USD", "500"),
     settlementSubsidyMaxBps: readPositiveIntegerEnv("STOCKS_SETTLEMENT_SUBSIDY_MAX_BPS", "250"),
     settlementSubsidyMaxUsd: readPositiveDecimalEnv("STOCKS_SETTLEMENT_SUBSIDY_MAX_USD", "50")
   },
