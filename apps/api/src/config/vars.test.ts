@@ -408,13 +408,17 @@ describe("vars stocks corridor", () => {
   });
 
   it("parses a mixed-case, padded direction list", async () => {
-    const result = await importVarsWithEnv({ STOCKS_ENABLED_DIRECTIONS: " buy, SELL ,," }, "JSON.stringify(vars.config.stocks.enabledDirections)");
+    const result = await importVarsWithEnv(
+      { RELAY_API_KEY: "test-relay-api-key", STOCKS_ENABLED_DIRECTIONS: " buy, SELL ,," },
+      "JSON.stringify(vars.config.stocks.enabledDirections)"
+    );
 
     expect(result).toEqual({ exitCode: 0, stderr: "", stdout: '["BUY","SELL"]\n' });
   });
 
   it.each([
     [{ STOCKS_ENABLED_DIRECTIONS: "BUY,HOLD" }, "STOCKS_ENABLED_DIRECTIONS contains unknown directions: HOLD"],
+    [{ STOCKS_ENABLED_DIRECTIONS: "BUY" }, "RELAY_API_KEY is required when STOCKS_ENABLED_DIRECTIONS is set"],
     [{ STOCKS_MAX_PRICE_DEVIATION_BPS: "0" }, "STOCKS_MAX_PRICE_DEVIATION_BPS must be a positive integer"],
     [{ STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS: "1.5" }, "STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS must be a positive integer"],
     [{ STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE: "0" }, "STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE must be a positive integer"],

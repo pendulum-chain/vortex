@@ -11,7 +11,7 @@ transaction is signed before it passes the validators in `packages/shared/src/se
 **Fiat currencies:** None directly. It serves the BRL/Pix stock flows, `BrlOnrampRobinhoodStock` and `BrlOfframpRobinhoodStock`.
 **Chains involved:** Base (native USDC `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`) and Robinhood Chain (USDG `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`)
 **Phase handlers:** `phases/blocks/phases/stock-route/execution.ts` (`RelayBridgeExecutor`, phase `relayBridge`)
-**API auth method:** Optional `x-api-key` header from `RELAY_API_KEY`
+**API auth method:** `x-api-key` header from `RELAY_API_KEY`, which Relay requires on every quote. The API refuses to start with a stock direction enabled and no key.
 **Endpoints consumed:** `POST /quote/v2` and `GET /intents/status/v3`, in `packages/shared/src/services/relay/relayApi.ts`
 
 ### Pinned addresses

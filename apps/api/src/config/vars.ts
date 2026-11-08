@@ -577,6 +577,11 @@ if (config.stocks.gasReserveTargetWei > 0n && config.stocks.gasReserveThresholdW
   throw new Error("ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI must not exceed ROBINHOOD_GAS_RESERVE_TARGET_WEI");
 }
 
+// Relay requires an API key on every quote, so an enabled corridor without one would fail every quote and registration.
+if (config.stocks.enabledDirections.length > 0 && !process.env.RELAY_API_KEY) {
+  throw new Error("RELAY_API_KEY is required when STOCKS_ENABLED_DIRECTIONS is set");
+}
+
 if (config.sandboxEnabled && config.deploymentEnv !== "sandbox") {
   throw new Error(`SANDBOX_ENABLED=true requires DEPLOYMENT_ENV=sandbox (got '${config.deploymentEnv}'); refusing to start`);
 }
