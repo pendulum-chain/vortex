@@ -144,7 +144,7 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
       }
       const permitTx = await this.validatedPermitTransactions(state, expectation);
       await this.consumeOrInvalidatePermit(state, dependencies, expectation, permitTx.permit, signal);
-      await this.pullTokens(state, dependencies, expectation, permitTx.transferTx, signal);
+      await this.pullTokens(state, dependencies, expectation, permitTx, signal);
       return state;
     } catch (error) {
       if (error instanceof PhaseError) throw error;
@@ -280,10 +280,18 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
     state: RampState,
     dependencies: StockPermitExecutionDependencies,
     expectation: StockPermitExpectation,
-    transferTx: PresignedTx,
+    { permit, transferTx }: { permit: ValidatedStockPermit; transferTx: PresignedTx },
     signal?: AbortSignal
   ): Promise<void> {
     const { amountRaw, ephemeral, owner, tokenAddress } = expectation;
+    // The seller agreed to a sale within the permit's lifetime, so a pull that has not started by then never starts.
+    const assertBeforeDeadline = () => {
+      if (permit.deadline <= BigInt(Math.floor(dependencies.now() / 1000))) {
+        throw this.createUnrecoverableError(
+          "StockPermitSource: the permit deadline passed before the pull, so the seller still holds the tokens"
+        );
+      }
+    };
     const observedAllowance = await dependencies.getAllowance(tokenAddress, owner, ephemeral);
     const persistedAllowance = this.getState(state).allowanceBeforeTransferRaw;
     const allowanceBefore = persistedAllowance ? BigInt(persistedAllowance) : observedAllowance;
@@ -297,6 +305,7 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
             : `StockPermitSource: owner nonce ${invalidation.observedNonce} consumed the permit and no allowance remains, so the seller still holds the tokens`
         );
       }
+      assertBeforeDeadline();
       throw this.createRecoverableError("StockPermitSource: the permit did not establish the transfer allowance");
     }
     if (!persistedAllowance) await this.updateState(state, { allowanceBeforeTransferRaw: allowanceBefore.toString() });
@@ -327,7 +336,10 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
     try {
       await this.runFinancialOperation(state, {
         attemptClass: "stock-permit-transfer-from",
-        beforePerform: () => this.assertOwnerHoldsAmount(dependencies, expectation),
+        beforePerform: () => {
+          assertBeforeDeadline();
+          return this.assertOwnerHoldsAmount(dependencies, expectation);
+        },
         externalId: value => value.hash,
         perform: async () => {
           throwIfAborted(signal);

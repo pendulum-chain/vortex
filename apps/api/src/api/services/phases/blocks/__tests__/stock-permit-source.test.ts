@@ -425,6 +425,20 @@ describe("StockPermitTransferExecutor", () => {
     expect(chain.ownerBalance).toBe(0n);
   });
 
+  it("never pulls once the permit's deadline has passed, even with the permit landed and the tokens back", async () => {
+    const { chain, dependencies, executor } = fakeChain();
+    dependencies.getBalance = async () => (chain.permits.length ? 0n : AMOUNT);
+    const state = await signedRamp();
+    await expect(executor.execute(state)).rejects.toBeInstanceOf(RecoverablePhaseError);
+    expect(chain.allowance).toBe(AMOUNT);
+
+    dependencies.getBalance = async () => AMOUNT;
+    dependencies.now = () => DEADLINE_MS;
+
+    await expect(executor.execute(state)).rejects.toBeInstanceOf(UnrecoverablePhaseError);
+    expect(chain.raw).toHaveLength(0);
+  });
+
   it("fails the ramp on an expired unconsumed permit, because the seller still holds the tokens", async () => {
     const { chain, executor } = fakeChain({ now: () => DEADLINE_MS });
 
