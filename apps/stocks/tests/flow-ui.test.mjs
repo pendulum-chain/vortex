@@ -282,6 +282,17 @@ for (const [name, Flow] of [["buy", BuyFlow], ["sell", SellFlow]]) {
     assert.match(s.text(), /não foi encontrada/);
     assert.match(s.text(), /Código da operação: ramp-1/);
   }));
+
+  test(`a ${name} whose status read fails again on retry shows the reason, not an endless wait`, () => harness(async (s) => {
+    let reads = 0;
+    const { props } = resumed({ ramp: initial(), adapter: { getRamp: async () => { reads += 1; throw Object.assign(new Error("Não foi possível conectar à Vortex."), { status: 0 }); } } });
+    await s.render(createElement(Flow, { ...props, holdingRaw: 10n ** 18n }));
+    await s.click("Tentar novamente");
+    assert.equal(reads, 2);
+    assert.match(s.text(), /Não foi possível conectar à Vortex/);
+    assert.ok(s.has("Tentar novamente"));
+    assert.equal(document.querySelector(".spinner"), null);
+  }));
 }
 
 test("a refused registration shows its code, though it no longer holds the wallet", () => harness(async (s) => {

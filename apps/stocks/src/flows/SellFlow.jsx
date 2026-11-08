@@ -188,33 +188,33 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
     setStep("success");
   }
 
+  // A failed read ends on the issue screen, whoever asked for it; only a missing session goes back to the code.
   async function loadExisting() {
-    setStep("resuming");
-    const current = await adapter.getRamp(resume.rampId, { walletAddress: wallet });
-    setRamp(current);
-    if (current.classification === "success") { finish(current); return; }
-    if (current.classification === "failure") { setError("Esta venda não foi concluída. Consulte o suporte com o código abaixo antes de tentar outra operação."); setStep("issue"); return; }
-    if (resume.stage === "registering" && current.currentPhase === "initial") {
-      // The wallet is asked only after this stage, so nothing can have moved: this device can let it go.
-      await adapter.abandonRamp(resume.rampId, { walletAddress: wallet });
-      setError("O registro desta venda não foi concluído, e nada saiu da sua carteira. Comece uma nova venda.");
-      setErrorCode("SELL_EXPIRED"); // it cannot be continued: no retry
-      setStep("issue");
-      return;
+    try {
+      setStep("resuming");
+      const current = await adapter.getRamp(resume.rampId, { walletAddress: wallet });
+      setRamp(current);
+      if (current.classification === "success") { finish(current); return; }
+      if (current.classification === "failure") { setError("Esta venda não foi concluída. Consulte o suporte com o código abaixo antes de tentar outra operação."); setStep("issue"); return; }
+      if (resume.stage === "registering" && current.currentPhase === "initial") {
+        // The wallet is asked only after this stage, so nothing can have moved: this device can let it go.
+        await adapter.abandonRamp(resume.rampId, { walletAddress: wallet });
+        setError("O registro desta venda não foi concluído, e nada saiu da sua carteira. Comece uma nova venda.");
+        setErrorCode("SELL_EXPIRED"); // it cannot be continued: no retry
+        setStep("issue");
+        return;
+      }
+      if (resume.stage === "registering") { setError("O registro precisa ser conferido pela Vortex. Envie o código abaixo ao suporte; não faça uma nova venda."); setStep("issue"); return; }
+      setStep(current.currentPhase === "initial" ? "sign" : "processing");
+    } catch (nextError) {
+      if (needsCode(nextError) && verification.required) throw nextError;
+      setError(errorMessage(nextError, "Não foi possível recuperar esta venda.")); setStep("issue");
     }
-    if (resume.stage === "registering") { setError("O registro precisa ser conferido pela Vortex. Envie o código abaixo ao suporte; não faça uma nova venda."); setStep("issue"); return; }
-    setStep(current.currentPhase === "initial" ? "sign" : "processing");
   }
 
   useEffect(() => {
     if (!resume) return;
-    run(async () => {
-      try { await loadExisting(); }
-      catch (nextError) {
-        if (needsCode(nextError) && verification.required) throw nextError;
-        setError(errorMessage(nextError, "Não foi possível recuperar esta venda.")); setStep("issue");
-      }
-    });
+    run(loadExisting);
   }, []);
 
   // Demo deep link "sell-reserve-used": code and KYC done, the demo reserve spent down to dust, the

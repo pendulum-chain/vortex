@@ -153,37 +153,37 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume: r
     setStep("success");
   }
 
-  // The resumed operation, or the one registered in this flow (after the e-mail code).
+  // The resumed operation, or the one registered in this flow (after the e-mail code). A failed read
+  // ends on the issue screen, whoever asked for it; only a missing session goes back to the code.
   async function loadExisting(rampId = resume?.rampId) {
-    const stage = rampId === resume?.rampId ? resume.stage : null;
-    setStep("resuming");
-    const current = await adapter.getRamp(rampId, { walletAddress: wallet });
-    setRamp(current);
-    if (current.classification === "success") { finish(current); return; }
-    if (current.classification === "failure") { setError("Esta compra expirou ou não pôde ser concluída. Se houve débito, consulte o suporte com o código da operação."); setStep("issue"); return; }
-    if (current.currentPhase === "initial" && (current.depositQrCode || current.simulatedPix) && stage !== "registering") { setStep("pix"); return; }
-    if (current.currentPhase === "initial" && stage === "registering") {
-      // Its Pix code was never shown, so nothing can have been paid: this device can let it go.
-      await adapter.abandonRamp(rampId, { walletAddress: wallet });
-      setResume(null);
-      setError("O registro desta compra não foi concluído, e nenhum Pix foi gerado. Você pode começar de novo.");
-      setStep("issue");
-      return;
+    try {
+      const stage = rampId === resume?.rampId ? resume.stage : null;
+      setStep("resuming");
+      const current = await adapter.getRamp(rampId, { walletAddress: wallet });
+      setRamp(current);
+      if (current.classification === "success") { finish(current); return; }
+      if (current.classification === "failure") { setError("Esta compra expirou ou não pôde ser concluída. Se houve débito, consulte o suporte com o código da operação."); setStep("issue"); return; }
+      if (current.currentPhase === "initial" && (current.depositQrCode || current.simulatedPix) && stage !== "registering") { setStep("pix"); return; }
+      if (current.currentPhase === "initial" && stage === "registering") {
+        // Its Pix code was never shown, so nothing can have been paid: this device can let it go.
+        await adapter.abandonRamp(rampId, { walletAddress: wallet });
+        setResume(null);
+        setError("O registro desta compra não foi concluído, e nenhum Pix foi gerado. Você pode começar de novo.");
+        setStep("issue");
+        return;
+      }
+      if (current.currentPhase === "initial") { setError("O registro precisa ser conferido pela Vortex. Consulte o suporte com o código da operação; não faça um novo Pix."); setStep("issue"); return; }
+      setStep("processing");
+    } catch (nextError) {
+      if (needsCode(nextError) && verification.required) throw nextError;
+      setError(errorMessage(nextError, "Não foi possível recuperar esta compra.")); setStep("issue");
     }
-    if (current.currentPhase === "initial") { setError("O registro precisa ser conferido pela Vortex. Consulte o suporte com o código da operação; não faça um novo Pix."); setStep("issue"); return; }
-    setStep("processing");
   }
 
   // Resume an operation from the banner (resuming -> getRamp -> …).
   useEffect(() => {
     if (!resume) return;
-    run(async () => {
-      try { await loadExisting(); }
-      catch (nextError) {
-        if (needsCode(nextError) && verification.required) throw nextError;
-        setError(errorMessage(nextError, "Não foi possível recuperar esta compra.")); setStep("issue");
-      }
-    });
+    run(loadExisting);
   }, []);
 
   // Demo deep link "buy-quote": code and KYC count as done, straight to the quote.
