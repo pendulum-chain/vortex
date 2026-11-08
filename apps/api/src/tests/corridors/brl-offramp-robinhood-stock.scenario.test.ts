@@ -451,6 +451,45 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
     60000
   );
 
+  it(
+    "refuses a second sale from the same account while one is open, and accepts it once that one ended",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      const quote = await post<{ id: string }>("/v1/quotes", {
+        from: Networks.Robinhood,
+        inputAmount: SOLD,
+        inputCurrency: EvmToken.NVDA,
+        network: Networks.Robinhood,
+        outputCurrency: FiatToken.BRL,
+        rampType: RampDirection.SELL,
+        to: "pix"
+      });
+      const registerAgain = () =>
+        app.request("/v1/ramp/register", {
+          body: JSON.stringify({
+            additionalData: {
+              pixDestination: PIX_KEY,
+              receiverTaxId: RECEIVER_TAX_ID,
+              taxId: TAX_ID,
+              walletAddress: privateKeyToAccount(generatePrivateKey()).address
+            },
+            quoteId: quote.id,
+            signingAccounts: [{ address: privateKeyToAccount(generatePrivateKey()).address, type: "EVM" }]
+          }),
+          headers: jsonHeaders(setup.userId),
+          method: "POST"
+        });
+
+      const refused = await registerAgain();
+      expect(refused.status).toBe(409);
+      expect(await refused.text()).toContain(setup.rampId);
+
+      await RampState.update({ currentPhase: "failed" }, { where: { id: setup.rampId } });
+      expect((await registerAgain()).status).toBeLessThan(300);
+    },
+    60000
+  );
+
   it.each([EvmToken.AMZN, EvmToken.SGOV] as const)(
     "completes for %s too, whose address sorts differently and whose pool fee differs",
     async token => {

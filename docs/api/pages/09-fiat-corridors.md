@@ -144,6 +144,8 @@ The provider-hosted alternative remains available: `POST /v1/brl/kyb/new-level-1
 
 Where enabled, stock tokens on the `"robinhood"` network use this corridor and its onboarding: `"from": "pix"` to buy, and `"to": "pix"` to sell. No other fiat rail reaches this network. See [Quotes And Pricing](https://api-docs.vortexfinance.co/quotes-and-pricing) for the request and the response fields.
 
+An account, and a wallet, can have one stock sale open at a time. Registering another while one is still open returns `409 A stock sale is already in progress (<rampId>)`; wait until that ramp completes or fails, or until an unstarted one's start window closes.
+
 ## USD, MXN, COP, ARS (Bank Transfers)
 
 These corridors settle through Vortex's local payment partners over domestic banking rails. In quote requests, the rail identifier takes the place of a network in `from` (buy) or `to` (sell):

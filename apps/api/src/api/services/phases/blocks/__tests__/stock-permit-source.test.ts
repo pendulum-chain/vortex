@@ -24,6 +24,7 @@ import {
   parseAbi
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import RampState from "../../../../../models/rampState.model";
 import { installFakeFinancialJournal } from "../../../../../test-utils/fake-financial-journal";
 import { installFakeChainIdRpc } from "../../../../../test-utils/fake-world/fake-evm";
 import { RecoverablePhaseError, ReconciliationRequiredPhaseError, UnrecoverablePhaseError } from "../../../../errors/phase-error";
@@ -737,6 +738,7 @@ describe("StockPermitSource simulation", () => {
 
 describe("StockPermitSource registration", () => {
   function register(walletAddress?: string) {
+    spyOn(RampState, "findOne").mockResolvedValue(null);
     return registerStockPermitSource({
       authenticatedUser: { id: "user" },
       input: { walletAddress },
