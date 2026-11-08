@@ -19,6 +19,7 @@ import {
   RegisterRampResponse,
   StartRampRequest,
   StartRampResponse,
+  sanitizeRpcErrorMessage,
   TransactionStatus,
   UnsignedTx,
   UpdateRampRequest,
@@ -882,7 +883,14 @@ export class RampService extends BaseRampService {
       return null;
     }
 
-    return rampState.errorLogs;
+    // The stored entries keep the full message and stack for operators. Callers get the first
+    // line of each message, without stack, RPC endpoint URLs, or upstream provider bodies.
+    return rampState.errorLogs.map(log => ({
+      error: sanitizeRpcErrorMessage(log.error.split("\n")[0].replace(/(Request failed with status '\d+'\.) Error: .*/, "$1")),
+      phase: log.phase,
+      recoverable: log.recoverable,
+      timestamp: log.timestamp
+    }));
   }
 
   /**

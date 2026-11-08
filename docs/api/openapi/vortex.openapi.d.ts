@@ -1392,7 +1392,7 @@ export interface paths {
         };
         /**
          * Get ramp error logs
-         * @description Returns the chronological error log for a ramp.
+         * @description Returns the chronological error log for a ramp. Each entry carries a one-line `error` message; stack traces and upstream provider responses are not returned, so `details` is omitted.
          *
          *     **Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.
          */

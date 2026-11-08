@@ -10169,7 +10169,7 @@
     "/v1/ramp/{id}/errors": {
       "get": {
         "deprecated": false,
-        "description": "Returns the chronological error log for a ramp.\n\n**Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.",
+        "description": "Returns the chronological error log for a ramp. Each entry carries a one-line `error` message; stack traces and upstream provider responses are not returned, so `details` is omitted.\n\n**Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.",
         "operationId": "getRampErrorLogs",
         "parameters": [
           {
