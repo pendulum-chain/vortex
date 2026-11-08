@@ -29,7 +29,6 @@ import {
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
 } from "@vortexfi/shared";
-import Big from "big.js";
 import { Request, RequestHandler, Response } from "express";
 import httpStatus from "http-status";
 import { z } from "zod";
@@ -41,6 +40,7 @@ import { FLOW_HEADERS } from "../controllers/storage.controller";
 import { APIError } from "../errors/api-error";
 import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
+import { isBoundedAmount } from "../services/quote";
 
 interface CreationBody {
   accountId: string;
@@ -140,7 +140,7 @@ export const validateBundledPriceInput: RequestHandler<unknown, unknown, unknown
     return;
   }
 
-  if (isNaN(parseFloat(amount))) {
+  if (!isBoundedAmount(amount)) {
     res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid amount parameter. Not a number." });
     return;
   }
@@ -197,7 +197,7 @@ export const validatePriceInput: RequestHandler<unknown, unknown, unknown, Price
     return;
   }
 
-  if (isNaN(parseFloat(amount))) {
+  if (!isBoundedAmount(amount)) {
     res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid amount parameter. Not a number." });
     return;
   }
@@ -374,17 +374,6 @@ const validateSupportedFiatCurrency = (
   }
   return true;
 };
-
-// Quote amounts are expanded to fixed-point strings downstream, so their size is bounded here.
-function isBoundedAmount(value: unknown): boolean {
-  const text = String(value);
-  if (text.length > 64) return false;
-  try {
-    return Math.abs(new Big(text).e) <= 64;
-  } catch {
-    return false;
-  }
-}
 
 export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQuoteRequest> = (req, res, next) => {
   if (req.body) {

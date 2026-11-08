@@ -1662,7 +1662,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Missing required fields, or `quoteId` not provided for fixed-quote mode and route fields not provided for auto-refresh mode. */
+                /** @description Missing required fields, or `quoteId` not provided for fixed-quote mode and route fields not provided for auto-refresh mode, or an invalid amount (`inputAmount` is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude). */
                 400: {
                     headers: {
                         [name: string]: unknown;
