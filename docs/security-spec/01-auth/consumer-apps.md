@@ -81,7 +81,8 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
   registration and immediately before signing or sending; a resumed sell already signed but not
   started is released once the window has closed, as its start would be refused. An open wallet confirmation cannot be
   revoked reliably by the client, but a permit signed past the window moves nothing, because the
-  API refuses its update and the start. API integrity and server validation remain part of the
+  API refuses its update and the start; the app settles that sell as expired, the same as its own
+  check, when nothing was broadcast. API integrity and server validation remain part of the
   trust boundary.
 - Web Locks serialize registration and each ramp's wallet phase across same-origin tabs; a
   browser without Web Locks cannot register or broadcast. Checkpoints are read inside the lock.

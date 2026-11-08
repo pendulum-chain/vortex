@@ -558,6 +558,30 @@ function staleSell({ minutesAgo, localMinutesAgo = minutesAgo, phases = ["stockP
   return { ...setup, resume: () => setup.adapter.resumeSell({ rampId: "ramp-old", walletAddress: WALLET, wallet: fakeWallet(walletLog) }) };
 }
 
+test("the API refusing a sell past its start window is a sell's expiry, never a Pix payment's", async () => {
+  const late = Object.assign(new Error("Maximum time window to start process exceeded. Ramp invalidated."), { name: "TimeWindowExceededError", status: 400, isPublic: true });
+  const expired = (error) => error.code === "SELL_EXPIRED" && error.details.broadcast === false && /nada saiu da sua carteira/.test(error.message) && !/pagamento|Pix/.test(error.message);
+  // The update with the permit is refused: the wallet confirmation outlasted the window.
+  const sdk = fakeSdk();
+  sdk.client.submitUserTransactions = async () => { throw late; };
+  const signing = adapter({ sdk, readBalance: async () => 10n ** 18n });
+  const quote = await signing.adapter.quoteSell({ symbol: "NVDA", tokenAmount: "0,5", walletAddress: WALLET });
+  await assert.rejects(signing.adapter.registerSell({ quote, walletAddress: WALLET, pixKey: "k", wallet: fakeWallet() }), expired);
+  assert.equal(signing.activeRampStore.get(WALLET), null, "settled: the wallet is free for a new sell");
+  // The start is refused a moment after a signed sell's own check.
+  const startSdk = fakeSdk({ statuses: [{ currentPhase: "initial", status: "PENDING" }] });
+  startSdk.client.startRamp = async () => { throw late; };
+  const starting = adapter({ sdk: startSdk });
+  starting.activeRampStore.save({ rampId: "ramp-fake-1", walletAddress: WALLET, rampType: "SELL", stage: "ready", symbol: "NVDA", tokenAddress: NVDA, inputAmount: "0.5", ephemeralEvmAddress: EPHEMERAL });
+  await assert.rejects(starting.adapter.startRamp("ramp-fake-1", { walletAddress: WALLET }), expired);
+  assert.equal(starting.activeRampStore.get(WALLET), null);
+  // A buy keeps the payment wording, and its record.
+  const buying = adapter({ sdk: startSdk });
+  buying.activeRampStore.save({ rampId: "ramp-fake-1", walletAddress: WALLET, rampType: "BUY", stage: "registered", symbol: "NVDA", inputAmount: "500", outputAmount: "0.42" });
+  await assert.rejects(buying.adapter.startRamp("ramp-fake-1", { walletAddress: WALLET }), (error) => error.code === "INVALID_QUOTE" && /Não faça um novo pagamento/.test(error.message));
+  assert.equal(buying.activeRampStore.get(WALLET).rampId, "ramp-fake-1");
+});
+
 test("a resumed sell past its start window signs nothing, is settled and asks for a new sell", async () => {
   const walletLog = [];
   const { adapter: live, activeRampStore, resume } = staleSell({ minutesAgo: 16, walletLog });

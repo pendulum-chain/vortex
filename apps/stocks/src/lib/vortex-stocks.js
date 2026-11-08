@@ -194,6 +194,8 @@ const KYC_UNFINISHED_PT = "Sua verificação de identidade ainda não foi conclu
 const RAMP_NOT_FOUND_PT = "Esta operação não foi encontrada. Consulte o suporte com o código da operação.";
 const RAMP_ALREADY_STARTED_PT = "Esta operação já não pode ser alterada. Acompanhe o andamento no Início.";
 const CHAIN_UNREADABLE_PT = "Não foi possível consultar a Robinhood Chain agora. Tente novamente em instantes.";
+// Worded for a Pix payment here; on this device's own sell it becomes SELL_EXPIRED (expireSellOnRefusal).
+const START_WINDOW_EXCEEDED = "Maximum time window to start process exceeded. Ramp invalidated.";
 
 /**
  * Every fixed English message the API or the SDK can answer to this app's quote, register, update,
@@ -232,7 +234,7 @@ export const SERVER_ERRORS_PT = Object.freeze({
   "The payment provider could not process this request for the associated account. Please verify the account status or contact support.": { code: "SERVER_ERROR", pt: "A Avenia não aceitou esta operação para a sua conta. Consulte o suporte da Vortex." },
   "The payment provider is temporarily unavailable. Please try again shortly.": { code: "SERVER_ERROR", pt: "A Avenia está indisponível no momento. Tente novamente em instantes." },
   // A registered ramp: update, start and status.
-  "Maximum time window to start process exceeded. Ramp invalidated.": { code: "INVALID_QUOTE", pt: "O prazo para iniciar esta operação terminou. Não faça um novo pagamento; se já pagou, consulte o suporte com o código da operação." },
+  [START_WINDOW_EXCEEDED]: { code: "INVALID_QUOTE", pt: "O prazo para iniciar esta operação terminou. Não faça um novo pagamento; se já pagou, consulte o suporte com o código da operação." },
   "No presigned transactions found. Please call updateRamp first.": { code: "SERVER_ERROR", pt: "O registro desta operação não foi concluído. Consulte o suporte com o código da operação." },
   "Ramp not found": { code: "SERVER_ERROR", pt: RAMP_NOT_FOUND_PT },
   "Associated quote not found": { code: "SERVER_ERROR", pt: RAMP_NOT_FOUND_PT },
@@ -365,13 +367,25 @@ export function createVortexStocksAdapter({
 
   const ownRequests = (unsignedTxs, walletAddress) => (unsignedTxs || []).filter((tx) => String(tx?.signer || "").toLowerCase() === walletAddress.toLowerCase());
 
-  function assertSellDeadline(ramp, record) {
-    const deadline = Math.min(ramp.startDeadline ?? Infinity, Number(record?.createdAt ?? now()) + RAMP_START_WINDOW_MS);
-    if (now() < deadline - RESUME_SIGN_MARGIN_MS) return;
+  // A sell past its start window can never start: with no broadcast it is settled now, with one its
+  // record stays for support.
+  function expireSell(ramp, record) {
     const broadcast = Object.values(record?.transactions ?? {}).some(Boolean);
     if (!broadcast) settle({ ...ramp, classification: "failure" }, record.walletAddress);
     throw new StocksRampError("SELL_EXPIRED", broadcast ? SELL_EXPIRED_AFTER_BROADCAST_PT : SELL_EXPIRED_PT, { details: { rampId: ramp.id, broadcast } });
   }
+
+  function assertSellDeadline(ramp, record) {
+    const deadline = Math.min(ramp.startDeadline ?? Infinity, Number(record?.createdAt ?? now()) + RAMP_START_WINDOW_MS);
+    if (now() >= deadline - RESUME_SIGN_MARGIN_MS) expireSell(ramp, record);
+  }
+
+  // The API's own refusal past the start window, worded for a sell when it is this device's sell.
+  const expireSellOnRefusal = (ramp, walletAddress) => (error) => {
+    const record = activeRampStore.get(walletAddress);
+    if (error?.message === START_WINDOW_EXCEEDED && record?.rampId === ramp.id && record.rampType === "SELL") expireSell(ramp, record);
+    throw error;
+  };
 
   async function signOnRobinhoodChain(sdk, rampId, unsignedTxs, walletAddress, wallet, expect, ramp) {
     const record = activeRampStore.get(walletAddress);
@@ -386,7 +400,8 @@ export function createVortexStocksAdapter({
     const permitNonce = record.permitNonce ?? chainNonce;
     if (permitNonce !== chainNonce) throw new StocksRampError("SELL_EXPIRED", SELL_UNVERIFIABLE_PT, { details: { rampId } });
     if (record.permitNonce == null) activeRampStore.save({ ...record, permitNonce });
-    await submitWalletTransactions({ client: sdk, rampId, transactions: own, expect: { ...expect, spenders: [ephemeral], phases: SELL_PHASES, network, permitNonce }, beforeSign: async () => { await assertMaintenanceAvailable(getMaintenanceStatus); assertSellDeadline(ramp, activeRampStore.get(walletAddress)); }, from: walletAddress, provider: wallet.provider, chain: robinhoodChain, publicClient: robinhoodReader(wallet), ...checkpointsFor(walletAddress) });
+    await submitWalletTransactions({ client: sdk, rampId, transactions: own, expect: { ...expect, spenders: [ephemeral], phases: SELL_PHASES, network, permitNonce }, beforeSign: async () => { await assertMaintenanceAvailable(getMaintenanceStatus); assertSellDeadline(ramp, activeRampStore.get(walletAddress)); }, from: walletAddress, provider: wallet.provider, chain: robinhoodChain, publicClient: robinhoodReader(wallet), ...checkpointsFor(walletAddress) })
+      .catch(expireSellOnRefusal(ramp, walletAddress));
     return permitNonce;
   }
 
@@ -528,11 +543,7 @@ export function createVortexStocksAdapter({
       const localDeadline = Number.isFinite(ownRecord.createdAt) ? ownRecord.createdAt + RAMP_START_WINDOW_MS : null;
       const deadline = Math.min(...[ramp.startDeadline, localDeadline].filter(Number.isFinite));
       // A signed sell ("ready") only needs its start, which the API refuses after the deadline.
-      if ((unsigned && now() >= deadline - RESUME_SIGN_MARGIN_MS) || (ready && now() >= deadline)) {
-        const broadcast = Object.values(ownRecord.transactions ?? {}).some(Boolean);
-        if (!broadcast) settle({ ...ramp, classification: "failure" }, walletAddress);
-        throw new StocksRampError("SELL_EXPIRED", broadcast ? SELL_EXPIRED_AFTER_BROADCAST_PT : SELL_EXPIRED_PT, { details: { rampId, broadcast } });
-      }
+      if ((unsigned && now() >= deadline - RESUME_SIGN_MARGIN_MS) || (ready && now() >= deadline)) expireSell(ramp, ownRecord);
       if (!ready) {
         // The most this sell may move: the amount recorded at registration, never the server's.
         const amount = canonicalAmount(ownRecord.inputAmount);
@@ -554,10 +565,10 @@ export function createVortexStocksAdapter({
     return ramp;
   }
 
-  async function startRamp(rampId) {
+  async function startRamp(rampId, { walletAddress } = {}) {
     requireEnabled();
     await assertMaintenanceAvailable(getMaintenanceStatus);
-    return toStockRamp(await startRampSafely(await client(), rampId), { now: now() });
+    return toStockRamp(await startRampSafely(await client(), rampId).catch(expireSellOnRefusal({ id: rampId }, walletAddress)), { now: now() });
   }
 
   // Not gated: a ramp registered while the flag was on must still be able to finish.

@@ -459,6 +459,17 @@ test("the Pix screen names the exact amount", () => harness(async (s) => {
   assert.doesNotMatch(s.text(), /convertido em ≈/);
 }));
 
+test("a sell settled as expired while confirming ends on the issue screen, not on its wallet step", () => harness(async (s) => {
+  const props = fixtures(approved);
+  Object.assign(props.runtime.adapter, { registerSell: async ({ onRegistered }) => { onRegistered({ id: "ramp-1" }); throw Object.assign(new Error("O prazo para confirmar esta venda terminou, e nada saiu da sua carteira. Comece uma nova venda."), { code: "SELL_EXPIRED" }); } });
+  await s.render(createElement(SellFlow, { ...props, holdingRaw: 10n ** 18n }));
+  await sellAmount(s);
+  await s.check();
+  await s.click("Confirmar venda");
+  assert.match(s.text(), /Comece uma nova venda/);
+  assert.equal(s.has("Continuar esta venda"), false);
+}));
+
 test("a sell asks the wallet for one confirmation", () => harness(async (s) => {
   const { props } = resumed({ ramp: initial({ depositQrCode: null }), stage: "signing" });
   await s.render(createElement(SellFlow, { ...props, holdingRaw: 10n ** 18n }));

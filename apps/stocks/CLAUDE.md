@@ -100,7 +100,8 @@ the sibling of `apps/gold`.
   clock running behind the server's never signs late. With no broadcast it clears the abandoned
   record and throws `SELL_EXPIRED`; with any broadcast it retains recovery for support. A sell already
   signed (stage `ready`) gets the same answer once that deadline itself has passed, since the API
-  would refuse its start. Both known
+  would refuse its start. The API's own refusal past the window, on the update with the permit or on
+  `startRamp` (given the wallet), gets the same `SELL_EXPIRED` for this device's sell. Both known
   hashes and uncertain-send markers survive failed or hour-old status for a day from registration
   (`RETAIN_AFTER_SEND_MS`), then move to the history with the code and any hash; a null checkpoint
   after a definite wallet rejection is not a broadcast. When every wallet request

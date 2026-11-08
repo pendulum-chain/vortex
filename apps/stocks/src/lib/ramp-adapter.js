@@ -22,11 +22,12 @@ export * from "./ramp-contract.js";
  *   registerSell(a:{quote:object, walletAddress:string, pixKey:string, wallet:WalletSeam, onRegistered?:(r:object)=>void}):Promise<import("./ramp-contract.js").StockRamp>,
  *   resumeSell(a:{rampId:string, walletAddress:string, wallet:WalletSeam}):Promise<import("./ramp-contract.js").StockRamp>,
  *   abandonRamp(rampId:string, o:{walletAddress:string}):Promise<import("./ramp-contract.js").StockRamp>,
- *   startRamp(rampId:string):Promise<import("./ramp-contract.js").StockRamp>,
+ *   startRamp(rampId:string, o?:{walletAddress?:string}):Promise<import("./ramp-contract.js").StockRamp>,
  *   getRamp(rampId:string, o?:{walletAddress?:string}):Promise<import("./ramp-contract.js").StockRamp>,
  *   pollStatus(rampId:string, o?:{signal?:AbortSignal, onUpdate?:(r:object)=>void, intervalMs?:number, timeoutMs?:number, walletAddress?:string}):Promise<import("./ramp-contract.js").StockRamp>
  * }} StocksRampAdapter
- *   walletAddress on getRamp/pollStatus lets a real ramp settle into history (optional).
+ *   walletAddress on getRamp/pollStatus lets a real ramp settle into history (optional); on startRamp it lets a
+ *   start refused past the window settle this device's sell as expired (optional).
  */
 
 /**

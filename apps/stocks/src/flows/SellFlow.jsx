@@ -266,7 +266,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
     try {
       const registered = await adapter.registerSell({ quote, walletAddress: wallet, pixKey, wallet: seam, onRegistered: (current) => { setRamp(current); setStep("sign"); } });
       setRamp(registered);
-      const started = await adapter.startRamp(registered.id);
+      const started = await adapter.startRamp(registered.id, { walletAddress: wallet });
       setRamp(started);
       setStep("processing");
     } catch (nextError) {
@@ -274,6 +274,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
       // operation (e.g. from another tab): stay on the review with the message, never sign that one.
       const saved = nextError?.code === "RAMP_IN_PROGRESS" ? null : runtime.activeRampStore.get(wallet);
       if (saved) { setRamp((current) => current || { id: saved.rampId }); setStep("sign"); }
+      else if (nextError?.code === "SELL_EXPIRED") setStep("issue"); // settled: it cannot be continued
       else if (nextError?.code === "INSUFFICIENT_GAS" && nextError.details) {
         // Refused before registering (fresh read): the review's card now says why, with the address.
         setEthWei(nextError.details.balanceWei); setRequiredWei(nextError.details.requiredWei);
@@ -291,7 +292,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
     if (current.classification === "success") { finish(current); return; }
     if (current.classification === "failure") { setError("Esta operação não pode ser retomada. Consulte o suporte."); setStep("issue"); return; }
     if (current.currentPhase !== "initial") { setStep("processing"); return; }
-    setRamp(await adapter.startRamp(rampId));
+    setRamp(await adapter.startRamp(rampId, { walletAddress: wallet }));
     setStep("processing");
   });
   const refresh = () => run(async () => { await readBalances(); await quoteNow(); setNotice("Cotação e saldo atualizados."); });
