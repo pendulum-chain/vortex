@@ -111,6 +111,17 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
     );
   });
 
+  test("rejects a hosted-liveness URL that is not https", async () => {
+    for (const livenessUrl of ["javascript:alert(1)", "http://app.avenia.io/liveness/session-1", "data:text/html,x"]) {
+      const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+      Object.assign(service, {
+        sendRequest: mock(async () => ({ id: "liveness-document-1", livenessUrl, validateLivenessToken: "liveness-token" }))
+      });
+
+      await expect(service.getDocumentUploadUrls(BrDocumentType.SELFIE_FROM_LIVENESS, false, "sub-1")).rejects.toThrow();
+    }
+  });
+
   test("still requires an upload URL for an ordinary document", async () => {
     const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
     Object.assign(service, { sendRequest: mock(async () => ({ id: "document-1" })) });
