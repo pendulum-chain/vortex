@@ -8,7 +8,7 @@ import { transformWithEsbuild } from "vite";
 import { usePendingRampRead } from "../src/hooks.js";
 import { readConfig } from "../src/lib/config.js";
 import { STOCK_TOKENS } from "../src/lib/stocks.js";
-import { STOCKS_KEYS } from "../src/lib/stores.js";
+import { STOCKS_KEYS, createRampStores } from "../src/lib/stores.js";
 import { WALLET, sourceFiles, withFetch } from "./helpers.mjs";
 
 // The DOM comes before react-dom: it decides at load time how it listens for input events, and the
@@ -582,3 +582,16 @@ test("signed in, the buy offers USDC only outside a live build, and a saved USDC
     assert.doesNotMatch(s.text(), /USDC/);
   });
 }));
+
+test("a resumed record for a token this build no longer bundles still opens its operation", () => withFetch(noNetwork, () => harness(async (s) => {
+  createRampStores({ simulated: true }).activeRamp.save({ rampId: "sim-delisted", walletAddress: WALLET, rampType: "BUY", stage: "registered", symbol: "DELISTED", inputAmount: 500, outputAmount: "0.5", createdAt: Date.now(), simulated: true });
+  try {
+    window.location.hash = "#/";
+    await renderApp(s, DEMO, true);
+    await untilText(s, /Você tem uma operação em andamento/);
+    await act(async () => document.querySelector(".resume-banner").click());
+    for (let i = 0; i < 200 && !document.querySelector(".sheet"); i += 1) await s.wait();
+    assert.ok(document.querySelector(".sheet"), "a sheet opens");
+    assert.match(s.text(), /DELISTED/);
+  } finally { sessionStorage.removeItem(STOCKS_KEYS.simActiveRamp); }
+})));

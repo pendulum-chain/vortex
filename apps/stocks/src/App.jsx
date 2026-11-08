@@ -229,7 +229,9 @@ export function App({ auth, config }) {
     screen = <Landing market={market} rampOpen={rampOpen} onPreview={startPreview} canPreviewContinue={canPreviewContinue} onLearn={() => setModal({ type: "learn" })} now={now} />;
   }
 
-  const flowToken = modal && isFlow(modal.type) ? findStock(modal.symbol) : null;
+  // A resumed record may name a token a later build no longer bundles: resuming needs only its symbol,
+  // so it still opens (status, code, settling) instead of rendering nothing while it holds the wallet.
+  const flowToken = modal && isFlow(modal.type) ? findStock(modal.symbol) ?? (modal.resume?.symbol ? { symbol: modal.resume.symbol, namePt: modal.resume.symbol, type: "stock", address: modal.resume.tokenAddress ?? null } : null) : null;
   const holding = flowToken ? portfolio.valued?.holdings.find((item) => item.symbol === flowToken.symbol) : null;
   const showTabBar = signedIn && route.name !== "stock";
 
