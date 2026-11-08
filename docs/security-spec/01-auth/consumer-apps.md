@@ -34,7 +34,8 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
   silent one on Home) once the ramp is an hour old and still `initial`, which counts as failed. The
   API's worker can still start a paid Pix ramp up to 3 days later: the history row keeps its code,
   and a server history row showing the ramp past `initial` then replaces the device's failure. A
-  started ramp keeps its record.
+  server history row still at `initial` that is not this device's active ramp shows as not started,
+  with no credit or debit sign. A started ramp keeps its record.
 - A quote is bound to direction, network, token symbol, input amount and expiry. Invalid,
   missing or inconsistent fee fields fail closed before presentation or registration.
 - A registered buy shows no Pix code unless its one delivery transfer sends the quoted token to this

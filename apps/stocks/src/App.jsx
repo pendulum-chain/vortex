@@ -74,7 +74,7 @@ export function App({ auth, config }) {
   const localRows = useMemo(() => (runtime && address ? localHistoryRows(runtime.activeRampStore.history(address)) : []), [runtime, address, version, modal]);
   usePendingRampRead({ runtime, rampId: pending?.rampId, walletAddress: address, who: { email: auth.user?.email, privyDid: auth.user?.privyDid }, idle: !modal, onSettled: () => { portfolio.refreshSoon(); refreshLocal(); } });
   const historyOwner = `${auth.user?.privyDid ?? ""}:${address ?? ""}`;
-  const historyRows = useMemo(() => mergeHistory(localRows, ownedHistoryRows(serverRows, historyOwner)), [localRows, serverRows, historyOwner]);
+  const historyRows = useMemo(() => mergeHistory(localRows, ownedHistoryRows(serverRows, historyOwner), pending?.rampId), [localRows, serverRows, historyOwner, pending?.rampId]);
 
   useEffect(() => {
     if (!runtime || !signedIn || !["home", "history"].includes(route.name)) return undefined; // both list the rows

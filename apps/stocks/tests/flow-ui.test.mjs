@@ -484,6 +484,13 @@ test("a failed row shows its operation code; a completed one does not", () => ha
   assert.match(s.text(), /\+0,42/);
 }));
 
+test("an unstarted row claims no movement", () => harness(async (s) => {
+  const row = { id: "ramp-1", direction: "SELL", symbol: "NVDA", brlAmount: 500, tokenAmount: "0.5", date: 1000, simulated: false, explorerLink: null };
+  await s.render(createElement(ActivityRow, { row: { ...row, status: "unstarted" } }));
+  assert.match(s.text(), /Não iniciada/);
+  assert.doesNotMatch(s.text(), /Em andamento|−0,5/);
+}));
+
 function PendingRead(props) { usePendingRampRead(props); return null; }
 function pendingRead({ session = true, read = async () => ({ classification: "processing" }) } = {}) {
   const calls = { reads: [], settled: 0 };

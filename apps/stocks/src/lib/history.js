@@ -5,8 +5,8 @@ import { classifyRamp } from "@vortexfi/consumer-kit";
 import { resolveSymbol } from "./ramp-contract.js";
 
 /** @typedef {{ id:string, direction:"BUY"|"SELL", symbol:string|null, brlAmount:number|null, tokenAmount:string|null,
- *   date:number|null, status:"success"|"failure"|"processing", simulated:boolean, explorerLink:string|null, phase?:string|null }} HistoryRow
- *   phase: the server's currentPhase (server rows only) */
+ *   date:number|null, status:"success"|"failure"|"processing"|"unstarted", simulated:boolean, explorerLink:string|null, phase?:string|null }} HistoryRow
+ *   phase: the server's currentPhase (server rows only); unstarted: still `initial` on the server and not this device's active ramp */
 
 const numberOrNull = (value) => (value === "" || value == null || !Number.isFinite(Number(value)) ? null : Number(value));
 const decimalOrNull = (value) => (/^\d+(?:\.\d+)?$/.test(String(value ?? "")) ? String(value) : null);
@@ -58,15 +58,19 @@ export function serverHistoryRows(response, network) {
  * value, so a local symbol or explorer link is never replaced by a server null. A server "processing"
  * never replaces a final status this device recorded (the server rows can be an older snapshot, and
  * a Pix given up while `initial` is still "processing" there for an hour), unless the device recorded
- * a failure and the server shows the ramp has left `initial` since: a Pix paid after all.
+ * a failure and the server shows the ramp has left `initial` since: a Pix paid after all. A server
+ * ramp still `initial` is "unstarted" unless it is this device's active ramp (`activeRampId`): a
+ * registration that failed here leaves one behind, and it moves nothing.
  */
-export function mergeHistory(local = [], server = []) {
+export function mergeHistory(local = [], server = [], activeRampId = null) {
   const byId = new Map(local.map((row) => [row.id, row]));
   for (const row of server) {
     const own = byId.get(row.id);
     const known = Object.fromEntries(Object.entries(row).filter(([, value]) => value != null));
     if (own && row.status === "processing" && !(own.status === "failure" && row.phase !== "initial")) delete known.status;
-    byId.set(row.id, { ...row, ...own, ...known });
+    const merged = { ...row, ...own, ...known };
+    if (merged.status === "processing" && merged.phase === "initial" && merged.id !== activeRampId) merged.status = "unstarted";
+    byId.set(row.id, merged);
   }
   return [...byId.values()].sort((a, b) => (b.date ?? 0) - (a.date ?? 0));
 }

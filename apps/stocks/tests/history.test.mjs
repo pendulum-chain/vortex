@@ -64,7 +64,17 @@ test("merge: a server \"processing\" never overrides a final status this device 
   assert.equal(mergeHistory(local("failure"), server("initial"))[0].status, "failure", "a Pix given up while unpaid");
   assert.equal(mergeHistory(local("success"), server("nablaSwap"))[0].status, "success", "an older server snapshot");
   assert.equal(mergeHistory(local("failure"), server("nablaSwap"))[0].status, "processing", "paid after all: the server shows it running");
-  assert.equal(mergeHistory([], server("initial"))[0].status, "processing");
+  assert.equal(mergeHistory([], server("nablaSwap"))[0].status, "processing");
+});
+
+test("a server ramp still initial is under way only as this device's active ramp", () => {
+  const response = { transactions: [
+    { id: "failed-update", type: "BUY", from: "pix", to: "robinhood", fromAmount: "500", toAmount: "0.42", toCurrency: "NVDA", status: "PENDING", currentPhase: "initial", date: new Date(Date.now() - 180_000).toISOString() },
+    { id: "real-buy", type: "BUY", from: "pix", to: "robinhood", fromAmount: "500", toAmount: "0.42", toCurrency: "NVDA", status: "PENDING", currentPhase: "initial", date: new Date(Date.now() - 60_000).toISOString() },
+  ] };
+  const merged = mergeHistory([], serverHistoryRows(response, "robinhood"), "real-buy");
+  assert.deepEqual(merged.map((row) => [row.id, row.status]), [["real-buy", "processing"], ["failed-update", "unstarted"]]);
+  assert.equal(mergeHistory([], serverHistoryRows(response, "robinhood"))[0].status, "unstarted", "no active ramp on this device");
 });
 
 test("merge keeps the local explorer link and amounts when the server row has none", () => {

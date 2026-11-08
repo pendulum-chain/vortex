@@ -4,12 +4,12 @@ import { formatBRL, formatDateTime } from "../format.js";
 import { formatTokenAmount } from "../lib/token.js";
 import { formatUsdc } from "../lib/international.js";
 
-const STATUS = { failure: ["Não concluída", "badge--volatile"], processing: ["Em andamento", "badge--info"] };
+const STATUS = { failure: ["Não concluída", "badge--volatile"], processing: ["Em andamento", "badge--info"], unstarted: ["Não iniciada", "badge--volatile"] };
 
 export function ActivityRow({ row, hidden = false }) {
   const buy = row.direction === "BUY";
   const status = STATUS[row.status];
-  const sign = row.status === "failure" ? "" : buy ? "+" : "−"; // a failed operation's amount is not a claim that it moved
+  const sign = row.status === "failure" || row.status === "unstarted" ? "" : buy ? "+" : "−"; // an amount that did not move carries no sign
   const tokens = row.tokenAmount ? `${sign}${formatTokenAmount(row.tokenAmount)} ${row.symbol || ""}`.trim() : "—";
   return (
     <div className="activity-row">
