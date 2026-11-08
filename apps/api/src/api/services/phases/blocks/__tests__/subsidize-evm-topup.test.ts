@@ -582,6 +582,22 @@ describe.each(cases)("$name EVM top-up", testCase => {
     expect(loggerError).toHaveBeenCalledWith(`Error in ${testCase.phaseName} (EVM):`, rpcError);
   });
 
+  it("waits for settlement before taking the shared funding slot", async () => {
+    balances("95000000");
+    const startedAt = Date.now();
+    let slotRequestedAfterMs: number | undefined;
+    beforeSerializedFundingOperation = () => {
+      slotRequestedAfterMs = Date.now() - startedAt;
+    };
+    const executor = arrange(testCase, testCase.baseMetadata);
+
+    await executor.executePhase(makeState(testCase));
+
+    // SUBSIDY_SETTLEMENT_DELAY_MS is 25 ms in tests.
+    expect(slotRequestedAfterMs).toBeGreaterThanOrEqual(20);
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
   it("does not broadcast when the phase is aborted while waiting for the funding slot", async () => {
     balances("95000000");
     const controller = new AbortController();
