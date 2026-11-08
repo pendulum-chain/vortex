@@ -1,4 +1,4 @@
-// History screen rows. The device-local history (last 12 finished ramps per wallet) is
+// History rows (Home and the history screen). The device-local history (last 12 finished ramps per wallet) is
 // always shown; with a Vortex session in this tab the server history (GET /v1/ramp/history) is
 // merged in by id, filtered to the Stocks network. Pure functions, so both paths are tested.
 import { classifyRamp } from "@vortexfi/consumer-kit";

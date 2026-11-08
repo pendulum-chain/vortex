@@ -77,7 +77,7 @@ export function App({ auth, config }) {
   const historyRows = useMemo(() => mergeHistory(localRows, ownedHistoryRows(serverRows, historyOwner)), [localRows, serverRows, historyOwner]);
 
   useEffect(() => {
-    if (!runtime || !signedIn || route.name !== "history") return undefined;
+    if (!runtime || !signedIn || !["home", "history"].includes(route.name)) return undefined; // both list the rows
     let alive = true;
     runtime.serverHistory({ email: auth.user?.email, privyDid: auth.user?.privyDid }).then((rows) => { if (alive) setServerRows({ owner: historyOwner, rows }); }, () => { if (alive) setServerRows(null); });
     return () => { alive = false; };

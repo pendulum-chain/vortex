@@ -508,6 +508,11 @@ test("the app reads the banner's ramp while no flow is open", () => {
   assert.match(app, /usePendingRampRead\(\{ runtime, rampId: pending\?\.rampId, walletAddress: address, who: \{ email: auth\.user\?\.email, privyDid: auth\.user\?\.privyDid \}, idle: !modal, onSettled: /);
 });
 
+test("the app reads the server history for Home as well as for the history screen", () => {
+  const app = sourceFiles().find((file) => file.path === "src/App.jsx").text;
+  assert.match(app, /if \(!runtime \|\| !signedIn \|\| !\["home", "history"\]\.includes\(route\.name\)\) return undefined;/);
+});
+
 test("without a session nothing is read (it never asks for the code), nor while a flow is open or with no ramp", () => harness(async (s) => {
   const none = pendingRead({ session: false });
   await s.render(createElement(PendingRead, none.props));
