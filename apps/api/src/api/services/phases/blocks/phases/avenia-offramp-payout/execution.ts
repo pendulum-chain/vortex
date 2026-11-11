@@ -63,21 +63,23 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
     }
     if (!isPendulumPayout) await this.sendPayoutTransfer(state, signal);
     const api = BrlaApiService.getInstance();
-    await this.poll(
-      async () => {
-        const balance = await abortableCall(signal, () => api.getAccountBalance(subAccountId));
-        return new Big(balance?.balances?.BRLA ?? 0).gte(new Big(metadata.transferAmountDecimal).round(2, 0));
-      },
-      "Avenia BRLA balance",
-      signal
-    );
     try {
       let quoteToken = "";
       const ticket = await this.runFinancialOperation(state, {
         attemptClass: "provider-payout-ticket",
-        // The payout quote creates no payout, so it runs before the claim: a failed quote leaves the
-        // operation unclaimed and safe to retry, while a failed ticket request pauses for reconciliation.
+        // The balance wait and the payout quote create no payout, so they run before the claim: a failure
+        // leaves the operation unclaimed and safe to retry, while a failed ticket request pauses for
+        // reconciliation. Once a ticket was requested, Avenia may already have spent the BRLA, so the
+        // journal settles the operation without waiting for that balance again.
         beforePerform: async () => {
+          await this.poll(
+            async () => {
+              const balance = await abortableCall(signal, () => api.getAccountBalance(subAccountId));
+              return new Big(balance?.balances?.BRLA ?? 0).gte(new Big(metadata.transferAmountDecimal).round(2, 0));
+            },
+            "Avenia BRLA balance",
+            signal
+          );
           const payoutQuote = await abortableCall(signal, () =>
             api.createPayOutQuote({
               outputAmount: new Big(quote.outputAmount).round(2, 0).toString(),
