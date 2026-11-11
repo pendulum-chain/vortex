@@ -120,6 +120,9 @@ describe("Avenia external API contract — hermetic (fake)", () => {
     const payinTickets = await api.getAveniaPayinTickets(fake.subaccountId);
     expect(() => aveniaPayinTicketsSchema.parse(payinTickets)).not.toThrow();
 
+    const payinTicket = await api.getAveniaPayinTicket(pixInTicket.id, fake.subaccountId);
+    expect(() => aveniaPayinTicketsSchema.parse([payinTicket])).not.toThrow();
+
     const payoutTicket = await api.getAveniaPayoutTicket("pix-out-1", fake.subaccountId);
     expect(() => aveniaPayoutTicketSchema.parse(payoutTicket)).not.toThrow();
   });
@@ -306,6 +309,21 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
       // The envelope/discriminator path is only exercised live through the real client;
       // our just-created ticket disappearing from the list would mean it drifted.
       expect(payinTickets.map(t => t.id)).toContain(ticket.id);
+
+      const payinTicket = await runLive("avenia getAveniaPayinTicket", () =>
+        api().getAveniaPayinTicket(ticket.id, SUBACCOUNT_ID as string)
+      );
+      if (!payinTicket) return;
+      aveniaPayinTicketsSchema.parse([payinTicket]);
+      expect(payinTicket.id).toBe(ticket.id);
+      // The onramp payment window cancels a ramp whose pay-in ticket Avenia answers with 404.
+      const unknownTicketRead = await api()
+        .getAveniaPayinTicket(randomUUID(), SUBACCOUNT_ID as string)
+        .then(
+          () => null,
+          (error: unknown) => error
+        );
+      expect(unknownTicketRead).toMatchObject({ status: 404 });
     },
     120_000
   );

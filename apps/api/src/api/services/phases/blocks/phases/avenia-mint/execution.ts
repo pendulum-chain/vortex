@@ -4,6 +4,7 @@ import {
   BalanceCheckError,
   BalanceCheckErrorType,
   BlockchainSendMethod,
+  BrlaApiError,
   BrlaApiService,
   BrlaCurrency,
   checkEvmBalancePeriodically,
@@ -308,9 +309,9 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
   }
 
   /**
-   * The payment window cancels only a ramp whose Pix Avenia has not received. Once the pay-in ticket
-   * is processing, held for compliance review, or paid, or when the ticket list does not show it, the
-   * ramp keeps waiting for the BRLA and operators are alerted.
+   * The payment window cancels only a ramp whose Pix Avenia has not received. Once the ramp's own pay-in
+   * ticket is processing, held for compliance review, or paid, the ramp keeps waiting for the BRLA and
+   * operators are alerted. A ramp without a pay-in ticket that Avenia knows has received nothing.
    */
   private async isPaymentWindowClosed(
     state: RampState,
@@ -318,19 +319,18 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     subAccountId: string
   ): Promise<boolean> {
     if (!this.isPaymentTimeoutReached(state)) return false;
-    let tickets: { id: string; status: string }[];
+    const ticketId = state.state.aveniaTicketId;
+    if (!ticketId) return true;
+    let status: string;
     try {
-      tickets = await brlaApiService.getAveniaPayinTickets(subAccountId);
+      status = (await brlaApiService.getAveniaPayinTicket(ticketId, subAccountId)).status.trim().toUpperCase();
     } catch (error) {
+      if (error instanceof BrlaApiError && error.status === 404) return true;
       throw this.createRecoverableError(`BrlaOnrampMintExecutor: could not read the Avenia pay-in ticket: ${error}`);
     }
-    const status = tickets
-      .find(ticket => ticket.id === state.state.aveniaTicketId)
-      ?.status.trim()
-      .toUpperCase();
-    if (status !== undefined && !RECEIVED_PAYIN_STATUSES.has(status)) return true;
+    if (!RECEIVED_PAYIN_STATUSES.has(status)) return true;
 
-    await this.alertWaitingPastWindow(state.id, status ?? "not listed");
+    await this.alertWaitingPastWindow(state.id, status);
     return false;
   }
 

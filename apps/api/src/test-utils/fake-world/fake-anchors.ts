@@ -11,6 +11,7 @@ import {
   AlfredpayPaymentMethodType,
   AlfredpayTradeLimitError,
   AveniaTicketStatus,
+  BrlaApiError,
   BrlaApiService,
   type CreateAlfredpayOfframpQuoteRequest,
   type CreateAlfredpayOfframpRequest,
@@ -161,8 +162,10 @@ export class FakeBrla {
    * decimal strings.
    */
   accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
-  /** Status reported for every pay-in ticket by getAveniaPayinTickets. */
+  /** Status reported for every pay-in ticket by getAveniaPayinTicket and getAveniaPayinTickets. */
   payinTicketStatus: AveniaTicketStatus = AveniaTicketStatus.PAID;
+  /** Called before getAveniaPayinTicket answers; throw from it to script an Avenia error. */
+  onPayinTicketRead?: () => void;
   /** Status reported for every payout ticket by getAveniaPayoutTicket. */
   payoutTicketStatus: AveniaTicketStatus = AveniaTicketStatus.PAID;
   /** Called before createPayOutQuote answers; throw from it to script an Avenia error. */
@@ -218,6 +221,13 @@ export class FakeBrla {
         USDT: String(this.accountBalances.USDT)
       }
     }),
+    getAveniaPayinTicket: async (ticketId: string) => {
+      this.onPayinTicketRead?.();
+      if (!this.pixInputTickets.some(ticket => ticket.id === ticketId)) {
+        throw new BrlaApiError({ endpoint: "/v2/account/tickets", method: "GET", responseBody: "{}", status: 404 });
+      }
+      return { id: ticketId, status: this.payinTicketStatus };
+    },
     getAveniaPayinTickets: async () => this.pixInputTickets.map(ticket => ({ id: ticket.id, status: this.payinTicketStatus })),
     getAveniaPayoutTicket: async (ticketId: string) => ({
       id: ticketId,

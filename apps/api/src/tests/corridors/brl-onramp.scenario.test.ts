@@ -24,6 +24,9 @@ import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
 
+// Plain copy taken before any mock.module call: mock.module rewrites the namespace in place.
+const sharedSnapshot = { ...shared };
+
 function requireBrlaOnBase() {
   const details = evmTokenConfig[Networks.Base][EvmToken.BRLA];
   if (!details) {
@@ -79,6 +82,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     world.brla.onPixOutputTicket = undefined;
     world.brla.accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
     world.brla.payinTicketStatus = AveniaTicketStatus.PAID;
+    world.brla.onPayinTicketRead = undefined;
   });
 
   async function createQuoteViaApi(): Promise<{ id: string; outputAmount: string }> {
@@ -471,16 +475,19 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
   );
 
   /**
-   * Runs brlaOnrampMint 31 minutes after the phase began, with no BRLA credited yet and each
-   * Avenia balance wait ending in its chunk timeout at once.
+   * Runs brlaOnrampMint 31 minutes after the phase began, with each balance wait ending in its chunk
+   * timeout at once. Without `mintTicketCreated` no BRLA is credited, so the Avenia balance wait times
+   * out; with it, the subaccount holds the BRLA, the mint ticket is created, and the wait for the
+   * minted BRLA on Base times out instead.
    */
   async function runMintPastPaymentWindow(
     payinTicketStatus: AveniaTicketStatus,
-    options: { ticketListed?: boolean } = {}
+    options: { ticketKnown?: boolean; ticketIdStored?: boolean; mintTicketCreated?: boolean } = {}
   ): Promise<RampState | null> {
     const setup = await setUpRegisteredRamp();
     world.brla.payinTicketStatus = payinTicketStatus;
-    if (options.ticketListed === false) world.brla.pixInputTickets.length = 0;
+    if (options.ticketKnown === false) world.brla.pixInputTickets.length = 0;
+    if (options.mintTicketCreated) world.brla.accountBalances.BRLA = 1_000_000;
     const now = Date.now();
     await RampState.update(
       {
@@ -492,9 +499,16 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       },
       { where: { id: setup.rampId } }
     );
-    const realWait = shared.waitUntilTrueWithTimeout;
+    if (options.ticketIdStored === false) {
+      const ramp = await RampState.findByPk(setup.rampId, { rejectOnEmpty: true });
+      const { aveniaTicketId: _dropped, ...stateWithoutTicket } = ramp.state;
+      await ramp.update({ state: stateWithoutTicket as typeof ramp.state });
+    }
     mock.module("@vortexfi/shared", () => ({
-      ...shared,
+      ...sharedSnapshot,
+      checkEvmBalancePeriodically: async () => {
+        throw new sharedSnapshot.BalanceCheckError(sharedSnapshot.BalanceCheckErrorType.Timeout, "Timeout waiting for the minted BRLA");
+      },
       waitUntilTrueWithTimeout: async (test: () => Promise<boolean>) => {
         if (await test()) return;
         throw new Error("Timeout waiting for condition after 300000 ms");
@@ -503,7 +517,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     try {
       await phaseProcessor.processRamp(setup.rampId);
     } finally {
-      mock.module("@vortexfi/shared", () => ({ ...shared, waitUntilTrueWithTimeout: realWait }));
+      mock.module("@vortexfi/shared", () => sharedSnapshot);
     }
     return RampState.findByPk(setup.rampId);
   }
@@ -554,14 +568,61 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
   );
 
   it(
-    "payment window: a pay-in ticket missing from the ticket list does not cancel the ramp",
+    "payment window: a pay-in ticket Avenia does not know cancels the ramp after 30 minutes",
     async () => {
       const { alerts, final } = await captureSlackAlerts(() =>
-        runMintPastPaymentWindow(AveniaTicketStatus.PAID, { ticketListed: false })
+        runMintPastPaymentWindow(AveniaTicketStatus.PAID, { ticketKnown: false })
       );
 
+      expect(final?.currentPhase).toBe("failed");
+      expect(alerts).toEqual([]);
+    },
+    30000
+  );
+
+  it(
+    "payment window: a ramp without a stored pay-in ticket cancels after 30 minutes",
+    async () => {
+      let ticketReads = 0;
+      world.brla.onPayinTicketRead = () => {
+        ticketReads++;
+      };
+      const final = await runMintPastPaymentWindow(AveniaTicketStatus.PAID, { ticketIdStored: false });
+
+      expect(final?.currentPhase).toBe("failed");
+      expect(ticketReads).toBe(0);
+    },
+    30000
+  );
+
+  it(
+    "payment window: a paid Pix whose minted BRLA is late keeps waiting after the mint ticket",
+    async () => {
+      const final = await runMintPastPaymentWindow(AveniaTicketStatus.PAID, { mintTicketCreated: true });
+
       expect(final?.currentPhase).toBe("brlaOnrampMint");
-      expect(alerts).toEqual([expect.stringContaining("pay-in ticket status not listed")]);
+      expect(
+        await FinancialOperation.findOne({ where: { attemptClass: "provider-mint-ticket", scopeId: final?.id } })
+      ).toMatchObject({ status: "confirmed" });
+      expect(final?.errorLogs.some(log => log.error.includes("phase timeout reached") && log.recoverable === true)).toBe(
+        true
+      );
+    },
+    30000
+  );
+
+  it(
+    "payment window: a failed pay-in ticket read past 30 minutes retries instead of cancelling",
+    async () => {
+      world.brla.onPayinTicketRead = () => {
+        throw new Error("Avenia: scripted 503");
+      };
+      const final = await runMintPastPaymentWindow(AveniaTicketStatus.PAID);
+
+      expect(final?.currentPhase).toBe("brlaOnrampMint");
+      expect(
+        final?.errorLogs.some(log => log.error.includes("could not read the Avenia pay-in ticket") && log.recoverable === true)
+      ).toBe(true);
     },
     30000
   );
