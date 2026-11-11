@@ -59,8 +59,8 @@ Positive dust can no longer suppress submission or satisfy completion by itself.
 
 ### Recovery uses 95% balance shortcuts
 
-- **References:** Avenia mint skips at 95% of precomputed output (`phases/avenia-mint/execution.ts:39-42`, `92-103`) and Mykobo deposit does the same (`phases/mykobo-mint/execution.ts:24-49`).
-- **Impact:** A partial or unrelated balance at the ephemeral can be treated as completed provider settlement, allowing downstream execution with up to a 5% shortfall before later subsidy/balance logic intervenes.
+- **References:** Avenia mint skips at 95% of precomputed output once the ramp has its own `provider-mint-ticket` journal row (`phases/avenia-mint/execution.ts`, `EPHEMERAL_FUNDED_TOLERANCE_FACTOR` and the recovery shortcut in `executePhase`); Mykobo deposit skips at 95% on the balance alone (`phases/mykobo-mint/execution.ts:24-49`).
+- **Impact:** For Mykobo, a partial or unrelated balance at the ephemeral can be treated as completed provider settlement. For Avenia, once a ticket row exists, a balance of at least 95% from any source counts as its delivery. Either way downstream execution can run with up to a 5% shortfall before later subsidy/balance logic intervenes.
 - **Release relevance:** Pre-existing settlement-evidence and subsidy-exposure heuristic on BRL/EUR onramps; release-relevant under partial-delivery recovery.
 
 ### Pendulum XCM recovery infers submission from balance depletion

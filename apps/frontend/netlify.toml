@@ -18,9 +18,22 @@
 # The dashboard is a separate Netlify site (apps/dashboard/netlify.toml) served on its
 # own domain; this build does not include it.
 
+# The deployed branches never skip a build. `ignore` below compares against $CACHED_COMMIT_REF, which
+# is the branch's last build only while its build cache exists. A cache lapses about 16 days after the
+# build that wrote it, and a cancelled build writes none. Without one, the variable holds the default
+# branch (staging) head, whatever Netlify's docs say, so staging and release merges into main compare
+# equal, cancel, and keep cancelling. `[context.staging]` also covers release PR previews.
+[context.production]
+  ignore = "/bin/false"
+
+[context.staging]
+  ignore = "/bin/false"
+
 [build]
   command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:sdk && bun run build:frontend && bun run build:gold && mkdir -p apps/frontend/dist/client/pt-BR/gold && cp -R apps/gold/dist/client/. apps/frontend/dist/client/pt-BR/gold/"
   publish = "dist/client"
+  # Netlify does not read .bun-version, and this overrides the older BUN_VERSION set in its UI.
+  environment = { BUN_VERSION = "1.4.4" }
   # Netlify's default ignore check only diffs the base directory, so a commit touching only
   # apps/gold or the shared/sdk packages would be skipped as "no content change". Build when
   # any input of this site changed (paths are relative to the base directory).

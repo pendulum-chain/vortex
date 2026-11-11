@@ -299,3 +299,25 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work")
 require constant clarification.
+
+## 5. Lean Multi-Agent Runs
+
+**Spend agents on coverage, not repetition. This holds when ultracode is on, too.**
+
+Workflows and fan-out reviews count against the account's weekly usage limit, and one
+unbounded review round can use a large share of it.
+- Before launching, state how many agents will run and roughly what share of the weekly
+  limit the run will use. Default to fewer than 10 agents; a full review round stays under
+  about 40.
+- Review rounds: one reviewer per area, then merge duplicate findings across reviewers
+  before verifying anything. Verify each distinct finding with one skeptic (two for
+  critical ones) and judge low-severity findings yourself.
+- Run skeptics at `high` effort; keep `max` for reviewers and critical findings.
+- Follow-up rounds cover only the changed code and the gaps the completeness critic named,
+  not a fresh full sweep.
+- Don't leave a run going on a laptop that may sleep: keep it awake on power, or stop the
+  run before the lid closes. A sleeping Mac still wakes for a few seconds about every
+  15 minutes, and each wake makes every running agent resend its whole context.
+- Give each parallel agent its own worktree, and tell it not to use `git stash`: the stash is
+  shared by every worktree of a repository, so two agents' pushes and pops swap their changes.
+  Save work with `git diff > file` and `git apply` instead.
