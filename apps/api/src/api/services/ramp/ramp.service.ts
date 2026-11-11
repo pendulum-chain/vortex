@@ -47,6 +47,7 @@ import { getTargetFiatCurrency } from "../../services/phases/blocks/core/helpers
 import { accountCapabilities } from "../phases/blocks/core/accounts";
 import { preflightEvmDestinationFeeWithinQuote } from "../phases/blocks/core/evm-destination-gas";
 import { getFlowMetadata } from "../phases/blocks/core/metadata";
+import { gasReserveResponseFields } from "../phases/blocks/core/quote-response";
 import { resolvePersistedBlockFlow } from "../phases/blocks/flows/catalog";
 import { StateMetadata } from "../phases/meta-state-types";
 import { isMoonbeamRuntimeDisabled } from "../phases/moonbeam-runtime";
@@ -763,7 +764,7 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const { fees, subsidyDisplay } = getFlowMetadata(quote.metadata).globals;
+    const { fees, gasReserve, subsidyDisplay } = getFlowMetadata(quote.metadata).globals;
     const usdFees = fees.usd;
     const fiatFees = fees.displayFiat;
     if (!usdFees || !fiatFees) {
@@ -846,6 +847,7 @@ export class RampService extends BaseRampService {
             discountUsd: subsidyDisplay.usd
           }
         : {}),
+      ...gasReserveResponseFields(gasReserve),
       to: rampState.to,
       totalFeeFiat: fiatFees.total,
       totalFeeUsd: usdFees.total,

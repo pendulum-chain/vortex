@@ -130,6 +130,48 @@ describe("validateCreateBestQuoteInput - networks whitelist", () => {
   });
 });
 
+describe("validateCreateQuoteInput - destinationAddress", () => {
+  const address = "0x000000000000000000000000000000000000dEaD";
+  const stockBuy = { ...baseBody, outputCurrency: "NVDA", to: Networks.Robinhood };
+
+  function run(body: Record<string, unknown>) {
+    const res = buildRes();
+    const next: NextFunction = mock(() => undefined) as unknown as NextFunction;
+    validateCreateQuoteInput({ body, method: "POST", path: "/v1/quotes" } as unknown as Request, res, next);
+    return { next, res };
+  }
+
+  it("accepts a robinhood BUY with or without a valid address", () => {
+    expect(run(stockBuy).next).toHaveBeenCalledTimes(1);
+    expect(run({ ...stockBuy, destinationAddress: address }).next).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([["not an address"], ["0x1234"], [address.replace("dEaD", "DEAD")], [[address]], [42]])(
+    "rejects %p on a robinhood BUY",
+    destinationAddress => {
+      const { next, res } = run({ ...stockBuy, destinationAddress });
+      expect(next).not.toHaveBeenCalled();
+      expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    }
+  );
+
+  it("ignores the field on every other route", () => {
+    const destinationAddress = "not an address";
+    expect(run({ ...baseBody, destinationAddress, to: Networks.Base }).next).toHaveBeenCalledTimes(1);
+    expect(
+      run({
+        destinationAddress,
+        from: Networks.Robinhood,
+        inputAmount: "1",
+        inputCurrency: "NVDA",
+        outputCurrency: "BRL",
+        rampType: RampDirection.SELL,
+        to: "pix"
+      }).next
+    ).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("Avenia API KYB validators", () => {
   it("rejects double-sided corporate documents", () => {
     const req = {

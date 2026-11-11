@@ -36,6 +36,15 @@ jobs:
       - name: Build 
         run: bun run build
 
+      # The build above makes Stocks' demo. Only a live build shows what production publishes.
+      - name: 🔒 Stocks live bundle
+        run: |
+          VITE_STOCKS_MODE=live VITE_PRIVY_APP_ID=x bun run build:stocks
+          cd apps/stocks/dist/client
+          test ! -e international.html
+          grep -q '"index.html"' .vite/manifest.json
+          ! grep -E 'demo-links|InternationalApp|UsdcFlow|usdc-checkout' .vite/manifest.json
+
       - name: 🧪 Biome check
         run: bun run verify
 
@@ -113,3 +122,6 @@ jobs:
 
       - name: 🧪 Gold tests
         run: bun run test:gold
+
+      - name: 🧪 Stocks and consumer wallet tests
+        run: bun run test:consumer-kit && bun run test:stocks

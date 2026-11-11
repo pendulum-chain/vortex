@@ -27,6 +27,14 @@ import {
 } from "../phases/blocks/core/helpers";
 import { runBlockQuoteFlow } from "../phases/blocks/core/quote";
 import { buildBlockQuoteResponse } from "../phases/blocks/core/quote-response";
+import {
+  assertStockTradable,
+  isBrlPixRobinhoodRoute,
+  isRobinhoodRoute,
+  isStockQuoteUnavailableError,
+  isStockSymbol,
+  STOCK_TOKEN_DECIMALS
+} from "../phases/blocks/core/robinhood-stocks";
 import { BaseRampService } from "../ramp/base.service";
 import { createLowLiquidityQuoteError, isLowLiquidityQuoteError } from "./core/errors";
 import { resolveQuotePartner } from "./core/partner-resolution";
@@ -223,6 +231,8 @@ export class QuoteService extends BaseRampService {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.BAD_REQUEST });
     }
 
+    await assertStockRouteQuotable(request);
+
     const resolvedPartner = await resolveQuotePartner(request);
     const partner = resolvedPartner.partner;
 
@@ -262,7 +272,7 @@ export class QuoteService extends BaseRampService {
         throw error;
       }
 
-      if (isNetworkFeesTooHighError(error)) {
+      if (isNetworkFeesTooHighError(error) || isStockQuoteUnavailableError(error)) {
         throw error;
       }
 
@@ -302,16 +312,21 @@ export class QuoteService extends BaseRampService {
         return [];
       }
       // Return all supported 'to' networks that are actually Networks (not payment methods)
-      return supportedChains.to.filter(dest => Object.values(Networks).includes(dest as Networks)) as Networks[];
+      return supportedChains.to.filter(isBestQuoteNetwork) as Networks[];
     } else {
       // Check if 'to' (payment method) is supported
       if (!to || !supportedChains.to.includes(to)) {
         return [];
       }
       // Return all supported 'from' networks that are actually Networks
-      return supportedChains.from.filter(dest => Object.values(Networks).includes(dest as Networks)) as Networks[];
+      return supportedChains.from.filter(isBestQuoteNetwork) as Networks[];
     }
   }
+}
+
+/** Stock tokens are identified per network, so Robinhood Chain never competes in a best-quote comparison. */
+function isBestQuoteNetwork(destination: DestinationType): boolean {
+  return destination !== Networks.Robinhood && Object.values(Networks).includes(destination as Networks);
 }
 
 function assertEurOfframpSupported(request: Pick<CreateQuoteRequest, "outputCurrency" | "rampType">): void {
@@ -361,6 +376,42 @@ function assertEurOnrampNetworkSupported(request: Pick<CreateQuoteRequest, "inpu
   ) {
     throw new APIError({ isPublic: true, message: QuoteError.EurOnrampNetworkUnsupported, status: httpStatus.BAD_REQUEST });
   }
+}
+
+/**
+ * Robinhood Chain routes only: the per-direction switch, then the allowlist and issuer pause of the
+ * one corridor it serves. Anything but BRL via Pix falls through to the catalog's own rejection.
+ */
+async function assertStockRouteQuotable(
+  request: Pick<CreateQuoteRequest, "from" | "inputAmount" | "inputCurrency" | "outputCurrency" | "rampType" | "to">
+): Promise<void> {
+  if (!isRobinhoodRoute(request)) {
+    return;
+  }
+  if (!config.stocks.enabledDirections.includes(request.rampType)) {
+    throw new APIError({ isPublic: true, message: `Invalid network: ${Networks.Robinhood}`, status: httpStatus.BAD_REQUEST });
+  }
+
+  if (!isBrlPixRobinhoodRoute(request)) {
+    return;
+  }
+
+  const token = request.rampType === RampDirection.BUY ? request.outputCurrency : request.inputCurrency;
+  if (!isStockSymbol(token)) {
+    throw new APIError({ isPublic: true, message: QuoteError.StockTokenNotAvailable, status: httpStatus.BAD_REQUEST });
+  }
+  // The ticket rounds a finer amount to 18 decimals while the flow floors it, so its echo could differ from what moves.
+  if (request.rampType === RampDirection.SELL) {
+    const amount = new Big(request.inputAmount);
+    if (!amount.round(STOCK_TOKEN_DECIMALS, Big.roundDown).eq(amount)) {
+      throw new APIError({
+        isPublic: true,
+        message: `The amount has more than ${STOCK_TOKEN_DECIMALS} decimal places.`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  }
+  await assertStockTradable(token);
 }
 
 function mapAlfredpayLimitErrorToApiError(error: AlfredpayTradeLimitError, isOnramp: boolean): APIError {

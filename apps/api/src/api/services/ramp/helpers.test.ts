@@ -43,6 +43,18 @@ describe("getFinalTransactionHashForRampV2", () => {
     });
   });
 
+  it("links Robinhood Chain deliveries to its explorer", () => {
+    const result = getFinalTransactionHashForRampV2(
+      createRampState({ state: { destinationTransferTxHash: "0xdestination" } }),
+      createQuote(Networks.Robinhood)
+    );
+
+    expect(result).toEqual({
+      transactionExplorerLink: "https://robinhoodchain.blockscout.com/tx/0xdestination",
+      transactionHash: "0xdestination"
+    });
+  });
+
   it("uses the AssetHub XCM hash for AssetHub onramps", () => {
     const result = getFinalTransactionHashForRampV2(
       createRampState({

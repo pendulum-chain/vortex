@@ -17,6 +17,13 @@ export type RampPhase =
   | "moneriumOnrampSelfTransfer"
   | "uniswapApprove"
   | "uniswapSwap"
+  | "relayApprove"
+  | "relayBridge"
+  | "stockPermitTransfer"
+  | "stockSettlementTopUp"
+  | "gasReserveTopUp"
+  | "stockBackupApprove"
+  | "relayBackupApprove"
   | "squidRouterPermitExecute"
   | "squidRouterNoPermitTransfer"
   | "squidRouterNoPermitApprove"
@@ -69,7 +76,8 @@ export type CleanupPhase =
   | "baseCleanupBrla"
   | "baseCleanupEurc"
   | "baseCleanupAxlUsdc"
-  | "ethereumCleanupUsdc";
+  | "ethereumCleanupUsdc"
+  | "robinhoodCleanupStock";
 
 export enum EphemeralAccountType {
   Substrate = "Substrate",
@@ -296,6 +304,11 @@ export interface GetRampStatusResponse extends RampProcess {
   discountFiat?: string;
   discountUsd?: string;
   discountCurrency?: RampCurrency;
+  // Destination-chain gas delivered at purchase, already included in the network fee (stock corridor only)
+  gasReserveAmount?: string;
+  gasReserveCurrency?: "ETH";
+  gasReserveFiat?: string;
+  gasReserveUsd?: string;
 }
 
 export interface GetRampErrorLogsRequest {

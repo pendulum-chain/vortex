@@ -87,6 +87,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     failed: "",
     finalSettlementSubsidy: getDestinationTransferMessage(),
     fundEphemeral: t("pages.progress.fundEphemeral"),
+    gasReserveTopUp: getDestinationTransferMessage(),
     hydrationSwap: t("pages.progress.hydrationSwap", {
       inputAssetSymbol: "USDC",
       outputAssetSymbol: outputAssetSymbol
@@ -113,6 +114,9 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     pendulumToMoonbeamXcm: t("pages.progress.pendulumToMoonbeamXcm", {
       assetSymbol: outputAssetSymbol
     }),
+    relayApprove: getSwappingMessage(),
+    relayBackupApprove: "",
+    relayBridge: getSwappingMessage(),
     squidRouterApprove: t("pages.progress.squidRouterApprove", {
       network: squidRouterSourceDisplayName
     }),
@@ -130,6 +134,9 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     squidRouterPay: getSquidRouterSwapMessage(),
     squidRouterPermitExecute: getSquidRouterPermitMessage(),
     squidRouterSwap: getSquidRouterSwapMessage(),
+    stockBackupApprove: "",
+    stockPermitTransfer: getTransferringMessage(),
+    stockSettlementTopUp: getDestinationTransferMessage(),
     subsidizePostSwap: getSwappingMessage(), // Not relevant for progress page
     subsidizePreSwap: getSwappingMessage(),
     timedOut: "",

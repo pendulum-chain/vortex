@@ -1,4 +1,6 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { config } from "../../../config/vars";
 import { createBestQuote, createQuote, getQuote } from "../../controllers/quote.controller";
 import { apiKeyAuth, enforcePartnerAuth } from "../../middlewares/apiKeyAuth";
 import { rejectDuringActiveMaintenance } from "../../middlewares/maintenanceGuard";
@@ -6,8 +8,18 @@ import { authorizeManagedProfile } from "../../middlewares/managedProfileAuth";
 import { validatePublicKey } from "../../middlewares/publicKeyAuth";
 import { optionalAuth } from "../../middlewares/supabaseAuth";
 import { validateCreateBestQuoteInput, validateCreateQuoteInput } from "../../middlewares/validators";
+import { isRobinhoodRoute } from "../../services/phases/blocks/core/robinhood-stocks";
 
 const router: Router = Router({ mergeParams: true });
+
+/** Each stock quote spends Relay quote budget that every caller shares, so one address may take only part of it. */
+const stockQuoteLimiter = rateLimit({
+  legacyHeaders: false,
+  max: () => config.stocks.quoteRateLimitPerMinute,
+  skip: req => !isRobinhoodRoute(req.body ?? {}),
+  standardHeaders: true,
+  windowMs: 60_000
+});
 
 /**
  * @api {post} v1/quotes Create a new quote
@@ -47,6 +59,7 @@ router
   .route("/")
   .post(
     rejectDuringActiveMaintenance("quote_create"),
+    stockQuoteLimiter,
     optionalAuth,
     validatePublicKey(),
     apiKeyAuth({ required: false }),

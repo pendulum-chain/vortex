@@ -6,7 +6,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 
 **Express configuration** (`config/express.ts`):
 - CORS: Explicit origin whitelist — `app.vortexfinance.co`, `dashboard.vortexfinance.co`, `metrics.vortexfinance.co`, staging Netlify and localhost (non-production only, gated on `DEPLOYMENT_ENV`), plus optional comma-separated fixed origins from `DASHBOARD_ORIGINS` and `BROWSER_SDK_ORIGINS` (resolved once at boot, wildcard entries dropped) and the optional `DASHBOARD_PREVIEW_SITE` env var (a single Netlify site slug; enables the fixed-shape pattern `https://deploy-preview-<n>--<slug>.netlify.app` for dashboard deploy previews, non-production only; helpers in `config/corsOrigins.ts`)
-- Rate limiting: 100 requests per minute per IP (global, all endpoints)
+- Rate limiting: 100 requests per minute per IP (global, all endpoints); Robinhood Chain quotes on `POST /v1/quotes` also share a limit of `STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE` per IP (default 20), because each one spends Relay quote budget that every caller shares
 - Helmet: Standard HTTP security headers
 - Body parser: JSON with **20MB limit**, except auth-first `POST /v1/brl/kyc/import-token` (also available at legacy `/v1/brla/kyc/import-token`), whose route-local parser has a **16 KiB limit**
 - Cookie parser: Enabled (for Supabase auth tokens)

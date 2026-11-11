@@ -276,6 +276,34 @@ describe("EVM destination gas policy", () => {
     }
   });
 
+  it("applies the same parent-chain poster component on Robinhood Chain, another Nitro chain", async () => {
+    const { fakeEvm, restore } = installFakeEvm();
+    try {
+      fakeEvm.arbitrumL1GasComponent = 520n;
+      const quote = {
+        executionFeeUsd: "0.20",
+        fundingGasLimit: "21000",
+        isNativeTransfer: false,
+        maximumFeePerGas: "1200000000",
+        network: Networks.Robinhood as EvmNetworks,
+        programVersion: 2 as const,
+        transferGasLimit: "100000"
+      };
+
+      await expect(assertEvmTreasuryFundingFeeWithinQuote(quote, Networks.Robinhood, 1_000_000_000n)).rejects.toThrow(
+        QuoteError.NetworkFeesTooHigh
+      );
+
+      quote.fundingGasLimit = "21520";
+      quote.transferGasLimit = "100520";
+      await expect(
+        assertEvmTreasuryFundingFeeWithinQuote(quote, Networks.Robinhood, 1_000_000_000n)
+      ).resolves.toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
   it("maps every EVM network to the native currency used to price its gas", () => {
     const expected: Record<EvmNetworks, string> = {
       [Networks.Arbitrum]: "ETH",
@@ -286,7 +314,8 @@ describe("EVM destination gas policy", () => {
       [Networks.Ethereum]: "ETH",
       [Networks.Moonbeam]: "GLMR",
       [Networks.Polygon]: "MATIC",
-      [Networks.PolygonAmoy]: "MATIC"
+      [Networks.PolygonAmoy]: "MATIC",
+      [Networks.Robinhood]: "ETH"
     };
 
     for (const [network, currency] of Object.entries(expected)) {

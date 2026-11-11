@@ -1,8 +1,17 @@
-import { EvmToken, getTokenUsdPrice, isFiatToken, normalizeTokenSymbol, RampCurrency, UsdLikeEvmToken } from "@vortexfi/shared";
+import {
+  EvmToken,
+  getTokenUsdPrice,
+  isFiatToken,
+  Networks,
+  normalizeTokenSymbol,
+  RampCurrency,
+  UsdLikeEvmToken
+} from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import { fetchWithTimeout } from "../helpers/fetchWithTimeout";
+import { isStockSymbol, readFreshStockPriceUsd } from "./phases/blocks/core/robinhood-stocks";
 
 // Cache entry interface
 interface CacheEntry<T> {
@@ -327,14 +336,21 @@ export class PriceFeedService {
    * @param amount - The amount to convert
    * @param fromCurrency - The source currency
    * @param toCurrency - The target currency
+   * @param network - Pass Robinhood Chain to price `fromCurrency` as an allowlisted stock. Prices are otherwise keyed by symbol across networks.
    * @returns The converted amount as a string
    */
   public async convertCurrency(
     amount: string,
     fromCurrency: RampCurrency,
     toCurrency: RampCurrency,
-    decimals: number | null = null // Allow overriding, but default to null
+    decimals: number | null = null, // Allow overriding, but default to null
+    network?: Networks
   ): Promise<string> {
+    const symbol = fromCurrency.toUpperCase();
+    if (network === Networks.Robinhood && isStockSymbol(symbol)) {
+      const amountUsd = new Big(amount).mul(await readFreshStockPriceUsd(symbol)).toString();
+      return this.convertCurrencyStrict(amountUsd, EvmToken.USDC, toCurrency, decimals);
+    }
     return this.convertCurrencyStrict(amount, fromCurrency, toCurrency, decimals);
   }
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import {
   EPaymentMethod,
   EvmNetworks,
@@ -12,7 +12,9 @@ import {
 } from "@vortexfi/shared";
 import { APIError } from "../api/errors/api-error";
 import { isRetiredAssetHubCorridor, validateChainSupport } from "../api/services/phases/blocks/core/helpers";
+import { ROBINHOOD_STOCKS } from "../api/services/phases/blocks/core/robinhood-stocks";
 import { getSupportedCryptocurrencies } from "./cryptocurrencies.config";
+import { config } from "./vars";
 
 const staticUsdc = evmTokenConfig[Networks.Ethereum][EvmToken.USDC] as EvmTokenDetails;
 const staticAxlUsdc = evmTokenConfig[Networks.Ethereum][EvmToken.AXLUSDC] as EvmTokenDetails;
@@ -105,6 +107,51 @@ describe("getSupportedCryptocurrencies", () => {
     const result = getSupportedCryptocurrencies(Networks.AssetHub);
     expect(result.map(token => token.assetSymbol).sort()).toEqual(["DOT", "USDC", "USDT"]);
     expect(result.every(token => token.rampTypes.length === 0)).toBe(true);
+  });
+
+  describe("on Robinhood Chain", () => {
+    const enabledDirections = config.stocks.enabledDirections;
+
+    afterEach(() => {
+      config.stocks.enabledDirections = enabledDirections;
+    });
+
+    it("lists exactly the allowlisted stocks with their addresses, never ETH or USDG", () => {
+      config.stocks.enabledDirections = [RampDirection.BUY, RampDirection.SELL];
+      const result = getSupportedCryptocurrencies(Networks.Robinhood);
+
+      expect(result.map(token => token.assetSymbol).sort()).toEqual(Object.keys(ROBINHOOD_STOCKS).sort());
+      expect(result.find(token => token.assetSymbol === "NVDA")).toEqual({
+        assetContractAddress: ROBINHOOD_STOCKS.NVDA.address,
+        assetDecimals: 18,
+        assetNetwork: Networks.Robinhood,
+        assetSymbol: "NVDA",
+        rampTypes: BOTH
+      });
+    });
+
+    it("ignores tokens discovered on the chain", () => {
+      const discovered = {
+        [Networks.Robinhood]: { DISCOVERED: { ...routedPaxg, assetSymbol: "DISCOVERED", network: Networks.Robinhood } }
+      } as unknown as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
+
+      expect(getSupportedCryptocurrencies(Networks.Robinhood, discovered).some(token => token.assetSymbol === "DISCOVERED")).toBe(
+        false
+      );
+    });
+
+    it.each([
+      [[], []],
+      [[RampDirection.BUY], [RampDirection.BUY]],
+      [[RampDirection.SELL], [RampDirection.SELL]],
+      [[RampDirection.SELL, RampDirection.BUY], BOTH]
+    ])("takes rampTypes from the enabled directions %p", (enabled, expected) => {
+      config.stocks.enabledDirections = enabled;
+      const result = getSupportedCryptocurrencies(Networks.Robinhood);
+
+      expect(result).toHaveLength(12);
+      expect(result.every(token => JSON.stringify(token.rampTypes) === JSON.stringify(expected))).toBe(true);
+    });
   });
 
   it("explains how to pass the required network query parameter", () => {

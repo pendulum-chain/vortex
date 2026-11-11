@@ -3,6 +3,7 @@ import {
   CreateQuoteRequest,
   GetQuoteRequest,
   getNetworkFromDestination,
+  Networks,
   QuoteError,
   QuoteResponse,
   RampDirection
@@ -31,7 +32,7 @@ export const createQuote = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, apiKey } = req.body;
+    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, apiKey, destinationAddress } = req.body;
 
     const network = getNetworkFromDestination(rampType === RampDirection.BUY ? to : from);
 
@@ -59,7 +60,8 @@ export const createQuote = async (
       partnerId: req.managedProfileContext ? undefined : (req.credential?.partnerId ?? undefined),
       rampType,
       to,
-      userId: effectiveUserId
+      userId: effectiveUserId,
+      ...(destinationAddress && rampType === RampDirection.BUY && network === Networks.Robinhood ? { destinationAddress } : {})
     });
 
     observeApiClientEvent({

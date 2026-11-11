@@ -7,6 +7,7 @@ import {
   Networks,
   nativeToDecimal,
   RampCurrency,
+  RampDirection,
   RampPhase,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
@@ -23,6 +24,7 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { EvmSubsidyTopUpExecutor } from "../../core/evm-subsidy-top-up";
 import { getBlockMetadata } from "../../core/metadata";
+import { STOCK_ROUTE_CONTEXT_KEY } from "../uniswap-v3-fixed-swap/route";
 import { SubsidizePreContext } from "./simulation";
 
 export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
@@ -119,6 +121,10 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
           `Could not find token details for input token ${inputToken} on network ${inputNetwork}. Invalid quote metadata.`
         );
       }
+      const stockRoute = (quote.metadata as { blocks?: Record<string, { direction?: unknown } | undefined> }).blocks?.[
+        STOCK_ROUTE_CONTEXT_KEY
+      ];
+      const isStockSale = stockRoute?.direction === RampDirection.SELL;
       // The swap consumes targetInputAmountRaw; feeReserveRaw (Alfredpay corridors)
       // additionally keeps the later distributeFees transfers funded on the ephemeral.
       const targetRaw = Big(
@@ -139,8 +145,18 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
             const quoteOutputUsd = await priceFeedService.convertCurrency(
               quote.outputAmount,
               quote.outputCurrency as RampCurrency,
-              EvmToken.USDC as RampCurrency
+              EvmToken.USDC as RampCurrency,
+              null,
+              quote.network
             );
+            // The stock is already sold, so a top-up above the absolute ceiling waits for an operator.
+            const { saleSubsidyMaxUsd } = config.stocks;
+            if (isStockSale && Big(subsidyUsd).gt(saleSubsidyMaxUsd)) {
+              logger.warn("STOCK_SALE_SUBSIDY_CAP_EXCEEDED", { rampId: state.id, saleSubsidyMaxUsd, subsidyUsd });
+              throw this.createReconciliationRequiredError(
+                `SubsidizePreSwapExecutor: Required subsidy $${subsidyUsd} exceeds the stock sale cap $${saleSubsidyMaxUsd}.`
+              );
+            }
             const subsidyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
             const percentageCap = Big(quoteOutputUsd).mul(subsidyCapFraction);
             const subsidyCapUsd = percentageCap.gt("1") ? percentageCap : Big("1");

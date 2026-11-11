@@ -1,4 +1,4 @@
-import { EvmClientManager, type EvmNetworks } from "@vortexfi/shared";
+import { EvmClientManager, type EvmNetworks, robinhoodChain } from "@vortexfi/shared";
 import { keccak256, toHex } from "viem";
 import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, polygon, polygonAmoy } from "viem/chains";
 
@@ -31,14 +31,15 @@ const CHAIN_IDS: Record<string, number> = {
   ethereum: 1,
   moonbeam: 1284,
   polygon: 137,
-  polygonAmoy: 80002
+  polygonAmoy: 80002,
+  robinhood: robinhoodChain.id
 };
 
 const MAX_UINT256 = 2n ** 256n - 1n;
 
 // viem's default public RPC (what a bare http() transport targets, URL-normalized like viem does) → chain id.
 const DEFAULT_RPC_CHAIN_IDS = new Map<string, number>(
-  [arbitrum, avalanche, base, baseSepolia, bsc, mainnet, polygon, polygonAmoy].map(chain => [
+  [arbitrum, avalanche, base, baseSepolia, bsc, mainnet, polygon, polygonAmoy, robinhoodChain].map(chain => [
     new URL(chain.rpcUrls.default.http[0]).href,
     chain.id
   ])
@@ -109,6 +110,14 @@ export class FakeEvm {
 
   setFeeEstimate(network: string, maxFeePerGas: bigint, maxPriorityFeePerGas = maxFeePerGas): void {
     this.feeEstimates.set(network, { maxFeePerGas, maxPriorityFeePerGas });
+  }
+
+  transactionCount(network: string, address: string): number {
+    return this.nonces.get(`${network}:${address.toLowerCase()}`) ?? 0;
+  }
+
+  setTransactionCount(network: string, address: string, count: number): void {
+    this.nonces.set(`${network}:${address.toLowerCase()}`, count);
   }
 
   /**
@@ -235,7 +244,7 @@ export class FakeEvm {
             value: recorded.value ?? 0n
           };
         },
-        getTransactionCount: async ({ address }: { address: string }) => this.nonces.get(`${network}:${address}`) ?? 0,
+        getTransactionCount: async ({ address }: { address: string }) => this.transactionCount(network, address),
         getTransactionReceipt: async ({ hash }: { hash: `0x${string}` }) => receipt(hash),
         readContract: async (params: ReadContractParams) => this.readContract(network, params),
         sendRawTransaction: async ({ serializedTransaction }: { serializedTransaction: string }) =>

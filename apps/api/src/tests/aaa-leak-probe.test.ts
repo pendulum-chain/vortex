@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { ApiManager, BrlaApiService, EvmClientManager, getRoute, MykoboApiService } from "@vortexfi/shared";
+import { ApiManager, BrlaApiService, EvmClientManager, getRelayQuote, getRoute, MykoboApiService } from "@vortexfi/shared";
 import QuoteTicket from "../models/quoteTicket.model";
 import RampState from "../models/rampState.model";
 
@@ -55,5 +55,9 @@ describe("leak canary: no test file leaked a singleton patch", () => {
     // The fake's replacement is an arrow closing over its fakeSquidRouter instance; the
     // name and typeof checks can't tell them apart, but the source can.
     expect(String(getRoute), "getRoute was left pointing at the FakeSquidRouter").not.toContain("fakeSquidRouter");
+  });
+
+  it("shared getRelayQuote is not a leftover FakeRelay stub", () => {
+    expect(String(getRelayQuote), "getRelayQuote was left pointing at the FakeRelay").not.toContain("fakeRelay");
   });
 });

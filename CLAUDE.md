@@ -19,12 +19,14 @@ Full wayfinding is in [`MAP.md`](MAP.md). This is a **Bun monorepo** using works
 - **apps/frontend** — React 19 + Vite web app → [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md)
 - **apps/demo** — minimal browser SDK integration → [`apps/demo/CLAUDE.md`](apps/demo/CLAUDE.md)
 - **apps/gold** — "ouro. by Vortex" gold app served at /pt-br/gold → [`apps/gold/CLAUDE.md`](apps/gold/CLAUDE.md)
+- **apps/stocks** — Brazil Stock Tokens pilot at /pt-br/stocks → [`apps/stocks/CLAUDE.md`](apps/stocks/CLAUDE.md)
 - **apps/api** — Express backend (PostgreSQL + Sequelize) → [`apps/api/CLAUDE.md`](apps/api/CLAUDE.md)
 - **apps/dashboard** — authenticated React dashboard → [`apps/dashboard/CLAUDE.md`](apps/dashboard/CLAUDE.md)
 - **apps/rebalancer** — liquidity rebalancing service → [`apps/rebalancer/CLAUDE.md`](apps/rebalancer/CLAUDE.md)
 - **packages/shared** — `@vortexfi/shared` utilities/configs → [`packages/shared/CLAUDE.md`](packages/shared/CLAUDE.md)
 - **packages/kyc** — shared KYC/KYB state machines → [`packages/kyc/CLAUDE.md`](packages/kyc/CLAUDE.md)
 - **packages/sdk** — `@vortexfi/sdk` public SDK → [`packages/sdk/CLAUDE.md`](packages/sdk/CLAUDE.md)
+- **packages/consumer-kit** — Consumer wallet/ramp helpers used by Stocks → [`packages/consumer-kit/CLAUDE.md`](packages/consumer-kit/CLAUDE.md)
 
 ## Monorepo Commands
 

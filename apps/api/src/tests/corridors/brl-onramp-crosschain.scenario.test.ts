@@ -14,6 +14,7 @@ import {
 import Big from "big.js";
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
+import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import { config } from "../../config/vars";
 import { getBlockMetadata, getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
@@ -127,6 +128,8 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     world.evm.failNextSends = 0;
     world.evm.setFeeEstimate(Networks.Arbitrum, 1_000_000_000n);
     world.evm.setFeeEstimate(Networks.Base, 1_000_000_000n);
+    // The funding wallet pays the destination funding send's value and gas.
+    world.evm.setNativeBalance(Networks.Arbitrum, getEvmFundingAccount(Networks.Arbitrum).address, parseUnits("10", 18));
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;
     world.brla.accountBalances = { BRLA: 1_000_000, USDC: 0, USDM: 0, USDT: 0 };

@@ -1,5 +1,6 @@
-import type { RampCurrency } from "@vortexfi/shared";
+import { Networks, type RampCurrency } from "@vortexfi/shared";
 import Big from "big.js";
+import { isStockSymbol, readFreshStockPriceUsd } from "../../api/services/phases/blocks/core/robinhood-stocks";
 import { priceFeedService } from "../../api/services/priceFeed.service";
 
 /**
@@ -94,9 +95,15 @@ export function installFakePrices(): { fakePrices: FakePrices; restore: () => vo
     amount: string,
     fromCurrency: RampCurrency,
     toCurrency: RampCurrency,
-    decimals?: number | null
+    decimals?: number | null,
+    network?: Networks
   ) => {
-    const usd = new Big(amount).div(fakePrices.getPerUsd(fromCurrency as string));
+    // As in the real service, only the network prices a stock, from its Chainlink feed. Without it the symbol is unknown.
+    const symbol = fromCurrency.toUpperCase();
+    const usd =
+      network === Networks.Robinhood && isStockSymbol(symbol)
+        ? new Big(amount).mul(await readFreshStockPriceUsd(symbol))
+        : new Big(amount).div(fakePrices.getPerUsd(fromCurrency as string));
     const converted = usd.times(fakePrices.getPerUsd(toCurrency as string));
     return decimals != null ? converted.toFixed(decimals, 0) : converted.toString();
   };

@@ -14,6 +14,8 @@ import {
 } from "@vortexfi/shared";
 import { APIError } from "../api/errors/api-error";
 import { isRetiredAssetHubCorridor, validateChainSupport } from "../api/services/phases/blocks/core/helpers";
+import { ROBINHOOD_STOCKS, STOCK_TOKEN_DECIMALS } from "../api/services/phases/blocks/core/robinhood-stocks";
+import { config } from "./vars";
 
 const supportedNetworks = Object.values(Networks)
   .filter(network => isNetworkEVM(network) || isNetworkAssetHub(network))
@@ -73,6 +75,20 @@ const getEvmNetworkTokens = (
   return [...byAddress.values()];
 };
 
+/** Only the allowlist is public on Robinhood Chain: ETH, USDG and anything discovered there are never ramp assets. */
+const getRobinhoodStockTokens = (): SupportedCryptocurrencyDetails[] => {
+  const rampTypes = [RampDirection.BUY, RampDirection.SELL].filter(direction =>
+    config.stocks.enabledDirections.includes(direction)
+  );
+  return Object.entries(ROBINHOOD_STOCKS).map(([assetSymbol, { address }]) => ({
+    assetContractAddress: address,
+    assetDecimals: STOCK_TOKEN_DECIMALS,
+    assetNetwork: Networks.Robinhood,
+    assetSymbol,
+    rampTypes
+  }));
+};
+
 const getAssetHubTokens = (): SupportedCryptocurrencyDetails[] => {
   const rampTypes = rampTypesFor(Networks.AssetHub);
   return Object.values(AssetHubToken).map(token => {
@@ -96,6 +112,9 @@ export function getSupportedCryptocurrencies(
   network: Networks | undefined,
   tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> = getEvmTokenConfig()
 ): SupportedCryptocurrencyDetails[] {
+  if (network === Networks.Robinhood) {
+    return getRobinhoodStockTokens();
+  }
   if (network && isNetworkEVM(network)) {
     return getEvmNetworkTokens(network as EvmNetworks, tokensByNetwork);
   }

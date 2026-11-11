@@ -42,6 +42,7 @@ export interface PhaseCtx {
   };
   targetFeeFiatCurrency?: RampCurrency;
   evmDestinationGas?: FlowMetadata["globals"]["evmDestinationGas"];
+  gasReserve?: FlowMetadata["globals"]["gasReserve"];
   priceEvmDestinationGas?: boolean;
 }
 

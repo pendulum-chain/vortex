@@ -26,7 +26,8 @@ export const LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string>
   [Networks.Ethereum]: "0.005",
   [Networks.Moonbeam]: "0.34",
   [Networks.Polygon]: "0.6",
-  [Networks.PolygonAmoy]: "0.2"
+  [Networks.PolygonAmoy]: "0.2",
+  [Networks.Robinhood]: "0.00003"
 };
 
 export async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string, pendulumNode: API): Promise<boolean> {

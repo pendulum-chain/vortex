@@ -60,6 +60,7 @@ jobs:
           AVENIA_CONTRACT_SUBACCOUNT_ID: ${{ secrets.CONTRACT_AVENIA_SUBACCOUNT_ID }}
           AVENIA_CONTRACT_WEBHOOK_URL: ${{ secrets.CONTRACT_AVENIA_WEBHOOK_URL }}
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          RELAY_API_KEY: ${{ secrets.CONTRACT_RELAY_API_KEY }}
         run: bun test src/tests/contracts/
 
       # Non-blocking runs are only useful if somebody hears about failures.

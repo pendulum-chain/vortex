@@ -5,6 +5,7 @@ import {
   getOnChainTokenDetails,
   getPaymentMethodFromDestinations,
   OnChainToken,
+  type ProviderCost,
   RampCurrency,
   RampDirection
 } from "@vortexfi/shared";
@@ -16,9 +17,12 @@ import { APIError } from "../../../../errors/api-error";
 import { priceFeedService } from "../../../priceFeed.service";
 import type { QuoteContext, QuoteTicketMetadata } from "../../../quote/core/types";
 import { resolveBlockFlow } from "../flows/catalog";
+import type { NablaSwapMetadata } from "../phases/nabla-swap/simulation";
+import type { StockPermitSourceMetadata } from "../phases/stock-permit-source/simulation";
+import type { StockRouteMetadata } from "../phases/stock-route/simulation";
 import { trimTrailingZeros } from "./helpers";
 import type { FlowMetadata } from "./metadata";
-import { buildBlockQuoteResponse } from "./quote-response";
+import { buildBlockQuoteResponse, stockQuoteResponseFields } from "./quote-response";
 import type { PhaseCtx, PhaseIO } from "./types";
 import { applyAlfredpayLimits, assertEvmPartnerPayoutPresent, validateAmountLimits } from "./validation";
 
@@ -70,6 +74,55 @@ async function assignSubsidyDisplay(metadata: FlowMetadata, ctx: QuoteContext): 
   }
 }
 
+function toCents(amount: Big): string {
+  const cents = amount.toFixed(2);
+  return cents === "-0.00" ? "0.00" : cents;
+}
+
+/**
+ * The stock flows' route facts. `fees` rows partition the total fee without the gas reserve. `rate` rows are
+ * signed effects already inside the output amount: conversion and bridge against their input, swap against the
+ * Chainlink reference.
+ */
+async function assignStockQuoteFields(metadata: FlowMetadata, ctx: QuoteContext): Promise<void> {
+  const route = metadata.blocks.stockRoute as StockRouteMetadata | undefined;
+  const fiatFees = metadata.globals.fees.displayFiat;
+  if (!route || !fiatFees) return;
+
+  const fiatPerUsd = new Big(await priceFeedService.getUsdToFiatExchangeRate(fiatFees.currency));
+  const nabla = metadata.blocks.nablaSwap as NablaSwapMetadata;
+  const nablaInput = new Big(nabla.inputAmountForSwapDecimal);
+  const nablaOutput = new Big(nabla.outputAmountDecimal);
+  const conversionFiat =
+    ctx.request.rampType === RampDirection.BUY
+      ? nablaInput.minus(nablaOutput.mul(fiatPerUsd))
+      : nablaInput.mul(fiatPerUsd).minus(nablaOutput);
+
+  const row = (
+    id: ProviderCost["id"],
+    provider: ProviderCost["provider"],
+    includedIn: ProviderCost["includedIn"],
+    fiat: Big
+  ) => ({
+    amountFiat: toCents(fiat),
+    id,
+    includedIn,
+    provider
+  });
+  metadata.globals.providerCosts = [
+    row("ramp", "avenia", "fees", new Big(fiatFees.anchor)),
+    row("conversion", "nabla", "rate", conversionFiat),
+    row("bridge", "relay", "rate", new Big(route.bridge.costUsd).mul(fiatPerUsd)),
+    row("swap", "uniswap", "rate", new Big(route.swap.costUsd).mul(fiatPerUsd)),
+    row("vortex", "vortex", "fees", new Big(fiatFees.vortex)),
+    row("network", "network", "fees", new Big(fiatFees.network).minus(metadata.globals.gasReserve?.fiat ?? 0))
+  ];
+  metadata.globals.routingStrategy = "direct";
+
+  const permitSource = metadata.blocks.stockPermitSource as StockPermitSourceMetadata | undefined;
+  if (permitSource) metadata.globals.gasless = permitSource.gasless;
+}
+
 function buildTemporaryResponse(ctx: QuoteContext, metadata: FlowMetadata, outputAmount: string, expiresAt: Date) {
   const fiatFees = metadata.globals.fees.displayFiat;
   if (!fiatFees) {
@@ -104,6 +157,7 @@ function buildTemporaryResponse(ctx: QuoteContext, metadata: FlowMetadata, outpu
           discountUsd: metadata.globals.subsidyDisplay.usd
         }
       : {}),
+    ...stockQuoteResponseFields(metadata.globals),
     to: ctx.request.to,
     totalFeeFiat: fiatFees.total,
     totalFeeUsd: metadata.globals.fees.usd.total,
@@ -130,6 +184,7 @@ export async function runBlockQuoteFlow(ctx: QuoteContext): Promise<void> {
   const outputAmount = output.amount.toFixed(decimals, 0);
   const expiresAt = resolveBlockQuoteExpiry(providerExpiresAt);
   await assignSubsidyDisplay(metadata, ctx);
+  await assignStockQuoteFields(metadata, ctx);
   ctx.fees = phaseCtx.fees;
   assertEvmPartnerPayoutPresent(ctx);
 
