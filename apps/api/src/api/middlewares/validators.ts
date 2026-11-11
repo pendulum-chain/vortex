@@ -40,6 +40,7 @@ import { FLOW_HEADERS } from "../controllers/storage.controller";
 import { APIError } from "../errors/api-error";
 import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
+import { isBoundedAmount } from "../services/quote";
 
 interface CreationBody {
   accountId: string;
@@ -139,7 +140,7 @@ export const validateBundledPriceInput: RequestHandler<unknown, unknown, unknown
     return;
   }
 
-  if (isNaN(parseFloat(amount))) {
+  if (!isBoundedAmount(amount)) {
     res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid amount parameter. Not a number." });
     return;
   }
@@ -196,7 +197,7 @@ export const validatePriceInput: RequestHandler<unknown, unknown, unknown, Price
     return;
   }
 
-  if (isNaN(parseFloat(amount))) {
+  if (!isBoundedAmount(amount)) {
     res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid amount parameter. Not a number." });
     return;
   }
@@ -388,6 +389,12 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
     return;
   }
 
+  if (!isBoundedAmount(inputAmount)) {
+    observeQuoteValidationFailure(req, "quote_create");
+    res.status(httpStatus.BAD_REQUEST).json({ message: "Invalid amount parameter. Not a number." });
+    return;
+  }
+
   if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
     observeQuoteValidationFailure(req, "quote_create");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidRampType });
@@ -413,6 +420,12 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Crea
   if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
     observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
+    return;
+  }
+
+  if (!isBoundedAmount(inputAmount)) {
+    observeQuoteValidationFailure(req, "quote_create_best");
+    res.status(httpStatus.BAD_REQUEST).json({ message: "Invalid amount parameter. Not a number." });
     return;
   }
 

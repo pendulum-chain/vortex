@@ -75,6 +75,9 @@ export abstract class EvmSubsidyTopUpExecutor extends BasePhaseHandler {
     let maxFeePerGas: bigint | undefined;
     let maxPriorityFeePerGas: bigint | undefined;
 
+    // Let the ephemeral's incoming transfer settle before taking the shared funding slot, so the wait
+    // does not hold up other funding-wallet operations.
+    await sleep(EVM_SETTLEMENT_DELAY_MS, signal);
     const operation = await runSerializedEvmFundingOperation(
       destinationNetwork,
       () =>
@@ -82,7 +85,6 @@ export abstract class EvmSubsidyTopUpExecutor extends BasePhaseHandler {
           adoptSafeRequestHash: true,
           attemptClass: "evm-subsidy-transfer",
           beforePerform: async () => {
-            await sleep(EVM_SETTLEMENT_DELAY_MS, signal);
             const currentBalance = await checkEvmBalanceForToken({
               amountDesiredRaw: "1",
               chain: destinationNetwork,

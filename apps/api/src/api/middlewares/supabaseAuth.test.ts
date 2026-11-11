@@ -6,7 +6,7 @@ import { optionalAuth, requireAuth } from "./supabaseAuth";
 function request(authorization?: string): Request {
   return {
     headers: authorization === undefined ? {} : { authorization },
-    path: "/v1/quote"
+    originalUrl: "/v1/quote"
   } as Request;
 }
 

@@ -421,5 +421,30 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       const missingAmount = await requestJson("/v1/prices/all?direction=onramp&sourceCurrency=eur&targetCurrency=usdc&network=base");
       expect(missingAmount.status).toBe(400);
     });
+
+    it("every anonymous route that quotes rejects amounts too large to expand", async () => {
+      const amount = "1e30000000";
+      const query = `direction=BUY&sourceCurrency=EUR&targetCurrency=USDC&network=base&amount=${amount}`;
+      for (const path of [`/v1/prices?provider=vortex&${query}`, `/v1/prices/all?${query}`]) {
+        const price = await requestJson(path);
+        expect(price.status).toBe(400);
+        expect(price.body).toEqual({ error: "Invalid amount parameter. Not a number." });
+      }
+
+      const session = await requestJson("/v1/session/create", {
+        body: {
+          cryptoLocked: "USDC",
+          externalSessionId: "session-1",
+          fiat: "BRL",
+          inputAmount: amount,
+          network: "base",
+          paymentMethod: "pix",
+          rampType: "SELL"
+        },
+        method: "POST"
+      });
+      expect(session.status).toBe(400);
+      expect(session.body.message).toBe("Invalid amount parameter. Not a number.");
+    });
   });
 });

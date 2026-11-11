@@ -63,19 +63,23 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
     }
     if (!isPendulumPayout) await this.sendPayoutTransfer(state, signal);
     const api = BrlaApiService.getInstance();
-    await this.poll(
-      async () => {
-        const balance = await abortableCall(signal, () => api.getAccountBalance(subAccountId));
-        return new Big(balance?.balances?.BRLA ?? 0).gte(new Big(metadata.transferAmountDecimal).round(2, 0));
-      },
-      "Avenia BRLA balance",
-      signal
-    );
     try {
+      let quoteToken = "";
       const ticket = await this.runFinancialOperation(state, {
         attemptClass: "provider-payout-ticket",
-        externalId: result => result.id,
-        perform: async () => {
+        // The balance wait and the payout quote create no payout, so they run before the claim: a failure
+        // leaves the operation unclaimed and safe to retry, while a failed ticket request pauses for
+        // reconciliation. Once a ticket was requested, Avenia may already have spent the BRLA, so the
+        // journal settles the operation without waiting for that balance again.
+        beforePerform: async () => {
+          await this.poll(
+            async () => {
+              const balance = await abortableCall(signal, () => api.getAccountBalance(subAccountId));
+              return new Big(balance?.balances?.BRLA ?? 0).gte(new Big(metadata.transferAmountDecimal).round(2, 0));
+            },
+            "Avenia BRLA balance",
+            signal
+          );
           const payoutQuote = await abortableCall(signal, () =>
             api.createPayOutQuote({
               outputAmount: new Big(quote.outputAmount).round(2, 0).toString(),
@@ -83,9 +87,13 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
               subAccountId
             })
           );
+          quoteToken = payoutQuote.quoteToken;
+        },
+        externalId: result => result.id,
+        perform: async () => {
           throwIfAborted(signal);
           const payload: PixOutputTicketPayload = {
-            quoteToken: payoutQuote.quoteToken,
+            quoteToken,
             ticketBlockchainInput: { walletAddress: facts.brlaEvmAddress },
             ticketBrlPixOutput: { pixKey: facts.pixDestination }
           };
@@ -107,7 +115,7 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
     } catch (error) {
       if (error instanceof PhaseError) throw error;
       logger.error("AveniaOfframpPayoutExecutor: Failed to trigger PIX payout", error);
-      throw this.createUnrecoverableError("AveniaOfframpPayoutExecutor: Failed to trigger BRLA offramp");
+      throw this.createRecoverableError("AveniaOfframpPayoutExecutor: Failed to trigger BRLA offramp");
     }
   }
 
@@ -178,7 +186,7 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
       }
       await sleep(POLL_INTERVAL_MS, signal);
     }
-    if (lastError) throw this.createUnrecoverableError(`${label} polling failed: ${lastError}`);
+    if (lastError) throw this.createRecoverableError(`${label} polling failed: ${lastError}`);
     throw this.createRecoverableError(`${label} polling timed out`);
   }
 }

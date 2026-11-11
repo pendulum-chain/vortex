@@ -111,6 +111,17 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
     );
   });
 
+  test("rejects a hosted-liveness URL that is not https", async () => {
+    for (const livenessUrl of ["javascript:alert(1)", "http://app.avenia.io/liveness/session-1", "data:text/html,x"]) {
+      const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+      Object.assign(service, {
+        sendRequest: mock(async () => ({ id: "liveness-document-1", livenessUrl, validateLivenessToken: "liveness-token" }))
+      });
+
+      await expect(service.getDocumentUploadUrls(BrDocumentType.SELFIE_FROM_LIVENESS, false, "sub-1")).rejects.toThrow();
+    }
+  });
+
   test("still requires an upload URL for an ordinary document", async () => {
     const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
     Object.assign(service, { sendRequest: mock(async () => ({ id: "document-1" })) });
@@ -520,5 +531,28 @@ describe("BrlaApiService.sendRequest path templating", () => {
     // A hung connection must not stall callers forever — cron workers with
     // waitForCompletion would otherwise never run another cycle.
     expect(signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe("BrlaApiService.getAveniaPayinTicket", () => {
+  it("reads one pay-in ticket by id within the subaccount", async () => {
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    const ticket = { brlPixInputInfo: { id: "pix-1" }, id: "ticket/1", status: "PAID" };
+    const sendRequest = mock(async () => ({ ticket }));
+    Object.assign(service, { sendRequest });
+
+    expect(await service.getAveniaPayinTicket("ticket/1", "sub 1")).toBe(ticket as never);
+    expect(sendRequest).toHaveBeenCalledWith(Endpoint.Tickets, "GET", "subAccountId=sub%201", undefined, "ticket/1");
+  });
+
+  it("rejects a ticket that is not a pay-in", async () => {
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, {
+      sendRequest: mock(async () => ({ ticket: { brazilianFiatReceiverInfo: {}, id: "ticket-1", status: "PAID" } }))
+    });
+
+    await expect(service.getAveniaPayinTicket("ticket-1", "sub-1")).rejects.toThrow(
+      "Invalid response from Avenia API for getAveniaPayinTicket"
+    );
   });
 });

@@ -51,6 +51,14 @@ export function formatLogEntry(info: LogEntry): string {
   );
 }
 
+/**
+ * Request URL as it may appear in logs: query strings carry tax IDs and Pix keys, and
+ * recipient invite paths carry a bearer token, so both are dropped.
+ */
+export function loggableUrl(originalUrl: string): string {
+  return originalUrl.split("?")[0].replace(/(\/recipients\/invite\/)[^/]+/, "$1:token");
+}
+
 const customFormat = winston.format.printf(formatLogEntry);
 
 const logger = winston.createLogger({

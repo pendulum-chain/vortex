@@ -189,10 +189,10 @@ export const aveniaDocumentUploadResponseSchema = z.looseObject({
   uploadURLFront: z.string().min(1)
 }) satisfies z.ZodType<DocumentUploadResponse>;
 
-/** The provider-hosted capture target returned for SELFIE-FROM-LIVENESS. */
+/** The provider-hosted capture target returned for SELFIE-FROM-LIVENESS. Clients open it, so it must be https. */
 export const aveniaLivenessDocumentResponseSchema = z.looseObject({
   id: z.string().min(1),
-  livenessUrl: z.string().min(1),
+  livenessUrl: z.string().startsWith("https://"),
   validateLivenessToken: z.string().min(1)
 }) satisfies z.ZodType<LivenessDocumentResponse>;
 

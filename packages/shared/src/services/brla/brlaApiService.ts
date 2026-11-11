@@ -593,6 +593,19 @@ export class BrlaApiService {
     throw new Error("Invalid response from Avenia API for getAveniaPayoutTicket");
   }
 
+  public async getAveniaPayinTicket(ticketId: string, subAccountId: string): Promise<AveniaPayinTicket> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    const aveniaTicketsQueryResponse = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined, ticketId);
+
+    if (
+      "ticket" in aveniaTicketsQueryResponse &&
+      ("brlPixInputInfo" in aveniaTicketsQueryResponse.ticket || "brazilianFiatSenderInfo" in aveniaTicketsQueryResponse.ticket)
+    ) {
+      return aveniaTicketsQueryResponse.ticket as AveniaPayinTicket;
+    }
+    throw new Error("Invalid response from Avenia API for getAveniaPayinTicket");
+  }
+
   public async getAveniaPayinTickets(subAccountId: string): Promise<AveniaPayinTicket[]> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     const aveniaTicketsQueryResponse = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined);

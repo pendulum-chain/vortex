@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import logger from "../../config/logger";
+import logger, { loggableUrl } from "../../config/logger";
 import { AccessTokenVerificationError } from "../services/auth";
 import type { ImpersonationContext } from "../services/impersonation.service";
 import { resolveBearerPrincipal } from "./bearerPrincipal";
@@ -86,7 +86,7 @@ function logVerificationFailure(req: Request, category: string, error: unknown):
   logger.warn("Supabase access-token verification failed", {
     category,
     error: error instanceof Error ? error.message : String(error),
-    path: req.path,
+    path: loggableUrl(req.originalUrl),
     requestId: req.headers["x-request-id"]
   });
 }

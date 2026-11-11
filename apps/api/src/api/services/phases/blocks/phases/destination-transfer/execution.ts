@@ -10,6 +10,7 @@ import { decodeFunctionData, erc20Abi, keccak256, parseTransaction } from "viem"
 import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
+import { APIError } from "../../../../../errors/api-error";
 import { PhaseError, UnrecoverablePhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
@@ -91,22 +92,28 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
       logger.warn("DestinationTransferExecutor: No destinationAddress in state metadata, skipping recipient validation");
     }
     if (destinationTransferTxHash) {
+      let receipt: { status: string } | undefined;
       try {
         const client = evmClientManager.getClient(destinationNetwork);
-        const receipt = await abortableCall(signal, () =>
+        receipt = await abortableCall(signal, () =>
           client.getTransactionReceipt({ hash: destinationTransferTxHash as `0x${string}` })
         );
-
-        if (receipt.status === "success") {
-          return state;
-        } else {
-          throw new Error(`Transaction ${destinationTransferTxHash} failed on chain.`);
-        }
       } catch (error) {
-        if (error instanceof Error && error.name !== "TransactionReceiptNotFoundError") {
-          throw error;
+        throwIfAborted(signal);
+        // A delivery that is not mined yet proceeds to the normal flow; any other read error is retried.
+        if (!(error instanceof Error && error.name === "TransactionReceiptNotFoundError")) {
+          throw this.createRecoverableError(
+            `DestinationTransferExecutor: could not read the delivery receipt - ${(error as Error).message}`
+          );
         }
-        // If receipt not found, proceed to normal flow
+      }
+      if (receipt?.status === "success") {
+        return state;
+      }
+      if (receipt) {
+        throw this.createReconciliationRequiredError(
+          `DestinationTransferExecutor: delivery requires manual reconciliation - transaction ${destinationTransferTxHash} failed on chain.`
+        );
       }
     }
 
@@ -142,7 +149,9 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
       }
 
       if (presignedNonce > liveNonce) {
-        throw this.createUnrecoverableError(
+        // Pause rather than fail: a lagging RPC can report a stale nonce, and the recovery worker
+        // re-reads it, while a real gap stays parked with the funds on the ephemeral for review.
+        throw this.createReconciliationRequiredError(
           `DestinationTransferExecutor: presigned nonce ${presignedNonce} is ahead of the ephemeral live nonce ${liveNonce}. ` +
             "The transfer can never broadcast (nonce gap); manual review required."
         );
@@ -150,27 +159,38 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
     }
 
     try {
-      await checkEvmBalanceForToken({
-        amountDesiredRaw: expectedAmountRaw,
-        chain: destinationNetwork,
-        intervalMs: BALANCE_POLLING_TIME_MS,
-        ownerAddress: state.state.evmEphemeralAddress,
-        signal,
-        timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
-        tokenDetails: outTokenDetails
-      });
-
       const signedTransaction = destinationTransfer as `0x${string}`;
       const deterministicHash = keccak256(signedTransaction);
       const destinationClient = evmClientManager.getClient(destinationNetwork);
       const { hash: txHash } = await this.runFinancialOperation(state, {
         attemptClass: "destination-presigned-broadcast",
+        // Checked only before a first broadcast: once one was attempted, the delivery may already
+        // have emptied the ephemeral, and the journal settles it from the transfer's receipt instead.
+        beforePerform: async () => {
+          await checkEvmBalanceForToken({
+            amountDesiredRaw: expectedAmountRaw,
+            chain: destinationNetwork,
+            intervalMs: BALANCE_POLLING_TIME_MS,
+            ownerAddress: state.state.evmEphemeralAddress,
+            signal,
+            timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
+            tokenDetails: outTokenDetails
+          });
+        },
         externalId: result => result.hash,
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
             evmClientManager.sendRawTransactionWithRetry(destinationNetwork, signedTransaction)
           );
+          // The ramp completes only on a successful delivery receipt. A reverted transfer spends the
+          // presigned nonce and leaves the funds on the ephemeral, so the phase must not advance.
+          const receipt = await abortableCall(signal, () =>
+            destinationClient.waitForTransactionReceipt({ hash: hash as `0x${string}` })
+          );
+          if (receipt.status !== "success") {
+            throw new FinancialOperationRejectedError(`Destination transfer ${hash} failed`);
+          }
           return { hash };
         },
         provider: destinationNetwork,
@@ -203,6 +223,13 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
       return state;
     } catch (error) {
       if (error instanceof PhaseError) throw error;
+      // A reverted or definitively failed delivery cannot be retried with the spent presigned
+      // transaction; hold the ramp in this phase for manual reconciliation.
+      if (error instanceof APIError) {
+        throw this.createReconciliationRequiredError(
+          `DestinationTransferExecutor: delivery requires manual reconciliation - ${error.message}`
+        );
+      }
       throw this.createRecoverableError(
         `DestinationTransferExecutor: Error during phase execution - ${(error as Error).message}`
       );
