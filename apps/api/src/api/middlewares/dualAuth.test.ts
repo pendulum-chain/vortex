@@ -6,7 +6,7 @@ import { requirePartnerOrUserAuth, requireProfileBoundPrincipal } from "./dualAu
 function request(authorization: string): Request {
   return {
     headers: { authorization },
-    path: "/v1/onboarding/status"
+    originalUrl: "/v1/onboarding/status"
   } as Request;
 }
 

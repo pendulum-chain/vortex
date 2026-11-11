@@ -53,6 +53,23 @@ function isNetworkFeesTooHighError(error: unknown): error is APIError {
   );
 }
 
+// Quote amounts are expanded to fixed-point strings downstream, so their size is bounded on every route.
+export function isBoundedAmount(value: unknown): boolean {
+  const text = String(value);
+  if (text.length > 64) return false;
+  try {
+    return Math.abs(new Big(text).e) <= 64;
+  } catch {
+    return false;
+  }
+}
+
+function assertBoundedAmount(inputAmount: unknown): void {
+  if (!isBoundedAmount(inputAmount)) {
+    throw new APIError({ message: "Invalid amount parameter. Not a number.", status: httpStatus.BAD_REQUEST });
+  }
+}
+
 export class QuoteService extends BaseRampService {
   public async createQuote(
     request: CreateQuoteRequest & {
@@ -62,6 +79,7 @@ export class QuoteService extends BaseRampService {
       userId?: string;
     }
   ): Promise<QuoteResponse> {
+    assertBoundedAmount(request.inputAmount);
     assertEurOfframpSupported(request);
     assertEurOnrampEnabled(request);
     assertFiatCurrencyEnabled(request);
@@ -96,6 +114,7 @@ export class QuoteService extends BaseRampService {
       userId?: string;
     }
   ): Promise<QuoteResponse> {
+    assertBoundedAmount(request.inputAmount);
     assertEurOfframpSupported(request);
     assertEurOnrampEnabled(request);
     assertFiatCurrencyEnabled(request);

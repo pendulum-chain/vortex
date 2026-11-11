@@ -43,6 +43,33 @@ const baseBody = {
   from: "pix"
 };
 
+describe("quote amount bounds", () => {
+  function run(validator: typeof validateCreateQuoteInput, inputAmount: unknown) {
+    const req = { body: { ...baseBody, inputAmount, to: Networks.Base } } as unknown as Request;
+    const res = buildRes();
+    const next: NextFunction = mock(() => undefined) as unknown as NextFunction;
+    validator(req, res as never, next);
+    return { next, res };
+  }
+
+  for (const validator of [validateCreateQuoteInput, validateCreateBestQuoteInput] as (typeof validateCreateQuoteInput)[]) {
+    it(`${validator.name} rejects amounts too large to expand`, () => {
+      for (const inputAmount of ["1e30000000", "1e-30000000", "1".repeat(100), "abc"]) {
+        const { next, res } = run(validator, inputAmount);
+        expect(next).not.toHaveBeenCalled();
+        expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+        expect(res.body).toEqual({ message: "Invalid amount parameter. Not a number." });
+      }
+    });
+
+    it(`${validator.name} accepts ordinary amounts`, () => {
+      for (const inputAmount of ["100", "100.5", "1e3", 100, "0.000000000000000001"]) {
+        expect(run(validator, inputAmount).next).toHaveBeenCalled();
+      }
+    });
+  }
+});
+
 describe("validateCreateBestQuoteInput - networks whitelist", () => {
   it("passes when networks is omitted (preserves existing behavior)", () => {
     const { next, res } = runValidator({ ...baseBody });

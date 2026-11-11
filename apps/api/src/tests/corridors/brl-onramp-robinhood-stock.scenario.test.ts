@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as shared from "@vortexfi/shared";
 import {
+  AveniaTicketStatus,
   type CleanupPhase,
   EvmToken,
   evmTokenConfig,
@@ -149,6 +150,7 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
     world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, FEE_PAYOUT, 0n);
     world.brla.onPixOutputTicket = undefined;
     world.brla.accountBalances = { BRLA: 1_000_000, USDC: 0, USDM: 0, USDT: 0 };
+    world.brla.payinTicketStatus = AveniaTicketStatus.PAID;
     world.relay.statusRequests.length = 0;
     world.relay.statusScript.length = 0;
     world.relay.onStatusPoll = undefined;
@@ -755,6 +757,8 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
       const setup = await setUpRegisteredRamp();
       scriptPaidWorld(setup);
       world.brla.accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
+      // Avenia still lists the pay-in ticket as unpaid, so the window can expire.
+      world.brla.payinTicketStatus = AveniaTicketStatus.PENDING;
       const ticketsBefore = world.brla.pixOutputTickets.length;
       const wait = spyOn(shared, "waitUntilTrueWithTimeout").mockImplementation(async predicate => {
         if (!(await predicate())) throw new Error("Timeout waiting for the Pix");

@@ -1392,7 +1392,7 @@ export interface paths {
         };
         /**
          * Get ramp error logs
-         * @description Returns the chronological error log for a ramp.
+         * @description Returns the chronological error log for a ramp. Each entry carries a one-line `error` message; stack traces and upstream provider responses are not returned, so `details` is omitted.
          *
          *     **Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.
          */
@@ -1662,7 +1662,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Missing required fields, or `quoteId` not provided for fixed-quote mode and route fields not provided for auto-refresh mode. */
+                /** @description Missing required fields, or `quoteId` not provided for fixed-quote mode and route fields not provided for auto-refresh mode, or an invalid amount (`inputAmount` is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude). */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -7332,6 +7332,7 @@ export interface operations {
              * @description Bad Request. Possible reasons:
              *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
              *     - Invalid ramp type (must be "BUY" or "SELL")
+             *     - Invalid amount (inputAmount is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude)
              *     - On `robinhood`: the direction is not enabled, the token is not on the allowlist, a SELL amount has more than 18 decimals, or `destinationAddress` is not an EVM address
              */
             400: {
@@ -7459,6 +7460,7 @@ export interface operations {
              * @description Bad Request. Possible reasons:
              *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
              *     - Invalid ramp type (must be "BUY" or "SELL")
+             *     - Invalid amount (inputAmount is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude)
              */
             400: {
                 headers: {

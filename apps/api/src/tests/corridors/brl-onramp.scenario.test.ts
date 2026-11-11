@@ -1,8 +1,19 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { EvmToken, evmTokenConfig, FiatToken, Networks, RampDirection, type RampPhase } from "@vortexfi/shared";
-import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import * as shared from "@vortexfi/shared";
+import {
+  AveniaTicketStatus,
+  EvmToken,
+  evmTokenConfig,
+  FiatToken,
+  Networks,
+  RampDirection,
+  type RampPhase
+} from "@vortexfi/shared";
+import { decodeFunctionData, encodeFunctionData, erc20Abi, keccak256, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { SlackNotifier } from "../../api/services/slack.service";
+import { config } from "../../config/vars";
 import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
@@ -12,6 +23,9 @@ import { createTestTaxId, createTestUser } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
+
+// Plain copy taken before any mock.module call: mock.module rewrites the namespace in place.
+const sharedSnapshot = { ...shared };
 
 function requireBrlaOnBase() {
   const details = evmTokenConfig[Networks.Base][EvmToken.BRLA];
@@ -63,9 +77,12 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
   beforeEach(async () => {
     await resetTestDatabase();
     world.evm.failNextSends = 0;
+    world.evm.failNextReceiptReads = 0;
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;
     world.brla.accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
+    world.brla.payinTicketStatus = AveniaTicketStatus.PAID;
+    world.brla.onPayinTicketRead = undefined;
   });
 
   async function createQuoteViaApi(): Promise<{ id: string; outputAmount: string }> {
@@ -90,11 +107,12 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     quoteId: string,
     userId: string,
     ephemeral: PrivateKeyAccount,
-    destination: `0x${string}`
+    destination: `0x${string}`,
+    extraAdditionalData: Record<string, unknown> = {}
   ): Promise<{ id: string }> {
     const response = await app.request("/v1/ramp/register", {
       body: JSON.stringify({
-        additionalData: { destinationAddress: destination, taxId: TAX_ID },
+        additionalData: { destinationAddress: destination, taxId: TAX_ID, ...extraAdditionalData },
         quoteId,
         signingAccounts: [{ address: ephemeral.address, type: "EVM" }]
       }),
@@ -115,7 +133,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
    * destinationTransfer. Pass a recipient to sign a transfer that pays someone
    * other than the registered destination.
    */
-  async function setUpRegisteredRamp(options: { recipient?: `0x${string}` } = {}): Promise<CorridorSetup> {
+  async function setUpRegisteredRamp(options: { nonce?: number; recipient?: `0x${string}` } = {}): Promise<CorridorSetup> {
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
 
@@ -135,7 +153,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       gas: 100_000n,
       maxFeePerGas: 1_000_000_000n,
       maxPriorityFeePerGas: 1_000_000_000n,
-      nonce: 0,
+      nonce: options.nonce ?? 0,
       to: BRLA_ON_BASE,
       type: "eip1559"
     });
@@ -149,7 +167,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
         {
           meta: {},
           network: Networks.Base,
-          nonce: 0,
+          nonce: options.nonce ?? 0,
           phase: "destinationTransfer",
           signer: ephemeral.address,
           txData: signedTransfer
@@ -202,6 +220,30 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     return world.evm.sentTransactions.filter(tx => tx.serialized === signedTransfer).length;
   }
 
+  it("registration stores only the documented additionalData inputs in ramp state", async () => {
+    const ephemeral = privateKeyToAccount(generatePrivateKey());
+    const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const quote = await createQuoteViaApi();
+
+    const ramp = await registerViaApi(quote.id, user.id, ephemeral, destination, {
+      depositQrCode: "client-qr",
+      destinationTransferTxHash: "0x1234",
+      distributeFeeHash: "0xabcd",
+      presignChecksPass: true,
+      sessionId: "session-1"
+    });
+
+    const state = (await RampState.findByPk(ramp.id))?.state as unknown as Record<string, unknown>;
+    expect(state.destinationAddress).toBe(destination);
+    expect(state.sessionId).toBe("session-1");
+    expect(state.depositQrCode).not.toBe("client-qr");
+    for (const key of ["destinationTransferTxHash", "distributeFeeHash", "presignChecksPass"]) {
+      expect(Object.hasOwn(state, key)).toBe(false);
+    }
+  });
+
   it(
     "happy path: processes initial → brlaOnrampMint → fundEphemeral → destinationTransfer → complete",
     async () => {
@@ -231,6 +273,79 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     30000
   );
 
+  function seedMintTicket(scopeId: string, status: "not_started" | "submitted" | "unknown" | "confirmed") {
+    return FinancialOperation.create({
+      attemptClass: "provider-mint-ticket",
+      flowId: "test-flow",
+      flowVersion: 1,
+      operationKey: `mint-ticket-${scopeId}`,
+      phase: "brlaOnrampMint",
+      provider: "avenia",
+      requestHash: "earlier-run",
+      response: status === "confirmed" ? { expectedAmountReceived: "1", outputAmount: "1", ticketId: "earlier-ticket" } : null,
+      scopeId,
+      scopeType: "ramp",
+      status
+    });
+  }
+
+  it.each([
+    ["no mint ticket", null],
+    ["another ramp's confirmed mint ticket", "other-ramp"],
+    ["its own mint ticket that was never claimed", "not_started"]
+  ] as const)(
+    "BRLA already on the ephemeral does not skip the mint with %s",
+    async (_label, seeded) => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      if (seeded === "other-ramp") await seedMintTicket(crypto.randomUUID(), "confirmed");
+      if (seeded === "not_started") await seedMintTicket(setup.rampId, "not_started");
+      world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, parseUnits("1000000", 18));
+      let aveniaBalanceReads = 0;
+      world.brla.accountBalances = {
+        get BRLA(): number {
+          aveniaBalanceReads++;
+          throw new Error("Timeout: scripted Avenia balance stall");
+        },
+        USDC: 0,
+        USDM: 0,
+        USDT: 0
+      };
+      const pixOutBefore = world.brla.pixOutputTickets.length;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      // The step waited for the Pix on Avenia instead of trusting the ephemeral's balance.
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("brlaOnrampMint");
+      expect(aveniaBalanceReads).toBeGreaterThan(0);
+      expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore);
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+    },
+    30000
+  );
+
+  it.each(["submitted", "unknown", "confirmed"] as const)(
+    "recovery: resumes from the ramp's own %s mint ticket once the BRLA reached the ephemeral",
+    async status => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      // An earlier run created the mint ticket and the BRLA already left the Avenia subaccount.
+      world.brla.accountBalances.BRLA = 0;
+      world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, parseUnits("1000000", 18));
+      await seedMintTicket(setup.rampId, status);
+      const pixOutBefore = world.brla.pixOutputTickets.length;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore);
+      expect(submissionsOf(setup.signedTransfer)).toBe(1);
+    },
+    30000
+  );
+
   it(
     "ambiguous destination broadcast: pauses for reconciliation without paying the recipient",
     async () => {
@@ -238,9 +353,19 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       scriptHappyWorld(setup);
       world.evm.failNextSends = 1;
       world.evm.sendFailureMessage = "FakeEvm: scripted RPC outage";
+      const slackToken = config.integrations.slack.webhookToken;
+      config.integrations.slack.webhookToken = "test-token";
+      const alert = spyOn(SlackNotifier.prototype, "sendMessage").mockResolvedValue();
 
-      await phaseProcessor.processRamp(setup.rampId);
+      await phaseProcessor.processRamp(setup.rampId).finally(() => {
+        config.integrations.slack.webhookToken = slackToken;
+      });
 
+      // The operator hears about it.
+      expect(alert).toHaveBeenCalledWith({
+        text: expect.stringContaining(`Ramp ${setup.rampId} is paused in destinationTransfer`)
+      });
+      alert.mockRestore();
       const final = await RampState.findByPk(setup.rampId);
       expect(final?.currentPhase).toBe("destinationTransfer");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
@@ -255,6 +380,269 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       });
       expect(submissionsOf(setup.signedTransfer)).toBe(0);
       expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(0n);
+    },
+    30000
+  );
+
+  it(
+    "reverted destination transfer: holds the ramp in destinationTransfer instead of completing",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      // A reverted transfer moves no tokens.
+      world.evm.onTransaction = undefined;
+      world.evm.revertedReceiptHashes.add(keccak256(setup.signedTransfer));
+
+      await phaseProcessor.processRamp(setup.rampId);
+      // A later recovery cycle must not advance the ramp either.
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("destinationTransfer");
+      expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
+      expect(final?.state.destinationTransferTxHash).toBeUndefined();
+      expect(final?.errorLogs.some(log => log.error.includes("requires manual reconciliation"))).toBe(true);
+      expect(await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })).toMatchObject({
+        status: "failed"
+      });
+      expect(submissionsOf(setup.signedTransfer)).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(0n);
+    },
+    30000
+  );
+
+  it(
+    "destination receipt wait fails after the delivery mined: a later pass completes from its receipt",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      // The delivery empties the ephemeral, so a rerun cannot pass the pre-broadcast balance check.
+      const credit = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        credit?.(tx);
+        if (tx.serialized === setup.signedTransfer) {
+          world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, 0n);
+        }
+      };
+      world.evm.failNextReceiptReads = 1;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.state.destinationTransferTxHash).toBe(keccak256(setup.signedTransfer));
+      expect(await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })).toMatchObject({
+        status: "confirmed"
+      });
+      expect(submissionsOf(setup.signedTransfer)).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(setup.amountRaw);
+    },
+    30000
+  );
+
+  it(
+    "destination receipt read error on a rerun with a stored hash: retries instead of failing",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      const ramp = await RampState.findByPk(setup.rampId);
+      const now = Date.now();
+      await ramp?.update({
+        currentPhase: "destinationTransfer",
+        phaseHistory: [
+          { phase: "initial", timestamp: new Date(now - 60_000) },
+          { phase: "destinationTransfer", timestamp: new Date(now - 30_000) }
+        ],
+        state: { ...ramp.state, destinationTransferTxHash: keccak256(setup.signedTransfer) }
+      });
+      world.evm.failNextReceiptReads = 1;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.errorLogs.some(log => log.error.includes("scripted receipt read failure") && log.recoverable)).toBe(true);
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+    },
+    30000
+  );
+
+  it(
+    "destination nonce gap: pauses for reconciliation instead of failing the ramp",
+    async () => {
+      // The live ephemeral nonce (0) trails the presigned transfer's nonce, as a lagging RPC read would report.
+      const setup = await setUpRegisteredRamp({ nonce: 1 });
+      scriptHappyWorld(setup);
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("destinationTransfer");
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(final?.errorLogs.some(log => log.error.includes("nonce gap") && log.recoverable === true)).toBe(true);
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+    },
+    30000
+  );
+
+  /**
+   * Runs brlaOnrampMint 31 minutes after the phase began, with each balance wait ending in its chunk
+   * timeout at once. Without `mintTicketCreated` no BRLA is credited, so the Avenia balance wait times
+   * out; with it, the subaccount holds the BRLA, the mint ticket is created, and the wait for the
+   * minted BRLA on Base times out instead.
+   */
+  async function runMintPastPaymentWindow(
+    payinTicketStatus: AveniaTicketStatus,
+    options: { ticketKnown?: boolean; ticketIdStored?: boolean; mintTicketCreated?: boolean } = {}
+  ): Promise<RampState | null> {
+    const setup = await setUpRegisteredRamp();
+    world.brla.payinTicketStatus = payinTicketStatus;
+    if (options.ticketKnown === false) world.brla.pixInputTickets.length = 0;
+    if (options.mintTicketCreated) world.brla.accountBalances.BRLA = 1_000_000;
+    const now = Date.now();
+    await RampState.update(
+      {
+        currentPhase: "brlaOnrampMint",
+        phaseHistory: [
+          { phase: "initial", timestamp: new Date(now - 32 * 60 * 1000) },
+          { phase: "brlaOnrampMint", timestamp: new Date(now - 31 * 60 * 1000) }
+        ]
+      },
+      { where: { id: setup.rampId } }
+    );
+    if (options.ticketIdStored === false) {
+      const ramp = await RampState.findByPk(setup.rampId, { rejectOnEmpty: true });
+      const { aveniaTicketId: _dropped, ...stateWithoutTicket } = ramp.state;
+      await ramp.update({ state: stateWithoutTicket as typeof ramp.state });
+    }
+    mock.module("@vortexfi/shared", () => ({
+      ...sharedSnapshot,
+      checkEvmBalancePeriodically: async () => {
+        throw new sharedSnapshot.BalanceCheckError(sharedSnapshot.BalanceCheckErrorType.Timeout, "Timeout waiting for the minted BRLA");
+      },
+      waitUntilTrueWithTimeout: async (test: () => Promise<boolean>) => {
+        if (await test()) return;
+        throw new Error("Timeout waiting for condition after 300000 ms");
+      }
+    }));
+    try {
+      await phaseProcessor.processRamp(setup.rampId);
+    } finally {
+      mock.module("@vortexfi/shared", () => sharedSnapshot);
+    }
+    return RampState.findByPk(setup.rampId);
+  }
+
+  it(
+    "payment window: a Pix held for compliance review keeps waiting past 30 minutes",
+    async () => {
+      const final = await runMintPastPaymentWindow(AveniaTicketStatus.ON_HOLD);
+
+      expect(final?.currentPhase).toBe("brlaOnrampMint");
+      expect(final?.state.onHold).toBe(true);
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+    },
+    30000
+  );
+
+  /** Captures Slack webhook posts made while `run` executes. */
+  async function captureSlackAlerts(run: () => Promise<RampState | null>): Promise<{ alerts: string[]; final: RampState | null }> {
+    const alerts: string[] = [];
+    const slackToken = config.integrations.slack.webhookToken;
+    config.integrations.slack.webhookToken = "test-token";
+    const guardedFetch = globalThis.fetch;
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).startsWith("https://hooks.slack.com/")) {
+        alerts.push(JSON.parse(String(init?.body)).text);
+        return new Response("ok");
+      }
+      return guardedFetch(input, init);
+    }) as typeof fetch);
+    try {
+      return { alerts, final: await run() };
+    } finally {
+      fetchSpy.mockRestore();
+      config.integrations.slack.webhookToken = slackToken;
+    }
+  }
+
+  it(
+    "payment window: a paid Pix still unminted past 30 minutes keeps waiting and alerts operators once",
+    async () => {
+      const { alerts, final } = await captureSlackAlerts(() => runMintPastPaymentWindow(AveniaTicketStatus.PAID));
+
+      expect(final?.currentPhase).toBe("brlaOnrampMint");
+      // Every retry of the phase reaches the window check, but operators hear about it once.
+      expect(alerts).toEqual([expect.stringContaining(`Ramp ${final?.id} is past its Pix payment window`)]);
+    },
+    30000
+  );
+
+  it(
+    "payment window: a pay-in ticket Avenia does not know cancels the ramp after 30 minutes",
+    async () => {
+      const { alerts, final } = await captureSlackAlerts(() =>
+        runMintPastPaymentWindow(AveniaTicketStatus.PAID, { ticketKnown: false })
+      );
+
+      expect(final?.currentPhase).toBe("failed");
+      expect(alerts).toEqual([]);
+    },
+    30000
+  );
+
+  it(
+    "payment window: a ramp without a stored pay-in ticket cancels after 30 minutes",
+    async () => {
+      let ticketReads = 0;
+      world.brla.onPayinTicketRead = () => {
+        ticketReads++;
+      };
+      const final = await runMintPastPaymentWindow(AveniaTicketStatus.PAID, { ticketIdStored: false });
+
+      expect(final?.currentPhase).toBe("failed");
+      expect(ticketReads).toBe(0);
+    },
+    30000
+  );
+
+  it(
+    "payment window: a paid Pix whose minted BRLA is late keeps waiting after the mint ticket",
+    async () => {
+      const final = await runMintPastPaymentWindow(AveniaTicketStatus.PAID, { mintTicketCreated: true });
+
+      expect(final?.currentPhase).toBe("brlaOnrampMint");
+      expect(
+        await FinancialOperation.findOne({ where: { attemptClass: "provider-mint-ticket", scopeId: final?.id } })
+      ).toMatchObject({ status: "confirmed" });
+      expect(final?.errorLogs.some(log => log.error.includes("phase timeout reached") && log.recoverable === true)).toBe(
+        true
+      );
+    },
+    30000
+  );
+
+  it(
+    "payment window: a failed pay-in ticket read past 30 minutes retries instead of cancelling",
+    async () => {
+      world.brla.onPayinTicketRead = () => {
+        throw new Error("Avenia: scripted 503");
+      };
+      const final = await runMintPastPaymentWindow(AveniaTicketStatus.PAID);
+
+      expect(final?.currentPhase).toBe("brlaOnrampMint");
+      expect(
+        final?.errorLogs.some(log => log.error.includes("could not read the Avenia pay-in ticket") && log.recoverable === true)
+      ).toBe(true);
+    },
+    30000
+  );
+
+  it(
+    "payment window: an unpaid Pix still cancels the ramp after 30 minutes",
+    async () => {
+      const final = await runMintPastPaymentWindow(AveniaTicketStatus.PENDING);
+
+      expect(final?.currentPhase).toBe("failed");
     },
     30000
   );

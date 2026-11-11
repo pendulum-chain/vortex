@@ -73,7 +73,12 @@ function makeState() {
 
 describe("DestinationTransferExecutor balance precondition", () => {
   it("demands the canonical presigned raw amount, not a reconstruction of quote.outputAmount", async () => {
-    await expect(new DestinationTransferExecutor().execute(makeState())).rejects.toThrow("balance-check sentinel");
+    const executor = new DestinationTransferExecutor();
+    // The precondition runs right before a first broadcast claims the journal row.
+    Object.assign(executor, {
+      runFinancialOperation: async (_state: unknown, args: { beforePerform: () => Promise<void> }) => args.beforePerform()
+    });
+    await expect(executor.execute(makeState())).rejects.toThrow("balance-check sentinel");
 
     expect(checkEvmBalanceForToken).toHaveBeenCalledWith(expect.objectContaining({ amountDesiredRaw: "4979924167" }));
   });

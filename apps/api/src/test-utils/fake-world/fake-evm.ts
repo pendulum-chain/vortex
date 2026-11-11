@@ -80,6 +80,8 @@ export class FakeEvm {
   /** Reverts the next `failNextSends` transaction submissions with the given error. */
   failNextSends = 0;
   sendFailureMessage = "FakeEvm: scripted transaction failure";
+  /** Fails the next `failNextReceiptReads` receipt reads or waits, as an RPC error or wait timeout would. */
+  failNextReceiptReads = 0;
   /** Hashes whose receipts report a mined-but-reverted transaction. */
   readonly revertedReceiptHashes = new Set<string>();
   baseL1FeeRaw = 8_000_000_000_000n;
@@ -200,6 +202,10 @@ export class FakeEvm {
     // confirm generically for recovery paths that probe stored hashes. Hashes in
     // `revertedReceiptHashes` report a mined-but-reverted transaction instead.
     const receipt = (hash: `0x${string}`) => {
+      if (this.failNextReceiptReads > 0) {
+        this.failNextReceiptReads -= 1;
+        throw new Error("FakeEvm: scripted receipt read failure");
+      }
       const recorded = this.transactionsByHash.get(hash);
       if (!recorded && this.strictReceipts) {
         throw new Error(`FakeEvm: transaction receipt with hash "${hash}" could not be found`);

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import {
   AveniaTicketStatus,
   type CleanupPhase,
@@ -107,6 +107,7 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;
+    world.brla.onPayOutQuote = undefined;
     world.brla.accountBalances = { BRLA: 1_000_000, USDC: 0, USDM: 0, USDT: 0 };
     world.brla.payoutTicketStatus = AveniaTicketStatus.PAID;
     // Fresh subaccount wallet per test: the in-memory EVM ledger persists
@@ -696,6 +697,95 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       expect(final?.currentPhase).toBe("failed");
       expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+    },
+    30000
+  );
+
+  it(
+    "transient Avenia payout quote error: retries and pays out exactly once",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      let failures = 1;
+      world.brla.onPayOutQuote = () => {
+        if (failures-- > 0) throw new Error("Avenia: scripted 503");
+      };
+      const pixOutBefore = world.brla.pixOutputTickets.length;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+      expect(submissionsOf(setup.signedPayout)).toBe(1);
+      expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore + 1);
+    },
+    30000
+  );
+
+  it(
+    "ambiguous Avenia payout ticket request: pauses for reconciliation without a second ticket",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      // Avenia accepts the ticket and spends the subaccount's BRLA, but the response is lost.
+      world.brla.onPixOutputTicket = () => {
+        world.brla.accountBalances.BRLA = 0;
+        throw new Error("Avenia: scripted timeout");
+      };
+      const pixOutBefore = world.brla.pixOutputTickets.length;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const stuck = await RampState.findByPk(setup.rampId);
+      expect(stuck?.currentPhase).toBe("brlaPayoutOnBase");
+      expect(stuck?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(stuck?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(
+        await FinancialOperation.findOne({
+          where: { attemptClass: "provider-payout-ticket", phase: "brlaPayoutOnBase", scopeId: setup.rampId }
+        })
+      ).toMatchObject({ status: "unknown" });
+      expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore + 1);
+      expect(submissionsOf(setup.signedPayout)).toBe(1);
+    },
+    30000
+  );
+
+  it(
+    "payout ticket stored only in the journal: a rerun resumes it although Avenia already spent the BRLA",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      world.brla.onPixOutputTicket = () => {
+        world.brla.accountBalances.BRLA = 0;
+      };
+      // The ticket is confirmed in the journal, but persisting its id on the ramp fails once.
+      const realUpdate = RampState.prototype.update;
+      let failedOnce = false;
+      const updateSpy = spyOn(RampState.prototype, "update").mockImplementation(function (
+        this: RampState,
+        ...args: Parameters<RampState["update"]>
+      ) {
+        const values = args[0] as { state?: { payOutTicketId?: string } };
+        if (!failedOnce && values?.state?.payOutTicketId) {
+          failedOnce = true;
+          return Promise.reject(new Error("scripted database error"));
+        }
+        return realUpdate.apply(this, args);
+      } as RampState["update"]);
+      const pixOutBefore = world.brla.pixOutputTickets.length;
+
+      try {
+        await phaseProcessor.processRamp(setup.rampId);
+      } finally {
+        updateSpy.mockRestore();
+      }
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(failedOnce).toBe(true);
+      expect(final?.currentPhase).toBe("complete");
+      expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore + 1);
     },
     30000
   );

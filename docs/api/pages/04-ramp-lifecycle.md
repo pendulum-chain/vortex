@@ -36,7 +36,7 @@ If a BRL PIX payment is confirmed by the payment partner but the client cannot c
 
 ## 5. Track Status
 
-Use `GET /v1/ramp/{id}` to retrieve current state, or configure webhooks to receive lifecycle events asynchronously. `GET /v1/ramp/{id}/errors` returns the error log for a ramp and is useful for support tooling.
+Use `GET /v1/ramp/{id}` to retrieve current state, or configure webhooks to receive lifecycle events asynchronously. `GET /v1/ramp/{id}/errors` returns the error log for a ramp and is useful for support tooling. Each entry carries a one-line `error` message; stack traces and upstream provider responses are not returned, so `details` is omitted.
 
 Before starting a flow, `sdk.getRampInfo()` / `GET /v1/ramp-info` can return the credential-bound profile's sanitized per-corridor `kycStatus`, `canBuy`, and `canSell` using a public or secret API key. Supabase sessions do not authorize this endpoint. It intentionally does not return exact limits, PII, provider IDs, or ramp history.
 

@@ -1,8 +1,10 @@
 import {
   AveniaPaymentMethod,
+  AveniaTicketStatus,
   BalanceCheckError,
   BalanceCheckErrorType,
   BlockchainSendMethod,
+  BrlaApiError,
   BrlaApiService,
   BrlaCurrency,
   checkEvmBalancePeriodically,
@@ -20,12 +22,15 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../../../config/logger";
+import { config } from "../../../../../../config/vars";
+import FinancialOperation from "../../../../../../models/financialOperation.model";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { APIError } from "../../../../../errors/api-error";
 import { findAveniaCustomerByTaxId } from "../../../../avenia/avenia-customer.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { SlackNotifier } from "../../../../slack.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { isAnchorMockingEnabled } from "../anchor-test-mode";
@@ -42,8 +47,19 @@ const AVENIA_HOLD_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
 // amount actually transferred due to fee differences at execution time. We allow a 5% tolerance
 // in the recovery shortcut so that an already-funded ephemeral is not missed.
 const EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95;
+const MINT_TICKET_ATTEMPT_CLASS = "provider-mint-ticket";
+
+// Pay-in ticket statuses that show Avenia has received the Pix (or holds it for compliance review).
+const RECEIVED_PAYIN_STATUSES = new Set<string>([
+  AveniaTicketStatus.PROCESSING,
+  AveniaTicketStatus.ON_HOLD,
+  AveniaTicketStatus.PAID
+]);
 
 export class BrlaOnrampMintExecutor extends BasePhaseHandler {
+  /** One instance, so its cooldown repeats an identical alert at most every six hours. */
+  private slackNotifier?: SlackNotifier;
+
   public getPhaseName(): RampPhase {
     return "brlaOnrampMint";
   }
@@ -121,10 +137,24 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     }
 
     // Recovery shortcut: a previous run may have already minted on Avenia and transferred to the
-    // ephemeral. Accept a balance of at least 95% of the pre-computed expected amount.
+    // ephemeral. It applies only once this ramp has its own mint ticket, so a balance alone never
+    // stands in for the Pix. Accept a balance of at least 95% of the pre-computed expected amount.
     const recoveryThresholdRaw = new Big(preComputedExpectedAmountRaw).times(EPHEMERAL_FUNDED_TOLERANCE_FACTOR).toFixed(0, 0);
+    const mintTicket = await FinancialOperation.findOne({
+      where: {
+        attemptClass: MINT_TICKET_ATTEMPT_CLASS,
+        phase: this.getPhaseName(),
+        provider: "avenia",
+        scopeId: state.id,
+        scopeType: "ramp",
+        status: ["submitted", "unknown", "confirmed"]
+      }
+    });
 
-    if (await this.ephemeralAlreadyFunded(tokenAddress, evmEphemeralAddress, recoveryThresholdRaw, network, signal)) {
+    if (
+      mintTicket &&
+      (await this.ephemeralAlreadyFunded(tokenAddress, evmEphemeralAddress, recoveryThresholdRaw, network, signal))
+    ) {
       logger.info(
         `BrlaOnrampMintExecutor: Ephemeral ${evmEphemeralAddress} already holds at least 95% of the expected ${preComputedExpectedAmountRaw} BRLA (threshold: ${recoveryThresholdRaw}). Skipping mint flow.`
       );
@@ -163,7 +193,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       );
     } catch (error) {
       const isCheckTimeout = error instanceof Error && error.message.includes("Timeout");
-      if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
+      if (isCheckTimeout && (await this.isPaymentWindowClosed(state, brlaApiService, aveniaSubAccountId))) {
         logger.error("Payment timeout. Cancelling ramp.");
         return this.transitionToNextPhase(state, "failed");
       }
@@ -176,7 +206,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     }
 
     const operationResult = await this.runFinancialOperation(state, {
-      attemptClass: "provider-mint-ticket",
+      attemptClass: MINT_TICKET_ATTEMPT_CLASS,
       externalId: result => result.ticketId,
       perform: async () => {
         const aveniaQuote = await abortableCall(signal, () =>
@@ -239,7 +269,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       if (!(error instanceof BalanceCheckError)) throw error;
 
       const isCheckTimeout = error.type === BalanceCheckErrorType.Timeout;
-      if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
+      if (isCheckTimeout && (await this.isPaymentWindowClosed(state, brlaApiService, aveniaSubAccountId))) {
         logger.error("Payment timeout. Cancelling ramp.");
         return this.transitionToNextPhase(state, "failed");
       }
@@ -276,6 +306,44 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
         `BrlaOnrampMintExecutor: ephemeral balance pre-check failed for ${ownerAddress}, falling back to Avenia flow: ${error}`
       );
       return false;
+    }
+  }
+
+  /**
+   * The payment window cancels only a ramp whose Pix Avenia has not received. Once the ramp's own pay-in
+   * ticket is processing, held for compliance review, or paid, the ramp keeps waiting for the BRLA and
+   * operators are alerted. A ramp without a pay-in ticket that Avenia knows has received nothing.
+   */
+  private async isPaymentWindowClosed(
+    state: RampState,
+    brlaApiService: BrlaApiService,
+    subAccountId: string
+  ): Promise<boolean> {
+    if (!this.isPaymentTimeoutReached(state)) return false;
+    const ticketId = state.state.aveniaTicketId;
+    if (!ticketId) return true;
+    let status: string;
+    try {
+      status = (await brlaApiService.getAveniaPayinTicket(ticketId, subAccountId)).status.trim().toUpperCase();
+    } catch (error) {
+      if (error instanceof BrlaApiError && error.status === 404) return true;
+      throw this.createRecoverableError(`BrlaOnrampMintExecutor: could not read the Avenia pay-in ticket: ${error}`);
+    }
+    if (!RECEIVED_PAYIN_STATUSES.has(status)) return true;
+
+    await this.alertWaitingPastWindow(state.id, status);
+    return false;
+  }
+
+  /** A failed alert is only logged. */
+  private async alertWaitingPastWindow(rampId: string, ticketStatus: string): Promise<void> {
+    if (!this.slackNotifier && config.integrations.slack.webhookToken) this.slackNotifier = new SlackNotifier();
+    try {
+      await this.slackNotifier?.sendMessage({
+        text: `Ramp ${rampId} is past its Pix payment window with pay-in ticket status ${ticketStatus} and is still waiting for its BRLA mint.`
+      });
+    } catch (error) {
+      logger.warn(`Payment-window alert for ${rampId} failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

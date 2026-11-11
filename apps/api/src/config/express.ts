@@ -15,6 +15,7 @@ import aveniaWebhookRoutes from "../api/routes/v1/avenia-webhook.route";
 import brlaKycImportRoutes from "../api/routes/v1/brla-kyc-import.route";
 
 import { corsOptions } from "./corsConfig";
+import { loggableUrl } from "./logger";
 import { config } from "./vars";
 
 const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = config;
@@ -49,6 +50,7 @@ app.use(cookieParser());
 app.use(requestContext);
 
 // request logging. dev: console | production: file
+morgan.token<express.Request>("url", req => loggableUrl(req.originalUrl));
 app.use(morgan(logs));
 
 // secure apps by setting various HTTP headers
