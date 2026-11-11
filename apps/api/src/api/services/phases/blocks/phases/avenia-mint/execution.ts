@@ -20,6 +20,7 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../../../config/logger";
+import FinancialOperation from "../../../../../../models/financialOperation.model";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { APIError } from "../../../../../errors/api-error";
@@ -42,6 +43,7 @@ const AVENIA_HOLD_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
 // amount actually transferred due to fee differences at execution time. We allow a 5% tolerance
 // in the recovery shortcut so that an already-funded ephemeral is not missed.
 const EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95;
+const MINT_TICKET_ATTEMPT_CLASS = "provider-mint-ticket";
 
 export class BrlaOnrampMintExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -121,10 +123,24 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     }
 
     // Recovery shortcut: a previous run may have already minted on Avenia and transferred to the
-    // ephemeral. Accept a balance of at least 95% of the pre-computed expected amount.
+    // ephemeral. It applies only once this ramp has its own mint ticket, so a balance alone never
+    // stands in for the Pix. Accept a balance of at least 95% of the pre-computed expected amount.
     const recoveryThresholdRaw = new Big(preComputedExpectedAmountRaw).times(EPHEMERAL_FUNDED_TOLERANCE_FACTOR).toFixed(0, 0);
+    const mintTicket = await FinancialOperation.findOne({
+      where: {
+        attemptClass: MINT_TICKET_ATTEMPT_CLASS,
+        phase: this.getPhaseName(),
+        provider: "avenia",
+        scopeId: state.id,
+        scopeType: "ramp",
+        status: ["submitted", "unknown", "confirmed"]
+      }
+    });
 
-    if (await this.ephemeralAlreadyFunded(tokenAddress, evmEphemeralAddress, recoveryThresholdRaw, network, signal)) {
+    if (
+      mintTicket &&
+      (await this.ephemeralAlreadyFunded(tokenAddress, evmEphemeralAddress, recoveryThresholdRaw, network, signal))
+    ) {
       logger.info(
         `BrlaOnrampMintExecutor: Ephemeral ${evmEphemeralAddress} already holds at least 95% of the expected ${preComputedExpectedAmountRaw} BRLA (threshold: ${recoveryThresholdRaw}). Skipping mint flow.`
       );
@@ -176,7 +192,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     }
 
     const operationResult = await this.runFinancialOperation(state, {
-      attemptClass: "provider-mint-ticket",
+      attemptClass: MINT_TICKET_ATTEMPT_CLASS,
       externalId: result => result.ticketId,
       perform: async () => {
         const aveniaQuote = await abortableCall(signal, () =>

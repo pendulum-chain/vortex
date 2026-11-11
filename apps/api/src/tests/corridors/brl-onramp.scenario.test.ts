@@ -231,6 +231,79 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     30000
   );
 
+  function seedMintTicket(scopeId: string, status: "not_started" | "submitted" | "unknown" | "confirmed") {
+    return FinancialOperation.create({
+      attemptClass: "provider-mint-ticket",
+      flowId: "test-flow",
+      flowVersion: 1,
+      operationKey: `mint-ticket-${scopeId}`,
+      phase: "brlaOnrampMint",
+      provider: "avenia",
+      requestHash: "earlier-run",
+      response: status === "confirmed" ? { expectedAmountReceived: "1", outputAmount: "1", ticketId: "earlier-ticket" } : null,
+      scopeId,
+      scopeType: "ramp",
+      status
+    });
+  }
+
+  it.each([
+    ["no mint ticket", null],
+    ["another ramp's confirmed mint ticket", "other-ramp"],
+    ["its own mint ticket that was never claimed", "not_started"]
+  ] as const)(
+    "BRLA already on the ephemeral does not skip the mint with %s",
+    async (_label, seeded) => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      if (seeded === "other-ramp") await seedMintTicket(crypto.randomUUID(), "confirmed");
+      if (seeded === "not_started") await seedMintTicket(setup.rampId, "not_started");
+      world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, parseUnits("1000000", 18));
+      let aveniaBalanceReads = 0;
+      world.brla.accountBalances = {
+        get BRLA(): number {
+          aveniaBalanceReads++;
+          throw new Error("Timeout: scripted Avenia balance stall");
+        },
+        USDC: 0,
+        USDM: 0,
+        USDT: 0
+      };
+      const pixOutBefore = world.brla.pixOutputTickets.length;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      // The step waited for the Pix on Avenia instead of trusting the ephemeral's balance.
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("brlaOnrampMint");
+      expect(aveniaBalanceReads).toBeGreaterThan(0);
+      expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore);
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+    },
+    30000
+  );
+
+  it.each(["submitted", "unknown", "confirmed"] as const)(
+    "recovery: resumes from the ramp's own %s mint ticket once the BRLA reached the ephemeral",
+    async status => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      // An earlier run created the mint ticket and the BRLA already left the Avenia subaccount.
+      world.brla.accountBalances.BRLA = 0;
+      world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, parseUnits("1000000", 18));
+      await seedMintTicket(setup.rampId, status);
+      const pixOutBefore = world.brla.pixOutputTickets.length;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore);
+      expect(submissionsOf(setup.signedTransfer)).toBe(1);
+    },
+    30000
+  );
+
   it(
     "ambiguous destination broadcast: pauses for reconciliation without paying the recipient",
     async () => {
