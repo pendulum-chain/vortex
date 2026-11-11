@@ -231,11 +231,33 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     30000
   );
 
-  it(
-    "BRLA already on the ephemeral does not skip the mint until the ramp has its own mint ticket",
-    async () => {
+  function seedMintTicket(scopeId: string, status: "not_started" | "submitted" | "unknown" | "confirmed") {
+    return FinancialOperation.create({
+      attemptClass: "provider-mint-ticket",
+      flowId: "test-flow",
+      flowVersion: 1,
+      operationKey: `mint-ticket-${scopeId}`,
+      phase: "brlaOnrampMint",
+      provider: "avenia",
+      requestHash: "earlier-run",
+      response: status === "confirmed" ? { expectedAmountReceived: "1", outputAmount: "1", ticketId: "earlier-ticket" } : null,
+      scopeId,
+      scopeType: "ramp",
+      status
+    });
+  }
+
+  it.each([
+    ["no mint ticket", null],
+    ["another ramp's confirmed mint ticket", "other-ramp"],
+    ["its own mint ticket that was never claimed", "not_started"]
+  ] as const)(
+    "BRLA already on the ephemeral does not skip the mint with %s",
+    async (_label, seeded) => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
+      if (seeded === "other-ramp") await seedMintTicket(crypto.randomUUID(), "confirmed");
+      if (seeded === "not_started") await seedMintTicket(setup.rampId, "not_started");
       world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, parseUnits("1000000", 18));
       let aveniaBalanceReads = 0;
       world.brla.accountBalances = {
@@ -261,27 +283,15 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
     30000
   );
 
-  it(
-    "recovery: resumes from the ramp's own confirmed mint ticket once the BRLA reached the ephemeral",
-    async () => {
+  it.each(["submitted", "unknown", "confirmed"] as const)(
+    "recovery: resumes from the ramp's own %s mint ticket once the BRLA reached the ephemeral",
+    async status => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
       // An earlier run created the mint ticket and the BRLA already left the Avenia subaccount.
       world.brla.accountBalances.BRLA = 0;
       world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, parseUnits("1000000", 18));
-      await FinancialOperation.create({
-        attemptClass: "provider-mint-ticket",
-        flowId: "test-flow",
-        flowVersion: 1,
-        operationKey: `mint-ticket-${setup.rampId}`,
-        phase: "brlaOnrampMint",
-        provider: "avenia",
-        requestHash: "earlier-run",
-        response: { expectedAmountReceived: "1", outputAmount: "1", ticketId: "earlier-ticket" },
-        scopeId: setup.rampId,
-        scopeType: "ramp",
-        status: "confirmed"
-      });
+      await seedMintTicket(setup.rampId, status);
       const pixOutBefore = world.brla.pixOutputTickets.length;
 
       await phaseProcessor.processRamp(setup.rampId);

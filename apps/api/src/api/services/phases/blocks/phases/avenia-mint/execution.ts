@@ -132,12 +132,13 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
         phase: this.getPhaseName(),
         provider: "avenia",
         scopeId: state.id,
-        scopeType: "ramp"
+        scopeType: "ramp",
+        status: ["submitted", "unknown", "confirmed"]
       }
     });
 
     if (
-      ["submitted", "unknown", "confirmed"].includes(mintTicket?.status ?? "") &&
+      mintTicket &&
       (await this.ephemeralAlreadyFunded(tokenAddress, evmEphemeralAddress, recoveryThresholdRaw, network, signal))
     ) {
       logger.info(
