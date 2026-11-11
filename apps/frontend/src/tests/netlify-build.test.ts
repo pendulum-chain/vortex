@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const command = readFileSync(new URL("../../netlify.toml", import.meta.url), "utf8").match(/^\s*command\s*=\s*"(.*)"\s*$/m)?.[1] ?? "";
+const config = readFileSync(new URL("../../netlify.toml", import.meta.url), "utf8");
+const command = config.match(/^\s*command\s*=\s*"(.*)"\s*$/m)?.[1] ?? "";
 const publishStep = command.slice(command.indexOf("mkdir -p"));
 const ENGLISH_PAGE = "apps/frontend/dist/client/en/stocks/index.html";
 
@@ -25,6 +26,18 @@ function publish(files: string[]) {
 }
 
 const OUTPUT = ["apps/gold/dist/client/index.html", "apps/stocks/dist/client/index.html"];
+
+describe("Netlify build settings", () => {
+  // The ignore check reads a missing build cache as "no change", so a deployed branch using it can stop deploying for good.
+  it.each(["production", "staging"])("never skips a build of %s", context => {
+    expect(config).toContain(`[context.${context}]\n  ignore = "/bin/false"\n`);
+  });
+
+  it("builds with the Bun version the repo pins", () => {
+    const pinned = readFileSync(new URL("../../../../.bun-version", import.meta.url), "utf8").trim();
+    expect(config).toContain(`BUN_VERSION = "${pinned}"`);
+  });
+});
 
 describe("Netlify build command", () => {
   it("publishes a live Stocks build, which has no English page", () => {
