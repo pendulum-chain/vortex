@@ -17,7 +17,8 @@ export class PendulumPostProcessHandler extends BasePostProcessHandler {
       return false;
     }
 
-    return true;
+    // Only ramps routed through Pendulum presign this cleanup; any other ramp would fail it on every cycle.
+    return this.getPresignedTransaction(state, "pendulumCleanup") !== undefined;
   }
 
   /**
