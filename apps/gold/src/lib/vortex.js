@@ -9,6 +9,7 @@ export function resolveApiBase(value, origin) {
   return new URL(value || "/api/production", origin).href.replace(/\/$/, "");
 }
 const API_BASE = resolveApiBase(ENV.VITE_SIGNING_SERVICE_PATH, globalThis.location?.origin ?? "http://localhost");
+export const VORTEX_API_BASE = API_BASE;
 const PUBLIC_KEY = ENV.VITE_VORTEX_PUBLIC_KEY || "";
 const ACCESS_KEY = "satoshi:vortex-session:v2";
 const REQUEST_TIMEOUT_MS = 25_000;

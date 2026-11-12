@@ -22,3 +22,9 @@ imported as a snapshot from `pendulum-chain/vortexperiments`, which keeps the pi
 
 Run `bun dev:gold`, `bun build:gold`, or `cd apps/gold && bun run test` from the repository
 root. The SDK must be built first (`bun build:sdk`).
+
+## Base preparation
+
+The Base checkout is independently gated by `VITE_GOLD_NETWORK`, `VITE_GOLD_BASE_ENABLED` and `VITE_GOLD_USDC_ENABLED` (defaults retain Ethereum and disable Base). Preserve these defaults until backend acceptance. `base-gold.js` pins official PAXG/native USDC, validates quote/delivery identity and reuses consumer-kit locks, recovery and exact-value permit checks. The expected source phase is `goldPermitTransfer`; do not accept a phase, spender or token merely because an API response names it. See README's Base contract. This branch prepares client/SDK behavior; it does not supply the backend corridor.
+
+The gold recovery store now uses consumer-kit with its original active/history keys and encrypted database. Legacy untagged orders remain Ethereum. Never overwrite an existing order to start a new rail or reinterpret Ethereum holdings as Base holdings. USDC history/success amounts must say USDC, not BRL. Keep Google first and email as overflow, as the current shared identity experience does.

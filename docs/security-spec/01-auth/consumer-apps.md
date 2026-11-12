@@ -2,7 +2,7 @@
 
 Scope: `apps/stocks` and `packages/consumer-kit`. The Stocks pilot is served at `/pt-br/stocks/`
 (Brazil/Pix). Demo and preview builds also publish a simulated English/Base USDC edition at
-`/en/stocks/`; a live build has none. Gold retains its existing implementation. This client boundary
+`/en/stocks/`; a live build has none. Gold retains Ethereum by default, with the separately gated Base preparation below. This client boundary
 adds no server endpoint, signing authority or chain executor. The server's stock corridor is
 specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`, and stays off until
 `STOCKS_ENABLED_DIRECTIONS` lists a direction.
@@ -47,6 +47,31 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
   start and each new wallet broadcast check the public status again. Recovery records remain.
 
 ## Identity, wallet and data
+
+### Prepared Gold Base client boundary
+
+Gold's Ethereum checkout remains the default. The opt-in Base client requires its own build
+gates, a canonical-contract listing for the requested rail/direction and a validated quote.
+This client/SDK preparation adds no server executor or permission to enable a corridor.
+Pix retains fiat verification; native Base USDC must never call a fiat identity provider.
+Both rails require the Vortex user session. USDC funding goes to the user's own wallet,
+waits for two confirmations, and grants no execution authority. A new quote and explicit
+review precede registration. Partial, excess and late deposits remain wallet funds.
+
+Quote checks pin Base, direction, assets, input and fee currency/precision/total. A buy or
+USDC sell's one `destinationTransfer` must match the pinned Base token, wallet, quote and
+amount before any owner authorization. USDC buys and sells on either rail require a
+gasless quote and exactly one `goldPermitTransfer` EIP-2612 request. The consumer-kit policy
+pins the source token, Base chain, owner, exact amount, short deadline, current/persisted
+nonce and client-generated ephemeral spender. Maintenance and the registration start window
+are rechecked immediately before signing; router/native-value requests fail closed.
+
+Gold retains its original storage keys and encrypted ephemeral database. Legacy untagged
+records are Ethereum. New records persist Base and their payment method; the per-wallet
+store and registration lock forbid replacement by another rail. Unknown signing outcomes
+retain recovery. Turning off new operations preserves owned Base recovery. Prior Ethereum
+holdings and orders remain separately accessible; no automatic bridge or token conversion
+is performed by this client.
 
 - Stocks uses the same public Privy app ID and origin as Gold. Vortex OTP sessions remain
   bound to the Privy DID and use the compatible sessionStorage key. Application-specific
