@@ -98,7 +98,7 @@ export default function InternationalApp({ auth, config }) {
       {!selected && <>
         <FairFeesHero locale="en" previewId="preview-purchase" contained />
         <div className="fair-preview">
-          <PurchasePreview id="preview-purchase" prices={market.state.prices} locale="en" onContinue={startPreview} canContinue={() => config.mode !== "live"} />
+          <PurchasePreview id="preview-purchase" prices={market.state.prices} locale="en" onContinue={startPreview} canContinue={() => config.usdcEnabled || config.mode !== "live"} />
         </div>
         <p className="hint">Bank payments are planned.</p>
       </>}
