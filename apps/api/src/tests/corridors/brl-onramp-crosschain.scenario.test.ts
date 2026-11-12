@@ -564,8 +564,8 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
       expect(destinationFundingTxs).toHaveLength(1);
       expect(destinationFundingTxs[0].value).toBe(destinationFunding.shortfallRaw);
       const gasQuote = getFlowMetadata(quote?.metadata).globals.evmDestinationGas;
-      expect(gasQuote?.fundingGasLimit).toBe("21624");
-      expect(gasQuote?.transferGasLimit).toBe("100624");
+      expect(gasQuote?.fundingGasLimit).toBe("26200");
+      expect(gasQuote?.transferGasLimit).toBe("105200");
       expect(destinationFundingTxs[0].gas).toBe(BigInt(gasQuote?.fundingGasLimit ?? "0"));
       expect(destinationFundingTxs[0].maxFeePerGas).toBe(1_000_000_000n);
       expect(destinationFundingTxs[0].maxPriorityFeePerGas).toBe(1_000_000_000n);
