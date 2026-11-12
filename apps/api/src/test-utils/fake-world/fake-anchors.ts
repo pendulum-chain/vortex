@@ -11,6 +11,7 @@ import {
   AlfredpayPaymentMethodType,
   AlfredpayTradeLimitError,
   AveniaTicketStatus,
+  BrlaApiError,
   BrlaApiService,
   type CreateAlfredpayOfframpQuoteRequest,
   type CreateAlfredpayOfframpRequest,
@@ -161,14 +162,20 @@ export class FakeBrla {
    * decimal strings.
    */
   accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
-  /** Status reported for every pay-in ticket by getAveniaPayinTickets. */
+  /** Status reported for every pay-in ticket by getAveniaPayinTicket and getAveniaPayinTickets. */
   payinTicketStatus: AveniaTicketStatus = AveniaTicketStatus.PAID;
+  /** Called before getAveniaPayinTicket answers; throw from it to script an Avenia error. */
+  onPayinTicketRead?: () => void;
   /** Status reported for every payout ticket by getAveniaPayoutTicket. */
   payoutTicketStatus: AveniaTicketStatus = AveniaTicketStatus.PAID;
+  /** Called before createPayOutQuote answers; throw from it to script an Avenia error. */
+  onPayOutQuote?: () => void;
   /** Called after createPixOutputTicket succeeds; use it to apply the on-chain mint effect. */
   onPixOutputTicket?: (ticket: { id: string; walletAddress?: string }) => void;
   readonly pixInputTickets: Array<{ id: string; brCode: string }> = [];
   readonly pixOutputTickets: Array<{ id: string }> = [];
+  /** The BRL amount of every payout quote requested. */
+  readonly payoutQuoteAmounts: string[] = [];
   private counter = 0;
 
   private readonly impl = {
@@ -181,15 +188,19 @@ export class FakeBrla {
       outputAmount: (Number(quoteParams.inputAmount) * this.payInRate).toString(),
       quoteToken: `payin-quote-token-${++this.counter}`
     }),
-    createPayOutQuote: async (quoteParams: { outputAmount: string }) => ({
-      appliedFees: [],
-      basePrice: "1",
-      inputAmount: (Number(quoteParams.outputAmount) / this.payOutRate).toString(),
-      inputCurrency: "BRLA",
-      inputPaymentMethod: "INTERNAL",
-      outputAmount: quoteParams.outputAmount,
-      quoteToken: `payout-quote-token-${++this.counter}`
-    }),
+    createPayOutQuote: async (quoteParams: { outputAmount: string }) => {
+      this.payoutQuoteAmounts.push(quoteParams.outputAmount);
+      this.onPayOutQuote?.();
+      return {
+        appliedFees: [],
+        basePrice: "1",
+        inputAmount: (Number(quoteParams.outputAmount) / this.payOutRate).toString(),
+        inputCurrency: "BRLA",
+        inputPaymentMethod: "INTERNAL",
+        outputAmount: quoteParams.outputAmount,
+        quoteToken: `payout-quote-token-${++this.counter}`
+      };
+    },
     createPixInputTicket: async () => {
       const ticket = {
         brCode: `brcode-${++this.counter}`,
@@ -213,6 +224,13 @@ export class FakeBrla {
         USDT: String(this.accountBalances.USDT)
       }
     }),
+    getAveniaPayinTicket: async (ticketId: string) => {
+      this.onPayinTicketRead?.();
+      if (!this.pixInputTickets.some(ticket => ticket.id === ticketId)) {
+        throw new BrlaApiError({ endpoint: "/v2/account/tickets", method: "GET", responseBody: "{}", status: 404 });
+      }
+      return { id: ticketId, status: this.payinTicketStatus };
+    },
     getAveniaPayinTickets: async () => this.pixInputTickets.map(ticket => ({ id: ticket.id, status: this.payinTicketStatus })),
     getAveniaPayoutTicket: async (ticketId: string) => ({
       id: ticketId,

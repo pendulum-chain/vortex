@@ -1,3 +1,9 @@
+[install]
+# Bun 1.3 installed this workspace with the isolated linker; Bun 1.4 falls back to the
+# hoisted linker for lockfiles it did not create, which would change the module layout
+# every service runs on. Pin the layout explicitly so the Bun version doesn't decide it.
+linker = "isolated"
+
 [test]
 # `bun test` from the repo root is NOT the test aggregate: it would discover every
 # test file in the monorepo, including stale compiled copies under apps/api/dist/.

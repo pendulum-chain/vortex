@@ -22,7 +22,8 @@ architecture and MUST NOT be used as evidence for current behavior.
      positive native-token USD price from Squid discovery may be used; a newly enabled
      chain without a validated fallback price fails quote creation instead of borrowing
      another chain's fallback;
-   - direct/no-bridge routes preserve a zero network fee.
+   - direct/no-bridge routes preserve a zero network fee;
+   - stock blocks own the network fee of their route. `AveniaStockMint` installs the Robinhood Chain swap's signed gas budget plus the buyer's gas reserve, on top of the usual destination fee, and `StockPermitSource` installs the budget of the seller's permit, pull, approve and swap. Relay and Uniswap prices are inside the quoted rate and are not fee components.
 3. Quote finalization persists the resulting snapshot in
    `quote_tickets.metadata.fees`. After quote creation, fee amounts are immutable.
 4. `blocks/core/fee-distribution.ts` reads `metadata.fees.usd` when the registration
@@ -40,6 +41,9 @@ There is deliberately no global “fees before swap” or “fees after swap” 
 distributed while the ephemeral holds the fee token:
 
 - BRL off-ramp flows execute `DistributeFees` before the USDC-to-BRLA Nabla swap.
+- BRL stock flows do the same on Base: the BUY after the BRLA-to-USDC Nabla swap, the SELL
+  on the bridged USDC before its USDC-to-BRLA swap, so fees are final before Relay on a BUY
+  and only after the Relay fill on a SELL.
 - BRL onramps execute `DistributeFees` after the BRLA-to-USDC Nabla swap. The active EUR
   onramp executes it after the pinned Polygon EURe-to-USDC Uniswap swap. Persisted Mykobo
   flows retain their historical Base ordering.
@@ -100,8 +104,10 @@ always occur only after all user-facing phases is incorrect.
 - The quote applies `EVM_DESTINATION_NETWORK_FEE_MARGIN_BPS` once and persists the
   resulting absolute `maximumFeePerGas`, funding/payout gas limits, and Base L1
   maxima. Runtime acceptance never reconstructs a ceiling from current deployment
-  configuration. Arbitrum gas limits add the NodeInterface parent-chain poster-gas
-  component; a plain transfer is not assumed to fit in 21,000 gas there.
+  configuration. Nitro (Arbitrum, Robinhood Chain) gas limits add ten times the
+  NodeInterface parent-chain poster-gas component instead of the fee margin: Nitro
+  counts that cost in L2 gas units that move with its repriced L1 fee estimate, and a
+  plain transfer is not assumed to fit in 21,000 gas there.
 - The persisted-metadata read boundary validates every funding-program-v2 field before
   treasury arithmetic: the version and EVM network, transfer kind, positive bounded
   decimal-integer fee/gas fields, positive execution-fee decimal, and paired Base-family

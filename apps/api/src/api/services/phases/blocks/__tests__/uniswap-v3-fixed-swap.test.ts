@@ -466,10 +466,22 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
     }
   }
 
-  it("retries later when the signed deadline has already passed", async () => {
+  it("pauses for an operator when the signed deadline has already passed", async () => {
     const error = await runSwap({}, Date.now() - 8 * 24 * 60 * 60 * 1000);
-    expect(error).toBeInstanceOf(RecoverablePhaseError);
+    expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
     expect((error as Error).message).toContain("expired");
+    expect(operationAttempts).toEqual([]);
+  });
+
+  it("holds a swap whose simulation at the signed gas fails, sending nothing and never failing the ramp", async () => {
+    const error = await runSwap({
+      simulateTransaction: async () => {
+        throw new Error("out of gas");
+      }
+    });
+    expect(error).toBeInstanceOf(RecoverablePhaseError);
+    expect(error).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect((error as Error).message).toContain("simulation failed: out of gas");
     expect(operationAttempts).toEqual([]);
   });
 

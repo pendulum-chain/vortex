@@ -6,13 +6,16 @@ import {
   getNetworkFromDestination,
   isDomesticToken,
   isEvmTransactionData,
+  isSignedTypedData,
   multiplyByPowerOfTen,
   Networks,
   QuoteError,
   RampDirection,
   RampPhase,
+  type SignedTypedData,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
+import { erc20Abi } from "viem";
 import logger from "../../../../../../config/logger";
 import { config } from "../../../../../../config/vars";
 import {
@@ -43,11 +46,14 @@ import {
   calculateQuotedPresignedExecutionBudgetRaw,
   EVM_DESTINATION_FUNDING_PROGRAM_VERSION
 } from "../../core/evm-destination-gas";
-import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../core/evm-funding";
+import { assertEvmFundingNativeBalance, getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../core/evm-funding";
 import { type EvmDestinationGasQuote, getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
 import { getNativePrefunding } from "../../core/prepare";
+import { ROBINHOOD_STOCKS } from "../../core/robinhood-stocks";
 import { AssethubOfframpSourceContext, type AssethubOfframpSourceRegistrationFacts } from "../assethub-offramp-source";
 import { EvmOfframpSourceContext, EvmOfframpSourceMetadata } from "../evm-offramp-source/simulation";
+import { StockPermitSourceContext } from "../stock-permit-source/simulation";
+import type { StockPermitSourceState } from "../stock-permit-source/transactions";
 import { FundEphemeralContext } from "./simulation";
 
 export class FundEphemeralExecutor extends BasePhaseHandler {
@@ -110,9 +116,14 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
             ? destinationGasQuote
               ? MOONBEAM_EVM_SOURCE_STARTING_BALANCE_UNITS
               : LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS[Networks.Moonbeam]
-            : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
+            : sourceNetwork === Networks.Robinhood
+              ? "0"
+              : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
       const fixedFundingRaw = BigInt(multiplyByPowerOfTen(fixedFundingUnits, chain.nativeCurrency.decimals).toFixed());
       const plannedNativeValueRaw = getNativePrefunding(state.state.transactionPlan, sourceNetwork, evmEphemeralAddress);
+      // What a same-network destination plans is already in plannedNativeValueRaw.
+      const plannedOnDestinationRaw = (network: EvmNetworks) =>
+        network === sourceNetwork ? 0n : getNativePrefunding(state.state.transactionPlan, network, evmEphemeralAddress);
       const destinationNetwork = getNetworkFromDestination(state.to);
       const dynamicDestinationNetwork = destinationGasQuote
         ? getDynamicDestinationEvmFundingNetwork(
@@ -126,11 +137,9 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         if (!destinationGasQuote) {
           throw new Error(`FundEphemeralExecutor: missing ${dynamicDestinationNetwork} destination gas quote`);
         }
-        destinationFundingRaw = await this.getDestinationEvmFundingRequirementRaw(
-          state,
-          dynamicDestinationNetwork,
-          destinationGasQuote
-        );
+        destinationFundingRaw =
+          (await this.getDestinationEvmFundingRequirementRaw(state, dynamicDestinationNetwork, destinationGasQuote)) +
+          plannedOnDestinationRaw(dynamicDestinationNetwork);
       }
       const sameNetworkDestinationLiabilityRaw = dynamicDestinationNetwork === sourceNetwork ? destinationFundingRaw : 0n;
       const requiredFundingRaw = calculateSourceEvmFundingRequirementRaw(
@@ -186,15 +195,27 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         if (!legacyChain) {
           throw new Error(`FundEphemeralExecutor: Could not get chain info for ${legacyDestinationNetwork}`);
         }
-        const legacyRequiredRaw = BigInt(
-          multiplyByPowerOfTen(
-            LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS[legacyDestinationNetwork],
-            legacyChain.nativeCurrency.decimals
-          ).toFixed()
-        );
+        const legacyRequiredRaw =
+          BigInt(
+            multiplyByPowerOfTen(
+              LEGACY_DESTINATION_EVM_FUNDING_AMOUNTS[legacyDestinationNetwork],
+              legacyChain.nativeCurrency.decimals
+            ).toFixed()
+          ) + plannedOnDestinationRaw(legacyDestinationNetwork);
         if (!(await isDestinationEvmEphemeralFunded(evmEphemeralAddress, legacyDestinationNetwork, legacyRequiredRaw))) {
           logger.info(`Legacy-funding EVM ephemeral account ${evmEphemeralAddress} on ${legacyDestinationNetwork}`);
           await this.fundLegacyDestinationEvmEphemeralAccount(state, legacyDestinationNetwork, legacyRequiredRaw, signal);
+        }
+      }
+
+      // Selling from Robinhood runs the Base phases too, and they spend ETH before the bridged USDC arrives.
+      if (state.type === RampDirection.SELL && sourceNetwork === Networks.Robinhood) {
+        const baseRequiredRaw =
+          BigInt(multiplyByPowerOfTen(BASE_EPHEMERAL_STARTING_BALANCE_UNITS, 18).toFixed()) +
+          plannedOnDestinationRaw(Networks.Base);
+        if (!(await isDestinationEvmEphemeralFunded(evmEphemeralAddress, Networks.Base, baseRequiredRaw))) {
+          logger.info(`Funding the Base reserve of EVM ephemeral account ${evmEphemeralAddress}`);
+          await this.fundLegacyDestinationEvmEphemeralAccount(state, Networks.Base, baseRequiredRaw, signal);
         }
       }
     } catch (e) {
@@ -240,9 +261,12 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     if (state.type !== RampDirection.SELL) return;
     if (state.from === Networks.AssetHub) return;
     if (isDomesticToken(quote.outputCurrency as FiatToken)) return;
-    const metadata = getFlowMetadata(quote.metadata).blocks[EvmOfframpSourceContext.key] as
-      | EvmOfframpSourceMetadata
-      | undefined;
+    const blocks = getFlowMetadata(quote.metadata).blocks;
+    if (blocks[StockPermitSourceContext.key]) {
+      await this.assertStockSellerCanCover(state, signal);
+      return;
+    }
+    const metadata = blocks[EvmOfframpSourceContext.key] as EvmOfframpSourceMetadata | undefined;
     if (!metadata) return;
     if (state.unsignedTxs.some(tx => tx.phase === "squidRouterNoPermitTransfer")) {
       await verifyUserSubmittedTxByHash({
@@ -279,6 +303,52 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       signal,
       state
     });
+  }
+
+  /**
+   * On the permit path nothing has left the seller's wallet yet, so funding is only worth spending if the sale can still
+   * happen. A short balance waits, since the seller can bring the tokens back while the permit lives. Past its deadline the
+   * permit can never be used, so the ramp ends here, with no funds moved and no funding gas spent.
+   */
+  private async assertStockSellerCanCover(state: RampState, signal?: AbortSignal): Promise<void> {
+    const { amountRaw, isNoPermitFallback, owner, token } = getBlockState<StockPermitSourceState>(
+      state.state,
+      StockPermitSourceContext
+    );
+    try {
+      if (isNoPermitFallback) {
+        await verifyUserSubmittedTxByHash({
+          fromNetwork: Networks.Robinhood,
+          hash: state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
+          label: "User stock transfer to ephemeral",
+          presignedPhase: "squidRouterNoPermitTransfer",
+          signal,
+          state
+        });
+        return;
+      }
+      const permit = state.unsignedTxs.find(tx => tx.phase === "stockPermitTransfer" && isSignedTypedData(tx.txData));
+      if (!permit) throw this.createUnrecoverableError("StockPermitSource: the permit blueprint is missing");
+      if (BigInt(String((permit.txData as SignedTypedData).message.deadline)) <= BigInt(Math.floor(Date.now() / 1000))) {
+        throw this.createUnrecoverableError(
+          "StockPermitSource: the permit expired unused, so the seller still holds the tokens"
+        );
+      }
+      const balance = await EvmClientManager.getInstance()
+        .getClient(Networks.Robinhood)
+        .readContract({
+          abi: erc20Abi,
+          address: ROBINHOOD_STOCKS[token].address,
+          args: [owner as `0x${string}`],
+          functionName: "balanceOf"
+        });
+      if (balance < BigInt(amountRaw)) {
+        throw this.createRecoverableError(`StockPermitSource: owner holds ${balance}, below the ${amountRaw} sold`);
+      }
+    } catch (error) {
+      if (error instanceof PhaseError) throw error;
+      throw this.createRecoverableError(`StockPermitSource: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   protected async fundEvmEphemeralAccount(
@@ -418,6 +488,13 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
             beforePerform: async () => {
               const fees = await destinationClient.estimateFeesPerGas();
               await assertEvmTreasuryFundingFeeWithinQuote(destinationGasQuote, destinationNetwork, fees.maxFeePerGas);
+              assertEvmFundingNativeBalance(
+                await destinationClient.getBalance({ address: fundingAccount.address }),
+                fundingAmountRaw +
+                  BigInt(destinationGasQuote.fundingGasLimit) * fees.maxFeePerGas +
+                  BigInt(destinationGasQuote.maximumFundingL1FeeRaw ?? "0"),
+                { network: destinationNetwork, phase: this.getPhaseName(), rampId: state.id }
+              );
               checkedFees = fees;
             },
             externalId: result => result.hash,

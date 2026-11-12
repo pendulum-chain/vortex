@@ -25,6 +25,7 @@ export interface CreateQuoteRequest {
   paymentMethod?: PaymentMethod;
   countryCode?: string;
   network: Networks;
+  destinationAddress?: string; // BUY on Robinhood Chain only: address the gas reserve is sized for
 }
 
 // POST /quotes/best
@@ -41,6 +42,13 @@ export interface CreateBestQuoteRequest {
   paymentMethod?: PaymentMethod;
   countryCode?: string;
   networks?: Networks[]; // Optional whitelist of networks to evaluate; if omitted, all eligible networks are tried
+}
+
+export interface ProviderCost {
+  id: "ramp" | "conversion" | "bridge" | "swap" | "vortex" | "network";
+  provider: "avenia" | "nabla" | "relay" | "uniswap" | "vortex" | "network";
+  amountFiat: string; // BRL, 2 decimals, may be negative for "rate" rows
+  includedIn: "fees" | "rate";
 }
 
 export interface QuoteResponse {
@@ -83,6 +91,15 @@ export interface QuoteResponse {
 
   /** Resolved AlfredPay input-side amount limits in human units of `inputCurrency`. Populated for USD/MXN/COP quotes. */
   alfredpayInputLimits?: AmountLimits;
+
+  // Stock corridor only
+  routingStrategy?: "direct";
+  providerCosts?: ProviderCost[];
+  gasless?: boolean;
+  gasReserveAmount?: string;
+  gasReserveCurrency?: "ETH";
+  gasReserveFiat?: string;
+  gasReserveUsd?: string;
 }
 
 // GET /quotes/:id
@@ -117,6 +134,9 @@ export enum QuoteError {
   UnsupportedCurrency = "Currency not supported",
   AnchorTemporarilyUnavailable = "This payment provider is temporarily unavailable. Please try again in a few minutes.",
   NetworkFeesTooHigh = "Destination network fees are temporarily too high. Please try again later.",
+  StockTokenNotAvailable = "This token is not available on Robinhood Chain.",
+  StockTradingPaused = "Trading in this token is paused by the issuer. Please try again later.",
+  StockPriceUnavailable = "The market price for this token is temporarily unavailable. Please try again later.",
 
   // Compatibility errors
   AssetHubNotSupportedForAlfredPay = "AssetHub is not supported for this currency. Please select a different network.",

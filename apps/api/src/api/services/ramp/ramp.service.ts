@@ -19,6 +19,7 @@ import {
   RegisterRampResponse,
   StartRampRequest,
   StartRampResponse,
+  sanitizeRpcErrorMessage,
   TransactionStatus,
   UnsignedTx,
   UpdateRampRequest,
@@ -46,6 +47,7 @@ import { getTargetFiatCurrency } from "../../services/phases/blocks/core/helpers
 import { accountCapabilities } from "../phases/blocks/core/accounts";
 import { preflightEvmDestinationFeeWithinQuote } from "../phases/blocks/core/evm-destination-gas";
 import { getFlowMetadata } from "../phases/blocks/core/metadata";
+import { gasReserveResponseFields } from "../phases/blocks/core/quote-response";
 import { resolvePersistedBlockFlow } from "../phases/blocks/flows/catalog";
 import { StateMetadata } from "../phases/meta-state-types";
 import { isMoonbeamRuntimeDisabled } from "../phases/moonbeam-runtime";
@@ -55,6 +57,22 @@ import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRampV2, mapPhaseToTransactionStatus } from "./helpers";
+
+// The documented RegisterRampRequest.additionalData inputs. Registration hooks see the whole
+// request, but only these keys are copied into ramp state; every other state key is server-owned.
+const CLIENT_REGISTER_INPUT_FIELDS = [
+  "customerType",
+  "destinationAddress",
+  "email",
+  "fiatAccountId",
+  "ipAddress",
+  "paymentData",
+  "pixDestination",
+  "receiverTaxId",
+  "sessionId",
+  "taxId",
+  "walletAddress"
+] as const;
 
 const CLIENT_WRITABLE_RAMP_STATE_FIELDS = new Set([
   "assethubToPendulumHash",
@@ -388,7 +406,12 @@ export class RampService extends BaseRampService {
             evmEphemeralAddress: ephemerals.EVM,
             ibanPaymentData,
             substrateEphemeralAddress: ephemerals.Substrate,
-            ...request.additionalData,
+            ...Object.fromEntries(
+              CLIENT_REGISTER_INPUT_FIELDS.filter(key => Object.hasOwn(additionalData ?? {}, key)).map(key => [
+                key,
+                additionalData?.[key]
+              ])
+            ),
             ...stateMeta
           } as StateMetadata,
           to: quote.to,
@@ -741,7 +764,7 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const { fees, subsidyDisplay } = getFlowMetadata(quote.metadata).globals;
+    const { fees, gasReserve, subsidyDisplay } = getFlowMetadata(quote.metadata).globals;
     const usdFees = fees.usd;
     const fiatFees = fees.displayFiat;
     if (!usdFees || !fiatFees) {
@@ -824,6 +847,7 @@ export class RampService extends BaseRampService {
             discountUsd: subsidyDisplay.usd
           }
         : {}),
+      ...gasReserveResponseFields(gasReserve),
       to: rampState.to,
       totalFeeFiat: fiatFees.total,
       totalFeeUsd: usdFees.total,
@@ -861,7 +885,14 @@ export class RampService extends BaseRampService {
       return null;
     }
 
-    return rampState.errorLogs;
+    // The stored entries keep the full message and stack for operators. Callers get the first
+    // line of each message, without stack, RPC endpoint URLs, or upstream provider bodies.
+    return rampState.errorLogs.map(log => ({
+      error: sanitizeRpcErrorMessage(log.error.split("\n")[0].replace(/(Request failed with status '\d+'\.) Error: .*/, "$1")),
+      phase: log.phase,
+      recoverable: log.recoverable,
+      timestamp: log.timestamp
+    }));
   }
 
   /**

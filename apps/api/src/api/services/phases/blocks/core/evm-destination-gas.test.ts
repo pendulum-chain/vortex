@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import {
   type EvmNetworks,
   type EvmTransactionData,
@@ -9,6 +9,7 @@ import {
 } from "@vortexfi/shared";
 import { APIError } from "../../../../errors/api-error";
 import { config } from "../../../../../config/vars";
+import { priceFeedService } from "../../../priceFeed.service";
 import {
   assertPreparedEvmDestinationFeeWithinQuote,
   assertEvmTreasuryFundingFeeWithinQuote,
@@ -276,6 +277,63 @@ describe("EVM destination gas policy", () => {
     }
   });
 
+  it("applies the same parent-chain poster component on Robinhood Chain, another Nitro chain", async () => {
+    const { fakeEvm, restore } = installFakeEvm();
+    try {
+      fakeEvm.arbitrumL1GasComponent = 520n;
+      const quote = {
+        executionFeeUsd: "0.20",
+        fundingGasLimit: "21000",
+        isNativeTransfer: false,
+        maximumFeePerGas: "1200000000",
+        network: Networks.Robinhood as EvmNetworks,
+        programVersion: 2 as const,
+        transferGasLimit: "100000"
+      };
+
+      await expect(assertEvmTreasuryFundingFeeWithinQuote(quote, Networks.Robinhood, 1_000_000_000n)).rejects.toThrow(
+        QuoteError.NetworkFeesTooHigh
+      );
+
+      quote.fundingGasLimit = "21520";
+      quote.transferGasLimit = "100520";
+      await expect(
+        assertEvmTreasuryFundingFeeWithinQuote(quote, Networks.Robinhood, 1_000_000_000n)
+      ).resolves.toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps a Nitro quote fundable when the poster gas grows before the treasury sends", async () => {
+    const { fakeEvm, restore } = installFakeEvm();
+    const price = spyOn(priceFeedService, "convertCurrency").mockResolvedValue("0.01");
+    try {
+      fakeEvm.arbitrumL1GasComponent = 92n;
+      const ctx = {
+        addNote: () => undefined,
+        request: { outputCurrency: "NVDA", rampType: RampDirection.BUY, to: Networks.Robinhood }
+      } as unknown as PhaseCtx;
+      await getEvmDestinationExecutionFeeUsd(ctx);
+      const quote = ctx.evmDestinationGas;
+      if (!quote) throw new Error("expected a destination gas envelope");
+
+      // Robinhood Chain's poster gas went from about 92 to 171 units between a quote and its Pix payment.
+      fakeEvm.arbitrumL1GasComponent = 171n;
+      await expect(
+        assertEvmTreasuryFundingFeeWithinQuote(quote, Networks.Robinhood, 1_000_000_000n)
+      ).resolves.toBeUndefined();
+
+      fakeEvm.arbitrumL1GasComponent = 921n;
+      await expect(assertEvmTreasuryFundingFeeWithinQuote(quote, Networks.Robinhood, 1_000_000_000n)).rejects.toThrow(
+        QuoteError.NetworkFeesTooHigh
+      );
+    } finally {
+      price.mockRestore();
+      restore();
+    }
+  });
+
   it("maps every EVM network to the native currency used to price its gas", () => {
     const expected: Record<EvmNetworks, string> = {
       [Networks.Arbitrum]: "ETH",
@@ -286,7 +344,8 @@ describe("EVM destination gas policy", () => {
       [Networks.Ethereum]: "ETH",
       [Networks.Moonbeam]: "GLMR",
       [Networks.Polygon]: "MATIC",
-      [Networks.PolygonAmoy]: "MATIC"
+      [Networks.PolygonAmoy]: "MATIC",
+      [Networks.Robinhood]: "ETH"
     };
 
     for (const [network, currency] of Object.entries(expected)) {

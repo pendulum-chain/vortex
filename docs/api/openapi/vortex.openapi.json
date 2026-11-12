@@ -835,7 +835,8 @@
           "baseCleanupBrla",
           "baseCleanupEurc",
           "baseCleanupAxlUsdc",
-          "ethereumCleanupUsdc"
+          "ethereumCleanupUsdc",
+          "robinhoodCleanupStock"
         ],
         "type": "string"
       },
@@ -899,7 +900,7 @@
             "description": "The currency type for the input amount."
           },
           "networks": {
-            "description": "Optional whitelist of networks to evaluate when searching for the best quote. If omitted or empty, all eligible networks for the corridor are considered.",
+            "description": "Optional whitelist of networks to evaluate when searching for the best quote. If omitted or empty, all eligible networks for the corridor are considered. `robinhood` is never evaluated; request it directly through `POST /v1/quotes`.",
             "items": {
               "$ref": "#/components/schemas/Networks"
             },
@@ -958,6 +959,10 @@
           },
           "countryCode": {
             "$ref": "#/components/schemas/CountryCode"
+          },
+          "destinationAddress": {
+            "description": "BUY on Robinhood Chain only: the EVM address that will receive the tokens. It sizes the gas reserve, and registration must then use the same address. Ignored on every other route.",
+            "type": "string"
           },
           "from": {
             "$ref": "#/components/schemas/DestinationType",
@@ -1046,6 +1051,7 @@
           "ethereum",
           "polygon",
           "moonbeam",
+          "robinhood",
           "pendulum",
           "stellar",
           "pix",
@@ -2998,7 +3004,7 @@
       },
       "Networks": {
         "description": "Supported blockchain networks.",
-        "enum": ["assethub", "arbitrum", "avalanche", "base", "bsc", "ethereum", "polygon", "moonbeam"],
+        "enum": ["assethub", "arbitrum", "avalanche", "base", "bsc", "ethereum", "polygon", "moonbeam", "robinhood"],
         "type": "string"
       },
       "OnboardingApiErrorResponse": {
@@ -3474,7 +3480,24 @@
         "type": "object"
       },
       "OnChainToken": {
-        "enum": ["USDC", "USDT", "ETH", "USDC.E"],
+        "enum": [
+          "USDC",
+          "USDT",
+          "ETH",
+          "USDC.E",
+          "SPY",
+          "TSLA",
+          "NVDA",
+          "AMZN",
+          "AAPL",
+          "GOOGL",
+          "MSFT",
+          "QQQ",
+          "SPCX",
+          "META",
+          "MU",
+          "SGOV"
+        ],
         "type": "string"
       },
       "PayloadTooLargeErrorResponse": {
@@ -3538,6 +3561,28 @@
         ],
         "description": "A transaction envelope from registration with its raw transaction or typed-data signature attached."
       },
+      "ProviderCost": {
+        "properties": {
+          "amountFiat": {
+            "description": "In BRL with two decimals. Rows with `includedIn: rate` can be negative.",
+            "type": "string"
+          },
+          "id": {
+            "enum": ["ramp", "conversion", "bridge", "swap", "vortex", "network"],
+            "type": "string"
+          },
+          "includedIn": {
+            "enum": ["fees", "rate"],
+            "type": "string"
+          },
+          "provider": {
+            "enum": ["avenia", "nabla", "relay", "uniswap", "vortex", "network"],
+            "type": "string"
+          }
+        },
+        "required": ["id", "provider", "amountFiat", "includedIn"],
+        "type": "object"
+      },
       "QuoteResponse": {
         "properties": {
           "anchorFeeFiat": {
@@ -3556,6 +3601,24 @@
           },
           "from": {
             "$ref": "#/components/schemas/DestinationType"
+          },
+          "gasless": {
+            "description": "Stock corridor SELL only: whether the token supports a permit, so the seller needs no native gas. When true, registration issues that permit or answers 503. When false, it normally issues one wallet transfer, which needs native gas.",
+            "type": "boolean"
+          },
+          "gasReserveAmount": {
+            "description": "Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in ETH as a plain decimal string such as `0.00005`. It is already included in the network fee. Omitted when no reserve is due.",
+            "type": "string"
+          },
+          "gasReserveCurrency": {
+            "enum": ["ETH"],
+            "type": "string"
+          },
+          "gasReserveFiat": {
+            "type": "string"
+          },
+          "gasReserveUsd": {
+            "type": "string"
           },
           "id": {
             "description": "Unique identifier for the quote.",
@@ -3594,9 +3657,21 @@
           "processingFeeUSD": {
             "type": "string"
           },
+          "providerCosts": {
+            "description": "Stock corridor only: an itemized view of what each leg of the route costs. Rows with `includedIn: fees` add up to the total fee less the gas reserve. Rows with `includedIn: rate` are signed estimates already reflected in the output amount.",
+            "items": {
+              "$ref": "#/components/schemas/ProviderCost"
+            },
+            "type": "array"
+          },
           "rampType": {
             "$ref": "#/components/schemas/RampDirection",
             "description": "The type of ramp process."
+          },
+          "routingStrategy": {
+            "description": "Stock corridor only.",
+            "enum": ["direct"],
+            "type": "string"
           },
           "to": {
             "$ref": "#/components/schemas/DestinationType"
@@ -3633,7 +3708,29 @@
       },
       "RampCurrency": {
         "description": "Represents supported currencies for ramp operations, including fiat and on-chain tokens.",
-        "enum": ["EUR", "ARS", "BRL", "USD", "MXN", "COP", "USDC", "USDT", "USDC.E"],
+        "enum": [
+          "EUR",
+          "ARS",
+          "BRL",
+          "USD",
+          "MXN",
+          "COP",
+          "USDC",
+          "USDT",
+          "USDC.E",
+          "SPY",
+          "TSLA",
+          "NVDA",
+          "AMZN",
+          "AAPL",
+          "GOOGL",
+          "MSFT",
+          "QQQ",
+          "SPCX",
+          "META",
+          "MU",
+          "SGOV"
+        ],
         "examples": ["USDC"],
         "type": "string"
       },
@@ -3734,6 +3831,13 @@
           "backupSquidRouterApprove",
           "backupSquidRouterSwap",
           "backupApprove",
+          "relayApprove",
+          "relayBridge",
+          "stockPermitTransfer",
+          "stockSettlementTopUp",
+          "gasReserveTopUp",
+          "stockBackupApprove",
+          "relayBackupApprove",
           "failed",
           "complete"
         ],
@@ -3776,6 +3880,20 @@
           "from": {
             "$ref": "#/components/schemas/DestinationType",
             "description": "The source network or payment method."
+          },
+          "gasReserveAmount": {
+            "description": "Stock corridor BUY only: native gas delivered to the buyer's wallet after the tokens, in ETH as a plain decimal string such as `0.00005`. It is already included in the network fee. Omitted when no reserve is due.",
+            "type": "string"
+          },
+          "gasReserveCurrency": {
+            "enum": ["ETH"],
+            "type": "string"
+          },
+          "gasReserveFiat": {
+            "type": "string"
+          },
+          "gasReserveUsd": {
+            "type": "string"
           },
           "ibanPaymentData": {
             "$ref": "#/components/schemas/IbanPaymentData"
@@ -4347,7 +4465,8 @@
           "moonbeam",
           "paseo",
           "polygon",
-          "polygonAmoy"
+          "polygonAmoy",
+          "robinhood"
         ],
         "type": "string"
       },
@@ -9535,7 +9654,7 @@
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")",
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")\n- Invalid amount (inputAmount is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude)\n- On `robinhood`: the direction is not enabled, the token is not on the allowlist, a SELL amount has more than 18 decimals, or `destinationAddress` is not an EVM address",
             "headers": {}
           },
           "401": {
@@ -9597,7 +9716,7 @@
                 }
               }
             },
-            "description": "Service Unavailable. Destination network fees currently exceed the configured safety limit; retry the quote later.",
+            "description": "Service Unavailable. Destination network fees currently exceed the configured safety limit; retry the quote later. On `robinhood`, the issuer has paused trading in the token, or its market price is unavailable or too far from the route's price.",
             "headers": {}
           }
         },
@@ -9822,7 +9941,7 @@
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")",
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")\n- Invalid amount (inputAmount is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude)",
             "headers": {}
           },
           "401": {
@@ -10169,7 +10288,7 @@
     "/v1/ramp/{id}/errors": {
       "get": {
         "deprecated": false,
-        "description": "Returns the chronological error log for a ramp.\n\n**Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.",
+        "description": "Returns the chronological error log for a ramp. Each entry carries a one-line `error` message; stack traces and upstream provider responses are not returned, so `details` is omitted.\n\n**Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.",
         "operationId": "getRampErrorLogs",
         "parameters": [
           {
@@ -10676,6 +10795,20 @@
               }
             },
             "description": "Internal Server Error.",
+            "headers": {}
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "Selling this token is temporarily unavailable. Please try again later."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable. On `robinhood`, the Relay order or the token's permit could not be read while building the transactions. Nothing was registered; retry with a new quote.",
             "headers": {}
           }
         },
@@ -11259,7 +11392,7 @@
             "description": "Returned when an auto-refresh session was created."
           },
           "400": {
-            "description": "Missing required fields, or `quoteId` not provided for fixed-quote mode and route fields not provided for auto-refresh mode."
+            "description": "Missing required fields, or `quoteId` not provided for fixed-quote mode and route fields not provided for auto-refresh mode, or an invalid amount (`inputAmount` is not a decimal number, is longer than 64 characters, or has a decimal exponent above 64 in magnitude)."
           },
           "404": {
             "description": "Quote not found or expired (fixed-quote mode only)."
@@ -11371,10 +11504,10 @@
     "/v1/supported-cryptocurrencies": {
       "get": {
         "deprecated": false,
-        "description": "Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; `rampTypes` lists the directions at least one corridor supports for the token.",
+        "description": "Retrieve the cryptocurrencies the quote engine accepts on a network. EVM networks include routed tokens discovered from Squid Router in addition to the static token set; `rampTypes` lists the directions at least one corridor supports for the token. `robinhood` lists only the allowlisted stock tokens, with the directions currently enabled.",
         "parameters": [
           {
-            "description": "Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `base-sepolia`, `bsc`, `ethereum`, `moonbeam`, `paseo`, `polygon`, `polygonAmoy`",
+            "description": "Network to list cryptocurrencies for (required). Allowed values: `arbitrum`, `assethub`, `avalanche`, `base`, `base-sepolia`, `bsc`, `ethereum`, `moonbeam`, `paseo`, `polygon`, `polygonAmoy`, `robinhood`",
             "example": "ethereum",
             "in": "query",
             "name": "network",

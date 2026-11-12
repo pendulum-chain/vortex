@@ -1,11 +1,13 @@
 import { getNetworkId, type PresignedTx } from "@vortexfi/shared";
 import { decodeFunctionData, erc20Abi, getAddress, parseTransaction, recoverTransactionAddress } from "viem";
-import { POLYGON_EURE, POLYGON_EURE_USDC_PATH, POLYGON_UNISWAP_V3_ROUTER, uniswapV3RouterAbi } from "./contract";
+import { encodeUniswapSwap, POLYGON_EURE_USDC_TARGET, type UniswapSwapTarget } from "./contract";
 
-export interface UniswapV3SwapExpectation {
+/** Target fields default to the fixed Polygon route; the recipient defaults to the signer. */
+export interface UniswapV3SwapExpectation extends Partial<UniswapSwapTarget> {
   amountInRaw: string;
   deadline: string;
   hardMinimumOutputRaw: string;
+  recipient?: `0x${string}`;
   signer: `0x${string}`;
 }
 
@@ -13,8 +15,12 @@ function sameAddress(left: unknown, right: string): boolean {
   return typeof left === "string" && getAddress(left) === getAddress(right);
 }
 
-async function parseSignedTransaction(tx: PresignedTx, phase: "uniswapApprove" | "uniswapSwap") {
-  if (tx.phase !== phase || tx.network !== "polygon" || typeof tx.txData !== "string") {
+async function parseSignedTransaction(
+  tx: PresignedTx,
+  phase: "uniswapApprove" | "uniswapSwap",
+  network: UniswapSwapTarget["network"]
+) {
+  if (tx.phase !== phase || tx.network !== network || typeof tx.txData !== "string") {
     throw new Error(`Uniswap ${phase} transaction identity is invalid`);
   }
   const serializedTransaction = tx.txData as `0x${string}`;
@@ -34,15 +40,16 @@ async function parseSignedTransaction(tx: PresignedTx, phase: "uniswapApprove" |
 }
 
 export async function validateUniswapApproval(tx: PresignedTx, expectation: UniswapV3SwapExpectation): Promise<`0x${string}`> {
-  const { parsed, serializedTransaction, signer } = await parseSignedTransaction(tx, "uniswapApprove");
-  if (!sameAddress(signer, expectation.signer) || !sameAddress(parsed.to, POLYGON_EURE)) {
+  const target = { ...POLYGON_EURE_USDC_TARGET, ...expectation };
+  const { parsed, serializedTransaction, signer } = await parseSignedTransaction(tx, "uniswapApprove", target.network);
+  if (!sameAddress(signer, expectation.signer) || !sameAddress(parsed.to, target.inputToken)) {
     throw new Error("Uniswap approval signer or token does not match the fixed route");
   }
   const decoded = decodeFunctionData({ abi: erc20Abi, data: parsed.data ?? "0x" });
   const [spender, amount] = decoded.args;
   if (
     decoded.functionName !== "approve" ||
-    !sameAddress(spender, POLYGON_UNISWAP_V3_ROUTER) ||
+    !sameAddress(spender, target.router) ||
     amount !== BigInt(expectation.amountInRaw)
   ) {
     throw new Error("Uniswap approval does not grant the exact fixed-route allowance");
@@ -51,21 +58,20 @@ export async function validateUniswapApproval(tx: PresignedTx, expectation: Unis
 }
 
 export async function validateUniswapSwap(tx: PresignedTx, expectation: UniswapV3SwapExpectation): Promise<`0x${string}`> {
-  const { parsed, serializedTransaction, signer } = await parseSignedTransaction(tx, "uniswapSwap");
-  if (!sameAddress(signer, expectation.signer) || !sameAddress(parsed.to, POLYGON_UNISWAP_V3_ROUTER)) {
+  const target = { ...POLYGON_EURE_USDC_TARGET, ...expectation };
+  const { parsed, serializedTransaction, signer } = await parseSignedTransaction(tx, "uniswapSwap", target.network);
+  if (!sameAddress(signer, expectation.signer) || !sameAddress(parsed.to, target.router)) {
     throw new Error("Uniswap swap signer or router does not match the fixed route");
   }
-  const decoded = decodeFunctionData({ abi: uniswapV3RouterAbi, data: parsed.data ?? "0x" });
-  if (decoded.functionName !== "exactInput") throw new Error("Uniswap swap call is not exactInput");
-  const params = decoded.args[0];
-  if (
-    params.path.toLowerCase() !== POLYGON_EURE_USDC_PATH.toLowerCase() ||
-    !sameAddress(params.recipient, expectation.signer) ||
-    params.deadline !== BigInt(expectation.deadline) ||
-    params.amountIn !== BigInt(expectation.amountInRaw) ||
-    params.amountOutMinimum !== BigInt(expectation.hardMinimumOutputRaw)
-  ) {
-    throw new Error("Uniswap swap does not match the fixed Polygon EURe/USDC route");
+  const expected = encodeUniswapSwap(target.kind, {
+    amountIn: BigInt(expectation.amountInRaw),
+    amountOutMinimum: BigInt(expectation.hardMinimumOutputRaw),
+    deadline: BigInt(expectation.deadline),
+    path: target.path,
+    recipient: expectation.recipient ?? expectation.signer
+  });
+  if (parsed.data?.toLowerCase() !== expected.toLowerCase()) {
+    throw new Error(`Uniswap swap does not match the fixed ${target.label} route`);
   }
   return serializedTransaction;
 }

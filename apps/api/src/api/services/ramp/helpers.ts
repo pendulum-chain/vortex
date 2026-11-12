@@ -29,7 +29,8 @@ const CHAIN_EXPLORERS: Record<string, string> = {
   ethereum: "https://etherscan.io/tx",
   moonbeam: "https://moonscan.io/tx",
   polygon: "https://polygonscan.com/tx",
-  polygonAmoy: "https://amoy.polygonscan.com/tx"
+  polygonAmoy: "https://amoy.polygonscan.com/tx",
+  robinhood: "https://robinhoodchain.blockscout.com/tx"
 };
 
 function buildEvmExplorerLink(hash: string, network: string | undefined): string | undefined {

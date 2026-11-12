@@ -85,6 +85,7 @@ afterAll(() => {
 
 const { calculateExpectedOutput, resolveActivePartnerById } = await import("../core/discount");
 const { simulateDistributeFees } = await import("../phases/distribute-fees/simulation");
+const { SubsidizePost } = await import("../phases/subsidize-post");
 const { simulateSubsidizePost } = await import("../phases/subsidize-post/simulation");
 
 function buildCtx(fiatCurrency: FiatToken, partnerId: string, to: Networks, outputCurrency: EvmToken): PhaseCtx {
@@ -213,6 +214,30 @@ describe("onramp discount semantics", () => {
     expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed(6)).toBe("100.000000");
     expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe("5.000000");
     expect(result.metadata.applied).toBe(true);
+  });
+
+  it("makes no Squid probe and applies no gross-up on a route configured without one", async () => {
+    const partnerId = "stock-route-partner";
+    pricingById.set(partnerId, { fiatCurrency: FiatToken.BRL, targetDiscount: 0.02 });
+    const ctx = buildCtx(FiatToken.BRL, partnerId, Networks.Robinhood, EvmToken.NVDA);
+    const input = { amount: new Big("90"), amountRaw: "90000000", chain: Networks.Base, token: EvmToken.USDC } as const;
+    const warn = spyOn(logger, "warn");
+
+    const unprobed = await SubsidizePost<typeof EvmToken.USDC, typeof Networks.Base>({ routeValueProbe: false }).simulate(input, ctx);
+    expect(bridgeQuoteRequests).toHaveLength(0);
+    expect(warn).not.toHaveBeenCalled();
+
+    const probed = await SubsidizePost<typeof EvmToken.USDC, typeof Networks.Base>().simulate(input, ctx);
+    expect(bridgeQuoteRequests).toHaveLength(1);
+    expect(new Big(probed.metadata.expectedOutputAmountDecimal).gt(unprobed.metadata.expectedOutputAmountDecimal)).toBe(true);
+    warn.mockRestore();
+  });
+
+  it("keeps the same phases and context when the probe is off, so flow identity cannot change", () => {
+    const unprobed = SubsidizePost({ routeValueProbe: false });
+    const probed = SubsidizePost();
+    expect(unprobed.phases).toEqual(probed.phases);
+    expect(unprobed.context).toBe(probed.context);
   });
 
   it("falls back to the oracle target when Squid returns a non-positive USD value", async () => {

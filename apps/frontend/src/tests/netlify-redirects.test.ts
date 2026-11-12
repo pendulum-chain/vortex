@@ -24,4 +24,13 @@ describe("Netlify redirects", () => {
   it("keeps unknown paths on the real 404 fallback", () => {
     expect(redirects).toContainEqual({ from: "/*", status: "404", to: "/404.html" });
   });
+
+  it("redirects stock aliases before the 404 fallback", () => {
+    for (const from of ["/stocks", "/stocks/*"]) {
+      const index = redirects.findIndex(rule => rule.from === from);
+      expect(index).toBeGreaterThan(-1);
+      expect(index).toBeLessThan(redirects.findIndex(rule => rule.from === "/*"));
+      expect(redirects[index]).toMatchObject({ status: "301", to: from.endsWith("*") ? "/pt-br/stocks/:splat" : "/pt-br/stocks/" });
+    }
+  });
 });

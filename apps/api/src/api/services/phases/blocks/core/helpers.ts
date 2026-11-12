@@ -28,7 +28,8 @@ export const SUPPORTED_CHAINS: {
       Networks.BSC,
       Networks.Base,
       Networks.Ethereum,
-      Networks.Polygon
+      Networks.Polygon,
+      Networks.Robinhood
     ],
     to: [
       EPaymentMethod.PIX as DestinationType,
@@ -53,7 +54,8 @@ export const SUPPORTED_CHAINS: {
       Networks.BSC,
       Networks.Base,
       Networks.Ethereum,
-      Networks.Polygon
+      Networks.Polygon,
+      Networks.Robinhood
     ]
   }
 };

@@ -10,6 +10,7 @@ import {
   isNetworkEVM,
   Networks,
   type OnChainToken,
+  PRESIGNED_EVM_FEE_MULTIPLIER,
   type PresignedTx,
   QuoteError,
   type RampCurrency,
@@ -17,7 +18,15 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import { encodeFunctionData, erc20Abi, formatUnits, parseAbi, parseTransaction, type TransactionSerialized } from "viem";
+import {
+  encodeFunctionData,
+  erc20Abi,
+  formatEther,
+  formatUnits,
+  parseAbi,
+  parseTransaction,
+  type TransactionSerialized
+} from "viem";
 import { config } from "../../../../../config/vars";
 import { APIError } from "../../../../errors/api-error";
 import { priceFeedService } from "../../../priceFeed.service";
@@ -57,7 +66,8 @@ const EVM_NATIVE_FEE_CURRENCIES: Record<EvmNetworks, RampCurrency> = {
   [Networks.Ethereum]: "ETH" as RampCurrency,
   [Networks.Moonbeam]: "GLMR" as RampCurrency,
   [Networks.Polygon]: "MATIC" as RampCurrency,
-  [Networks.PolygonAmoy]: "MATIC" as RampCurrency
+  [Networks.PolygonAmoy]: "MATIC" as RampCurrency,
+  [Networks.Robinhood]: "ETH" as RampCurrency
 };
 
 export function getEvmNativeFeeCurrency(network: EvmNetworks): RampCurrency {
@@ -72,8 +82,17 @@ function applyMarginBps(value: bigint, marginBps: number): bigint {
   return (value * BigInt(marginBps) + 9_999n) / 10_000n;
 }
 
+function isNitroNetwork(network: EvmNetworks): boolean {
+  return network === Networks.Arbitrum || network === Networks.Robinhood;
+}
+
+// Nitro counts the parent-chain poster cost in L2 gas units: its repriced L1 fee estimate divided by
+// the L2 base fee. The estimate can move several-fold within minutes, far beyond the fee margin, so a
+// quote reserves ten times the current poster gas. Those units only cost the L2 gas price.
+const NITRO_POSTER_GAS_HEADROOM_BPS = 100_000;
+
 async function getArbitrumL1GasComponent(network: EvmNetworks, to: `0x${string}`, data: `0x${string}`): Promise<bigint> {
-  if (network !== Networks.Arbitrum) return 0n;
+  if (!isNitroNetwork(network)) return 0n;
 
   const client = EvmClientManager.getInstance().getClient(network);
   const result = (await client.readContract({
@@ -199,7 +218,7 @@ export async function assertEvmTreasuryFundingFeeWithinQuote(
     throwNetworkFeesTooHigh();
   }
 
-  if (network === Networks.Arbitrum) {
+  if (isNitroNetwork(network)) {
     const currentGasLimits = await getArbitrumExecutionGasLimits(network, quote.isNativeTransfer);
     if (
       currentGasLimits.fundingGasLimit > BigInt(quote.fundingGasLimit) ||
@@ -234,6 +253,15 @@ export async function preflightEvmDestinationFeeWithinQuote(quote: EvmDestinatio
   const client = EvmClientManager.getInstance().getClient(quote.network);
   const { maxFeePerGas } = await client.estimateFeesPerGas();
   await assertEvmTreasuryFundingFeeWithinQuote(quote, quote.network, maxFeePerGas);
+}
+
+/** The most presigned transactions with this total gas limit can burn at today's fees, in USD. */
+export async function estimatePresignedExecutionFeeUsd(network: EvmNetworks, gasLimit: bigint): Promise<string> {
+  const { maxFeePerGas } = await EvmClientManager.getInstance().getClient(network).estimateFeesPerGas();
+  const budget = formatEther(gasLimit * maxFeePerGas * PRESIGNED_EVM_FEE_MULTIPLIER);
+  return new Big(
+    await priceFeedService.convertCurrency(budget, getEvmNativeFeeCurrency(network), EvmToken.USDC as RampCurrency)
+  ).toFixed(6);
 }
 
 export async function getEvmDestinationExecutionFeeUsd(ctx: PhaseCtx): Promise<string> {
@@ -273,7 +301,7 @@ export async function getEvmDestinationExecutionFeeUsd(ctx: PhaseCtx): Promise<s
   const { fundingGasLimit, transferGasLimit } = await getArbitrumExecutionGasLimits(
     destinationNetwork,
     isNativeTransfer,
-    marginBps
+    NITRO_POSTER_GAS_HEADROOM_BPS
   );
   const maximumFeePerGas = applyMarginBps(maxFeePerGas, marginBps);
   const maximumFundingL1FeeRaw = applyMarginBps(fundingL1FeeUpperBoundRaw, marginBps);

@@ -1,3 +1,4 @@
+import { defineChain } from "viem";
 import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet as ethereum, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import { PaymentMethod } from "../endpoints/payment-methods.endpoints";
 
@@ -16,7 +17,8 @@ export enum Networks {
   Moonbeam = "moonbeam",
   Pendulum = "pendulum",
   PolygonAmoy = "polygonAmoy",
-  BaseSepolia = "base-sepolia"
+  BaseSepolia = "base-sepolia",
+  Robinhood = "robinhood"
 }
 
 // This type is used to represent all networks that can be used as a source or destination in the system.
@@ -29,7 +31,8 @@ export type EvmNetworks =
   | Networks.Moonbeam
   | Networks.Polygon
   | Networks.PolygonAmoy
-  | Networks.BaseSepolia;
+  | Networks.BaseSepolia
+  | Networks.Robinhood;
 
 /**
  * Checks if a destination is a network and returns the network if it is.
@@ -48,6 +51,15 @@ export function getNetworkFromDestination(destination: DestinationType): Network
 export const ASSETHUB_CHAIN_ID = -1;
 export const PENDULUM_CHAIN_ID = -2;
 export const HYDRATION_CHAIN_ID = -3;
+
+export const robinhoodChain = defineChain({
+  blockExplorers: { default: { name: "Blockscout", url: "https://robinhoodchain.blockscout.com" } },
+  contracts: { multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" } },
+  id: 4663,
+  name: "Robinhood Chain",
+  nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" },
+  rpcUrls: { default: { http: ["https://rpc.mainnet.chain.robinhood.com"] } }
+});
 
 interface NetworkMetadata {
   id: number;
@@ -134,6 +146,12 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
     id: PENDULUM_CHAIN_ID,
     isEVM: false,
     supportsRamp: false
+  },
+  [Networks.Robinhood]: {
+    displayName: "Robinhood Chain",
+    id: robinhoodChain.id,
+    isEVM: true,
+    supportsRamp: false
   }
 };
 
@@ -155,9 +173,12 @@ export function isNetworkEVM(network: Networks): network is EvmNetworks {
   return getNetworkMetadata(network)?.isEVM ?? false;
 }
 
-/** The EUR onramp mints EURe on Polygon and settles there or bridges onward, so it delivers to every EVM network. */
+/**
+ * The EUR onramp mints EURe on Polygon and settles there or bridges onward, so it delivers to every
+ * EVM network except Robinhood Chain, which only serves the BRL stock corridor.
+ */
 export function doesNetworkSupportEurOnramp(network: Networks): network is EvmNetworks {
-  return isNetworkEVM(network);
+  return isNetworkEVM(network) && network !== Networks.Robinhood;
 }
 
 export function isNetworkAssetHub(network: Networks): network is Networks.AssetHub {

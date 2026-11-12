@@ -16,6 +16,7 @@ import { Signature as EvmSignature } from "ethers";
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { getOrCreateCustomerEntityForProfile, selectActiveCustomerEntity } from "../../api/services/customer-entity.service";
+import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import { getBlockMetadata } from "../../api/services/phases/blocks/core/metadata";
 import { MoneriumIssueContext, MONERIUM_ISSUE_NETWORKS } from "../../api/services/phases/blocks/phases/monerium-issue/simulation";
 import { moneriumPermitAbi } from "../../api/services/phases/blocks/phases/monerium-self-transfer/contract";
@@ -130,6 +131,8 @@ describe("EUR onramp Monerium corridor (sepa → Polygon mint+swap → USDC on A
     world.evm.failNextSends = 0;
     world.evm.setFeeEstimate(Networks.Arbitrum, 1_000_000_000n);
     world.evm.setFeeEstimate(Networks.Polygon, 1_000_000_000n);
+    // The funding wallet pays the destination funding send's value and gas.
+    world.evm.setNativeBalance(Networks.Arbitrum, getEvmFundingAccount(Networks.Arbitrum).address, parseUnits("10", 18));
     world.evm.onTransaction = undefined;
     world.evm.contractAddresses.clear();
     world.evm.strictReceipts = true;

@@ -1145,6 +1145,37 @@ describe("Presigned Transaction validation", () => {
     await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [])).rejects.toThrow("Some presigned transactions do not match any unsigned transaction");
   });
 
+  it.each([
+    "relayApprove",
+    "relayBridge",
+    "stockPermitTransfer",
+    "stockSettlementTopUp",
+    "gasReserveTopUp",
+    "stockBackupApprove",
+    "relayBackupApprove",
+    "robinhoodCleanupStock"
+  ] as const)("treats %s as an EVM ephemeral transaction", async phase => {
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
+    const signed = await makeSignedEvmTxWithBackups({ chainId: 4663, network: Networks.Robinhood, nonce: 0, phase });
+    const unsigned: PresignedTx = {
+      meta: {},
+      network: Networks.Robinhood,
+      nonce: 0,
+      phase,
+      signer: EVM_SIGNER,
+      txData: {
+        data: "0x12345678",
+        gas: "21000",
+        maxFeePerGas: "1000000000",
+        maxPriorityFeePerGas: "1000000000",
+        to: "0x000000000000000000000000000000000000dEaD",
+        value: "0"
+      }
+    };
+
+    await expect(validatePresignedTxs(RampDirection.BUY, [signed], ephemerals, [unsigned])).resolves.toBeUndefined();
+  });
+
   it("should throw for an unknown phase", async () => {
     const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "unknownPhase" as any, signer: EVM_SIGNER, txData: "0x" };
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };

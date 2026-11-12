@@ -18,6 +18,10 @@
 /gold                          /pt-br/gold/  301
 /gold/*                        /pt-br/gold/:splat  301
 
+# Stocks uses hash routes under the locale-first canonical path.
+/stocks                        /pt-br/stocks/  301
+/stocks/*                      /pt-br/stocks/:splat  301
+
 # Everything else is a real 404
 /*                             /404.html    404
 

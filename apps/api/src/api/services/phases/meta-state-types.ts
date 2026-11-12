@@ -104,6 +104,9 @@ export interface StateMetadata {
   squidRouterPermitExecutionHash?: string;
   squidRouterPermitExecutionValue?: string;
   nablaSwapTxHash?: string;
+  // Relay leg of a stock route: the origin deposit and the destination fill, kept for support.
+  relayBridgeHash?: string;
+  relayFillHash?: string;
   isDirectTransfer?: boolean;
   // Fallback path used when input ERC20 does not support EIP-2612 permit.
   // The user submits the substituting transaction(s) from their own wallet and

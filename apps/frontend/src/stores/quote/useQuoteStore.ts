@@ -76,7 +76,11 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   [QuoteError.FailedToCalculateFeeComponents]: "pages.swap.error.tryDifferentAmount",
   [QuoteError.UnsupportedCurrency]: "pages.swap.error.unsupportedCurrency",
   [QuoteError.AnchorTemporarilyUnavailable]: "pages.swap.error.anchorUnavailable",
-  [QuoteError.NetworkFeesTooHigh]: "pages.swap.error.networkFeesTooHigh"
+  [QuoteError.NetworkFeesTooHigh]: "pages.swap.error.networkFeesTooHigh",
+  // Robinhood Chain is disabled in this app, so these never need translating here.
+  [QuoteError.StockTokenNotAvailable]: QuoteError.StockTokenNotAvailable,
+  [QuoteError.StockTradingPaused]: QuoteError.StockTradingPaused,
+  [QuoteError.StockPriceUnavailable]: QuoteError.StockPriceUnavailable
 };
 
 function getFriendlyErrorMessage(error: unknown) {

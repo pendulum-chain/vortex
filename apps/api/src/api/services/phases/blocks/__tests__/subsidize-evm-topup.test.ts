@@ -371,6 +371,21 @@ describe.each(cases)("$name EVM top-up", testCase => {
     expect(executor.createSubsidy).toHaveBeenCalledWith(expect.anything(), 5, EvmToken.USDC, fundingAccount.address, TX_HASH);
   });
 
+  it("values the quote output on the quote's own network", async () => {
+    balances("95000000");
+    const executor = arrange(testCase, testCase.baseMetadata);
+    findQuote.mockResolvedValue({
+      metadata: testCase.baseMetadata,
+      network: Networks.Robinhood,
+      outputAmount: "100",
+      outputCurrency: EvmToken.NVDA
+    });
+
+    await executor.executePhase(makeState(testCase));
+
+    expect(priceFeedService.convertCurrency).toHaveBeenCalledWith("100", EvmToken.NVDA, EvmToken.USDC, null, Networks.Robinhood);
+  });
+
   it("skips the transfer and the subsidy record when the destination already holds the target", async () => {
     balances("100000000");
     const executor = arrange(testCase, testCase.baseMetadata);
@@ -580,6 +595,22 @@ describe.each(cases)("$name EVM top-up", testCase => {
     });
 
     expect(loggerError).toHaveBeenCalledWith(`Error in ${testCase.phaseName} (EVM):`, rpcError);
+  });
+
+  it("waits for settlement before taking the shared funding slot", async () => {
+    balances("95000000");
+    const startedAt = Date.now();
+    let slotRequestedAfterMs: number | undefined;
+    beforeSerializedFundingOperation = () => {
+      slotRequestedAfterMs = Date.now() - startedAt;
+    };
+    const executor = arrange(testCase, testCase.baseMetadata);
+
+    await executor.executePhase(makeState(testCase));
+
+    // SUBSIDY_SETTLEMENT_DELAY_MS is 25 ms in tests.
+    expect(slotRequestedAfterMs).toBeGreaterThanOrEqual(20);
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
   });
 
   it("does not broadcast when the phase is aborted while waiting for the funding slot", async () => {

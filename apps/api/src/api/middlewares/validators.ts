@@ -31,6 +31,7 @@ import {
 } from "@vortexfi/shared";
 import { Request, RequestHandler, Response } from "express";
 import httpStatus from "http-status";
+import { isAddress } from "viem";
 import { z } from "zod";
 import logger from "../../config/logger";
 import { CONTACT_SHEET_HEADER_VALUES } from "../controllers/contact.controller";
@@ -40,6 +41,7 @@ import { FLOW_HEADERS } from "../controllers/storage.controller";
 import { APIError } from "../errors/api-error";
 import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
+import { isBoundedAmount } from "../services/quote";
 
 interface CreationBody {
   accountId: string;
@@ -139,7 +141,7 @@ export const validateBundledPriceInput: RequestHandler<unknown, unknown, unknown
     return;
   }
 
-  if (isNaN(parseFloat(amount))) {
+  if (!isBoundedAmount(amount)) {
     res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid amount parameter. Not a number." });
     return;
   }
@@ -196,7 +198,7 @@ export const validatePriceInput: RequestHandler<unknown, unknown, unknown, Price
     return;
   }
 
-  if (isNaN(parseFloat(amount))) {
+  if (!isBoundedAmount(amount)) {
     res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid amount parameter. Not a number." });
     return;
   }
@@ -380,11 +382,17 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
     req.body.outputCurrency = normalizeAxlUsdcCurrency(req.body.outputCurrency) as CreateQuoteRequest["outputCurrency"];
   }
 
-  const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
+  const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, destinationAddress } = req.body;
 
   if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
     observeQuoteValidationFailure(req, "quote_create");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
+    return;
+  }
+
+  if (!isBoundedAmount(inputAmount)) {
+    observeQuoteValidationFailure(req, "quote_create");
+    res.status(httpStatus.BAD_REQUEST).json({ message: "Invalid amount parameter. Not a number." });
     return;
   }
 
@@ -396,6 +404,17 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
 
   if (!validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)) {
     observeQuoteValidationFailure(req, "quote_create");
+    return;
+  }
+
+  if (
+    rampType === RampDirection.BUY &&
+    to === Networks.Robinhood &&
+    destinationAddress !== undefined &&
+    (typeof destinationAddress !== "string" || !isAddress(destinationAddress))
+  ) {
+    observeQuoteValidationFailure(req, "quote_create");
+    res.status(httpStatus.BAD_REQUEST).json({ message: "Invalid 'destinationAddress': must be an EVM address" });
     return;
   }
 
@@ -413,6 +432,12 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Crea
   if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
     observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
+    return;
+  }
+
+  if (!isBoundedAmount(inputAmount)) {
+    observeQuoteValidationFailure(req, "quote_create_best");
+    res.status(httpStatus.BAD_REQUEST).json({ message: "Invalid amount parameter. Not a number." });
     return;
   }
 

@@ -1,16 +1,17 @@
-import { EvmClientManager, Networks, type PresignedTx, type RampPhase } from "@vortexfi/shared";
-import { erc20Abi, keccak256, parseTransaction, recoverTransactionAddress } from "viem";
+import { EvmClientManager, type PresignedTx, type RampPhase } from "@vortexfi/shared";
+import { erc20Abi, isAddressEqual, keccak256, parseTransaction, recoverTransactionAddress } from "viem";
+import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../../models/rampState.model";
+import type { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { validatePresignedEvmTransactionAgainstUnsigned } from "../../../../transactions/validation";
 import { throwIfAborted } from "../../core/cancellation";
+import { resendPresignedTransaction } from "../../core/evm-transactions";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
-import { getBlockMetadata, getBlockState } from "../../core/metadata";
-import { POLYGON_EURE, POLYGON_UNISWAP_V3_ROUTER, POLYGON_USDC } from "./contract";
-import { quotePolygonEureToUsdc, UniswapV3FixedSwapContext, verifyPolygonEureUsdcDeployment } from "./simulation";
-import type { UniswapV3FixedSwapPreparation } from "./transactions";
-import { type UniswapV3SwapExpectation, validateUniswapApproval, validateUniswapSwap } from "./validation";
+import { readStockFlags } from "../../core/robinhood-stocks";
+import { classifyStockRouteFailure, resolveUniswapRoute, type UniswapRoute } from "./route";
+import { validateUniswapApproval, validateUniswapSwap } from "./validation";
 
 interface Receipt {
   status: "success" | "reverted";
@@ -21,21 +22,22 @@ export interface UniswapV3ExecutionDependencies {
   getBalance(token: `0x${string}`, owner: `0x${string}`): Promise<bigint>;
   getReceipt(hash: `0x${string}`): Promise<Receipt | null>;
   quote(amountIn: bigint): Promise<bigint>;
+  readStockFlags?: typeof readStockFlags;
   sendRawTransaction(transaction: `0x${string}`): Promise<`0x${string}`>;
   simulateTransaction(transaction: `0x${string}`): Promise<void>;
   verifyDeployment(): Promise<void>;
   waitForReceipt(hash: `0x${string}`): Promise<Receipt>;
 }
 
-function defaultDependencies(): UniswapV3ExecutionDependencies {
+function defaultDependencies(route: UniswapRoute): UniswapV3ExecutionDependencies {
   const manager = EvmClientManager.getInstance();
-  const client = manager.getClient(Networks.Polygon);
+  const client = manager.getClient(route.network);
   return {
     getAllowance: owner =>
       client.readContract({
         abi: erc20Abi,
-        address: POLYGON_EURE,
-        args: [owner, POLYGON_UNISWAP_V3_ROUTER],
+        address: route.inputToken,
+        args: [owner, route.router],
         functionName: "allowance"
       }),
     getBalance: (token, owner) =>
@@ -47,9 +49,9 @@ function defaultDependencies(): UniswapV3ExecutionDependencies {
         return null;
       }
     },
-    quote: quotePolygonEureToUsdc,
+    quote: route.quote,
     sendRawTransaction: async transaction =>
-      (await manager.sendRawTransactionWithRetry(Networks.Polygon, transaction)) as `0x${string}`,
+      (await manager.sendRawTransactionWithRetry(route.network, transaction)) as `0x${string}`,
     async simulateTransaction(transaction) {
       const parsed = parseTransaction(transaction);
       if (!parsed.to) throw new Error("Uniswap swap simulation is missing its router target");
@@ -58,47 +60,104 @@ function defaultDependencies(): UniswapV3ExecutionDependencies {
           serializedTransaction: transaction as Parameters<typeof recoverTransactionAddress>[0]["serializedTransaction"]
         }),
         data: parsed.data,
+        // At the signed limit, so a swap that would run out of gas is held instead of burning its nonce.
+        gas: parsed.gas,
         to: parsed.to,
         value: parsed.value
       });
     },
-    verifyDeployment: verifyPolygonEureUsdcDeployment,
+    verifyDeployment: route.verifyDeployment,
     waitForReceipt: hash => client.waitForTransactionReceipt({ hash })
   };
 }
+
+/** How long a swap may wait for its price or the issuer before an operator is alerted. */
+const HOLD_ALERT_MS = 60 * 60 * 1000;
 
 abstract class UniswapV3Executor extends BasePhaseHandler {
   constructor(private readonly injectedDependencies?: UniswapV3ExecutionDependencies) {
     super();
   }
 
-  protected get dependencies(): UniswapV3ExecutionDependencies {
-    return this.injectedDependencies ?? defaultDependencies();
-  }
+  protected abstract executeRoute(
+    state: RampState,
+    route: UniswapRoute,
+    dependencies: UniswapV3ExecutionDependencies,
+    signal?: AbortSignal
+  ): Promise<RampState>;
 
-  protected async expectation(state: RampState): Promise<UniswapV3SwapExpectation> {
-    const quote = await QuoteTicket.findByPk(state.quoteId);
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
+    // The input is already on the ephemeral, so a failed read is retried.
+    const quote = await QuoteTicket.findByPk(state.quoteId).catch(error => {
+      throw this.createRecoverableError(
+        `Uniswap fixed swap quote cannot be read: ${error instanceof Error ? error.message : error}`
+      );
+    });
     if (!quote) throw this.createUnrecoverableError("Uniswap fixed swap quote is missing");
-    const metadata = getBlockMetadata(quote.metadata, UniswapV3FixedSwapContext);
-    const preparation = getBlockState<UniswapV3FixedSwapPreparation>(state.state, UniswapV3FixedSwapContext);
     const signer = state.state.evmEphemeralAddress;
     if (!signer) throw this.createUnrecoverableError("Uniswap fixed swap is missing its EVM ephemeral account");
-    return {
-      amountInRaw: metadata.inputAmountRaw,
-      deadline: preparation.deadline,
-      hardMinimumOutputRaw: preparation.hardMinimumOutputRaw,
-      signer: signer as `0x${string}`
-    };
+    const route = resolveUniswapRoute(quote.metadata, state.state, signer as `0x${string}`);
+    const dependencies = this.injectedDependencies ?? defaultDependencies(route);
+    try {
+      return await this.executeRoute(state, route, dependencies, signal);
+    } catch (error) {
+      throw route.stock ? classifyStockRouteFailure(error) : error;
+    }
   }
 
-  protected preparation(state: RampState): UniswapV3FixedSwapPreparation {
-    return getBlockState<UniswapV3FixedSwapPreparation>(state.state, UniswapV3FixedSwapContext);
+  /** A hold retries; one that has lasted past HOLD_ALERT_MS pauses instead, so an operator is told while recovery still retries it. */
+  protected hold(state: RampState, route: UniswapRoute, reason: string): PhaseError {
+    logger.warn(`UNISWAP_SWAP_HELD: ${reason}. ramp=${state.id} network=${route.network}`);
+    const entered = [...(state.phaseHistory ?? [])].reverse().find(entry => entry.phase === this.getPhaseName());
+    const heldMs = Date.now() - new Date(entered?.timestamp ?? state.createdAt).getTime();
+    return heldMs > HOLD_ALERT_MS ? this.createReconciliationRequiredError(reason) : this.createRecoverableError(reason);
+  }
+
+  /** An expired swap can never settle, so neither transaction goes out and an operator unwinds the input. */
+  protected pauseAfterDeadline(route: UniswapRoute): void {
+    if (BigInt(route.deadline) <= BigInt(Math.floor(Date.now() / 1000))) {
+      throw this.createReconciliationRequiredError("Uniswap fixed swap signature expired before settlement");
+    }
+  }
+
+  protected async holdWhileStockPaused(
+    state: RampState,
+    route: UniswapRoute,
+    dependencies: UniswapV3ExecutionDependencies
+  ): Promise<void> {
+    if (!route.stock) return;
+    const { paused } = await (dependencies.readStockFlags ?? readStockFlags)(route.stock);
+    if (paused) throw this.hold(state, route, `Uniswap ${route.label} trading is paused by the issuer`);
+  }
+
+  protected holdBelowSoftMinimum(state: RampState, route: UniswapRoute, currentQuote: bigint): void {
+    if (currentQuote < BigInt(route.softMinimumOutputRaw)) {
+      throw this.hold(state, route, "Uniswap fixed swap quote moved below its soft minimum");
+    }
   }
 
   protected findTransaction(transactions: readonly PresignedTx[], phase: RampPhase, label: string): PresignedTx {
     const transaction = transactions.find(value => value.phase === phase);
     if (!transaction) throw this.createUnrecoverableError(`Uniswap fixed swap is missing its ${label}`);
     return transaction;
+  }
+
+  /** No retry can change a presigned transaction, so on a stock route a bad one pauses for an operator. */
+  protected async validatedTransaction(
+    state: RampState,
+    route: UniswapRoute,
+    label: string,
+    validate: typeof validateUniswapApproval
+  ): Promise<`0x${string}`> {
+    try {
+      const signed = this.findTransaction(state.presignedTxs ?? [], this.getPhaseName(), `signed ${label}`);
+      const unsigned = this.findTransaction(state.unsignedTxs, this.getPhaseName(), `${label} blueprint`);
+      await validatePresignedEvmTransactionAgainstUnsigned(signed, unsigned);
+      return await validate(signed, route);
+    } catch (error) {
+      if (!route.stock) throw error;
+      throw this.createReconciliationRequiredError(error instanceof Error ? error.message : String(error));
+    }
   }
 
   /**
@@ -108,6 +167,7 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
    */
   protected async broadcast(
     state: RampState,
+    route: UniswapRoute,
     transaction: `0x${string}`,
     dependencies: UniswapV3ExecutionDependencies,
     signal?: AbortSignal,
@@ -136,9 +196,18 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
         if (receipt.status !== "success") throw new FinancialOperationRejectedError(`Uniswap transaction ${hash} reverted`);
         return { hash };
       },
-      provider: Networks.Polygon,
-      reconcile: async () => settle(settledReceipt ?? (await dependencies.getReceipt(deterministicHash))),
-      request: { network: Networks.Polygon, signedTransaction: transaction },
+      provider: route.network,
+      // Only a stock route sends again: the Polygon route fails the ramp on a mined revert, so it keeps pausing.
+      // Only a claimed row may have been sent; an unclaimed one goes through the claim first.
+      reconcile: async operation =>
+        settle(
+          settledReceipt ??
+            (await dependencies.getReceipt(deterministicHash)) ??
+            (route.stock && operation.status !== "not_started"
+              ? await resendPresignedTransaction(transaction, dependencies)
+              : null)
+        ),
+      request: { network: route.network, signedTransaction: transaction },
       signal
     });
     return result.hash;
@@ -150,18 +219,24 @@ export class UniswapApproveExecutor extends UniswapV3Executor {
     return "uniswapApprove";
   }
 
-  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
-    const dependencies = this.dependencies;
-    const expectation = await this.expectation(state);
-    const signed = this.findTransaction(state.presignedTxs ?? [], this.getPhaseName(), "signed approval");
-    const unsigned = this.findTransaction(state.unsignedTxs, this.getPhaseName(), "approval blueprint");
-    await validatePresignedEvmTransactionAgainstUnsigned(signed, unsigned);
-    const transaction = await validateUniswapApproval(signed, expectation);
-    await this.broadcast(state, transaction, dependencies, signal);
-    const allowance = await dependencies.getAllowance(expectation.signer);
-    if (allowance !== BigInt(expectation.amountInRaw)) {
+  protected async executeRoute(
+    state: RampState,
+    route: UniswapRoute,
+    dependencies: UniswapV3ExecutionDependencies,
+    signal?: AbortSignal
+  ): Promise<RampState> {
+    const transaction = await this.validatedTransaction(state, route, "approval", validateUniswapApproval);
+    this.pauseAfterDeadline(route);
+    await this.holdWhileStockPaused(state, route, dependencies);
+    if (route.stock) {
+      // A mined approval burns the first main nonce and with it the backup approval, so hold while that exit is still open.
+      this.holdBelowSoftMinimum(state, route, await dependencies.quote(BigInt(route.amountInRaw)));
+    }
+    await this.broadcast(state, route, transaction, dependencies, signal);
+    const allowance = await dependencies.getAllowance(route.signer);
+    if (allowance !== BigInt(route.amountInRaw)) {
       throw this.createReconciliationRequiredError(
-        `Uniswap approval established allowance ${allowance}, expected ${expectation.amountInRaw}`
+        `Uniswap approval established allowance ${allowance}, expected ${route.amountInRaw}`
       );
     }
     return state;
@@ -173,54 +248,59 @@ export class UniswapSwapExecutor extends UniswapV3Executor {
     return "uniswapSwap";
   }
 
-  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
-    const dependencies = this.dependencies;
-    const expectation = await this.expectation(state);
-    const preparation = this.preparation(state);
-    const signed = this.findTransaction(state.presignedTxs ?? [], this.getPhaseName(), "signed swap");
-    const unsigned = this.findTransaction(state.unsignedTxs, this.getPhaseName(), "swap blueprint");
-    await validatePresignedEvmTransactionAgainstUnsigned(signed, unsigned);
-    const transaction = await validateUniswapSwap(signed, expectation);
+  protected async executeRoute(
+    state: RampState,
+    route: UniswapRoute,
+    dependencies: UniswapV3ExecutionDependencies,
+    signal?: AbortSignal
+  ): Promise<RampState> {
+    const transaction = await this.validatedTransaction(state, route, "swap", validateUniswapSwap);
     // A swap that already settled on-chain has consumed the allowance, so the pre-flight checks can
     // never pass again. Skip them and hand the receipt to the journal, which then confirms its row
     // without a second read that could fail transiently and trigger a resend.
     const receipt = await dependencies.getReceipt(keccak256(transaction));
     const settledReceipt = receipt?.status === "success" ? receipt : undefined;
     if (!settledReceipt) {
-      if (BigInt(expectation.deadline) <= BigInt(Math.floor(Date.now() / 1000))) {
-        throw this.createRecoverableError("Uniswap fixed swap signature expired before settlement");
-      }
+      this.pauseAfterDeadline(route);
+      await this.holdWhileStockPaused(state, route, dependencies);
       await dependencies.verifyDeployment();
       const [inputBalance, allowance, currentQuote] = await Promise.all([
-        dependencies.getBalance(POLYGON_EURE, expectation.signer),
-        dependencies.getAllowance(expectation.signer),
-        dependencies.quote(BigInt(expectation.amountInRaw))
+        dependencies.getBalance(route.inputToken, route.signer),
+        dependencies.getAllowance(route.signer),
+        dependencies.quote(BigInt(route.amountInRaw))
       ]);
-      if (inputBalance < BigInt(expectation.amountInRaw)) {
-        throw this.createRecoverableError("Uniswap fixed swap input EURe has not reached the ephemeral account");
-      }
-      if (allowance !== BigInt(expectation.amountInRaw)) {
-        throw this.createReconciliationRequiredError(
-          `Uniswap fixed swap allowance ${allowance} does not match ${expectation.amountInRaw}`
+      if (inputBalance < BigInt(route.amountInRaw)) {
+        throw this.createRecoverableError(
+          `Uniswap fixed swap input ${route.inputSymbol} has not reached the ephemeral account`
         );
       }
-      if (currentQuote < BigInt(preparation.softMinimumOutputRaw)) {
-        throw this.createRecoverableError("Uniswap fixed swap quote moved below its soft minimum");
+      if (allowance !== BigInt(route.amountInRaw)) {
+        throw this.createReconciliationRequiredError(
+          `Uniswap fixed swap allowance ${allowance} does not match ${route.amountInRaw}`
+        );
       }
-      await dependencies.simulateTransaction(transaction);
+      this.holdBelowSoftMinimum(state, route, currentQuote);
+      // A swap that would revert as signed, for example out of gas, keeps its nonce and the input stays on the ephemeral.
+      await dependencies.simulateTransaction(transaction).catch(error => {
+        throw this.hold(
+          state,
+          route,
+          `Uniswap fixed swap simulation failed: ${error instanceof Error ? error.message : error}`
+        );
+      });
     }
-    await this.broadcast(state, transaction, dependencies, signal, settledReceipt);
-    const [remainingAllowance, outputBalance] = await Promise.all([
-      dependencies.getAllowance(expectation.signer),
-      dependencies.getBalance(POLYGON_USDC, expectation.signer)
-    ]);
+    await this.broadcast(state, route, transaction, dependencies, signal, settledReceipt);
+    const remainingAllowance = await dependencies.getAllowance(route.signer);
     if (remainingAllowance !== 0n) {
       throw this.createReconciliationRequiredError(`Uniswap fixed swap left unexpected allowance ${remainingAllowance}`);
     }
-    if (outputBalance < BigInt(expectation.hardMinimumOutputRaw)) {
-      throw this.createReconciliationRequiredError(
-        `Uniswap fixed swap produced ${outputBalance} USDC, below ${expectation.hardMinimumOutputRaw}`
-      );
+    if (isAddressEqual(route.recipient, route.signer)) {
+      const outputBalance = await dependencies.getBalance(route.outputToken, route.signer);
+      if (outputBalance < BigInt(route.hardMinimumOutputRaw)) {
+        throw this.createReconciliationRequiredError(
+          `Uniswap fixed swap produced ${outputBalance} ${route.outputSymbol}, below ${route.hardMinimumOutputRaw}`
+        );
+      }
     }
     return state;
   }

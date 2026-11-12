@@ -9,6 +9,7 @@ import {
   validateAveniaKybLevel1,
   validateAveniaKybUbo,
   validateCreateBestQuoteInput,
+  validateCreateQuoteInput,
   validateKycSubmission,
   validateSubaccountCreation
 } from "./validators";
@@ -41,6 +42,33 @@ const baseBody = {
   rampType: RampDirection.BUY,
   from: "pix"
 };
+
+describe("quote amount bounds", () => {
+  function run(validator: typeof validateCreateQuoteInput, inputAmount: unknown) {
+    const req = { body: { ...baseBody, inputAmount, to: Networks.Base } } as unknown as Request;
+    const res = buildRes();
+    const next: NextFunction = mock(() => undefined) as unknown as NextFunction;
+    validator(req, res as never, next);
+    return { next, res };
+  }
+
+  for (const validator of [validateCreateQuoteInput, validateCreateBestQuoteInput] as (typeof validateCreateQuoteInput)[]) {
+    it(`${validator.name} rejects amounts too large to expand`, () => {
+      for (const inputAmount of ["1e30000000", "1e-30000000", "1".repeat(100), "abc"]) {
+        const { next, res } = run(validator, inputAmount);
+        expect(next).not.toHaveBeenCalled();
+        expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+        expect(res.body).toEqual({ message: "Invalid amount parameter. Not a number." });
+      }
+    });
+
+    it(`${validator.name} accepts ordinary amounts`, () => {
+      for (const inputAmount of ["100", "100.5", "1e3", 100, "0.000000000000000001"]) {
+        expect(run(validator, inputAmount).next).toHaveBeenCalled();
+      }
+    });
+  }
+});
 
 describe("validateCreateBestQuoteInput - networks whitelist", () => {
   it("passes when networks is omitted (preserves existing behavior)", () => {
@@ -99,6 +127,48 @@ describe("validateCreateBestQuoteInput - networks whitelist", () => {
     expect(next).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
     expect(res.body).toEqual({ message: QuoteError.MissingRequiredFields });
+  });
+});
+
+describe("validateCreateQuoteInput - destinationAddress", () => {
+  const address = "0x000000000000000000000000000000000000dEaD";
+  const stockBuy = { ...baseBody, outputCurrency: "NVDA", to: Networks.Robinhood };
+
+  function run(body: Record<string, unknown>) {
+    const res = buildRes();
+    const next: NextFunction = mock(() => undefined) as unknown as NextFunction;
+    validateCreateQuoteInput({ body, method: "POST", path: "/v1/quotes" } as unknown as Request, res, next);
+    return { next, res };
+  }
+
+  it("accepts a robinhood BUY with or without a valid address", () => {
+    expect(run(stockBuy).next).toHaveBeenCalledTimes(1);
+    expect(run({ ...stockBuy, destinationAddress: address }).next).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([["not an address"], ["0x1234"], [address.replace("dEaD", "DEAD")], [[address]], [42]])(
+    "rejects %p on a robinhood BUY",
+    destinationAddress => {
+      const { next, res } = run({ ...stockBuy, destinationAddress });
+      expect(next).not.toHaveBeenCalled();
+      expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    }
+  );
+
+  it("ignores the field on every other route", () => {
+    const destinationAddress = "not an address";
+    expect(run({ ...baseBody, destinationAddress, to: Networks.Base }).next).toHaveBeenCalledTimes(1);
+    expect(
+      run({
+        destinationAddress,
+        from: Networks.Robinhood,
+        inputAmount: "1",
+        inputCurrency: "NVDA",
+        outputCurrency: "BRL",
+        rampType: RampDirection.SELL,
+        to: "pix"
+      }).next
+    ).toHaveBeenCalledTimes(1);
   });
 });
 

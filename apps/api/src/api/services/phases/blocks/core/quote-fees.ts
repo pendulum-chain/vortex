@@ -1,4 +1,11 @@
-import { DestinationType, QuoteError, RampCurrency, RampDirection } from "@vortexfi/shared";
+import {
+  DestinationType,
+  getNetworkFromDestination,
+  Networks,
+  QuoteError,
+  RampCurrency,
+  RampDirection
+} from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../../config/logger";
@@ -7,6 +14,7 @@ import { APIError } from "../../../../errors/api-error";
 import { findPartnerWithPricing } from "../../../partners/partner-pricing.service";
 import { priceFeedService } from "../../../priceFeed.service";
 import { getTargetFiatCurrency, validateChainSupport } from "./helpers";
+import { isStockQuoteUnavailableError } from "./robinhood-stocks";
 
 export interface CalculateFeeComponentsRequest {
   inputAmount: string;
@@ -33,6 +41,7 @@ export interface FeeComponentsResult {
  * @param baseAmount - The base amount for relative calculations
  * @param baseCurrency - The currency of the base amount
  * @param targetCurrency - The target currency for the fee
+ * @param sourceNetwork - The network the base currency is on, when the request names one
  * @returns The calculated fee component as a Big number
  */
 async function calculateFeeComponent(
@@ -40,7 +49,8 @@ async function calculateFeeComponent(
   feeType: "absolute" | "relative",
   baseAmount: string,
   baseCurrency: RampCurrency,
-  targetCurrency: RampCurrency
+  targetCurrency: RampCurrency,
+  sourceNetwork?: Networks
 ): Promise<Big> {
   let feeComponent = new Big(0);
 
@@ -48,7 +58,13 @@ async function calculateFeeComponent(
     feeComponent = new Big(feeValue);
   } else {
     // relative
-    const baseAmountInTargetCurrency = await priceFeedService.convertCurrency(baseAmount, baseCurrency, targetCurrency);
+    const baseAmountInTargetCurrency = await priceFeedService.convertCurrency(
+      baseAmount,
+      baseCurrency,
+      targetCurrency,
+      null,
+      sourceNetwork
+    );
     feeComponent = new Big(baseAmountInTargetCurrency).mul(feeValue);
   }
 
@@ -66,6 +82,7 @@ async function calculateFeeComponent(
  * @param partnerId - Optional partner id for custom fees
  * @param inputCurrency - The input currency
  * @param feeCurrency - The target fee currency
+ * @param sourceNetwork - The network the input currency is on, when the request names one
  * @returns Object containing partner markup and vortex fees as Big numbers
  */
 async function calculatePartnerAndVortexFees(
@@ -73,7 +90,8 @@ async function calculatePartnerAndVortexFees(
   rampType: RampDirection,
   partnerId: string | undefined,
   inputCurrency: RampCurrency,
-  feeCurrency: RampCurrency
+  feeCurrency: RampCurrency,
+  sourceNetwork?: Networks
 ): Promise<{ partnerMarkupFee: Big; vortexFee: Big }> {
   let totalPartnerMarkupInFeeCurrency = new Big(0);
   let totalVortexFeeInFeeCurrency = new Big(0);
@@ -92,7 +110,8 @@ async function calculatePartnerAndVortexFees(
           pricing.markupType,
           inputAmount,
           inputCurrency,
-          pricing.markupCurrency
+          pricing.markupCurrency,
+          sourceNetwork
         );
 
         const markupFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
@@ -114,7 +133,8 @@ async function calculatePartnerAndVortexFees(
           pricing.vortexFeeType,
           inputAmount,
           inputCurrency,
-          pricing.markupCurrency
+          pricing.markupCurrency,
+          sourceNetwork
         );
 
         const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
@@ -157,7 +177,8 @@ async function calculatePartnerAndVortexFees(
         vortexPricing.markupType,
         inputAmount,
         inputCurrency,
-        vortexPricing.markupCurrency
+        vortexPricing.markupCurrency,
+        sourceNetwork
       );
 
       const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
@@ -250,7 +271,8 @@ export async function calculateFeeComponents(request: CalculateFeeComponentsRequ
       request.rampType,
       request.partnerId,
       request.inputCurrency,
-      feeCurrency
+      feeCurrency,
+      getNetworkFromDestination(request.from)
     );
 
     // Calculate anchor fees
@@ -279,6 +301,9 @@ export async function calculateFeeComponents(request: CalculateFeeComponentsRequ
     };
   } catch (error) {
     logger.error("Error calculating fee components:", error);
+    if (isStockQuoteUnavailableError(error)) {
+      throw error;
+    }
     throw new APIError({
       message: QuoteError.FailedToCalculateFeeComponents,
       status: httpStatus.INTERNAL_SERVER_ERROR

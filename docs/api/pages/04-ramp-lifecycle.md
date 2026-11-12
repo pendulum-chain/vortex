@@ -24,7 +24,7 @@ Only public addresses are sent to Vortex. The matching ephemeral secret keys mus
 
 Use `POST /v1/ramp/update` to submit signed transactions and route-specific transaction hashes.
 
-The SDK performs this automatically for the buy flows it supports. Direct API integrations must ensure that each signature or transaction hash matches the transaction returned by Vortex for the same ramp and phase. EUR BUY requires both the profile-linked owner's typed-data permit and the ephemeral-owned signatures returned at registration; from its next release (0.9.0 has no EUR support), the SDK signs the ephemeral set and returns the permit as a user-owned transaction.
+The SDK performs this automatically for the buy flows it supports. Direct API integrations must ensure that each signature or transaction hash matches the transaction returned by Vortex for the same ramp and phase. EUR BUY requires both the profile-linked owner's typed-data permit and the ephemeral-owned signatures returned at registration; from its next release (0.9.0 has no EUR support), the SDK signs the ephemeral set and returns the permit as a user-owned transaction. A stock SELL on Robinhood Chain requires the seller's typed-data permit for `stockPermitTransfer` before start, or `squidRouterNoPermitTransferHash` when registration issued the one-transfer fallback instead. Either one is returned only after the ephemeral signatures pass validation.
 
 On buys, the fiat payment instructions (`depositQrCode` for BRL, `ibanPaymentData` for EUR) are withheld until the presigned transactions pass validation: they are released on the update response and on `GET /v1/ramp/{id}`, not on the register response. SDK integrations receive supported-corridor instructions directly from `registerRamp`, which performs the update internally. For EUR, the owner permit must also be submitted (`submitUserTransactions` in the SDK, or the update endpoint directly) before `ibanPaymentData` is released. For USD, MXN, COP, and ARS, the first update response returns the bank transfer instructions as `achPaymentData`, which `GET /v1/ramp/{id}` also returns afterwards.
 
@@ -36,7 +36,7 @@ If a BRL PIX payment is confirmed by the payment partner but the client cannot c
 
 ## 5. Track Status
 
-Use `GET /v1/ramp/{id}` to retrieve current state, or configure webhooks to receive lifecycle events asynchronously. `GET /v1/ramp/{id}/errors` returns the error log for a ramp and is useful for support tooling.
+Use `GET /v1/ramp/{id}` to retrieve current state, or configure webhooks to receive lifecycle events asynchronously. `GET /v1/ramp/{id}/errors` returns the error log for a ramp and is useful for support tooling. Each entry carries a one-line `error` message; stack traces and upstream provider responses are not returned, so `details` is omitted.
 
 Before starting a flow, `sdk.getRampInfo()` / `GET /v1/ramp-info` can return the credential-bound profile's sanitized per-corridor `kycStatus`, `canBuy`, and `canSell` using a public or secret API key. Supabase sessions do not authorize this endpoint. It intentionally does not return exact limits, PII, provider IDs, or ramp history.
 

@@ -64,6 +64,22 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
     [EvmToken.BRLA]: evmToken(Networks.Base, "BRLA", 18, "0xfCB34c47f850f452C15EA1B84d51231C38A61783"),
     [EvmToken.EURC]: evmToken(Networks.Base, "EURC", ERC20_EURC_BASE_DECIMALS, ERC20_EURC_BASE)
   },
+  [Networks.Robinhood]: {
+    [EvmToken.ETH]: evmToken(Networks.Robinhood, "ETH", 18, "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", true),
+    [EvmToken.USDG]: evmToken(Networks.Robinhood, "USDG", 6, "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"),
+    [EvmToken.SPY]: evmToken(Networks.Robinhood, "SPY", 18, "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C"),
+    [EvmToken.TSLA]: evmToken(Networks.Robinhood, "TSLA", 18, "0x322F0929c4625eD5bAd873c95208D54E1c003b2d"),
+    [EvmToken.NVDA]: evmToken(Networks.Robinhood, "NVDA", 18, "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC"),
+    [EvmToken.AMZN]: evmToken(Networks.Robinhood, "AMZN", 18, "0x12f190a9F9d7D37a250758b26824B97CE941bF54"),
+    [EvmToken.AAPL]: evmToken(Networks.Robinhood, "AAPL", 18, "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9"),
+    [EvmToken.GOOGL]: evmToken(Networks.Robinhood, "GOOGL", 18, "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3"),
+    [EvmToken.MSFT]: evmToken(Networks.Robinhood, "MSFT", 18, "0xe93237C50D904957Cf27E7B1133b510C669c2e74"),
+    [EvmToken.QQQ]: evmToken(Networks.Robinhood, "QQQ", 18, "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68"),
+    [EvmToken.SPCX]: evmToken(Networks.Robinhood, "SPCX", 18, "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa"),
+    [EvmToken.META]: evmToken(Networks.Robinhood, "META", 18, "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35"),
+    [EvmToken.MU]: evmToken(Networks.Robinhood, "MU", 18, "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD"),
+    [EvmToken.SGOV]: evmToken(Networks.Robinhood, "SGOV", 18, "0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5")
+  },
   [Networks.BaseSepolia]: {
     [EvmToken.USDC]: evmToken(Networks.BaseSepolia, "USDC", 6, "0x1b888723fb7699f9dF0a99443107E8A888A67e11"), // Mock USDC contract
     [EvmToken.USDT]: evmToken(Networks.BaseSepolia, "USDT", 6, "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2"),
