@@ -110,21 +110,43 @@ describe("Base native USDC stock contract", () => {
   ])("rejects non-native/wrong-chain or invalid precision/limits", async (body) => {
     expect((await post(body)).status).toBe(400);
   });
-  it("registers a wallet-bound USDC buy without a fiat identity", async () => {
-    const owner = privateKeyToAccount(generatePrivateKey()).address;
-    const quoteResponse = await post({ ...buy, destinationAddress: owner });
+  async function register(body: typeof buy | typeof sell, quotedFor: string, additionalData: Record<string, string>) {
+    const quoteResponse = await post({ ...body, destinationAddress: quotedFor });
     expect(quoteResponse.status, await quoteResponse.clone().text()).toBe(201);
     const q = await quoteResponse.json();
     const user = await createTestUser();
-    const r = await app.request("/v1/ramp/register", {
+    return app.request("/v1/ramp/register", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${testUserToken(user.id)}` },
       body: JSON.stringify({
         quoteId: q.id,
         signingAccounts: [{ type: "EVM", address: privateKeyToAccount(generatePrivateKey()).address }],
-        additionalData: { walletAddress: owner, destinationAddress: owner }
+        additionalData
       })
     });
+  }
+  it.each([buy, sell])("refuses a $rampType that funds from one wallet and delivers to another", async (body) => {
+    const owner = privateKeyToAccount(generatePrivateKey()).address,
+      other = privateKeyToAccount(generatePrivateKey()).address;
+    for (const additionalData of [
+      { walletAddress: other, destinationAddress: owner },
+      { walletAddress: owner, destinationAddress: other }
+    ]) {
+      const r = await register(body, owner, additionalData);
+      expect(r.status).toBe(400);
+      expect(await r.text()).toContain("must use the same wallet");
+    }
+    // A buy without a destination already fails the generic onramp check; a sale reaches the same-wallet rule.
+    expect((await register(body, owner, { walletAddress: owner })).status).toBe(400);
+  });
+  it("accepts the same wallet written in a different letter case", async () => {
+    const owner = privateKeyToAccount(generatePrivateKey()).address;
+    const r = await register(sell, owner, { walletAddress: owner.toLowerCase(), destinationAddress: owner });
+    expect(r.status, await r.clone().text()).toBeLessThan(300);
+  });
+  it("registers a wallet-bound USDC buy without a fiat identity", async () => {
+    const owner = privateKeyToAccount(generatePrivateKey()).address;
+    const r = await register(buy, owner, { walletAddress: owner, destinationAddress: owner });
     expect(r.status, await r.clone().text()).toBeLessThan(300);
     const ramp = await r.json();
     expect(
