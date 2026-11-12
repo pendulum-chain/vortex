@@ -51,7 +51,7 @@ server's phases (`src/lib/phases.js`; `tests/phases.test.mjs` reads the shared p
 
 ## Base-USDC checkout
 
-Both builds publish English at `/en/stocks/` and Brazil at `/pt-br/stocks/`. The English edition uses native USDC on Base; Brazil offers it alongside Pix. The same Privy app, identity and wallet are used for both. The English HTML reuses `/pt-br/stocks/assets/*`, with scoped security/noindex headers.
+Both builds publish English at `/en/stocks/` and Brazil at `/pt-br/stocks/`. The English edition uses native USDC on Base; Brazil offers it alongside Pix, and a signed-in stock page offers USDC buttons while Pix is closed (not during an issuer pause). The same Privy app, identity and wallet are used for both. The English HTML reuses `/pt-br/stocks/assets/*`, with scoped security/noindex headers.
 
 Live execution needs the platform/SDK extension deployed first, migration 090, backend `STOCKS_USDC_ENABLED_DIRECTIONS=BUY,SELL`, then frontend `VITE_STOCKS_USDC_ENABLED=true` and a rebuild. The frontend flag is independent of Pix's `VITE_STOCKS_RAMP_ENABLED`. Discovery explicitly uses `paymentMethod=usdc`; a disabled direction, unknown asset or mismatched contract cannot quote. No partner secret is shipped to the browser.
 

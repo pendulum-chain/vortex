@@ -1,7 +1,8 @@
 // The detail screen's buy/sell buttons and the line under them (the availability states), as a
 // pure function so every state is unit-tested: signed out ("Comprar" asks to sign in, "Em breve"
 // while the ramp is off), wallet not ready, an unfinished operation (resume it), availability still
-// loading, not listed / paused by the issuer, and "Vender" only with a balance.
+// loading, not listed / paused by the issuer, "Vender" only with a balance, and USDC on Base
+// while the Pix direction is closed (not during an issuer pause).
 import { UNAVAILABLE_COPY_PT, isComingSoon } from "./ramp-contract.js";
 import { MIN_BUY } from "./purchase-options.js";
 import { isSlowRamp } from "./phases.js";
@@ -9,13 +10,14 @@ import { isSlowRamp } from "./phases.js";
 /**
  * @param {{ auth:{authenticated:boolean, address:string|null}, availability:Record<string,{buy:boolean, sell:boolean, reason:string|null}>|null,
  *   comingSoon:boolean, holding:{raw:bigint}|null, symbol:string, pending?:{rampType:string, symbol?:string}|null,
- *   balanceStatus?:"ok"|"loading"|"rpc_error"|"idle" }} args
+ *   balanceStatus?:"ok"|"loading"|"rpc_error"|"idle", usdc?:boolean }} args
  *   pending: the wallet's unfinished operation on this device (activeRampStore.get)
  *   balanceStatus: usePortfolio's status; only "ok" lets a missing holding mean "no tokens"
  *   now: the clock for a pending operation's age
- * @returns {{ buy:{label:string, disabled:boolean, loading?:boolean}, sell:{label:string, disabled:boolean}|null, note:string|null }}
+ *   usdc: the Base-USDC checkout is on; it does not depend on Pix, so a closed Pix direction offers USDC
+ * @returns {{ buy:{label:string, disabled:boolean, loading?:boolean, usdc?:true}, sell:{label:string, disabled:boolean, usdc?:true}|null, note:string|null }}
  */
-export function detailActions({ auth, availability, comingSoon, holding, symbol, pending = null, balanceStatus = "ok", now = Date.now() }) {
+export function detailActions({ auth, availability, comingSoon, holding, symbol, pending = null, balanceStatus = "ok", now = Date.now(), usdc = false }) {
   const entry = availability?.[symbol] ?? null;
   const owns = Boolean(holding && holding.raw > 0n);
   if (!auth.authenticated) {
@@ -29,12 +31,14 @@ export function detailActions({ auth, availability, comingSoon, holding, symbol,
     return { buy: { label: "Ver operação em andamento", disabled: false }, sell: null, note };
   }
   if (!entry) return { buy: { label: "Comprar", disabled: true, loading: true }, sell: { label: "Vender", disabled: true }, note: null };
-  const buy = entry.buy ? { label: "Comprar", disabled: false } : { label: UNAVAILABLE_COPY_PT[entry.reason] || "Indisponível no momento", disabled: true };
-  const sell = entry.sell && owns ? { label: "Vender", disabled: false } : { label: "Vender", disabled: true };
+  // An issuer pause stops the token itself; any other closed Pix direction leaves USDC on Base open.
+  const viaUsdc = usdc && entry.reason !== "paused";
+  const buy = entry.buy ? { label: "Comprar", disabled: false } : viaUsdc ? { label: "Comprar com USDC", disabled: false, usdc: true } : { label: UNAVAILABLE_COPY_PT[entry.reason] || "Indisponível no momento", disabled: true };
+  const sell = entry.sell && owns ? { label: "Vender", disabled: false } : viaUsdc && owns ? { label: "Vender por USDC", disabled: false, usdc: true } : { label: "Vender", disabled: true };
   let note = null;
-  if (isComingSoon(entry.reason)) note = "A compra com Pix será liberada em breve. Enquanto isso, acompanhe o preço.";
+  if (isComingSoon(entry.reason)) note = viaUsdc ? "A compra com Pix será liberada em breve. Você já pode comprar e vender com USDC na Base." : "A compra com Pix será liberada em breve. Enquanto isso, acompanhe o preço.";
   else if (entry.reason === "paused") note = "O emissor pausou a negociação deste token (por exemplo, num evento corporativo). Tente mais tarde.";
-  else if (owns && !entry.sell) note = "A venda está indisponível no momento. Seus tokens continuam na sua carteira.";
+  else if (owns && !entry.sell && !viaUsdc) note = "A venda está indisponível no momento. Seus tokens continuam na sua carteira.";
   else if (!owns && balanceStatus === "rpc_error") note = "Saldo indisponível agora. Tente novamente em instantes.";
   else if (!owns && entry.sell && balanceStatus === "ok") note = `Você ainda não tem tokens ${symbol}. Compre a partir de R$ ${MIN_BUY} com Pix.`;
   return { buy, sell, note };

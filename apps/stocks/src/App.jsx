@@ -218,7 +218,7 @@ export function App({ auth, config }) {
 
   let screen;
   if (route.name === "stock") {
-    screen = <StockDetail key={route.symbol} symbol={route.symbol} auth={auth} market={market} portfolio={portfolio} availability={availability} comingSoon={comingSoon} pending={pending} onBuy={() => startFlow("buy", route.symbol)} onPreview={startPreview} canPreviewContinue={canPreviewContinue} onSell={() => startFlow("sell", route.symbol)} now={now} />;
+    screen = <StockDetail key={route.symbol} symbol={route.symbol} auth={auth} market={market} portfolio={portfolio} availability={availability} comingSoon={comingSoon} pending={pending} onBuy={() => startFlow("buy", route.symbol)} onPreview={startPreview} canPreviewContinue={canPreviewContinue} onSell={() => startFlow("sell", route.symbol)} usdcCheckout={usdcCheckout} onUsdc={(direction) => setModal({ type: "usdc", symbol: route.symbol, direction })} now={now} />;
   } else if (route.name === "explore") {
     screen = <Explore route={route} market={market} navigate={navigate} now={now} />;
   } else if (route.name === "history") {

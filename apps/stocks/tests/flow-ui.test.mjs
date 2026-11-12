@@ -603,6 +603,19 @@ test("signed in, the buy offers USDC only outside a live build, and a saved USDC
   });
 }));
 
+// The runtime is one instance per page (useRuntime), so an earlier demo render may serve this one:
+// the check is the wiring from the detail button to the USDC buy, which does not depend on it.
+test("signed in with Pix off and USDC on, the stock page opens the USDC buy", () => withFetch(noNetwork, () => harness(async (s) => {
+  const usdcOnly = readConfig({ VITE_STOCKS_MODE: "live", VITE_PRIVY_APP_ID: "fake-test-only", VITE_STOCKS_USDC_ENABLED: "true" });
+  try {
+    window.location.hash = "#/acao/NVDA";
+    await renderApp(s, usdcOnly, true);
+    await untilText(s, /Você já pode comprar e vender com USDC na Base/);
+    await s.click("Comprar com USDC");
+    await untilText(s, /Comprar NVDA · USDC|Buy NVDA with USDC/);
+  } finally { window.location.hash = "#/"; }
+})));
+
 test("a resumed record for a token this build no longer bundles still opens its operation", () => withFetch(noNetwork, () => harness(async (s) => {
   createRampStores({ simulated: true }).activeRamp.save({ rampId: "sim-delisted", walletAddress: WALLET, rampType: "BUY", stage: "registered", symbol: "DELISTED", inputAmount: 500, outputAmount: "0.5", createdAt: Date.now(), simulated: true });
   try {

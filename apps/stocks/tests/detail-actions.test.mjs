@@ -79,3 +79,19 @@ test("a buy or sell request resumes the pending operation instead of starting a 
   assert.deepEqual(flowFor({ type: "sell", symbol: "NVDA" }, buy), { type: "buy", symbol: "SPY", resume: buy });
   assert.equal(flowFor({ type: "buy", symbol: "TSLA" }, { rampId: "x", rampType: "BUY" }).symbol, "TSLA", "a record without a symbol keeps the requested one");
 });
+
+test("signed in with Pix closed: USDC on Base stays open unless the issuer paused the token", () => {
+  const off = uniformAvailability(STOCK_TOKENS, "not_enabled");
+  const usdc = detailActions({ auth: signedIn, availability: off, comingSoon: true, holding, symbol: "NVDA", usdc: true });
+  assert.deepEqual([usdc.buy, usdc.sell], [{ label: "Comprar com USDC", disabled: false, usdc: true }, { label: "Vender por USDC", disabled: false, usdc: true }]);
+  assert.match(usdc.note, /USDC na Base/);
+  assert.equal(detailActions({ auth: signedIn, availability: off, comingSoon: true, holding: null, symbol: "NVDA", usdc: true }).sell.disabled, true, "no tokens, nothing to sell");
+  const pixOff = detailActions({ auth: signedIn, availability: off, comingSoon: true, holding, symbol: "NVDA" });
+  assert.deepEqual([pixOff.buy.disabled, pixOff.sell.disabled], [true, true], "without the USDC checkout nothing changes");
+  const sellClosed = Object.fromEntries(STOCK_TOKENS.map((token) => [token.symbol, { buy: true, sell: false, reason: null }]));
+  const mixed = detailActions({ auth: signedIn, availability: sellClosed, comingSoon: false, holding, symbol: "NVDA", usdc: true });
+  assert.deepEqual([mixed.buy, mixed.sell.usdc, mixed.note], [{ label: "Comprar", disabled: false }, true, null], "an open Pix buy keeps its flow, which offers USDC inside");
+  const paused = Object.fromEntries(STOCK_TOKENS.map((token) => [token.symbol, { buy: false, sell: false, reason: "paused" }]));
+  const halted = detailActions({ auth: signedIn, availability: paused, comingSoon: false, holding, symbol: "NVDA", usdc: true });
+  assert.deepEqual([halted.buy.disabled, halted.sell.disabled, halted.buy.usdc], [true, true, undefined]);
+});
