@@ -254,6 +254,39 @@ main:focus { outline: none; }
 @media (min-width: 900px) { .tabbar { display: none; } .has-tabbar { padding-bottom: 0; } }
 
 /* ---------- landing ---------- */
+.fair-hero.wrap { padding-inline: 0; }
+.fair-hero__media { overflow: hidden; aspect-ratio: 1.68; }
+.fair-hero__media img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 48%; }
+.fair-hero__body { padding: 22px var(--gutter) 0; }
+.fair-hero__body .eyebrow { font-size: 11px; letter-spacing: 0.12em; }
+.fair-hero__title { margin-top: 16px; font-size: clamp(30px, 8.3vw, 48px); font-weight: 600; line-height: 1.08; letter-spacing: -0.04em; }
+.fair-hero__title .accent { display: block; font-size: 1.38em; line-height: 1; }
+.fair-hero__lede { margin-top: 18px; color: var(--text-muted); font-size: 16px; line-height: 1.5; max-width: 510px; }
+.fair-hero__fees { display: flex; align-items: center; justify-content: center; gap: 12px; margin-block: 22px 20px; padding-block: 14px; border-block: 1px solid var(--anil-200); font-size: 13px; font-weight: 600; line-height: 1.4; }
+.fair-hero__fees li + li { padding-left: 12px; border-left: 1px solid var(--anil-200); }
+.fair-hero__action { width: 100%; box-shadow: none; }
+.fair-hero__reassurance { margin-top: 8px; text-align: center; color: var(--text-muted); font-size: 12px; }
+.fair-hero__rights { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--anil-200); text-align: center; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.fair-hero__rights button { min-height: 44px; margin-top: 2px; font-size: 13px; }
+.fair-hero--contained { margin-inline: calc(-1 * var(--gutter)); }
+.page.international-page { padding-top: 0; }
+.fair-preview { padding-top: 36px; padding-bottom: 16px; }
+.fair-preview .purchase-preview { width: 100%; max-width: 720px; margin-inline: auto; scroll-margin-top: calc(var(--header-h) + 20px); }
+@media (min-width: 640px) {
+  .fair-hero__media { max-height: 380px; }
+  .fair-hero__body { max-width: 720px; margin-inline: auto; padding-top: 28px; }
+  .fair-hero__fees { font-size: 15px; }
+}
+@media (min-width: 1024px) {
+  .fair-hero, .fair-hero.wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 56px; padding: 48px var(--gutter) 24px; }
+  .fair-hero__media { order: 2; aspect-ratio: 1.15; max-height: none; border-radius: var(--radius-lg); }
+  .fair-hero__body { padding: 0; width: 100%; }
+  .fair-hero__title { font-size: 42px; }
+  .fair-hero__lede { font-size: 18px; }
+  .fair-hero--contained { margin-inline: 0; padding-inline: 0; }
+  .fair-hero__rights { margin-top: 20px; }
+  .fair-preview { padding-top: 40px; }
+}
 .hero { position: relative; padding-top: 28px; padding-bottom: 32px; }
 .hero__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; align-items: center; }
 .hero__copy { position: relative; z-index: 2; }
