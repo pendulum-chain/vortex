@@ -86,6 +86,11 @@ function isNitroNetwork(network: EvmNetworks): boolean {
   return network === Networks.Arbitrum || network === Networks.Robinhood;
 }
 
+// Nitro counts the parent-chain poster cost in L2 gas units: its repriced L1 fee estimate divided by
+// the L2 base fee. The estimate can move several-fold within minutes, far beyond the fee margin, so a
+// quote reserves ten times the current poster gas. Those units only cost the L2 gas price.
+const NITRO_POSTER_GAS_HEADROOM_BPS = 100_000;
+
 async function getArbitrumL1GasComponent(network: EvmNetworks, to: `0x${string}`, data: `0x${string}`): Promise<bigint> {
   if (!isNitroNetwork(network)) return 0n;
 
@@ -296,7 +301,7 @@ export async function getEvmDestinationExecutionFeeUsd(ctx: PhaseCtx): Promise<s
   const { fundingGasLimit, transferGasLimit } = await getArbitrumExecutionGasLimits(
     destinationNetwork,
     isNativeTransfer,
-    marginBps
+    NITRO_POSTER_GAS_HEADROOM_BPS
   );
   const maximumFeePerGas = applyMarginBps(maxFeePerGas, marginBps);
   const maximumFundingL1FeeRaw = applyMarginBps(fundingL1FeeUpperBoundRaw, marginBps);
