@@ -18,8 +18,8 @@ try {
     assert.equal(await page.locator("html").getAttribute("lang"),"en");
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth+1),"English landing overflow");
     await page.screenshot({path:`${output}/english-landing-${viewport.width}.png`,fullPage:true});
-    const preview = page.getByRole("region", {name:"Preview your purchase"});
-    await preview.getByRole("button", {name:"Preview purchase",exact:true}).click();
+    const preview = page.getByRole("region", {name:"Prepare your purchase"});
+    await preview.getByRole("button", {name:"See purchase costs",exact:true}).click();
     await preview.getByText("Your estimate", {exact:true}).waitFor();
     assert.equal(await page.getByRole("button", {name:"Continue with Google"}).count(),0,"Preview does not require login");
     await preview.getByRole("button", {name:"Continue with USDC",exact:true}).click();
@@ -60,7 +60,7 @@ try {
     await page.getByRole("button",{name:"Done",exact:true}).click();
     // A second purchase consumes existing USDC instead of asking for another transfer.
     await preview.getByLabel("Your investment amount").fill("10");
-    await preview.getByRole("button",{name:"Preview purchase",exact:true}).click();
+    await preview.getByRole("button",{name:"See purchase costs",exact:true}).click();
     await preview.getByRole("button",{name:"Continue with USDC",exact:true}).click();
     await page.getByRole("button",{name:"Buy with USDC balance"}).waitFor();
     await page.getByRole("checkbox",{name:/I approve this amount/}).check();

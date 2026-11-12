@@ -80,11 +80,11 @@ export function Landing({ market, rampOpen, onPreview, canPreviewContinue, onLea
         <div className="section__head">
           <div>
             <p className="eyebrow">Como funciona</p>
-            <h2 className="section__title" id="how-title" style={{ marginTop: 10 }}>Da simulação à sua carteira.</h2>
+            <h2 className="section__title" id="how-title" style={{ marginTop: 10 }}>Da cotação à sua carteira.</h2>
           </div>
         </div>
         <ol className="steps">
-          <li className="card step"><span className="step__num">01</span><h3>Simule sem cadastro</h3><p>Escolha uma empresa e o valor. Veja uma estimativa de quanto recebe e dos custos.</p></li>
+          <li className="card step"><span className="step__num">01</span><h3>Veja os custos antes de comprar</h3><p>Escolha uma empresa e o valor. Veja uma estimativa de quanto recebe e dos custos.</p></li>
           <li className="card step"><span className="step__num">02</span><h3>Entre e confira os valores</h3><p>Use Google ou e-mail. Na primeira compra com Pix, confirme seu e-mail e verifique sua identidade, se necessário. Confira a cotação atualizada antes de pagar.</p></li>
           <li className="card step"><span className="step__num">03</span><h3>Pague com Pix e receba</h3><p>Após a confirmação do pagamento, os tokens chegam à sua carteira. Para vender, confira a cotação e receba na sua chave Pix.</p></li>
         </ol>
