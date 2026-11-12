@@ -63,6 +63,18 @@ test("a possible USDC permit keeps recovery even when a status response says fai
   const s=stores();s.activeRampStore.save({rampId:"ambiguous",walletAddress:WALLET,paymentMethod:"usdc",rampType:"BUY",stage:"signing",createdAt:NOW});
   settleRamp(s.activeRampStore,{id:"ambiguous",classification:"failure"},{walletAddress:WALLET,now:NOW+1000});assert.equal(s.activeRampStore.get(WALLET).rampId,"ambiguous");
 });
+test("a declined USDC permit frees the wallet once the order fails; a returned signature keeps recovery",async()=>{
+  const s=setup(),q=await buy(s),rejected=Object.assign(new Error("User rejected the request."),{code:4001});
+  const declining={...s.wallet,provider:{request:async a=>{if(a.method==="eth_signTypedData_v4")throw rejected;return s.wallet.provider.request(a);}}};
+  await assert.rejects(s.adapter.registerBuy({quote:q,walletAddress:WALLET,wallet:declining}),e=>Number(e.code)===4001);
+  const declined=s.activeRampStore.get(WALLET);assert.equal(declined.stage,"registered");
+  settleRamp(s.activeRampStore,{id:declined.rampId,classification:"failure"},{walletAddress:WALLET,now:NOW+30*60_000});assert.equal(s.activeRampStore.get(WALLET),null);
+  const t=setup(),submit=t.sdk.client.submitUserTransactions.bind(t.sdk.client);
+  t.sdk.client.submitUserTransactions=async(...args)=>{await submit(...args);throw new Error("update timed out");};
+  await assert.rejects(t.adapter.registerBuy({quote:await buy(t),walletAddress:WALLET,wallet:t.wallet}));
+  const signed=t.activeRampStore.get(WALLET);assert.equal(signed.stage,"signing");
+  settleRamp(t.activeRampStore,{id:signed.rampId,classification:"failure"},{walletAddress:WALLET,now:NOW+30*60_000});assert.equal(t.activeRampStore.get(WALLET).rampId,signed.rampId);
+});
 test("funding intents are wallet-scoped, expire, survive partial funding and authorize nothing",()=>{
   const {storage}=jsonMemory(),store=fundingIntentStore(storage);
   store.save(WALLET,{symbol:"NVDA",amount:"100",expiresAt:NOW+1000});

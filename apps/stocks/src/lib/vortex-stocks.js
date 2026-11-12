@@ -440,7 +440,11 @@ export function createVortexStocksAdapter({
     const permitNonce = record.permitNonce ?? chainNonce;
     if (permitNonce !== chainNonce) throw new StocksRampError("SELL_EXPIRED", SELL_UNVERIFIABLE_PT, { details: { rampId } });
     if (record.permitNonce == null) activeRampStore.save({ ...record, permitNonce });
-    await submitWalletTransactions({ client: sdk, rampId, transactions: own, expect: { ...expect, spenders: [ephemeral], phases: SELL_PHASES, network: sourceNetwork, permitNonce }, beforeSign: async () => { await assertMaintenanceAvailable(getMaintenanceStatus); assertSellDeadline(ramp, activeRampStore.get(walletAddress)); }, from: walletAddress, provider: wallet.provider, chain: sourceChain, publicClient: sourceReader, ...checkpointsFor(walletAddress) })
+    // A USDC record counts as a possibly sent permit (settleRamp) from the moment the wallet prompt
+    // opens. A definite rejection returns no signature, so it restores the stage the record had.
+    const markStage = (stage) => { const current = activeRampStore.get(walletAddress); if (crypto && current?.rampId === rampId) activeRampStore.save({ ...current, stage }); };
+    await submitWalletTransactions({ client: sdk, rampId, transactions: own, expect: { ...expect, spenders: [ephemeral], phases: SELL_PHASES, network: sourceNetwork, permitNonce }, beforeSign: async () => { await assertMaintenanceAvailable(getMaintenanceStatus); assertSellDeadline(ramp, activeRampStore.get(walletAddress)); markStage("signing"); }, from: walletAddress, provider: wallet.provider, chain: sourceChain, publicClient: sourceReader, ...checkpointsFor(walletAddress) })
+      .catch((error) => { if (Number(error?.code) === 4001) markStage(record.stage); throw error; })
       .catch(expireSellOnRefusal(ramp, walletAddress));
     return permitNonce;
   }
@@ -574,7 +578,7 @@ export function createVortexStocksAdapter({
     const { rampProcess, unsignedTransactions } = await withRecovery(recovery, () => sdk.registerRamp(quote.rawQuote, { walletAddress, destinationAddress: walletAddress }));
     // Validate delivery before the wallet grants a permit to the ephemeral.
     assertUsdcDelivery(rampProcess, { record: recovery, walletAddress, network });
-    activeRampStore.save({ ...recovery, rampId: rampProcess.id, stage: "signing" });
+    activeRampStore.save({ ...recovery, rampId: rampProcess.id, stage: "registered" });
     const ramp = toStockRamp(rampProcess, { symbolHint: token.symbol, now: now() });
     onRegistered?.(ramp);
     assertSellDeadline(ramp, activeRampStore.get(walletAddress));
