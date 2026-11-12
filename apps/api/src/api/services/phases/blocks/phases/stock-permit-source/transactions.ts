@@ -1,8 +1,10 @@
 import {
   EphemeralAccountType,
   EvmClientManager,
+  type EvmTransactionData,
   Networks,
   PRESIGNED_EVM_FEE_MULTIPLIER,
+  RELAY_BASE_USDC_ADDRESS,
   type SignedTypedData
 } from "@vortexfi/shared";
 import httpStatus from "http-status";
@@ -10,6 +12,9 @@ import { encodeFunctionData, erc20Abi } from "viem";
 import logger from "../../../../../../config/logger";
 import { APIError } from "../../../../../errors/api-error";
 import { requireAccount } from "../../core/accounts";
+import { getEvmFundingAccount } from "../../core/evm-funding";
+import { encodeEvmTransactionData, prepareBaseCleanupApproval } from "../../core/evm-transactions";
+import { isBaseUsdcRobinhoodRoute } from "../../core/robinhood-stocks";
 import type { PrepareCtx, PreparedPhaseTxs, TxIntent } from "../../core/types";
 import { moneriumPermitTypes, moneriumTransferFromAbi } from "../monerium-self-transfer/contract";
 import type { StockPermitSourceRegistrationFacts } from "./registration";
@@ -129,6 +134,25 @@ export async function prepareStockPermitSourceTxs(
     dependencies.probeFees ? dependencies.probeFees() : EvmClientManager.getInstance().getClient(network).estimateFeesPerGas()
   ]);
   const state: StockPermitSourceState = { amountRaw, owner: facts.owner, token };
+  // The USDC corridor's Base ephemeral holds the user's USDC before the bridge (BUY) and after it (SELL), but no
+  // later phase of that flow signs a Base cleanup. This approval lets an operator refund it and post-processing sweep it.
+  const cleanup: TxIntent[] = isBaseUsdcRobinhoodRoute(ctx.quote)
+    ? [
+        {
+          lane: "cleanup",
+          network: Networks.Base,
+          phase: "baseCleanupUsdc",
+          signer: ephemeral,
+          txData: encodeEvmTransactionData(
+            await prepareBaseCleanupApproval(
+              RELAY_BASE_USDC_ADDRESS as `0x${string}`,
+              getEvmFundingAccount(Networks.Base).address,
+              Networks.Base
+            )
+          ) as EvmTransactionData
+        }
+      ]
+    : [];
   if (!permit) {
     // The quote promised a sale that needs no ETH. A wallet-paid transfer now could leave the seller unable to send it.
     if (ctx.ownMetadata.gasless) {
@@ -139,21 +163,24 @@ export async function prepareStockPermitSourceTxs(
       });
     }
     return {
-      intents: [userTransferIntent(facts.owner, ephemeral, tokenAddress, amountRaw, fees, network)],
+      intents: [userTransferIntent(facts.owner, ephemeral, tokenAddress, amountRaw, fees, network), ...cleanup],
       state: { ...state, isNoPermitFallback: true }
     };
   }
   return {
-    intents: permitIntents(
-      permit,
-      facts.owner,
-      ephemeral,
-      tokenAddress,
-      amountRaw,
-      fees,
-      dependencies.now?.() ?? Date.now(),
-      network
-    ),
+    intents: [
+      ...permitIntents(
+        permit,
+        facts.owner,
+        ephemeral,
+        tokenAddress,
+        amountRaw,
+        fees,
+        dependencies.now?.() ?? Date.now(),
+        network
+      ),
+      ...cleanup
+    ],
     state
   };
 }

@@ -12,7 +12,7 @@ import {
   type UnsignedTx
 } from "@vortexfi/shared";
 import { TypedDataEncoder } from "ethers";
-import { decodeFunctionData, parseAbi, parseEther, parseSignature, parseUnits, parseTransaction } from "viem";
+import { decodeFunctionData, erc20Abi, maxUint256, parseAbi, parseEther, parseSignature, parseUnits, parseTransaction } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import { getBlockMetadata, getBlockState } from "../../api/services/phases/blocks/core/metadata";
@@ -22,6 +22,7 @@ import {
   type StockRouteState
 } from "../../api/services/phases/blocks/phases/stock-route/simulation";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import baseChainPostProcessHandler from "../../api/services/phases/post-process/base-chain-post-process-handler";
 import sequelize from "../../config/database";
 import { config } from "../../config/vars";
 import { up as seedStocks } from "../../database/migrations/089-add-stocks-partner";
@@ -229,6 +230,7 @@ describe("Base-USDC stocks: real executors, simulated chain/providers", () => {
       sourceToken,
       raw,
       byPhase,
+      unsignedTxs: registered.unsignedTxs as UnsignedTx[],
       refundNetwork,
       refundToken,
       refundedRaw: () => refundedRaw,
@@ -262,8 +264,28 @@ describe("Base-USDC stocks: real executors, simulated chain/providers", () => {
       const count = world.evm.sentTransactions.length;
       await phaseProcessor.processRamp(x.rampId);
       expect(world.evm.sentTransactions).toHaveLength(count);
+      // Whatever USDC the flow leaves on the Base ephemeral (Relay fee drift, a fill above the quote) is swept.
+      expect(await baseChainPostProcessHandler.process(final)).toEqual([true, null]);
+      expect(world.evm.erc20Balance(Networks.Base, USDC, x.ephemeral.address)).toBe(0n);
     },
     60000
+  );
+  it.each([RampDirection.BUY, RampDirection.SELL])(
+    "presigns a Base USDC cleanup approval for %s right after the ephemeral's last Base transaction",
+    async (direction) => {
+      const x = await setup(direction);
+      const onBase = x.unsignedTxs.filter((t) => t.network === Networks.Base);
+      const cleanup = onBase.filter((t) => t.phase === "baseCleanupUsdc");
+      expect(cleanup).toHaveLength(1);
+      const lastMain = Math.max(...onBase.filter((t) => t.phase !== "baseCleanupUsdc").map((t) => t.nonce));
+      // A refund lands after relayBridge (BUY) and a payout after destinationTransfer (SELL): both are the last main nonce.
+      expect(cleanup[0].nonce).toBe(lastMain + 1);
+      const tx = parseTransaction(x.byPhase.get("baseCleanupUsdc") as `0x${string}`);
+      expect(tx.to?.toLowerCase()).toBe(USDC.toLowerCase());
+      const { functionName, args } = decodeFunctionData({ abi: erc20Abi, data: tx.data! });
+      expect(functionName).toBe("approve");
+      expect(args).toEqual([getEvmFundingAccount(Networks.Base).address, maxUint256]);
+    }
   );
   it("waits for a partial USDC balance before spending any sponsored gas, then resumes once", async () => {
     const x = await setup(RampDirection.BUY, { funded: false });
