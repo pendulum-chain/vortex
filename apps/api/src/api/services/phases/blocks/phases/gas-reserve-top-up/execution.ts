@@ -1,7 +1,6 @@
 import { EvmClientManager, Networks, type RampPhase } from "@vortexfi/shared";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../../models/rampState.model";
-import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import {
   assertEvmFundingNativeBalance,
@@ -11,6 +10,7 @@ import {
 } from "../../core/evm-funding";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata } from "../../core/metadata";
+import { classifyStockRouteFailure } from "../uniswap-v3-fixed-swap/route";
 import { GasReserveTopUpContext } from "./simulation";
 
 /** Covers a contract wallet's `receive`. Robinhood Chain adds no L1 gas to a plain transfer. */
@@ -110,8 +110,8 @@ export class GasReserveTopUpExecutor extends BasePhaseHandler {
       );
       return state;
     } catch (error) {
-      if (error instanceof PhaseError) throw error;
-      throw this.createRecoverableError(`Gas reserve: ${error instanceof Error ? error.message : String(error)}`);
+      // A reverted send fails its operation for good, so a retry could only stall the ramp without telling anyone.
+      throw classifyStockRouteFailure(error);
     }
   }
 
