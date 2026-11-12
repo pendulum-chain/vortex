@@ -42,7 +42,7 @@ jobs:
           VITE_STOCKS_MODE=live VITE_PRIVY_APP_ID=x bun run build:stocks
           cd apps/stocks/dist/client
           test -e international.html
-          grep -q '"index.html"' .vite/manifest.json
+          test -e index.html
           grep -q 'InternationalApp' .vite/manifest.json
           grep -q 'UsdcFlow' .vite/manifest.json
           ! grep -E 'demo-links|SimulatedUsdcFlow|usdc-checkout' .vite/manifest.json
