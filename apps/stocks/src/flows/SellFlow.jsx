@@ -41,7 +41,7 @@ function WalletAddress({ address }) {
   );
 }
 
-function AmountStep({ token, price, raw, amount, setAmount, pixKey, setPixKey, onNext, busy, error }) {
+function AmountStep({ token, price, raw, amount, setAmount, pixKey, setPixKey, onNext, busy, error, onSellUsdc }) {
   const valid = validSellAmount(amount, raw) && pixKey.trim().length >= 5;
   let estimate = null;
   try { estimate = price?.brl && tokensToWei(amount) > 0n ? Number(String(amount).replace(",", ".")) * price.brl : null; } catch { estimate = null; }
@@ -50,6 +50,7 @@ function AmountStep({ token, price, raw, amount, setAmount, pixKey, setPixKey, o
   return (
     <div className="flow-section">
       <TokenSummary token={token} price={price} />
+      {onSellUsdc && <button className="btn btn--secondary btn--full" onClick={onSellUsdc}>Receber USDC na Base em vez de Pix</button>}
       <div>
         <label className="field-label" htmlFor="sell-amount">Quantos tokens deseja vender?</label>
         <div className="amount-input amount-input--tokens">
@@ -109,7 +110,7 @@ function ReviewStep({ token, quote, guard, reference, pixKey, ethWei, requiredWe
   );
 }
 
-export default function SellFlow({ token, auth, runtime, market, flags, holdingRaw = 0n, resume = null, demoReserveUsed = false, onClose, onSettled }) {
+export default function SellFlow({ token, auth, runtime, market, flags, holdingRaw = 0n, resume = null, demoReserveUsed = false, onClose, onSettled, onSellUsdc }) {
   const { adapter, verification } = runtime;
   const wallet = auth.address;
   const privyDid = auth.user?.privyDid;
@@ -305,7 +306,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
 
   return (
     <Modal title={title} onClose={onClose} wide closeDisabled={closeDisabled} stepKey={step} headerExtra={progress != null ? <FlowProgress labels={PROGRESS} current={progress} /> : null}>
-      {step === "amount" && <AmountStep token={token} price={price} raw={raw} amount={amount} setAmount={setAmount} pixKey={pixKey} setPixKey={setPixKey} onNext={continueFromAmount} busy={busy} error={error} />}
+      {step === "amount" && <AmountStep token={token} price={price} raw={raw} amount={amount} setAmount={setAmount} pixKey={pixKey} setPixKey={setPixKey} onNext={continueFromAmount} onSellUsdc={onSellUsdc} busy={busy} error={error} />}
       {step === "otp" && <OtpStep email={email} setEmail={setEmail} otp={otp} setOtp={setOtp} sent={otpSent} onSend={sendOtp} onVerify={verifyOtp} busy={busy} error={error} demoCode={verification.demoCode} />}
       {step === "kyc" && <KycStep kyc={runtime.kyc} quote={quote} email={email} initialName={auth.user?.name} onApproved={() => { setNotice(""); setStep("review"); }} />}
       {step === "review" && quote && <ReviewStep key={quote.id} token={token} quote={quote} guard={guard} reference={reference} pixKey={pixKey} ethWei={ethWei} requiredWei={requiredWei} address={wallet} onConfirm={execute} onRefresh={refresh} busy={busy} error={error} notice={notice} />}
