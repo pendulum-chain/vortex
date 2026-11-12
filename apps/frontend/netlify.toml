@@ -18,7 +18,7 @@
 # Stocks uses the same Privy app and API proxy. Its independent VITE_STOCKS_MODE flag defaults
 # to live in this build, with the actual ramp disabled unless VITE_STOCKS_RAMP_ENABLED=true.
 # Deploy previews use the explicitly labelled, no-money demo without Privy onboarding.
-# Only non-live builds emit the English USDC simulation, so only they publish /en/stocks/.
+# English /en/stocks/ ships in live too; execution uses VITE_STOCKS_USDC_ENABLED independently.
 # A bad mode fails the Stocks build, and production fails unless the mode is live. Staging runs
 # as a branch deploy on this site, so scope VITE_STOCKS_RAMP_ENABLED per context in the UI
 # rather than overriding branch deploys here.

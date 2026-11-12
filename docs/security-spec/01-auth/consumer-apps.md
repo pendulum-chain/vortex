@@ -1,11 +1,10 @@
 # Consumer app client boundary
 
 Scope: `apps/stocks` and `packages/consumer-kit`. The Stocks pilot is served at `/pt-br/stocks/`
-(Brazil/Pix). Demo and preview builds also publish a simulated English/Base USDC edition at
-`/en/stocks/`; a live build has none. Gold retains its existing implementation. This client boundary
+(Brazil/Pix plus Base USDC), with English/Base USDC at `/en/stocks/` in every build. Gold retains its existing implementation. This client boundary
 adds no server endpoint, signing authority or chain executor. The server's stock corridor is
 specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`, and stays off until
-`STOCKS_ENABLED_DIRECTIONS` lists a direction.
+`STOCKS_ENABLED_DIRECTIONS` (Pix) or `STOCKS_USDC_ENABLED_DIRECTIONS` (Base USDC) lists a direction.
 
 ## Modes and execution
 
@@ -18,12 +17,9 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
   `STOCKS_ENABLED_DIRECTIONS` lists no direction. A failed listing promises neither.
 - Quotes name the token by symbol, which the server's allowlist pins to one contract. The client
   keeps its own pin on the address: the listing above, a buy's delivery and a sell's permit.
-- The USDC checkout is a simulation in demo and preview builds only. It exposes no real payment
-  address or wallet signature. A live build offers no USDC option or link and has no USDC or English
-  chunk, which CI checks on a real live build. Zero Stocks markup is enforced; provider fees are
-  disclosed separately.
+- Demo/preview USDC checkout exposes no real payment address or wallet signature. Live uses the separately gated native Base-USDC adapter; fake balances/payment controls are removed from its bundle. Zero Stocks markup is enforced and provider costs are disclosed separately.
 - If the live flag is turned off, which needs a rebuild, status reads stay available for an existing
-  registered operation, while quotes, registration, resuming a sell and start are refused. A device
+  registered operation, while new quotes and registration are refused. USDC recovery/start for a matching saved wallet-owned operation remain possible with maintenance, delivery, nonce and deadline checks; Pix retains its existing resume/start gating. A device
   retains one active recovery slot per wallet,
   across payment rails. Another wallet cannot replace it or inspect its contents, and is not blocked
   by it. Records stored in the earlier single-slot format remain readable and convert on the next write.
@@ -108,8 +104,7 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
   not restrict scripts (RISK-033). Existing widget proxy routes, Gold paths and real 404 behavior
   remain covered by routing tests.
 - A build fails on an invalid mode or a missing Privy app ID, and a Netlify production build fails
-  unless the mode is `live`. CI builds the live bundle and fails if it has the USDC checkout, the
-  English page or the demo links.
+  unless the mode is `live`. CI builds the live bundle and fails if it has simulated USDC payment controls or demo links; the real USDC flow and English page must remain present.
 - `apps/stocks/tests` covers mode isolation, quote validation, recovery, gas and amount maths, and
   compares the token allowlist with `packages/shared/src/tokens/evm/config.ts`.
   `packages/consumer-kit/tests` covers session binding, storage, signing and checkpoints.
@@ -129,11 +124,11 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
 - Landing pages and signed-out asset pages expose an advisory estimate before login. It uses
   reference prices and explicitly illustrative round placeholder fees, including a full initial ETH
   reserve for an unknown wallet. It never creates a quote, account, deposit address, approval or
-  payment. A live build's preview offers Pix only, and the live Pix gate remains in force.
+  payment. Live previews offer the separately enabled payment methods, and both live execution gates remain in force.
 - What survives sign-in is only a bundled symbol, payment method, validated plain-decimal amount
   and locale, in a Stocks-only per-tab session key. It expires after 30 minutes. Unknown
   assets, methods, locales, fractional BRL, unsafe amounts and future-dated drafts fail closed.
-  English accepts only USDC, and a live build opens nothing for a saved USDC choice. Storage failure
+  English accepts only USDC; a live saved choice still passes its own enablement, availability, session and wallet checks. Storage failure
   keeps the visitor at the preview.
 - OAuth returns may restore this selection; cancelling login or logging out clears it. An
   explicit purchase skips the informational welcome, but never the existing Vortex OTP,
@@ -141,4 +136,12 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
   explicit payment consent. No price, fee, quote identifier, wallet or consent is restored.
 - Checkout mounts only after the runtime and authenticated wallet are ready and the
   device's active-ramp record has been checked. Existing recovery takes precedence
-  over the preview amount and symbol, including an English OAuth return in a non-live build.
+  over the preview amount and symbol, including an English OAuth return.
+
+### Native Base-USDC Stocks checkout
+
+The English edition and Brazilian USDC option ship in live builds behind the independent `VITE_STOCKS_USDC_ENABLED` flag and API `paymentMethod=usdc` discovery. Native USDC is pinned to Base; users fund their own existing Privy wallet. Two-block-confirmed balance reads gate the purchase review, and funding alone grants no authority. Partial/excess/late funds remain in that wallet. A fresh quote requires explicit review before the source permit; no fiat-provider identity/readiness call is made, but the existing Vortex email-code session remains required.
+
+The shared Stocks adapter validates delivery network/token/amount/recipient before authorizing the source. The permit pins Base USDC (BUY) or the allowlisted Robinhood stock (SELL), owner, exact input, current/persisted nonce, expiry, network and client-generated ephemeral spender. A one-operation wallet lock and durable recovery record precede ephemeral persistence/signing. A possibly submitted USDC permit keeps recovery through ambiguous failure responses. Resuming rechecks the same delivery and nonce rather than registering a second operation. Costs keep six-decimal USDC precision, signed price effects and an ETH reserve included once; crypto history must not label proceeds BRL. Demo payment simulation is a separate lazy component removed from live bundles by `USDC_SIMULATION`.
+
+Real Pix bank transfers are outside the available test environment; hermetic provider/chain and recovery tests are required, with bank settlement explicitly unverified.

@@ -6,7 +6,7 @@ import { stocksLocale } from "./international.js";
 
 export const STOCKS_MODES = Object.freeze(["demo", "preview", "live"]);
 
-export const ALLOWED_ENV = Object.freeze(["VITE_STOCKS_MODE", "VITE_STOCKS_RAMP_ENABLED", "VITE_PRIVY_APP_ID",
+export const ALLOWED_ENV = Object.freeze(["VITE_STOCKS_MODE", "VITE_STOCKS_RAMP_ENABLED", "VITE_STOCKS_USDC_ENABLED", "VITE_PRIVY_APP_ID",
   "VITE_SIGNING_SERVICE_PATH", "VITE_STOCKS_NETWORK", "VITE_ROBINHOOD_RPC_URL"]);
 
 const NETWORK_ID = /^[a-z0-9-]+$/;
@@ -50,6 +50,7 @@ export function readConfig(env = {}, origin = globalThis.location?.origin ?? "ht
     rampKind: mode === "live" ? "vortex" : "simulated",
     // Honoured ONLY in live, and only as the exact string "true".
     rampEnabled: mode === "live" && env.VITE_STOCKS_RAMP_ENABLED === "true",
+    usdcEnabled: mode !== "live" || env.VITE_STOCKS_USDC_ENABLED === "true",
     privyAppId: env.VITE_PRIVY_APP_ID || "",
     apiBase: resolveApiBase(env.VITE_SIGNING_SERVICE_PATH, origin),
     network,
@@ -65,6 +66,8 @@ export const config = readConfig(import.meta.env ?? {});
 // behind it. Node tests see no env and get true, like a default (demo) build.
 export const DEMO_TOOLS = import.meta.env?.VITE_STOCKS_MODE !== "preview" && import.meta.env?.VITE_STOCKS_MODE !== "live";
 
-// The simulated USDC checkout and its English edition exist in demo and preview only. The same kind
-// of constant, so a live build drops their chunks; the screens decide by config.mode.
-export const USDC_CHECKOUT = import.meta.env?.VITE_STOCKS_MODE !== "live";
+// Both editions ship in live builds. Execution remains gated by configuration and API discovery.
+export const USDC_CHECKOUT = true;
+
+// Fake balances and incoming-payment controls never ship in a live build.
+export const USDC_SIMULATION = import.meta.env?.VITE_STOCKS_MODE !== "live";

@@ -171,6 +171,7 @@ export function toStockRamp(raw, { symbolHint = null, now = Date.now() } = {}) {
     currentPhase,
     classification,
     brlAmount: String((buy ? raw?.inputAmount : raw?.outputAmount) ?? ""),
+    ...((buy ? raw?.inputCurrency : raw?.outputCurrency) === "USDC" ? { paymentMethod: "usdc", usdcAmount: String((buy ? raw?.inputAmount : raw?.outputAmount) ?? "") } : {}),
     tokenAmount: String((buy ? raw?.outputAmount : raw?.inputAmount) ?? ""),
     depositQrCode: raw?.depositQrCode || null,
     simulatedPix: raw?.simulatedPix === true,
@@ -196,7 +197,7 @@ export function settleRamp(activeRampStore, ramp, { walletAddress, simulated = f
   if (ramp.classification === "success") {
     if (walletAddress) {
       try {
-        activeRampStore.addHistory({ rampId: ramp.id, walletAddress: walletAddress.toLowerCase(), rampType: ramp.direction, symbol: ramp.symbol, brlAmount: ramp.brlAmount, tokenAmount: ramp.tokenAmount, explorerLink: ramp.explorerLink, ...label });
+        activeRampStore.addHistory({ rampId: ramp.id, walletAddress: walletAddress.toLowerCase(), rampType: ramp.direction, symbol: ramp.symbol, brlAmount: ramp.brlAmount, tokenAmount: ramp.tokenAmount, explorerLink: ramp.explorerLink, ...(ramp.paymentMethod === "usdc" ? { paymentMethod: "usdc", usdcAmount: ramp.usdcAmount, brlAmount: null } : {}), ...label });
       } catch { /* history is a convenience; the ramp itself is final */ }
     }
     activeRampStore.clear(ramp.id);
@@ -205,11 +206,12 @@ export function settleRamp(activeRampStore, ramp, { walletAddress, simulated = f
   const active = activeRampStore.get(walletAddress);
   if (active?.rampId !== ramp.id) return;
   const sent = Object.values(active.transactions ?? {}).filter(Boolean);
-  if (sent.length && now < active.createdAt + RETAIN_AFTER_SEND_MS) return;
+  const possiblePermit = active.paymentMethod === "usdc" && ["signing", "ready"].includes(active.stage);
+  if ((sent.length || possiblePermit) && now < active.createdAt + RETAIN_AFTER_SEND_MS) return;
   const hash = sent.filter((value) => TX_HASH.test(value)).at(-1);
   const buy = active.rampType !== "SELL";
   try {
-    activeRampStore.addHistory({ rampId: ramp.id, walletAddress: active.walletAddress, rampType: active.rampType, symbol: active.symbol, brlAmount: buy ? active.inputAmount : active.outputAmount, tokenAmount: buy ? active.outputAmount : active.inputAmount, explorerLink: hash ? explorerUrl(robinhoodChain, "tx", hash) : null, status: "failure", ...label });
+    activeRampStore.addHistory({ rampId: ramp.id, walletAddress: active.walletAddress, rampType: active.rampType, symbol: active.symbol, brlAmount: buy ? active.inputAmount : active.outputAmount, tokenAmount: buy ? active.outputAmount : active.inputAmount, explorerLink: hash ? explorerUrl(robinhoodChain, "tx", hash) : null, status: "failure", ...(active.paymentMethod === "usdc" ? { paymentMethod: "usdc", usdcAmount: buy ? active.inputAmount : active.outputAmount, brlAmount: null } : {}), ...label });
   } catch { return; }
   activeRampStore.clear(ramp.id);
 }

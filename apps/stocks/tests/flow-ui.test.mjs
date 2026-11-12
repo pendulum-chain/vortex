@@ -36,6 +36,7 @@ async function jsxModuleUrl(url) {
   return loaded.get(url.href);
 }
 const flow = async (path) => import(await jsxModuleUrl(new URL(path, import.meta.url)));
+const { default: LiveUsdcFlow } = await flow("../src/flows/LiveUsdcFlow.jsx");
 const { default: BuyFlow } = await flow("../src/flows/BuyFlow.jsx");
 const { default: SellFlow } = await flow("../src/flows/SellFlow.jsx");
 const { KycStep, POLL_RESTART_MS } = await flow("../src/flows/parts.jsx");
@@ -292,7 +293,7 @@ for (const [name, Flow] of [["buy", BuyFlow], ["sell", SellFlow]]) {
     assert.equal(reads, 2);
     assert.match(s.text(), /Não foi possível conectar à Vortex/);
     assert.ok(s.has("Tentar novamente"));
-    assert.equal(document.querySelector(".spinner"), null);
+    assert.equal(Boolean(document.querySelector(".spinner")), false);
   }));
 }
 
@@ -597,7 +598,7 @@ test("signed in, the buy offers USDC only outside a live build, and a saved USDC
     await renderApp(s, LIVE, true);
     await untilText(s, /NVDA/);
     for (let i = 0; i < 20; i += 1) await s.wait();
-    assert.equal(document.querySelector(".sheet"), null);
+    assert.equal(Boolean(document.querySelector(".sheet")), false);
     assert.doesNotMatch(s.text(), /USDC/);
   });
 }));
@@ -614,3 +615,59 @@ test("a resumed record for a token this build no longer bundles still opens its 
     assert.match(s.text(), /DELISTED/);
   } finally { sessionStorage.removeItem(STOCKS_KEYS.simActiveRamp); }
 })));
+
+function liveUsdcFixtures(locale = "en") {
+  const calls = { register: 0, resume: 0, start: 0 }, intents = new Map();
+  let balance = 0n, active = null;
+  const liveQuote = { ...quote, direction: "BUY", usdcAmount: 100, tokenAmount: "0.5", symbol: "NVDA", gasReserve: null,
+    fees: { network: 0.15, service: 0.05, total: 0.20, currency: "USDC" },
+    rawQuote: { inputAmount: "100", outputAmount: "0.5", totalFeeFiat: "0.20", anchorFeeFiat: "0", vortexFeeFiat: "0.05", networkFeeFiat: "0.15", routingStrategy: "direct" } };
+  const ramp = { id: "live-usdc-order", direction: "BUY", symbol: "NVDA", currentPhase: "initial", classification: "processing" };
+  const adapter = { getAvailability: async () => open, quoteBuy: async () => ({ ...liveQuote, expiresAt: Date.now()+60000 }),
+    registerBuy: async ({ onRegistered }) => { calls.register++; active = { rampId: ramp.id }; onRegistered(ramp); throw new Error("rejected"); },
+    resumeSell: async () => { calls.resume++; return ramp; }, startRamp: async () => { calls.start++; }, getRamp: async () => ({...ramp,currentPhase:"relayBridge"}) };
+  const props = fixtures(notReady("not_started"));
+  props.runtime = { ...props.runtime, locale, baseChain: { id:8453 },
+    usdc: { enabled:true, simulated:false, adapter, refreshBalance: async () => balance },
+    fundingIntents: { get: owner => intents.get(owner), save: (owner,value) => intents.set(owner,value), clear: owner => intents.delete(owner) },
+    activeRampStore: { get: () => active } };
+  return { props, calls, intents, fund: value => { balance = value; } };
+}
+
+test("live USDC shows the user's Base address, never simulated payments, and no fiat KYC", () => harness(async s => {
+  const f = liveUsdcFixtures();
+  await s.render(createElement(LiveUsdcFlow, f.props));await s.click("Get quote");
+  assert.doesNotMatch(s.text(), KYC_FORM);await s.check();await s.click("Continue to USDC payment");
+  assert.match(s.text(), /Add Base USDC/);assert.match(s.text(), new RegExp(WALLET));
+  assert.ok(document.querySelector("svg"));assert.doesNotMatch(s.text(), /Simulate incoming|Simulate wallet|Simulation/);
+  assert.equal(f.calls.register,0);assert.equal(f.intents.size,1);
+  assert.equal([...document.querySelectorAll("button")].find(b=>b.textContent==="Review fresh quote").disabled,true);
+  await s.click("Cancel order · keep USDC");assert.equal(f.intents.size,0);assert.equal(f.calls.register,0);
+}));
+test("a cancelled USDC permit resumes the same registered order instead of registering twice", () => harness(async s => {
+  const f = liveUsdcFixtures();f.fund(100000000n);
+  await s.render(createElement(LiveUsdcFlow,f.props));await s.click("Get quote");await s.check();await s.click("Confirm and authorize");
+  assert.equal(f.calls.register,1);assert.match(s.text(),/live-usdc-order/);assert.ok(s.has("Resume order"));
+  await s.click("Resume order");assert.equal(f.calls.register,1);assert.equal(f.calls.resume,1);assert.equal(f.calls.start,1);
+}));
+test("Brazilian live USDC uses Portuguese copy and the same provider costs",()=>harness(async s=>{
+  const f=liveUsdcFixtures("pt-BR");await s.render(createElement(LiveUsdcFlow,f.props));await s.click("Ver cotação");
+  assert.match(s.text(),/Provedores e custos/);assert.match(s.text(),/100,000000 USDC/);assert.match(s.text(),/0,5000 NVDA/);assert.match(s.text(),/Taxas informadas/);assert.doesNotMatch(s.text(),/Illustrative provider/);
+}));
+
+for (const direction of ["BUY", "SELL"]) test(`live USDC ${direction} success displays the asset actually received`,()=>harness(async s=>{
+  const f=liveUsdcFixtures();
+  f.props.direction=direction;f.props.resume={rampId:"completed-usdc-order"};
+  f.props.runtime.usdc.adapter.resumeSell=async()=>({ id:"completed-usdc-order", classification:"success", tokenAmount:"0.5", usdcAmount:"70" });
+  await s.render(createElement(LiveUsdcFlow,f.props));await s.click("Resume order");
+  const receipt=document.querySelector(".result__amount").textContent;
+  assert.match(receipt,direction==="SELL"?/70.*USDC/:/0.5.*NVDA/);
+  assert.doesNotMatch(receipt,direction==="SELL"?/NVDA/:/USDC/);
+}));
+
+test("a saved USDC order remains resumable when new USDC purchases are disabled",()=>harness(async s=>{
+  const f=liveUsdcFixtures();f.props.runtime.usdc.enabled=false;f.props.resume={rampId:"saved-order"};
+  f.props.runtime.usdc.adapter.resumeSell=async()=>({id:"saved-order",classification:"success",tokenAmount:"0.5",usdcAmount:"70"});
+  await s.render(createElement(LiveUsdcFlow,f.props));assert.ok(s.has("Resume order"));await s.click("Resume order");
+  assert.match(s.text(),/Your Stock Tokens have arrived/);assert.doesNotMatch(s.text(),/USDC is coming soon/);
+}));

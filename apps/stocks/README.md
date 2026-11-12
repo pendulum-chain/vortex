@@ -49,37 +49,19 @@ Quote validation rejects an unconfirmed/direct-routing mismatch, any non-zero pa
 malformed breakdowns. Pending registered operations remain recoverable. Progress comes from the
 server's phases (`src/lib/phases.js`; `tests/phases.test.mjs` reads the shared phase union).
 
-## Simulated USDC checkout
+## Base-USDC checkout
 
-Demo and preview builds also simulate paying with USDC on Base: `/pt-br/stocks/` offers it as a
-second option, and an English edition at `/en/stocks/` offers only it, with USD and USDC amounts. A
-live build has none of this: no option, no link, no English page and no chunk. `USDC_CHECKOUT` in
-`src/lib/config.js` drops the code from a live build, the screens decide by `config.mode`, and CI's
-live-bundle step checks the result.
+Both builds publish English at `/en/stocks/` and Brazil at `/pt-br/stocks/`. The English edition uses native USDC on Base; Brazil offers it alongside Pix. The same Privy app, identity and wallet are used for both. The English HTML reuses `/pt-br/stocks/assets/*`, with scoped security/noindex headers.
 
-The simulation does not call a wallet, show a payable address, generate a real QR code or make any
-funding or trading API call. There is no URL or environment flag that turns it into a live adapter.
+Live execution needs the platform/SDK extension deployed first, migration 090, backend `STOCKS_USDC_ENABLED_DIRECTIONS=BUY,SELL`, then frontend `VITE_STOCKS_USDC_ENABLED=true` and a rebuild. The frontend flag is independent of Pix's `VITE_STOCKS_RAMP_ENABLED`. Discovery explicitly uses `paymentMethod=usdc`; a disabled direction, unknown asset or mismatched contract cannot quote. No partner secret is shipped to the browser.
 
-`src/lib/usdc-checkout.js` is the framework-free checkout seam. It uses integer USDC (6 decimals)
-and token (18 decimals) arithmetic, rejects stale prices, stores wallet-bound orders, deduplicates
-receipts, preserves partial/excess/late deposits and settles idempotently after reload. Pix and
-USDC share the existing one-order recovery lock. After funding, a fresh quote must satisfy the
-displayed minimum output (0.5% tolerance) and maximum cost (quoted cost + 5 bps of order value).
-An explicit updated-price approval applies to the displayed quote, not an unseen worse one.
-Reported costs include the reserve exactly once; there is no additional product fee. Simulated
-selling returns Base USDC, which can fund another purchase. Demo holdings share the Pix portfolio;
-preview holdings and USDC funds are wallet-scoped. Crypto history retains USDC units.
+The user previews a quote, transfers **native Base USDC into their own wallet**, then reviews a fresh quote and explicitly authorizes the order. The receive address/QR is that wallet, not a Vortex custody deposit. Balance reads wait two Base confirmations. Funding alone never starts a trade: partial, excess and late deposits stay in the wallet; an expired funding intent can be discarded without affecting funds. A changed price/cost is highlighted and every fresh quote needs approval. No customer ETH purchase is needed: the exact-amount EIP-2612 permit is signed on Base for BUY and Robinhood Chain for SELL, and Vortex sponsors execution gas.
 
-Run `node apps/stocks/scripts/verify-usdc-ui.mjs` against local port 5176 (or set
-`STOCKS_PREVIEW_ORIGIN`) for desktop/mobile English UI, cost disclosure, partial deposits, reload
-recovery, cross-payment locking, buy/sell, balance reuse and the Brazil payment choice. It blocks
-real funding, trading and price APIs. Reports default to `/tmp/stocks-usdc-ui-qa`.
+`vortex-stocks.js` reuses the existing SDK/recovery/maintenance/nonce policies for both payment methods. Before granting a source permit, it pins the delivery token, chain, wallet, quote, input and exact output, plus the client-generated ephemeral spender. Recovery is saved before keys/signatures. A rejected signature or uncertain start resumes the same order; a potentially sent authorization retains recovery even if a failed status arrives. Pix and registered USDC operations share the one-operation wallet lock. History retains USDC units.
 
-A non-live build emits the English HTML alongside the Brazil app, and it reuses the
-`/pt-br/stocks/assets/*` bundles. Netlify copies it to `/en/stocks/index.html` when the build emitted
-it, under scoped security and noindex headers. Vite maps the same English path locally. No separate
-login, Privy app or wallet is created for English users. Base is added to Stocks' supported chains
-only; Gold is unchanged.
+Provider costs distinguish reported fees from signed execution-price effects, include the ETH reserve once, and show zero additional product fee. Pix quotes may separately show the configured Nabla DEX-fee subsidy; the Nabla row is already net of it. USDC bypasses both Pix and Nabla and receives no Nabla subsidy. Sending wallets/exchanges may charge independently.
+
+Demo/preview keep `usdc-checkout.js`'s simulated balances and payment controls. They make no funding/trading calls and show no payable address. `USDC_SIMULATION` removes those controls and their lazy chunk from live builds. `node apps/stocks/scripts/verify-usdc-ui.mjs` still checks the demo UI; Node DOM tests additionally exercise the live UI with synthetic adapters. No real Pix bank transfer is required for these checks, and real bank settlement remains unverified.
 
 ## Local run
 
@@ -115,7 +97,7 @@ From the repository root, run `bun run test:stocks`, `bun run test:consumer-kit`
 stale-price rejection, quote expiry, recovery, wallet signing limits, and the gated live ramp.
 `bun run build:stocks` builds the demo by default. CI also runs
 `VITE_STOCKS_MODE=live VITE_PRIVY_APP_ID=x bun run build:stocks` and fails if the result has the
-USDC checkout, the English page or the demo links. A build fails on a bad `VITE_STOCKS_MODE`, and a
+simulated USDC checkout or demo links; the real USDC flow and English entry must be present. A build fails on a bad `VITE_STOCKS_MODE`, and a
 Netlify production build fails unless the mode is `live`.
 
 `apps/api/src/tests/corridors/stocks-app.e2e.test.ts` runs this app's real adapter, wallet kit and
@@ -126,3 +108,5 @@ Playwright dependency and locally installed Chrome to check desktop and mobile l
 a complete simulated purchase. It blocks real ramp endpoints and requires the demo to produce
 no payment code. Screenshots and a machine-readable report go to `/tmp/vortex-stocks-ui-qa`;
 override that directory with `STOCKS_QA_OUTPUT`.
+
+The Stocks test command runs files sequentially with a 256 MB Node heap. DOM assertions compare booleans/values rather than formatting full DOM/React objects on failure. For local builds and broader checks, use a bounded process monitor and avoid concurrent validation jobs.

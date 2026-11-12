@@ -13,7 +13,8 @@
 // Vortex can skip the reserve for a funded wallet; a quote may then carry gasReserveAmount/Currency/
 // Fiat/Usd, already inside the network and total fees. Without those fields nothing changes.
 import { RAMP_START_WINDOW_MS, createApi, createVortexClient, formatBRL, getRampWithUnsignedTxs, pollRamp, robinhoodChain, startRampSafely, submitWalletTransactions, withConsumerLock } from "@vortexfi/consumer-kit";
-import { decodeFunctionData, formatUnits, parseAbi, parseUnits } from "viem";
+import { createPublicClient, decodeFunctionData, formatUnits, http, parseAbi, parseUnits } from "viem";
+import { base } from "viem/chains";
 import { gasReserveFeeProblem, gasShortfallPt, networkFeeWithoutReserve, parseGasReserve } from "./gas-reserve.js";
 import { STOCK_TOKEN_ABI, createRobinhoodClient, readTokenBalance } from "./portfolio.js";
 import { providerCostProblem } from "./provider-costs.js";
@@ -43,6 +44,8 @@ const BUY_UNVERIFIABLE_PT = "Esta compra não confere com a cotação, por isso 
 // sale's permits. That bounds what the wallet signs, not what the API may ask the ephemeral to
 // presign, so the wallet-side limit is this token and this amount.
 const SELL_PHASES = Object.freeze({ stockPermitTransfer: Object.freeze(["permit"]) });
+
+export const BASE_USDC = Object.freeze({ address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 });
 
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
@@ -80,18 +83,21 @@ const sameId = (a, b) => Boolean(a) && Boolean(b) && String(a).toLowerCase() ===
  * @param {{direction:"BUY"|"SELL", network:string, id:string, requested:number|string, now?:number}} expected
  *   requested: BUY the BRL amount, SELL the decimal token amount
  */
-export function validateStockQuote(quote, { direction, network, id, requested, now = Date.now() }) {
+export function validateStockQuote(quote, { direction, network, id, requested, now = Date.now(), paymentMethod = "pix" }) {
+  const crypto = paymentMethod === "usdc";
+  const funding = crypto ? "base" : "pix", currency = crypto ? "USDC" : "BRL";
   const buy = direction === "BUY";
   const route = quote?.rampType === direction && quote.network === network
-    && quote.from === (buy ? "pix" : network) && quote.to === (buy ? network : "pix")
-    && (buy ? quote.inputCurrency === "BRL" && quote.outputCurrency === id : quote.inputCurrency === id && quote.outputCurrency === "BRL");
+    && quote.from === (buy ? funding : network) && quote.to === (buy ? network : funding)
+    && (buy ? quote.inputCurrency === currency && quote.outputCurrency === id : quote.inputCurrency === id && quote.outputCurrency === currency);
+  if (crypto && (quote.paymentMethod !== "usdc" || Number(quote.anchorFeeFiat) !== 0 || quote.nablaFeeSubsidy != null || (quote.providerCosts != null && (!Array.isArray(quote.providerCosts) || quote.providerCosts.some(c => ["ramp", "conversion"].includes(c.id) && Number(c.amountFiat) !== 0))))) throw new StocksRampError("WRONG_ROUTE");
   if (!route) throw new StocksRampError("WRONG_ROUTE");
   // A field of the backend's answer, not a client routing hint it could ignore. Existing registered
   // ramps can still be recovered.
   if (quote.routingStrategy !== "direct") throw new StocksRampError("WRONG_ROUTE", "A rota direta ainda não foi confirmada pela Vortex. Tente novamente mais tarde.");
   // Only a permit can be signed here (SELL_PHASES). Registering any other sell would hold this
   // wallet's one operation for up to an hour, for a request the wallet then refuses.
-  if (!buy && quote.gasless !== true) throw new StocksRampError("WRONG_ROUTE", "A venda deste token não está disponível agora. Nada foi registrado e seus tokens continuam na sua carteira. Tente novamente mais tarde.");
+  if ((!buy || crypto) && quote.gasless !== true) throw new StocksRampError("WRONG_ROUTE", "A venda deste token não está disponível agora. Nada foi registrado e seus tokens continuam na sua carteira. Tente novamente mais tarde.");
   const expiresAt = Date.parse(quote.expiresAt);
   const tokenAmount = canonicalAmount(buy ? quote.outputAmount : quote.inputAmount);
   const output = Number(quote.outputAmount);
@@ -100,9 +106,14 @@ export function validateStockQuote(quote, { direction, network, id, requested, n
     if (quote[field] == null || String(quote[field]).trim() === "" || typeof quote[field] === "boolean" || !Number.isFinite(Number(quote[field])) || Number(quote[field]) < 0) throw new StocksRampError("INVALID_FEES");
   }
   const componentTotal = Number(quote.networkFeeFiat) + Number(quote.processingFeeFiat) + Number(quote.partnerFeeFiat);
-  if (Math.abs(componentTotal - Number(quote.totalFeeFiat)) > 0.010000001 || (buy && Number(quote.totalFeeFiat) >= Number(quote.inputAmount))) throw new StocksRampError("INVALID_FEES");
-  if (quote.feeCurrency !== "BRL") throw new StocksRampError("INVALID_FEES", "As taxas não estão em reais.");
+  if (Math.abs(componentTotal - Number(quote.totalFeeFiat)) > (crypto ? 0.0000011 : 0.010000001) || (buy && Number(quote.totalFeeFiat) >= Number(quote.inputAmount))) throw new StocksRampError("INVALID_FEES");
+  if (quote.feeCurrency !== currency) throw new StocksRampError("INVALID_FEES", "As taxas não estão em reais.");
   if (Number(quote.partnerFeeFiat) !== 0) throw new StocksRampError("INVALID_FEES", "Esta cotação inclui uma taxa adicional do produto. Atualize a cotação: este produto não cobra esse adicional.");
+  if (quote.nablaFeeSubsidy != null) {
+    const subsidy = quote.nablaFeeSubsidy;
+    if (crypto || subsidy.currency !== currency || ![subsidy.amountFiat, subsidy.amountUsd, subsidy.chargedFeeBps, subsidy.effectiveFeeBps].every(v => /^\d+(?:\.\d+)?$/.test(String(v)) && Number.isFinite(Number(v)))
+      || Number(subsidy.effectiveFeeBps) > Number(subsidy.chargedFeeBps) || Number(subsidy.chargedFeeBps) > 10000) throw new StocksRampError("INVALID_FEES");
+  }
   let reserve;
   try { reserve = parseGasReserve(quote); } catch { throw new StocksRampError("INVALID_FEES"); }
   if (reserve && (!buy || gasReserveFeeProblem(quote, reserve))) throw new StocksRampError("INVALID_FEES");
@@ -123,7 +134,7 @@ export function normalizeStockQuote(raw, token, direction) {
   const tokenAmount = canonicalAmount(buy ? raw.outputAmount : raw.inputAmount);
   const brlAmount = Number(buy ? raw.inputAmount : raw.outputAmount);
   const gasReserve = buy ? parseGasReserve(raw) : null;
-  const fees = { network: networkFeeWithoutReserve(raw.networkFeeFiat, gasReserve), service: Number(raw.processingFeeFiat) + Number(raw.partnerFeeFiat), total: Number(raw.totalFeeFiat), currency: "BRL" };
+  const fees = { network: networkFeeWithoutReserve(raw.networkFeeFiat, gasReserve, raw.feeCurrency === "USDC" ? 6 : 2), service: Number(raw.processingFeeFiat) + Number(raw.partnerFeeFiat), total: Number(raw.totalFeeFiat), currency: "BRL" };
   const tokens = Number(tokenAmount);
   return {
     id: String(raw.id),
@@ -133,7 +144,8 @@ export function normalizeStockQuote(raw, token, direction) {
     brlAmount,
     tokenAmount,
     tokenAmountWei: parseUnits(tokenAmount, 18).toString(),
-    fees,
+    fees: { ...fees, currency: raw.feeCurrency },
+    ...(raw.feeCurrency === "USDC" ? { paymentMethod: "usdc", usdcAmount: brlAmount } : {}),
     impliedBrlPerToken: tokens > 0 ? (buy ? brlAmount - fees.total : brlAmount + fees.total) / tokens : Number.NaN,
     expiresAt: Date.parse(raw.expiresAt),
     gasless: raw.gasless === true,
@@ -186,6 +198,18 @@ export function assertRegisteredBuy(rampProcess, { quote, token, walletAddress }
       && rampProcess.quoteId === quote.id && Number(rampProcess.inputAmount) === quote.brlAmount;
   } catch { /* no transfer, or not a token transfer: refused below */ }
   if (!matches) throw new StocksRampError("WRONG_ROUTE", BUY_UNVERIFIABLE_PT, { details: { rampId: rampProcess?.id ?? null } });
+}
+
+export function assertUsdcDelivery(rampProcess, { record, walletAddress, network = "robinhood" }) {
+  const buy = record.rampType === "BUY";
+  const transfers = (rampProcess?.unsignedTxs || []).filter(tx => tx?.phase === "destinationTransfer");
+  try {
+    if (transfers.length !== 1) throw new Error();
+    const tx = transfers[0], { args: [recipient, amount] } = decodeFunctionData({ abi: ERC20_TRANSFER, data: tx.txData.data });
+    if (tx.network !== (buy ? network : "base") || !sameId(tx.txData.to, buy ? record.tokenAddress : BASE_USDC.address)
+      || !sameId(recipient, walletAddress) || amount !== parseUnits(String(record.outputAmount), buy ? 18 : 6)
+      || rampProcess.quoteId !== record.quoteId || canonicalAmount(rampProcess.inputAmount) !== canonicalAmount(record.inputAmount)) throw new Error();
+  } catch { throw new StocksRampError("WRONG_ROUTE", "Delivery does not match this order. No new authorization was signed. Keep the operation reference for support."); }
 }
 
 const devWarn = (message) => { if (import.meta.env?.DEV) console.warn(message); };
@@ -297,8 +321,11 @@ export function createVortexStocksAdapter({
   session, kyc, activeRampStore, ephemeralStore, rpcOverride = "",
   api, createClient = createVortexClient, readBalance, tokens = STOCK_TOKENS,
   now = Date.now, availabilityTtlMs = AVAILABILITY_TTL_MS, warn = devWarn,
-  readMaintenance,
+  readMaintenance, paymentMethod = "pix", baseClient,
 } = {}) {
+  const crypto = paymentMethod === "usdc";
+  let baseReader = baseClient;
+  const fundingReader = () => baseReader ?? (baseReader = createPublicClient({ chain: base, transport: http() }));
   const getMaintenanceStatus = readMaintenance ?? createMaintenanceReader({ apiBase, api });
   let listingApi = api ?? null;
   let clientPromise = null;
@@ -308,6 +335,10 @@ export function createVortexStocksAdapter({
   let chainReader = null;
 
   const requireEnabled = () => { if (!enabled) throw new StocksRampError("STOCKS_RAMP_NOT_ENABLED"); };
+  function requireOwnedUsdcRecovery(rampId, walletAddress) {
+    const record = walletAddress ? activeRampStore.get(walletAddress) : null;
+    if (!crypto || record?.paymentMethod !== "usdc" || record.rampId !== rampId || !sameId(record.walletAddress, walletAddress)) requireEnabled();
+  }
   const findAllowed = (symbol) => {
     const token = tokens.find((item) => item.symbol === String(symbol || "").toUpperCase());
     if (!token) throw new StocksRampError("TOKEN_NOT_ALLOWED");
@@ -388,7 +419,7 @@ export function createVortexStocksAdapter({
   // The API's own refusal past the start window, worded for a sell when it is this device's sell.
   const expireSellOnRefusal = (ramp, walletAddress) => (error) => {
     const record = activeRampStore.get(walletAddress);
-    if (error?.message === START_WINDOW_EXCEEDED && record?.rampId === ramp.id && record.rampType === "SELL") expireSell(ramp, record);
+    if (error?.message === START_WINDOW_EXCEEDED && record?.rampId === ramp.id && (record.rampType === "SELL" || record.paymentMethod === "usdc")) expireSell(ramp, record);
     throw error;
   };
 
@@ -399,13 +430,17 @@ export function createVortexStocksAdapter({
     const own = ownRequests(unsignedTxs, walletAddress);
     // Every stock sell has exactly one user request, and the API withholds it until presigning passed.
     if (own.length !== 1) throw new StocksRampError("WRONG_ROUTE", "A carteira não recebeu o pedido desta venda. Consulte o suporte com o código da operação.");
-    const chainNonce = String(await robinhoodReader(wallet).readContract({ address: expect.token, abi: STOCK_TOKEN_ABI, functionName: "nonces", args: [walletAddress] }));
+    const baseFunding = crypto && record.rampType === "BUY";
+    const sourceChain = baseFunding ? base : robinhoodChain;
+    const sourceReader = baseFunding ? fundingReader() : robinhoodReader(wallet);
+    const sourceNetwork = baseFunding ? "base" : network;
+    const chainNonce = String(await sourceReader.readContract({ address: expect.token, abi: STOCK_TOKEN_ABI, functionName: "nonces", args: [walletAddress] }));
     // Pinned before the first signature. A token past it while the sale has not started means an
     // earlier permit of this sale was used: nothing more is signed.
     const permitNonce = record.permitNonce ?? chainNonce;
     if (permitNonce !== chainNonce) throw new StocksRampError("SELL_EXPIRED", SELL_UNVERIFIABLE_PT, { details: { rampId } });
     if (record.permitNonce == null) activeRampStore.save({ ...record, permitNonce });
-    await submitWalletTransactions({ client: sdk, rampId, transactions: own, expect: { ...expect, spenders: [ephemeral], phases: SELL_PHASES, network, permitNonce }, beforeSign: async () => { await assertMaintenanceAvailable(getMaintenanceStatus); assertSellDeadline(ramp, activeRampStore.get(walletAddress)); }, from: walletAddress, provider: wallet.provider, chain: robinhoodChain, publicClient: robinhoodReader(wallet), ...checkpointsFor(walletAddress) })
+    await submitWalletTransactions({ client: sdk, rampId, transactions: own, expect: { ...expect, spenders: [ephemeral], phases: SELL_PHASES, network: sourceNetwork, permitNonce }, beforeSign: async () => { await assertMaintenanceAvailable(getMaintenanceStatus); assertSellDeadline(ramp, activeRampStore.get(walletAddress)); }, from: walletAddress, provider: wallet.provider, chain: sourceChain, publicClient: sourceReader, ...checkpointsFor(walletAddress) })
       .catch(expireSellOnRefusal(ramp, walletAddress));
     return permitNonce;
   }
@@ -430,7 +465,7 @@ export function createVortexStocksAdapter({
     if (availabilityInFlight) return availabilityInFlight;
     if (!listingApi) listingApi = createApi({ apiBase });
     availabilityInFlight = Promise.resolve()
-      .then(() => listingApi(`/v1/supported-cryptocurrencies?network=${encodeURIComponent(network)}`, { method: "GET" }))
+      .then(() => listingApi(`/v1/supported-cryptocurrencies?network=${encodeURIComponent(network)}${crypto ? "&paymentMethod=usdc" : ""}`, { method: "GET" }))
       .then((response) => {
         const map = mapAvailability(response, { network, tokens, warn });
         availabilityCache = { at: now(), map };
@@ -456,8 +491,8 @@ export function createVortexStocksAdapter({
     const amount = Number(brlAmount);
     if (!Number.isFinite(amount) || amount <= 0) throw new StocksRampError("INVALID_QUOTE", "Informe um valor válido.");
     const sdk = await client();
-    const raw = await sdk.createQuote(buildStockBuyRequest({ network, outputId: token.symbol, brlAmount: amount, destinationAddress: walletAddress }));
-    validateStockQuote(raw, { direction: "BUY", network, id: token.symbol, requested: amount, now: now() });
+    const raw = await sdk.createQuote(crypto ? { rampType: "BUY", from: "base", to: network, network, inputCurrency: "USDC", outputCurrency: token.symbol, inputAmount: String(brlAmount), destinationAddress: walletAddress } : buildStockBuyRequest({ network, outputId: token.symbol, brlAmount: amount, destinationAddress: walletAddress }));
+    validateStockQuote(raw, { direction: "BUY", network, id: token.symbol, requested: amount, now: now(), paymentMethod });
     return normalizeStockQuote(raw, token, "BUY");
   }
 
@@ -469,8 +504,8 @@ export function createVortexStocksAdapter({
     if (wei <= 0n) throw new StocksRampError("INVALID_QUOTE", "Informe uma quantidade válida de tokens.");
     const amount = formatUnits(wei, 18);
     const sdk = await client();
-    const raw = await sdk.createQuote(buildStockSellRequest({ network, inputId: token.symbol, tokenAmount: amount }));
-    validateStockQuote(raw, { direction: "SELL", network, id: token.symbol, requested: amount, now: now() });
+    const raw = await sdk.createQuote(crypto ? { rampType: "SELL", from: network, to: "base", network, inputCurrency: token.symbol, outputCurrency: "USDC", inputAmount: amount } : buildStockSellRequest({ network, inputId: token.symbol, tokenAmount: amount }));
+    validateStockQuote(raw, { direction: "SELL", network, id: token.symbol, requested: amount, now: now(), paymentMethod });
     return normalizeStockQuote(raw, token, "SELL");
   }
 
@@ -479,7 +514,8 @@ export function createVortexStocksAdapter({
     return findAllowed(quote.symbol);
   }
 
-  async function registerBuy({ quote, walletAddress }) {
+  async function registerBuy({ quote, walletAddress, wallet, onRegistered }) {
+    if (crypto) return registerUsdc({ quote, walletAddress, wallet, onRegistered });
     requireEnabled();
     const token = assertOwnQuote(quote, "BUY");
     if (!walletAddress) throw new StocksRampError("WALLET_NOT_READY");
@@ -496,6 +532,7 @@ export function createVortexStocksAdapter({
   }
 
   async function registerSell({ quote, walletAddress, pixKey, wallet, onRegistered }) {
+    if (crypto) return registerUsdc({ quote, walletAddress, wallet, onRegistered });
     requireEnabled();
     const token = assertOwnQuote(quote, "SELL");
     if (!walletAddress || !wallet?.provider) throw new StocksRampError("WALLET_NOT_READY");
@@ -519,6 +556,40 @@ export function createVortexStocksAdapter({
     return ramp;
   }
 
+  async function registerUsdc({ quote, walletAddress, wallet, onRegistered }) {
+    requireEnabled();
+    const token = assertOwnQuote(quote, quote.direction);
+    validateStockQuote(quote.rawQuote, { direction: quote.direction, network, id: token.symbol, requested: quote.direction === "BUY" ? quote.usdcAmount : quote.tokenAmount, paymentMethod, now: now() });
+    if (!walletAddress || !wallet?.provider) throw new StocksRampError("WALLET_NOT_READY");
+    assertNoOtherActiveRamp(activeRampStore, walletAddress);
+    await assertMaintenanceAvailable(getMaintenanceStatus);
+    const buy = quote.direction === "BUY";
+    const input = buy ? String(quote.rawQuote.inputAmount) : quote.tokenAmount;
+    const sourceToken = buy ? BASE_USDC : token;
+    const balance = buy ? await readBaseBalance(walletAddress) : await (readBalance ?? defaultReadBalance)({ owner: walletAddress, token, wallet });
+    const amountRaw = parseUnits(input, buy ? 6 : 18);
+    if (BigInt(balance) < amountRaw) throw new StocksRampError("INSUFFICIENT_BALANCE");
+    const recovery = { walletAddress, inputAmount: input, outputAmount: String(quote.rawQuote.outputAmount), rampType: quote.direction, paymentMethod: "usdc", symbol: token.symbol, tokenAddress: token.address, quoteId: quote.id, createdAt: now() };
+    const sdk = await client();
+    const { rampProcess, unsignedTransactions } = await withRecovery(recovery, () => sdk.registerRamp(quote.rawQuote, { walletAddress, destinationAddress: walletAddress }));
+    // Validate delivery before the wallet grants a permit to the ephemeral.
+    assertUsdcDelivery(rampProcess, { record: recovery, walletAddress, network });
+    activeRampStore.save({ ...recovery, rampId: rampProcess.id, stage: "signing" });
+    const ramp = toStockRamp(rampProcess, { symbolHint: token.symbol, now: now() });
+    onRegistered?.(ramp);
+    assertSellDeadline(ramp, activeRampStore.get(walletAddress));
+    const permitNonce = await signOnRobinhoodChain(sdk, rampProcess.id, unsignedTransactions, walletAddress, wallet, { token: sourceToken.address, maxAmountWei: amountRaw }, ramp);
+    activeRampStore.save({ ...recovery, rampId: rampProcess.id, stage: "ready", permitNonce });
+    return ramp;
+  }
+
+  async function readBaseBalance(owner) {
+    // Two confirmations prevent an unconfirmed incoming transfer from enabling a purchase.
+    const reader = fundingReader(), head = await reader.getBlockNumber();
+    if (head < 2n) return 0n;
+    return reader.readContract({ address: BASE_USDC.address, abi: STOCK_TOKEN_ABI, functionName: "balanceOf", args: [owner], blockNumber: head - 2n });
+  }
+
   // Resume a sell that stopped between registration and start (reload, closed tab, rejected
   // confirmation). Checkpointed hashes are never broadcast again; once the ramp has left "initial"
   // the signatures were accepted and nothing is signed again. Past (or within a minute of) the start
@@ -537,16 +608,17 @@ export function createVortexStocksAdapter({
   // Without this device's record nothing pins the token, amount or spender, so nothing is signed,
   // and the API can bring that state about itself: one failed status clears a sell with no checkpoints.
   async function resumeSell({ rampId, walletAddress, wallet }) {
-    requireEnabled();
+    if (crypto && !enabled) requireOwnedUsdcRecovery(rampId, walletAddress); else requireEnabled();
     if (!walletAddress || !wallet?.provider) throw new StocksRampError("WALLET_NOT_READY");
     const raw = await getRampWithUnsignedTxs(session, rampId);
     const record = activeRampStore.get(walletAddress);
     const ownRecord = record?.rampId === rampId ? record : null;
-    const base = { walletAddress, inputAmount: raw?.inputAmount ?? ownRecord?.inputAmount, outputAmount: raw?.outputAmount ?? ownRecord?.outputAmount, rampType: "SELL", symbol: ownRecord?.symbol ?? toStockRamp(raw).symbol, tokenAddress: ownRecord?.tokenAddress, ephemeralEvmAddress: ownRecord?.ephemeralEvmAddress, permitNonce: ownRecord?.permitNonce, createdAt: ownRecord?.createdAt ?? now() };
+    const base = { walletAddress, inputAmount: raw?.inputAmount ?? ownRecord?.inputAmount, outputAmount: raw?.outputAmount ?? ownRecord?.outputAmount, rampType: ownRecord?.rampType ?? "SELL", ...(crypto ? { paymentMethod: "usdc", quoteId: ownRecord?.quoteId } : {}), symbol: ownRecord?.symbol ?? toStockRamp(raw).symbol, tokenAddress: ownRecord?.tokenAddress, ephemeralEvmAddress: ownRecord?.ephemeralEvmAddress, permitNonce: ownRecord?.permitNonce, createdAt: ownRecord?.createdAt ?? now() };
     const ramp = toStockRamp(raw, { symbolHint: base.symbol, now: now() });
     if (ramp.classification === "success" || ramp.classification === "failure") return settle(ramp, walletAddress);
     if (!ownRecord && ramp.currentPhase === "initial") throw new StocksRampError("SELL_EXPIRED", SELL_UNVERIFIABLE_PT, { details: { rampId } });
     if (ramp.currentPhase === "initial") {
+      if (crypto) assertUsdcDelivery(raw, { record: ownRecord, walletAddress, network });
       const ready = ownRecord.stage === "ready";
       // Left to sign: typed data, or a transaction without a checkpointed hash.
       const unsigned = !ready && ownRequests(raw?.unsignedTxs, walletAddress).some((tx) => !ownRecord.transactions?.[tx?.phase]);
@@ -558,7 +630,8 @@ export function createVortexStocksAdapter({
         // The most this sell may move: the amount recorded at registration, never the server's.
         const amount = canonicalAmount(ownRecord.inputAmount);
         if (amount === null) throw new StocksRampError("INVALID_QUOTE", "Não foi possível conferir a quantidade desta venda. Consulte o suporte com o código da operação.");
-        const expect = { token: ownRecord.tokenAddress, maxAmountWei: parseUnits(amount, 18) };
+        const baseFunding = crypto && ownRecord.rampType === "BUY";
+        const expect = { token: baseFunding ? BASE_USDC.address : ownRecord.tokenAddress, maxAmountWei: parseUnits(amount, baseFunding ? 6 : 18) };
         base.permitNonce = await signOnRobinhoodChain(await client(), rampId, raw?.unsignedTxs, walletAddress, wallet, expect, ramp);
       }
     }
@@ -576,7 +649,7 @@ export function createVortexStocksAdapter({
   }
 
   async function startRamp(rampId, { walletAddress } = {}) {
-    requireEnabled();
+    if (crypto && !enabled) requireOwnedUsdcRecovery(rampId, walletAddress); else requireEnabled();
     await assertMaintenanceAvailable(getMaintenanceStatus);
     return toStockRamp(await startRampSafely(await client(), rampId).catch(expireSellOnRefusal({ id: rampId }, walletAddress)), { now: now() });
   }
@@ -597,6 +670,8 @@ export function createVortexStocksAdapter({
   return {
     getMaintenanceStatus,
     kind: "vortex",
+    paymentMethod,
+    readBaseBalance,
     enabled: Boolean(enabled),
     requiresVortexSession: true,
     getAvailability,
