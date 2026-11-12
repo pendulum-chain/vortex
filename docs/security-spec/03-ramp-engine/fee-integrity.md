@@ -104,8 +104,10 @@ always occur only after all user-facing phases is incorrect.
 - The quote applies `EVM_DESTINATION_NETWORK_FEE_MARGIN_BPS` once and persists the
   resulting absolute `maximumFeePerGas`, funding/payout gas limits, and Base L1
   maxima. Runtime acceptance never reconstructs a ceiling from current deployment
-  configuration. Arbitrum gas limits add the NodeInterface parent-chain poster-gas
-  component; a plain transfer is not assumed to fit in 21,000 gas there.
+  configuration. Nitro (Arbitrum, Robinhood Chain) gas limits add ten times the
+  NodeInterface parent-chain poster-gas component instead of the fee margin: Nitro
+  counts that cost in L2 gas units that move with its repriced L1 fee estimate, and a
+  plain transfer is not assumed to fit in 21,000 gas there.
 - The persisted-metadata read boundary validates every funding-program-v2 field before
   treasury arithmetic: the version and EVM network, transfer kind, positive bounded
   decimal-integer fee/gas fields, positive execution-fee decimal, and paired Base-family
