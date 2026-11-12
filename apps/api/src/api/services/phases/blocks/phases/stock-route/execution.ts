@@ -229,10 +229,12 @@ export class RelayBridgeExecutor extends BasePhaseHandler {
   ): Promise<void> {
     const { network, requiredRaw, token } = route.arrival;
     let lastObservation: string;
+    let lastStatus: RelayIntentStatus["status"] | undefined;
     do {
       throwIfAborted(signal);
       const status = await this.readStatus(route, dependencies, signal);
       this.assertNotRefunded(route, status);
+      lastStatus = status?.status;
       lastObservation = status?.status ?? "status unavailable";
       if (!status || status.status === "success") {
         const balance = await dependencies.getBalance(network, token, route.ephemeral);
@@ -250,6 +252,12 @@ export class RelayBridgeExecutor extends BasePhaseHandler {
       await dependencies.sleep(FILL_POLL_INTERVAL_MS, signal);
     } while (dependencies.now() < pollUntil);
 
+    // Relay reports these while it neither fills nor refunds, so another retry would only wait without telling anyone.
+    if (lastStatus === "failure" || lastStatus === "unknown") {
+      throw this.createReconciliationRequiredError(
+        `Relay request ${route.requestId} neither filled nor refunded within the poll window (${lastObservation})`
+      );
+    }
     throw this.createRecoverableError(`Relay request ${route.requestId} has not filled yet (${lastObservation})`);
   }
 

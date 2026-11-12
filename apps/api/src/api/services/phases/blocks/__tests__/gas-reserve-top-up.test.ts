@@ -162,25 +162,30 @@ describe("GasReserveTopUpExecutor", () => {
     expect(journal.rows.get("gas-reserve-top-up")?.status).toBe("confirmed");
   });
 
-  it.each([
-    ["a mined revert", { waitForReceipt: async () => ({ status: "reverted" as const }) }],
-    [
-      "an RPC failure",
-      {
-        getNativeBalance: async () => {
-          throw new TypeError("rpc returned nonsense");
-        }
-      }
-    ]
-  ])("never fails the ramp on %s, and does not repeat a mined send", async (_label, overrides) => {
+  it("retries an RPC failure without failing the ramp or sending", async () => {
     quoteWith({ amountRaw: AMOUNT.toString() });
-    const { executor, sends } = fakeChain(overrides);
+    const { executor, sends } = fakeChain({
+      getNativeBalance: async () => {
+        throw new TypeError("rpc returned nonsense");
+      }
+    });
     const state = rampState();
 
     await expect(executor.execute(state)).rejects.toBeInstanceOf(RecoverablePhaseError);
     await expect(executor.execute(state)).rejects.toBeInstanceOf(RecoverablePhaseError);
 
-    expect(sends.length).toBeLessThanOrEqual(1);
+    expect(sends).toHaveLength(0);
+  });
+
+  it("pauses for an operator on a mined revert, and stays paused on re-entry without sending again", async () => {
+    quoteWith({ amountRaw: AMOUNT.toString() });
+    const { executor, sends } = fakeChain({ waitForReceipt: async () => ({ status: "reverted" as const }) });
+    const state = rampState();
+
+    await expect(executor.execute(state)).rejects.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    await expect(executor.execute(state)).rejects.toBeInstanceOf(ReconciliationRequiredPhaseError);
+
+    expect(sends).toHaveLength(1);
   });
 });
 
