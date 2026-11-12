@@ -22,7 +22,7 @@ Ephemeral accounts may be created on:
 
 Post-process handlers registered in `apps/api/src/api/services/phases/post-process/index.ts`:
 
-- **PendulumPostProcessHandler** — Submits the `pendulumCleanup` extrinsic to sweep Pendulum ephemeral tokens.
+- **PendulumPostProcessHandler** — Submits the `pendulumCleanup` extrinsic to sweep Pendulum ephemeral tokens. It applies only to completed ramps that presigned that extrinsic; ramps that never route through Pendulum have nothing to sweep there.
 - **MoonbeamPostProcessHandler** — A no-RPC compatibility tombstone. It returns success so legacy `moonbeamCleanup` retry errors can be cleared, but it does not submit a sweep. Consequently, `cleanupCompleted` does not prove that historical Moonbeam funds moved; see RISK-020.
 - **PolygonPostProcessHandler** — On completed Polygon-routed ramps with a `polygonCleanup` or legacy `polygonCleanupAxlUsdc` presigned tx, broadcasts the user's pre-signed `approve` and then runs `transferFrom(ephemeral, fundingAccount, balance)` from the funding key to sweep residual ERC-20 tokens. It sweeps only the token named by the prepared cleanup transaction and skips zero balances. This is active for Alfredpay corridors and the Monerium EUR onramp, and also protects still-in-flight legacy Polygon ramps. The active Monerium flow prepares Polygon USDC cleanup, not EURe cleanup.
 There is no Hydration or AssetHub post-process handler: the Hydration handler was dropped from the registry when Hydration routing was retired, and the AssetHub handler was an inert placeholder (`shouldProcess` was hard-coded `false`), so both were deleted. Neither chain has any cleanup path.
