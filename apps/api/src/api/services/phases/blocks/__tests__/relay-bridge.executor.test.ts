@@ -238,6 +238,17 @@ describe("Relay status matrix", () => {
     expect(state.statusCalls).toBe(2);
   });
 
+  it.each(["failure", "unknown"] as const)(
+    "pauses for an operator when Relay still reports %s at the poll bound",
+    async value => {
+      const ramp = await rampState(RampDirection.SELL);
+      const { deps } = world([status(value)]);
+      const error = await run(ramp, deps).catch(thrown => thrown);
+      expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
+      expect(error.message).toContain(REQUEST_ID);
+    }
+  );
+
   it("does not read Relay's N/A as a refund failure", async () => {
     const ramp = await rampState(RampDirection.SELL);
     const { deps, state } = world([status("failure", { refundFailReason: "N/A" }), SUCCESS], { base: USDC_MINIMUM });
