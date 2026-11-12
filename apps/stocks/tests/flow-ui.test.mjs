@@ -668,6 +668,14 @@ test("Brazilian live USDC uses Portuguese copy and the same provider costs",()=>
   assert.match(s.text(),/Provedores e custos/);assert.match(s.text(),/100,000000 USDC/);assert.match(s.text(),/0,5000 NVDA/);assert.match(s.text(),/Taxas informadas/);assert.doesNotMatch(s.text(),/Illustrative provider/);
 }));
 
+test("Brazilian live USDC words a cancelled permit in Portuguese and keeps the same order", () => harness(async s => {
+  const f = liveUsdcFixtures("pt-BR");f.fund(100000000n);
+  f.props.runtime.usdc.adapter.registerBuy = async ({ onRegistered }) => { f.calls.register++; onRegistered({ id: "live-usdc-order" }); throw Object.assign(new Error("User rejected the request."), { code: 4001 }); };
+  await s.render(createElement(LiveUsdcFlow, f.props));await s.click("Ver cotação");await s.check();await s.click("Confirmar e autorizar");
+  assert.match(document.querySelector("[role=alert]").textContent, /Confirmação cancelada\. Você pode continuar esta mesma operação\./);
+  assert.doesNotMatch(s.text(), /User rejected/);assert.ok(s.has("Retomar operação"));
+}));
+
 for (const direction of ["BUY", "SELL"]) test(`live USDC ${direction} success displays the asset actually received`,()=>harness(async s=>{
   const f=liveUsdcFixtures();
   f.props.direction=direction;f.props.resume={rampId:"completed-usdc-order"};

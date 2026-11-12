@@ -43,7 +43,7 @@ export function fundingIntentStore(storage) {
       return saved && saved.owner.toLowerCase() === owner.toLowerCase() && saved.expiresAt > now ? saved : null;
     },
     save(owner, intent) {
-      if (!storage.set(key, { ...storage.get(key, {}), [owner.toLowerCase()]: { ...intent, owner } })) throw new Error("Could not save this order on this device.");
+      if (!storage.set(key, { ...storage.get(key, {}), [owner.toLowerCase()]: { ...intent, owner } })) throw new Error("Não foi possível salvar esta operação neste aparelho.");
     },
     clear(owner) { const all = storage.get(key, {}); delete all[owner.toLowerCase()]; storage.set(key, all); },
   };

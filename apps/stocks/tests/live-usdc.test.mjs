@@ -53,7 +53,12 @@ test("confirmed balance reads two blocks behind head; partial funds never regist
 });
 for(const defect of ["network","token","recipient","amount"]) test(`wrong ${defect} delivery stops USDC authorization`,async()=>{
   const s=setup({mutateDelivery:tx=>defect==="network"?{...tx,network:"base"}:defect==="token"?{...tx,txData:{...tx.txData,to:BASE_USDC.address}}:destinationTransferTx({to:defect==="recipient"?EPHEMERAL:WALLET,amountWei:parseUnits(defect==="amount"?"1":"0.55",18)})});
-  const q=await buy(s);await assert.rejects(s.adapter.registerBuy({quote:q,walletAddress:WALLET,wallet:s.wallet}),e=>e.code==="WRONG_ROUTE");assert.equal(s.log.includes("eth_signTypedData_v4"),false);
+  const q=await buy(s);await assert.rejects(s.adapter.registerBuy({quote:q,walletAddress:WALLET,wallet:s.wallet}),e=>e.code==="WRONG_ROUTE"&&/A entrega não confere/.test(e.message));assert.equal(s.log.includes("eth_signTypedData_v4"),false);
+});
+test("an unreadable Base balance is worded in Portuguese, without the RPC's English",async()=>{
+  const s=setup(),rpc=Object.assign(new Error("HTTP request failed.\n\nURL: https://mainnet.base.org"),{shortMessage:"HTTP request failed."});
+  const adapter=createVortexStocksAdapter({enabled:true,network:"robinhood",apiBase:"http://test.invalid",session:fakeSession(),activeRampStore:s.activeRampStore,ephemeralStore:s.ephemeralStore,createClient:s.sdk.createClient,paymentMethod:"usdc",baseClient:{getBlockNumber:async()=>{throw rpc;}},readMaintenance:async()=>({active:false}),now:()=>NOW});
+  await assert.rejects(adapter.readBaseBalance(WALLET),e=>e.code==="SERVER_ERROR"&&/saldo de USDC na Base/.test(e.message)&&!/http/i.test(e.message));
 });
 for(const defect of ["spender","value","nonce","chain"]) test(`a changed permit ${defect} cannot access Base USDC`,async()=>{
   const s=setup({mutatePermit:tx=>({...tx,txData:{...tx.txData,domain:{...tx.txData.domain,...(defect==="chain"?{chainId:4663}:{})},message:{...tx.txData.message,...(defect==="spender"?{spender:WALLET}:defect==="value"?{value:"101000000"}:defect==="nonce"?{nonce:"1"}:{})}}})});

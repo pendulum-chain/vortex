@@ -209,7 +209,7 @@ export function assertUsdcDelivery(rampProcess, { record, walletAddress, network
     if (tx.network !== (buy ? network : "base") || !sameId(tx.txData.to, buy ? record.tokenAddress : BASE_USDC.address)
       || !sameId(recipient, walletAddress) || amount !== parseUnits(String(record.outputAmount), buy ? 18 : 6)
       || rampProcess.quoteId !== record.quoteId || canonicalAmount(rampProcess.inputAmount) !== canonicalAmount(record.inputAmount)) throw new Error();
-  } catch { throw new StocksRampError("WRONG_ROUTE", "Delivery does not match this order. No new authorization was signed. Keep the operation reference for support."); }
+  } catch { throw new StocksRampError("WRONG_ROUTE", "A entrega não confere com esta operação. Nenhuma nova autorização foi assinada. Guarde o código da operação para o suporte."); }
 }
 
 const devWarn = (message) => { if (import.meta.env?.DEV) console.warn(message); };
@@ -221,6 +221,7 @@ const KYC_UNFINISHED_PT = "Sua verificação de identidade ainda não foi conclu
 const RAMP_NOT_FOUND_PT = "Esta operação não foi encontrada. Consulte o suporte com o código da operação.";
 const RAMP_ALREADY_STARTED_PT = "Esta operação já não pode ser alterada. Acompanhe o andamento no Início.";
 const CHAIN_UNREADABLE_PT = "Não foi possível consultar a Robinhood Chain agora. Tente novamente em instantes.";
+const BASE_UNREADABLE_PT = "Não foi possível consultar seu saldo de USDC na Base agora. Tente novamente em instantes.";
 // Worded for a Pix payment here; on this device's own sell it becomes SELL_EXPIRED (expireSellOnRefusal).
 const START_WINDOW_EXCEEDED = "Maximum time window to start process exceeded. Ramp invalidated.";
 
@@ -589,9 +590,11 @@ export function createVortexStocksAdapter({
 
   async function readBaseBalance(owner) {
     // Two confirmations prevent an unconfirmed incoming transfer from enabling a purchase.
-    const reader = fundingReader(), head = await reader.getBlockNumber();
-    if (head < 2n) return 0n;
-    return reader.readContract({ address: BASE_USDC.address, abi: STOCK_TOKEN_ABI, functionName: "balanceOf", args: [owner], blockNumber: head - 2n });
+    try {
+      const reader = fundingReader(), head = await reader.getBlockNumber();
+      if (head < 2n) return 0n;
+      return await reader.readContract({ address: BASE_USDC.address, abi: STOCK_TOKEN_ABI, functionName: "balanceOf", args: [owner], blockNumber: head - 2n });
+    } catch (error) { throw new StocksRampError("SERVER_ERROR", BASE_UNREADABLE_PT, { cause: error }); }
   }
 
   // Resume a sell that stopped between registration and start (reload, closed tab, rejected

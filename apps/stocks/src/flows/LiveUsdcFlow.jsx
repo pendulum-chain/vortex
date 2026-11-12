@@ -3,6 +3,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Modal } from "../components/Modal.jsx";
 import { LiveUsdcCosts } from "../components/QuoteCosts.jsx";
 import { Notice } from "../components/ui.jsx";
+import { errorMessage } from "./parts.jsx";
 import { formatTokensEn, formatUsdc } from "../lib/international.js";
 import { formatTokenAmount } from "../lib/token.js";
 import { BASE_USDC } from "../lib/vortex-stocks.js";
@@ -28,7 +29,7 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   const sessionReady = () => runtime.verification.hasSession({ email, privyDid: auth.user?.privyDid });
   const errorText = e => {
     if (e?.status === 401 || e?.code === "AUTH_REQUIRED") { setReturnStep(ramp || resume ? "resume" : step); setStep("otp"); }
-    if (pt) return e?.message || "Não foi possível continuar. Seus fundos permanecem na carteira ou na operação indicada abaixo.";
+    if (pt) return errorMessage(e, "Não foi possível continuar. Seus fundos permanecem na carteira ou na operação indicada abaixo.");
     const messages = { RAMP_IN_PROGRESS: "You already have an unfinished order. Resume it before starting another.", INVALID_FEES: "The costs could not be verified. Refresh the quote.", INVALID_QUOTE: "This quote is unavailable. Get a fresh quote.", INSUFFICIENT_BALANCE: "The confirmed balance is insufficient. Wait for your transfer or reduce the amount.", SELL_EXPIRED: "The confirmation window ended. Keep the operation reference if an authorization was already sent.", MAINTENANCE_ACTIVE: "Execution is temporarily paused. Keep this order and try again later.", MAINTENANCE_STATUS_UNAVAILABLE: "We could not verify service availability. Try again shortly.", WRONG_ROUTE: "The route does not match your order. No new authorization was signed.", WALLET_NOT_READY: "Your wallet is still being prepared. Try again shortly.", AUTH_REQUIRED: "Verify your email to continue." };
     if (e?.code === 4001 || /rejected|denied/i.test(e?.message ?? "")) return "Wallet confirmation cancelled. You can resume this same order.";
     return messages[e?.code] || "We could not continue. Keep your order reference and retry this same order. No new order will be registered while it is unfinished.";
