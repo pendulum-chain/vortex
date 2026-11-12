@@ -197,6 +197,34 @@ describe("StockSettlementExecutor", () => {
     expect(subsidyRows).toEqual([expect.objectContaining({ amount: 0.01, token: NVDA })]);
   });
 
+  it.each([
+    [9_999_999n, 10_000_000n],
+    [10_000_000n, 10_000_000n],
+    [9_999_999n, 1_000_000_000n],
+    [10_000_000n, 1_000_000_000n]
+  ])(
+    "bounds both USDG authorizations by the persisted cap with quote %s and balance %s",
+    async (quoted, fundingUsdg) => {
+      const capRaw = 10_000_000n;
+      const { chain, executor } = fakeChain({
+        fundingUsdg,
+        overrides: { quoteUsdgIn: async () => quoted }
+      });
+
+      await executor.execute(rampState());
+
+      expect(chain.sends).toHaveLength(2);
+      expect(decodeFunctionData({ abi: erc20Abi, data: chain.sends[0].data })).toMatchObject({
+        args: [getAddress(ROBINHOOD_UNISWAP_SWAP_ROUTER_02), capRaw],
+        functionName: "approve"
+      });
+      expect(decodeFunctionData({ abi: stockSettlementRouterAbi, data: chain.sends[1].data })).toMatchObject({
+        args: [expect.objectContaining({ amountInMaximum: capRaw, amountOut: SHORTFALL })],
+        functionName: "exactOutputSingle"
+      });
+    }
+  );
+
   it.each<[string, bigint, Partial<Dependencies>]>([
     ["the transfer path, at the Chainlink price", SHORTFALL, { readStockPriceUsd: async () => new Big("1001") }],
     ["the USDG path, at the Uniswap quote", 0n, { quoteUsdgIn: async () => 10_000_001n }]
