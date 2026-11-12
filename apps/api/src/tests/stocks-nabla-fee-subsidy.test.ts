@@ -30,6 +30,10 @@ const bodies = [
     inputAmount: "5"
   }
 ];
+// Distinct per-asset oracle prices, so a request that swaps or drops them is caught.
+const priceOf = (asset: string) =>
+  asset.toLowerCase() === RELAY_BASE_USDC_ADDRESS.toLowerCase() ? 10n ** 18n : 2n * 10n ** 17n;
+
 describe("Stocks-only Nabla fee rebate: HTTP quote contract", () => {
   let world: FakeWorld,
     app: TestApp,
@@ -61,10 +65,14 @@ describe("Stocks-only Nabla fee rebate: HTTP quote contract", () => {
       if (["oracleAdapter", "getAssetPrice", "getAmountOut"].includes(p.functionName))
         reads.push({ name: p.functionName, blockNumber: (p as any).blockNumber });
       if (p.functionName === "oracleAdapter") return "0x00000000000000000000000000000000000000ab";
-      if (p.functionName === "getAssetPrice") return 10n ** 18n;
+      if (p.functionName === "getAssetPrice") return priceOf(p.args![0] as string);
       if (!["getAmountOut", "quoteSwapExactTokensForTokens"].includes(p.functionName)) return undefined;
       const amount = p.args![0] as bigint,
-        fromUsdc = (p.args![1] as string[])[0].toLowerCase() === RELAY_BASE_USDC_ADDRESS.toLowerCase();
+        path = p.args![1] as string[],
+        fromUsdc = path[0].toLowerCase() === RELAY_BASE_USDC_ADDRESS.toLowerCase();
+      // The live router reverts or misprices unless the oracle prices arrive in path order (nabla-base.contract.test.ts).
+      if (p.functionName === "getAmountOut" && String(p.args![2]) !== String(path.map(priceOf)))
+        throw new Error("getAmountOut needs the oracle prices in path order");
       const gross = fromUsdc ? amount * 5n * 10n ** 12n : amount / 5n / 10n ** 12n,
         fee = (gross * feeBps) / 10000n;
       return p.functionName === "getAmountOut" ? [gross - fee, fee] : gross - fee;
