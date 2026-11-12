@@ -47,15 +47,17 @@ that a strict `EXACT_INPUT` overpayment is filled in full. That is unverified wi
 
 | Relay status | `relayBridge` behaviour |
 |---|---|
-| `waiting`, `depositing`, `pending`, `submitted`, `unknown` | Keeps polling every 10 seconds |
-| `failure` without `refundFailReason` | Keeps polling, because it can still return to `pending` or move to `refund` |
+| `waiting`, `depositing`, `pending`, `submitted` | Keeps polling every 10 seconds |
+| `unknown` | Keeps polling every 10 seconds. Still `unknown` when the poll ends: reconciliation, because Relay does not know the request |
+| `failure` without `refundFailReason` | Keeps polling, because it can still return to `pending` or move to `refund`. Still `failure` when the poll ends: reconciliation |
 | `failure` with `refundFailReason` | Reconciliation: Relay could not refund |
 | `refund` | Reconciliation: the funds are back on the ephemeral on the origin chain |
 | `success` | Moves on once the destination balance is sufficient |
 | Status API unavailable | Moves on only if the destination balance is already sufficient, and logs `RELAY_ARRIVAL_BALANCE_FALLBACK` (RISK-030) |
 
 A poll is bounded at `getSquidRouterPayTimeoutMs()`, 80% of the phase timeout, and ends in a recoverable error so that the
-phase re-enters. There is no terminal timeout: funds are on the ephemeral or with Relay, so the ramp never fails here.
+phase re-enters, unless its last status was `unknown` or `failure`: then it pauses for reconciliation, which alerts an operator
+instead of retrying silently. There is no terminal timeout: funds are on the ephemeral or with Relay, so the ramp never fails here.
 
 ## Security Invariants
 
