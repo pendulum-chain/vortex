@@ -22,7 +22,7 @@ import type { FlowIdentity } from "../core/identity";
 import { assertFlowIdentity } from "../core/identity";
 import type { FlowMetadata } from "../core/metadata";
 import { getFlowMetadata } from "../core/metadata";
-import { isStockSymbol } from "../core/robinhood-stocks";
+import { isBaseUsdcRobinhoodRoute, isStockSymbol } from "../core/robinhood-stocks";
 import type { Flow } from "../core/types";
 import { alfredpayOfframpFlow, makeAlfredpayOfframpFlow } from "./alfredpay-offramp";
 import { alfredpayOnrampCrossChainFlow, makeAlfredpayOnrampCrossChainFlow } from "./alfredpay-onramp-cross-chain";
@@ -88,7 +88,34 @@ function requireMoneriumIssueFee(): string {
   return issueFeeEur;
 }
 
+import {
+  baseUsdcStockBuyFlow,
+  baseUsdcStockSellFlow,
+  makeBaseUsdcStockBuyFlow,
+  makeBaseUsdcStockSellFlow
+} from "./base-usdc-robinhood-stock";
+
 const flowDefinitions: FlowDefinition[] = [
+  {
+    create(request) {
+      if (!isStockSymbol(request.outputCurrency)) throw new APIError({ message: "Unsupported stock token", status: 400 });
+      return makeBaseUsdcStockBuyFlow(request.outputCurrency);
+    },
+    executorFlow: baseUsdcStockBuyFlow,
+    legacyCompatible: false,
+    matches: request =>
+      request.rampType === RampDirection.BUY && isBaseUsdcRobinhoodRoute(request) && isStockSymbol(request.outputCurrency)
+  },
+  {
+    create(request) {
+      if (!isStockSymbol(request.inputCurrency)) throw new APIError({ message: "Unsupported stock token", status: 400 });
+      return makeBaseUsdcStockSellFlow(request.inputCurrency);
+    },
+    executorFlow: baseUsdcStockSellFlow,
+    legacyCompatible: false,
+    matches: request =>
+      request.rampType === RampDirection.SELL && isBaseUsdcRobinhoodRoute(request) && isStockSymbol(request.inputCurrency)
+  },
   {
     create() {
       return brlOfframpAssethubUsdcFlow;

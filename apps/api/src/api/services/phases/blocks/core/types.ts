@@ -43,6 +43,7 @@ export interface PhaseCtx {
   targetFeeFiatCurrency?: RampCurrency;
   evmDestinationGas?: FlowMetadata["globals"]["evmDestinationGas"];
   gasReserve?: FlowMetadata["globals"]["gasReserve"];
+  nablaFeeSubsidy?: import("./nabla-fee-subsidy").NablaFeeSubsidy;
   priceEvmDestinationGas?: boolean;
 }
 

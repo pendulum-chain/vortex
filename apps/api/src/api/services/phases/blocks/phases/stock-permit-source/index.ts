@@ -1,4 +1,4 @@
-import type { Networks } from "@vortexfi/shared";
+import { EvmToken, Networks } from "@vortexfi/shared";
 import type { StockSymbol } from "../../core/robinhood-stocks";
 import type { Phase, PhaseIO } from "../../core/types";
 import { StockPermitTransferExecutor } from "./execution";
@@ -27,5 +27,23 @@ export function StockPermitSource<Token extends StockSymbol>(
     prepareTxs: prepareStockPermitSourceTxs,
     register: registerStockPermitSource,
     simulate: (input, ctx) => simulateStockPermitSource(token, input, ctx)
+  };
+}
+
+export function BaseUsdcStockSource(): Phase<
+  typeof StockPermitSourceContext,
+  PhaseIO<typeof EvmToken.USDC, typeof Networks.Base>,
+  PhaseIO<typeof EvmToken.USDC, typeof Networks.Base>,
+  StockPermitSourceRegistrationFacts,
+  StockPermitSourceRegistrationInput
+> {
+  return {
+    context: StockPermitSourceContext,
+    executors: [new StockPermitTransferExecutor()],
+    name: "BaseUsdcStockSource",
+    phases: ["stockPermitTransfer"],
+    prepareTxs: prepareStockPermitSourceTxs,
+    register: registerStockPermitSource,
+    simulate: (input, ctx) => simulateStockPermitSource(EvmToken.USDC, input, ctx)
   };
 }

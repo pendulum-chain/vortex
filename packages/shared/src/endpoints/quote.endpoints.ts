@@ -51,7 +51,16 @@ export interface ProviderCost {
   includedIn: "fees" | "rate";
 }
 
+export interface NablaFeeSubsidyDisplay {
+  amountFiat: string;
+  amountUsd: string;
+  currency: RampCurrency;
+  chargedFeeBps: string;
+  effectiveFeeBps: string;
+}
+
 export interface QuoteResponse {
+  nablaFeeSubsidy?: NablaFeeSubsidyDisplay;
   id: string;
   rampType: RampDirection;
   from: DestinationType;
@@ -135,6 +144,8 @@ export enum QuoteError {
   AnchorTemporarilyUnavailable = "This payment provider is temporarily unavailable. Please try again in a few minutes.",
   NetworkFeesTooHigh = "Destination network fees are temporarily too high. Please try again later.",
   StockTokenNotAvailable = "This token is not available on Robinhood Chain.",
+  StockDexSubsidyUnavailable = "The stock DEX fee subsidy exceeds its configured budget. Please try again later.",
+  StockUsdcFundingUnavailable = "Base USDC funding is temporarily unavailable. Please try again later.",
   StockTradingPaused = "Trading in this token is paused by the issuer. Please try again later.",
   StockPriceUnavailable = "The market price for this token is temporarily unavailable. Please try again later.",
 

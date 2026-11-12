@@ -952,6 +952,7 @@
         "type": "object"
       },
       "CreateQuoteRequest": {
+        "description": "Stock Tokens support BRL/Pix or native Base USDC only. For USDC BUY: from=base, to=robinhood, network=robinhood, inputCurrency=USDC, outputCurrency=<allowlisted stock>. Reverse these for SELL (outputCurrency=USDC). BUY USDC amounts accept up to 6 decimals and must be between 10 and 1000000. Discovery and direction enablement are independent from Pix. Best quotes do not evaluate robinhood.",
         "properties": {
           "apiKey": {
             "description": "Your api key, if available.",
@@ -3550,7 +3551,7 @@
         "type": "object"
       },
       "PaymentMethod": {
-        "description": "`PIX`, `SEPA`, `CBU`",
+        "description": "Payment method, including pix, sepa, cbu, and usdc (native Base USDC for Stock Tokens).",
         "type": "string"
       },
       "PresignedTx": {
@@ -3632,6 +3633,28 @@
           "inputCurrency": {
             "$ref": "#/components/schemas/RampCurrency"
           },
+          "nablaFeeSubsidy": {
+            "description": "Only configured BRL/Pix Stocks routes. Informational fee-only rebate, already included once in output and net Nabla provider cost; never subtract it again. Other costs and price effects remain.",
+            "properties": {
+              "amountFiat": {
+                "type": "string"
+              },
+              "amountUsd": {
+                "type": "string"
+              },
+              "chargedFeeBps": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "effectiveFeeBps": {
+                "type": "string"
+              }
+            },
+            "required": ["amountFiat", "amountUsd", "currency", "chargedFeeBps", "effectiveFeeBps"],
+            "type": "object"
+          },
           "networkFeeFiat": {
             "type": "string"
           },
@@ -3650,6 +3673,9 @@
           },
           "partnerFeeUSD": {
             "type": "string"
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "processingFeeFiat": {
             "type": "string"
@@ -4031,7 +4057,7 @@
         "properties": {
           "additionalData": {
             "additionalProperties": true,
-            "description": "Optional route data. For Brazil onramps, destinationAddress is required. For Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID. For EUR BUY, destinationAddress is required; profile, owner address, and IBAN are derived server-side and must not be supplied.",
+            "description": "Optional route data. For Brazil onramps, destinationAddress is required. For Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID. For EUR BUY, destinationAddress is required; profile, owner address, and IBAN are derived server-side and must not be supplied. For native Base-USDC Stock Token BUY/SELL, walletAddress and destinationAddress must be the same wallet. No fiat-provider identity fields are used. The owner permit is withheld until ephemeral transactions are presigned; never start before validating and submitting that permit.",
             "properties": {
               "destinationAddress": {
                 "description": "Destination address, used for onramp.",
@@ -11514,6 +11540,17 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/SupportedCryptocurrencyNetwork"
+            }
+          },
+          {
+            "description": "For robinhood, select independently enabled Pix or native Base-USDC directions. Defaults to pix.",
+            "in": "query",
+            "name": "paymentMethod",
+            "required": false,
+            "schema": {
+              "default": "pix",
+              "enum": ["pix", "usdc"],
+              "type": "string"
             }
           }
         ],

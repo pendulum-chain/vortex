@@ -23,12 +23,22 @@ import type { StockRouteMetadata } from "../phases/stock-route/simulation";
 import { trimTrailingZeros } from "./helpers";
 import type { FlowMetadata } from "./metadata";
 import { buildBlockQuoteResponse, stockQuoteResponseFields } from "./quote-response";
+import { isBaseUsdcRobinhoodRoute } from "./robinhood-stocks";
 import type { PhaseCtx, PhaseIO } from "./types";
 import { applyAlfredpayLimits, assertEvmPartnerPayoutPresent, validateAmountLimits } from "./validation";
 
 async function validateOutput(ctx: QuoteContext, output: PhaseIO): Promise<number> {
   if (output.amount.lte(0)) {
     throw new APIError({ message: "Input amount too low to cover calculated fees", status: httpStatus.BAD_REQUEST });
+  }
+  if (isBaseUsdcRobinhoodRoute(ctx.request)) {
+    const amount = ctx.request.rampType === RampDirection.BUY ? new Big(ctx.request.inputAmount) : output.amount;
+    if (amount.lt(10) || amount.gt(1_000_000))
+      throw new APIError({ message: "USDC amount must be between 10 and 1000000", status: 400 });
+    if (ctx.request.rampType === RampDirection.BUY && !amount.round(6, Big.roundDown).eq(amount)) {
+      throw new APIError({ message: "USDC input has more than 6 decimal places", status: 400 });
+    }
+    return ctx.request.rampType === RampDirection.BUY ? getOutputDecimals(ctx) : 6;
   }
   if (await applyAlfredpayLimits(ctx, ctx.request.inputAmount)) {
     return ctx.request.rampType === RampDirection.SELL ? 2 : getOutputDecimals(ctx);
@@ -61,9 +71,11 @@ async function assignSubsidyDisplay(metadata: FlowMetadata, ctx: QuoteContext): 
   }
 
   const amount = new Big(subsidy.subsidyAmountInOutputTokenDecimal ?? 0).toString();
+  const displayCurrency =
+    metadata.blocks.nablaSwap && subsidy.outputCurrency === EvmToken.BRLA ? FiatToken.BRL : subsidy.outputCurrency;
   const [fiat, usd] = await Promise.all([
-    priceFeedService.convertCurrencyOrNull(amount, subsidy.outputCurrency, ctx.targetFeeFiatCurrency),
-    priceFeedService.convertCurrencyOrNull(amount, subsidy.outputCurrency, EvmToken.USDC as RampCurrency)
+    priceFeedService.convertCurrencyOrNull(amount, displayCurrency, ctx.targetFeeFiatCurrency),
+    priceFeedService.convertCurrencyOrNull(amount, displayCurrency, EvmToken.USDC as RampCurrency)
   ]);
   if (fiat && usd) {
     metadata.globals.subsidyDisplay = {
@@ -89,10 +101,15 @@ async function assignStockQuoteFields(metadata: FlowMetadata, ctx: QuoteContext)
   const fiatFees = metadata.globals.fees.displayFiat;
   if (!route || !fiatFees) return;
 
-  const fiatPerUsd = new Big(await priceFeedService.getUsdToFiatExchangeRate(fiatFees.currency));
+  const fiatPerUsd = new Big(
+    fiatFees.currency === EvmToken.USDC ? 1 : await priceFeedService.getUsdToFiatExchangeRate(fiatFees.currency)
+  );
   const nabla = metadata.blocks.nablaSwap as NablaSwapMetadata;
-  const nablaInput = new Big(nabla.inputAmountForSwapDecimal);
-  const nablaOutput = new Big(nabla.outputAmountDecimal);
+  const nablaInput = new Big(nabla?.inputAmountForSwapDecimal ?? 0);
+  const rebate = nabla?.feeSubsidy
+    ? new Big(nabla.feeSubsidy.rebateRaw).div(new Big(10).pow(nabla.feeSubsidy.outputDecimals))
+    : new Big(0);
+  const nablaOutput = new Big(nabla?.outputAmountDecimal ?? 0).plus(rebate);
   const conversionFiat =
     ctx.request.rampType === RampDirection.BUY
       ? nablaInput.minus(nablaOutput.mul(fiatPerUsd))
@@ -104,7 +121,7 @@ async function assignStockQuoteFields(metadata: FlowMetadata, ctx: QuoteContext)
     includedIn: ProviderCost["includedIn"],
     fiat: Big
   ) => ({
-    amountFiat: toCents(fiat),
+    amountFiat: fiatFees.currency === EvmToken.USDC ? fiat.toFixed(6) : toCents(fiat),
     id,
     includedIn,
     provider
@@ -118,6 +135,19 @@ async function assignStockQuoteFields(metadata: FlowMetadata, ctx: QuoteContext)
     row("network", "network", "fees", new Big(fiatFees.network).minus(metadata.globals.gasReserve?.fiat ?? 0))
   ];
   metadata.globals.routingStrategy = "direct";
+  if (nabla?.feeSubsidy) {
+    const fee = nabla.feeSubsidy;
+    // BRLA redemption is denominated in BRL; use the same FX reference as the conversion row.
+    const fiat = fee.outputCurrency === EvmToken.BRLA ? rebate : rebate.mul(fiatPerUsd);
+    const usd = fee.outputCurrency === EvmToken.BRLA ? rebate.div(fiatPerUsd) : rebate;
+    metadata.globals.nablaFeeSubsidy = {
+      amountFiat: new Big(fiat).toFixed(2),
+      amountUsd: new Big(usd).toFixed(6),
+      chargedFeeBps: new Big(fee.chargedFeeRaw).div(fee.grossOutputRaw).mul(10000).toFixed(4),
+      currency: fiatFees.currency,
+      effectiveFeeBps: new Big(fee.targetFeeRaw).div(fee.grossOutputRaw).mul(10000).toFixed(4)
+    };
+  }
 
   const permitSource = metadata.blocks.stockPermitSource as StockPermitSourceMetadata | undefined;
   if (permitSource) metadata.globals.gasless = permitSource.gasless;
