@@ -74,6 +74,12 @@ test('two Base confirmations gate funding; maintenance stops registration',async
 test('chain reads target the pinned token, not whichever network the wallet currently uses',async()=>{
   const seen=[];const value=await readGoldBalance('base',owner,{readContract:async c=>(seen.push(c.address),10n**18n)});assert.equal(value.grams,31.1034768);assert.deepEqual(seen,[BASE_PAXG.address]);
 });
+test('balance reads use Privy\'s app RPC, never viem\'s default public RPC',async()=>{
+  const old=globalThis.fetch,urls=[];
+  globalThis.fetch=async(url,init)=>{urls.push(String(url));const {id}=JSON.parse(init.body);return new Response(JSON.stringify({jsonrpc:'2.0',id,result:'0x'+(10n**18n).toString(16).padStart(64,'0')}),{headers:{'Content-Type':'application/json'}});};
+  try { assert.equal((await readGoldBalance('ethereum',owner)).paxg,1); assert.equal((await readGoldBalance('base',owner)).paxg,1); } finally { globalThis.fetch=old; }
+  assert.match(urls[0],/^https:\/\/mainnet\.rpc\.privy\.systems\/?\?privyAppId=/);assert.match(urls[1],/^https:\/\/base-mainnet\.rpc\.privy\.systems\/?\?privyAppId=/);
+});
 for(const direction of ['BUY','SELL'])test(`Pix ${direction} remains separate from USDC authorization and settlement`,async()=>{
   const h=harness(),q=await h.adapter.quote({direction,paymentMethod:'pix',amount:direction==='BUY'?'50':'0.01',owner});
   const r=await h.adapter.register({quote:q,owner,provider:h.provider,pixDestination:'synthetic@example.com'});
