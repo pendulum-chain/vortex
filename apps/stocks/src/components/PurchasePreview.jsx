@@ -25,7 +25,7 @@ export function PurchasePreview({ prices = {}, locale = "pt-BR", symbol = null, 
     if (!preview || !available) return;
     try { await onContinue(preview.selection); } catch (e) { setError(en ? "We could not keep your selection for sign-in. Please try again." : e.message); }
   };
-  return <section className="card purchase-preview" id={id} aria-label={en ? "Preview your purchase" : "Simule sua compra"}>
+  return <section className="card purchase-preview" id={id} aria-label={en ? "Prepare your purchase" : "Prepare sua compra"}>
     <div className="purchase-preview__head"><p className="eyebrow">{en ? "Your first purchase" : "Sua primeira compra"}</p><span className="preview-badge"><CheckCircle size={14} aria-hidden="true" />{en ? "No sign-up needed" : "Sem cadastro"}</span></div>
     <h2>{en ? "How much would you like to start with?" : "Com quanto você quer começar?"}</h2>
     {symbol ? <p className="preview-company">{en ? token.underlyingName : token.namePt} <span>{token.symbol} · Stock Token</span></p> : <label className="field-label" htmlFor={`${uid}-stock`}>{en ? "Choose a company or ETF" : "Escolha uma empresa ou ETF"}<select className="text-input" id={`${uid}-stock`} value={selected} onChange={e => change(() => setSelected(e.target.value))}>{STOCK_TOKENS.map(t => <option key={t.symbol} value={t.symbol}>{en ? t.underlyingName : t.namePt} · {t.symbol}</option>)}</select></label>}
@@ -42,10 +42,10 @@ export function PurchasePreview({ prices = {}, locale = "pt-BR", symbol = null, 
       <p className="preview-note">{en ? "Reference price and illustrative costs, including a small ETH reserve that stays in your wallet. Your final quote is checked after sign-in and shown before any payment. Your sending wallet or exchange may charge separately." : "Preço de referência e custos ilustrativos, com uma pequena reserva de ETH que fica na sua carteira. A cotação final é atualizada depois que você entrar e aparece antes de qualquer pagamento."}</p>
     </div>}
     {error && <p className="field-error" role="alert">{error}</p>}
-    {!reviewed ? <button className="btn btn--primary btn--full btn--lg" type="button" disabled={!preview} onClick={() => setReviewed(true)}>{en ? "Preview purchase" : "Simular compra"}<ArrowRight size={18} aria-hidden="true" /></button>
+    {!reviewed ? <button className="btn btn--primary btn--full btn--lg" type="button" disabled={!preview} onClick={() => setReviewed(true)}>{en ? "See purchase costs" : "Ver custos da compra"}<ArrowRight size={18} aria-hidden="true" /></button>
       : <button className="btn btn--primary btn--full btn--lg" type="button" disabled={!available} onClick={next}>{en ? "Continue with USDC" : method === "pix" ? "Continuar com Pix" : "Continuar com USDC"}<ArrowRight size={18} aria-hidden="true" /></button>}
     {!preview && <p className="preview-note" role="status">{en ? "Enter a valid amount. A current reference price is needed for your estimate." : "Informe um valor válido. Precisamos de um preço de referência disponível para calcular a estimativa."}</p>}
     {reviewed && preview && available === false && <p className="preview-note" role="status">{en ? "Purchases are coming soon. You can explore estimates without sending money." : "Compra em breve. Você já pode simular sem enviar dinheiro."}</p>}
-    <p className="preview-assurance">{en ? "You receive a Stock Token, not the share. No payment or account is created by this preview." : "Você recebe um token que acompanha a ação. Simular não cria conta nem gera pagamento."}</p>
+    <p className="preview-assurance">{en ? "You receive a Stock Token, not the share. No payment is made at this step." : "Você recebe um token que acompanha a ação. Nenhum pagamento é feito nesta etapa."}</p>
   </section>;
 }

@@ -10,6 +10,7 @@ import { useHashRoute } from "./router.js";
 import { stockHash } from "./lib/routes.js";
 import { formatUnits } from "viem";
 import { saveReturnHash, takeReturnHash } from "./lib/stores.js";
+import { FairFeesHero } from "./components/FairFeesHero.jsx";
 import { PurchasePreview } from "./components/PurchasePreview.jsx";
 import { clearPurchaseSelection, readPurchaseSelection, savePurchaseSelection } from "./lib/purchase-preview.js";
 
@@ -110,10 +111,13 @@ export default function InternationalApp({ auth, config }) {
       <div className="site-header__right"><a className="link locale-switch" href={BRAZIL_PATH}>Brasil · Pix</a>{signed ? <button className="btn btn--secondary" onClick={async () => { clearPurchaseSelection(); intent.current = null; await auth.logout(); setModal(null); }}>Sign out</button> : <button className="btn btn--secondary" disabled={busyAuth} onClick={() => setModal({ type: "login" })}>{busyAuth ? "Preparing sign-in…" : "Sign in with Vortex"}</button>}</div>
     </div></header>
     <main id="conteudo" tabIndex={-1} className="wrap page international-page">
-      {!selected && <section className="usdc-hero">
-        <div><p className="eyebrow">US Stock Tokens · funded with USDC</p><h1 className="hero__title">Big companies.<br /><span className="accent">Your slice.</span></h1><p className="section__lede">Start with 10 USDC. Choose a company, preview the costs and receive a Stock Token in your own wallet. Pay with USDC on Base.</p><div className="hero__actions"><button className="btn btn--primary btn--lg" onClick={() => document.getElementById("preview-purchase")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Preview your purchase</button><span className="hint">No sign-up to preview. Bank payments are planned.</span></div><p className="hint">Stock Tokens provide economic exposure. You receive a token, not the underlying share.</p></div>
-        <PurchasePreview id="preview-purchase" prices={market.state.prices} locale="en" onContinue={startPreview} canContinue={() => config.usdcEnabled || config.mode !== "live"} />
-      </section>}
+      {!selected && <>
+        <FairFeesHero locale="en" previewId="preview-purchase" contained buyOpen={config.usdcEnabled} />
+        <div className="fair-preview">
+          <PurchasePreview id="preview-purchase" prices={market.state.prices} locale="en" onContinue={startPreview} canContinue={() => config.usdcEnabled || config.mode !== "live"} />
+        </div>
+        <p className="hint">Bank payments are planned.</p>
+      </>}
       {pending && <section className="notice notice--info" role="status"><b>You have an unfinished {pending.paymentMethod === "usdc" ? "USDC" : "Pix"} order.</b><button className="btn btn--secondary" onClick={() => start(pending.symbol)}>Resume order</button></section>}
       {signed && <section className="section" id="portfolio"><div className="section__head"><div><p className="eyebrow">Your wallet</p><h2 className="section__title">Portfolio</h2></div><div><b>{portfolio.valued || usdc?.enabled ? formatUsd(totalUsd) : "—"}</b><p className="hint">Available Base USDC: {balance === null ? "—" : formatUsdc(balance, 4)}</p></div></div>
         {holdings.length ? <div className="card international-holdings">{holdings.map((h) => <div key={h.symbol}><span><b>{h.symbol}</b><small>{formatTokensEn(formatUnits(BigInt(h.raw), 18))} tokens</small></span><b>{formatUsd(number(h.raw) * market.state.prices[h.symbol]?.usd)}</b><button className="btn btn--secondary" onClick={() => start(h.symbol, "SELL")}>Sell for USDC</button></div>)}</div> : <p className="hint">Your Stock Tokens appear here after a completed purchase.</p>}

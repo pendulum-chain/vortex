@@ -39,7 +39,7 @@ test("anonymous Pix preview needs no sign-in and hands off only the selected amo
   await s.render({ onContinue: selection => calls.push(selection) });
   await s.click("R$ 100");
   assert.equal(document.querySelector("input").value, "100");
-  await s.click("Simular compra");
+  await s.click("Ver custos da compra");
   assert.match(s.text(), /Sua estimativa/);
   assert.match(s.text().replace(/\u00a0/g, " "), /R\$ 3,11/);
   assert.equal(calls.length, 0);
@@ -50,12 +50,12 @@ test("anonymous Pix preview needs no sign-in and hands off only the selected amo
 test("changing payment method discards the old preview and uses the USDC minimum and amount", () => harness(async s => {
   const calls = [];
   await s.render({ onContinue: selection => calls.push(selection) });
-  await s.click("Simular compra");
+  await s.click("Ver custos da compra");
   await s.click("USDC · na Base");
   assert.doesNotMatch(s.text(), /Sua estimativa/);
   assert.equal(document.querySelector("input").value, "100");
   await s.click("10 USDC");
-  await s.click("Simular compra");
+  await s.click("Ver custos da compra");
   await s.click("Continuar com USDC");
   assert.deepEqual(calls, [{ symbol: "NVDA", method: "usdc", amount: "10", locale: "pt-BR" }]);
 }));
@@ -64,7 +64,7 @@ test("a method that cannot continue in this build is not offered", () => harness
   await s.render({ canContinue: selection => selection.method === "pix" });
   assert.equal(s.button("Pix · em reais").getAttribute("aria-pressed"), "true");
   assert.doesNotMatch(s.text(), /USDC/);
-  await s.click("Simular compra");
+  await s.click("Ver custos da compra");
   assert.equal(s.button("Continuar com Pix").disabled, false);
 }));
 
@@ -72,7 +72,7 @@ test("English exposes USDC only and an inactive live rail cannot continue from a
   const calls = [];
   await s.render({ locale: "en", canContinue: () => false, onContinue: selection => calls.push(selection) });
   assert.doesNotMatch(s.text(), /Pix/);
-  await s.click("Preview purchase");
+  await s.click("See purchase costs");
   assert.match(s.text(), /Your estimate/);
   assert.match(s.text(), /Purchases are coming soon/);
   assert.equal(s.button("Continue with USDC").disabled, true);
@@ -82,14 +82,14 @@ test("English exposes USDC only and an inactive live rail cannot continue from a
 
 test("a failed intent write keeps the estimate visible and reports the error", () => harness(async s => {
   await s.render({ onContinue: () => { throw new Error("Não foi possível guardar sua simulação."); } });
-  await s.click("Simular compra");
+  await s.click("Ver custos da compra");
   await s.click("Continuar com Pix");
   assert.match(document.querySelector('[role="alert"]').textContent, /guardar/);
   assert.match(s.text(), /Sua estimativa/);
 }));
 
 test("a missing reference price cannot reuse a previously displayed estimate", () => harness(async s => {
-  await s.render(); await s.click("Simular compra");
+  await s.render(); await s.click("Ver custos da compra");
   await s.render({ prices: {} });
   assert.equal(Boolean(document.querySelector(".preview-result")), false);
   assert.equal(s.button("Continuar com Pix").disabled, true);
@@ -99,7 +99,7 @@ test("a missing reference price cannot reuse a previously displayed estimate", (
 
 test("while the ramp's answer is unknown the preview promises neither buying nor \"em breve\"", () => harness(async s => {
   await s.render({ canContinue: () => null });
-  await s.click("Simular compra");
+  await s.click("Ver custos da compra");
   assert.equal(s.button("Continuar com Pix").disabled, true);
   assert.doesNotMatch(s.text(), /Compra em breve/);
   await s.render({ canContinue: () => false });
