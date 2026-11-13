@@ -1,19 +1,16 @@
 import { createPublicClient, custom, decodeFunctionData, formatUnits, getAddress, parseAbi, parseUnits, toHex } from "viem";
 import { mainnet } from "viem/chains";
+import { readGoldBalance } from "./gold-balances.js";
 
 export const PAXG_ADDRESS = getAddress("0x45804880De22913dAFE09f4980848ECE6EcbAf78");
 // Squid's router on Ethereum: the API builds a PAXG sell as an approve to it and a swap through it.
 export const SQUID_ROUTER = getAddress("0xce16F69375520ab01377ce7B88f5BA8C48F8D666");
 export const TROY_OUNCE_GRAMS = 31.1034768;
-const PAXG_ABI = parseAbi(["function balanceOf(address owner) view returns (uint256)"]);
 const APPROVE_ABI = parseAbi(["function approve(address spender, uint256 amount) returns (bool)"]);
 
 export async function readPaxgBalance(ethereumProvider, walletAddress) {
   if (!ethereumProvider || !walletAddress) return { paxg: 0, grams: 0 };
-  const client = createPublicClient({ chain: mainnet, transport: custom(ethereumProvider) });
-  const raw = await client.readContract({ address: PAXG_ADDRESS, abi: PAXG_ABI, functionName: "balanceOf", args: [getAddress(walletAddress)] });
-  const paxg = Number(formatUnits(raw, 18));
-  return { paxg, raw, grams: paxg * TROY_OUNCE_GRAMS };
+  return readGoldBalance("ethereum", walletAddress);
 }
 
 export function gramsToPaxg(value) {

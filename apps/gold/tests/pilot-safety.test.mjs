@@ -66,6 +66,14 @@ test('transaction checkpoint survives stage changes and is wallet scoped',()=>{
   assert.throws(()=>saveTransactionCheckpoint('r2','approve','0xabc'));
   clearActiveRamp('r2'); assert.ok(getActiveRamp(address)); clearActiveRamp('r1');
 });
+test('a registered Ethereum buy leaves the SDK key callback\'s registering stage behind',()=>{
+  saveActiveRamp({walletAddress:address,inputAmount:'100',rampType:'BUY',rampId:'r6',stage:'registering'});
+  const {createdAt}=getActiveRamp(address);
+  saveActiveRamp({rampId:'r6',walletAddress:address,inputAmount:'100',outputAmount:'0.0123'});
+  assert.equal(getActiveRamp(address).stage,'registered');
+  assert.equal(getActiveRamp(address).createdAt,createdAt);
+  clearActiveRamp('r6');
+});
 test('a failed operation unblocks the wallet but stays in its history with the code',()=>{
   saveActiveRamp({rampId:'r3',walletAddress:address,inputAmount:'0.02',outputAmount:'440',rampType:'SELL'});
   failActiveRamp('other'); assert.equal(getActiveRamp(address).rampId,'r3');

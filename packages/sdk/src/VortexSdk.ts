@@ -28,6 +28,7 @@ import { EurOnrampError, TransactionSigningError } from "./errors.js";
 import { BrlHandler } from "./handlers/BrlHandler.js";
 import { DomesticHandler } from "./handlers/DomesticHandler.js";
 import { EurHandler } from "./handlers/EurHandler.js";
+import { GoldUsdcHandler, isGoldUsdcQuote } from "./handlers/GoldUsdcHandler.js";
 import { isStockUsdcQuote, StockUsdcHandler } from "./handlers/StockUsdcHandler.js";
 import { assertSufficientOfframpBalance } from "./preflight.js";
 import { ApiService } from "./services/ApiService.js";
@@ -61,6 +62,7 @@ export class VortexSdk {
   private brlHandler: BrlHandler;
   private domesticHandler: DomesticHandler;
   private eurHandler: EurHandler;
+  private goldUsdcHandler: GoldUsdcHandler;
   private stockUsdcHandler: StockUsdcHandler;
   private storeEphemeralKeys: boolean;
   private storeEphemeralKeysCallback: VortexSdkConfig["storeEphemeralKeysCallback"];
@@ -79,6 +81,12 @@ export class VortexSdk {
     this.publicKey = config.publicKey;
     this.secretKey = config.secretKey;
     this.accessTokenProvider = config.accessTokenProvider;
+    this.goldUsdcHandler = new GoldUsdcHandler(
+      this.apiService,
+      this,
+      this.generateEphemerals.bind(this),
+      this.signTransactions.bind(this)
+    );
 
     this.stockUsdcHandler = new StockUsdcHandler(
       this.apiService,
@@ -155,7 +163,11 @@ export class VortexSdk {
     let rampProcess: RampProcess;
     let unsignedTransactions: UnsignedTx[] = [];
 
-    if (isStockUsdcQuote(quote)) {
+    if (isGoldUsdcQuote(quote)) {
+      const data = additionalData as { walletAddress: string; destinationAddress: string };
+      rampProcess = await this.goldUsdcHandler.register(quote.id, data);
+      unsignedTransactions = await this.getUserTransactions(rampProcess, data.walletAddress);
+    } else if (isStockUsdcQuote(quote)) {
       const data = additionalData as StockUsdcAdditionalData;
       if (this.offrampFundingMode !== "deferred") await assertSufficientOfframpBalance(quote, data.walletAddress);
       rampProcess = await this.stockUsdcHandler.register(quote.id, data);
