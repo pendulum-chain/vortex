@@ -161,6 +161,9 @@ the sibling of `apps/gold`.
   `lib/demo-links.js` only behind `DEMO_TOOLS` from `config.js`, which Vite folds to `false` in
   preview/live builds: after a live build, `dist/client/.vite/manifest.json` has no `demo-links`
   entry (CI checks it). Keep that exact `DEMO_TOOLS` expression (`tests/demo-links.test.mjs`).
+- **Hero photos:** `public/images/carousel-<name>-{800,1440}.jpg` (the `FairFeesHero` carousel; the
+  fair-fees 1440 file is also the OG image) are AI-generated images of fictional people, not stock
+  photos or real customers. A replacement keeps that true, or this line records its source and licence.
 - **Styles:** `styles.css`; its token block must equal `cssVariables()` from `brand.js`
   (`tests/brand.test.mjs`). Numbers and tickers in DM Mono, prices up/down with ▲/▼ and a sign,
   48 px targets, visible focus, `prefers-reduced-motion` honoured. Ticker tiles, never logos.
