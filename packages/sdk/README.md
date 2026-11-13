@@ -316,3 +316,23 @@ bun install
 # Run example
 bun run example.ts
 ```
+
+### Native Base USDC → Stock Tokens
+
+This route requires a backend with `STOCKS_USDC_ENABLED_DIRECTIONS` enabled and the SDK's `StockUsdcHandler`. Discover `GET /v1/supported-cryptocurrencies?network=robinhood&paymentMethod=usdc`; only use allowlisted contracts and enabled directions. It does not use a fiat identity or payment code.
+
+```ts
+const quote = await sdk.createQuote({
+  rampType: RampDirection.BUY,
+  from: Networks.Base, to: Networks.Robinhood, network: Networks.Robinhood,
+  inputCurrency: EvmToken.USDC, outputCurrency: EvmToken.NVDA,
+  inputAmount: "1000", destinationAddress: walletAddress
+});
+const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
+  walletAddress, destinationAddress: walletAddress
+});
+```
+
+Fund native USDC in that wallet on Base first. Registration persists fresh ephemeral keys and presigns their transactions before returning the owner's exact-amount EIP-2612 permit on Base (BUY) or Robinhood Chain (SELL). Validate delivery, token, chain, owner, ephemeral spender, amount, nonce and deadline before signing. Submit with `submitUserTransactions`/`submitUserSignature`, then explicitly call `startRamp`; do not use the fiat `updateRamp` helper to fund this flow. SELL reverses the route with a stock input and USDC output on Base. Both addresses must match. User ETH is not required; execution gas is included in the quote and sponsored by Vortex.
+
+A registration failure after keys were saved must resume that operation rather than register another. Persist a wallet-scoped recovery record before keys, including the generated ephemeral address and pinned source amount/permit nonce. An ambiguous bridge refund or spent-nonce delivery pauses for reconciliation; it does not start a second deposit. Partial, excess or late transfers into the user's wallet are independent of the ramp and never authorize a trade by themselves.

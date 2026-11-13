@@ -17,6 +17,7 @@ export enum PaymentMethodName {
 }
 
 export enum EPaymentMethod {
+  USDC = "usdc",
   PIX = "pix",
   SEPA = "sepa",
   CBU = "cbu",

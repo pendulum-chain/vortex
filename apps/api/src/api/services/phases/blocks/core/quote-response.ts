@@ -17,11 +17,18 @@ export function gasReserveResponseFields(gasReserve: FlowGlobals["gasReserve"]) 
 }
 
 /** Only the stock flows set these, so every other corridor's response stays as it was. */
-export function stockQuoteResponseFields({ gasless, gasReserve, providerCosts, routingStrategy }: FlowGlobals) {
+export function stockQuoteResponseFields({
+  gasless,
+  gasReserve,
+  providerCosts,
+  routingStrategy,
+  nablaFeeSubsidy
+}: FlowGlobals) {
   return {
     ...(gasless === undefined ? {} : { gasless }),
     ...gasReserveResponseFields(gasReserve),
     ...(providerCosts ? { providerCosts } : {}),
+    ...(nablaFeeSubsidy ? { nablaFeeSubsidy } : {}),
     ...(routingStrategy ? { routingStrategy } : {})
   };
 }

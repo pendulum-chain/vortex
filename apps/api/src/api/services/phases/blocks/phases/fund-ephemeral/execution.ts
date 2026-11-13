@@ -49,10 +49,10 @@ import {
 import { assertEvmFundingNativeBalance, getEvmFundingAccount, runSerializedEvmFundingOperation } from "../../core/evm-funding";
 import { type EvmDestinationGasQuote, getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
 import { getNativePrefunding } from "../../core/prepare";
-import { ROBINHOOD_STOCKS } from "../../core/robinhood-stocks";
 import { AssethubOfframpSourceContext, type AssethubOfframpSourceRegistrationFacts } from "../assethub-offramp-source";
 import { EvmOfframpSourceContext, EvmOfframpSourceMetadata } from "../evm-offramp-source/simulation";
 import { StockPermitSourceContext } from "../stock-permit-source/simulation";
+import { stockSourcePin } from "../stock-permit-source/source";
 import type { StockPermitSourceState } from "../stock-permit-source/transactions";
 import { FundEphemeralContext } from "./simulation";
 
@@ -258,14 +258,17 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     quote: QuoteTicket,
     signal?: AbortSignal
   ): Promise<void> {
-    if (state.type !== RampDirection.SELL) return;
-    if (state.from === Networks.AssetHub) return;
-    if (isDomesticToken(quote.outputCurrency as FiatToken)) return;
     const blocks = getFlowMetadata(quote.metadata).blocks;
     if (blocks[StockPermitSourceContext.key]) {
       await this.assertStockSellerCanCover(state, signal);
       return;
     }
+    if (
+      state.type !== RampDirection.SELL ||
+      state.from === Networks.AssetHub ||
+      isDomesticToken(quote.outputCurrency as FiatToken)
+    )
+      return;
     const metadata = blocks[EvmOfframpSourceContext.key] as EvmOfframpSourceMetadata | undefined;
     if (!metadata) return;
     if (state.unsignedTxs.some(tx => tx.phase === "squidRouterNoPermitTransfer")) {
@@ -315,10 +318,11 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       state.state,
       StockPermitSourceContext
     );
+    const { address, network } = stockSourcePin(token);
     try {
       if (isNoPermitFallback) {
         await verifyUserSubmittedTxByHash({
-          fromNetwork: Networks.Robinhood,
+          fromNetwork: network,
           hash: state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
           label: "User stock transfer to ephemeral",
           presignedPhase: "squidRouterNoPermitTransfer",
@@ -335,10 +339,10 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         );
       }
       const balance = await EvmClientManager.getInstance()
-        .getClient(Networks.Robinhood)
+        .getClient(network)
         .readContract({
           abi: erc20Abi,
-          address: ROBINHOOD_STOCKS[token].address,
+          address: address,
           args: [owner as `0x${string}`],
           functionName: "balanceOf"
         });

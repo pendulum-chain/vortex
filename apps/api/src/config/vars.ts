@@ -82,17 +82,24 @@ function readDisabledFiatCurrencies(): FiatToken[] {
  * Empty keeps it off. New quotes stop, ramps already registered keep executing. An unknown value
  * aborts startup so a misspelled switch cannot stay silently inactive.
  */
-function readStocksEnabledDirections(): RampDirection[] {
-  const directions = (process.env.STOCKS_ENABLED_DIRECTIONS || "")
+function readStocksEnabledDirections(name = "STOCKS_ENABLED_DIRECTIONS"): RampDirection[] {
+  const directions = (process.env[name] || "")
     .split(",")
     .map(direction => direction.trim().toUpperCase())
     .filter(Boolean);
   const known: string[] = Object.values(RampDirection);
   const unknown = directions.filter(direction => !known.includes(direction));
   if (unknown.length > 0) {
-    throw new Error(`STOCKS_ENABLED_DIRECTIONS contains unknown directions: ${unknown.join(", ")} (expected BUY, SELL)`);
+    throw new Error(`${name} contains unknown directions: ${unknown.join(", ")} (expected BUY, SELL)`);
   }
   return directions as RampDirection[];
+}
+
+function readNonNegativeBpsEnv(name: string, fallback: string): number {
+  const raw = (process.env[name] ?? fallback).trim();
+  if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)) || Number(raw) > 10000)
+    throw new Error(`${name} must be an integer from 0 to 10000`);
+  return Number(raw);
 }
 
 function readPositiveIntegerEnv(name: string, defaultValue: string): number {
@@ -254,6 +261,9 @@ interface Config {
   };
   stocks: {
     enabledDirections: RampDirection[];
+    usdcEnabledDirections: RampDirection[];
+    nablaUserFeeBps?: number;
+    nablaMaxSubsidyBps: number;
     gasReserveTargetWei: bigint;
     gasReserveThresholdWei: bigint;
     maxPriceDeviationBps: number;
@@ -551,11 +561,15 @@ export const config: Config = {
     gasReserveTargetWei: readWeiEnv("ROBINHOOD_GAS_RESERVE_TARGET_WEI", "50000000000000"),
     gasReserveThresholdWei: readWeiEnv("ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI", "20000000000000"),
     maxPriceDeviationBps: readPositiveIntegerEnv("STOCKS_MAX_PRICE_DEVIATION_BPS", "200"),
+    nablaMaxSubsidyBps: readNonNegativeBpsEnv("STOCKS_NABLA_MAX_SUBSIDY_BPS", "20"),
+    nablaUserFeeBps:
+      process.env.STOCKS_NABLA_USER_FEE_BPS === undefined ? undefined : readNonNegativeBpsEnv("STOCKS_NABLA_USER_FEE_BPS", "5"),
     priceReferenceMaxAgeHours: readPositiveIntegerEnv("STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS", "72"),
     quoteRateLimitPerMinute: readPositiveIntegerEnv("STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE", "20"),
     saleSubsidyMaxUsd: readPositiveDecimalEnv("STOCKS_SALE_SUBSIDY_MAX_USD", "500"),
     settlementSubsidyMaxBps: readPositiveIntegerEnv("STOCKS_SETTLEMENT_SUBSIDY_MAX_BPS", "250"),
-    settlementSubsidyMaxUsd: readPositiveDecimalEnv("STOCKS_SETTLEMENT_SUBSIDY_MAX_USD", "50")
+    settlementSubsidyMaxUsd: readPositiveDecimalEnv("STOCKS_SETTLEMENT_SUBSIDY_MAX_USD", "50"),
+    usdcEnabledDirections: readStocksEnabledDirections("STOCKS_USDC_ENABLED_DIRECTIONS")
   },
   subscanApiKey: process.env.SUBSCAN_API_KEY,
 
@@ -581,7 +595,10 @@ if (config.stocks.gasReserveTargetWei > 0n && config.stocks.gasReserveThresholdW
 }
 
 // Relay requires an API key on every quote, so an enabled corridor without one would fail every quote and registration.
-if (config.stocks.enabledDirections.length > 0 && !process.env.RELAY_API_KEY) {
+if (
+  (config.stocks.enabledDirections.length > 0 || config.stocks.usdcEnabledDirections.length > 0) &&
+  !process.env.RELAY_API_KEY
+) {
   throw new Error("RELAY_API_KEY is required when STOCKS_ENABLED_DIRECTIONS is set");
 }
 

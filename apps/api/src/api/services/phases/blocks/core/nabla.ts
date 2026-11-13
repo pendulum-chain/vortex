@@ -14,6 +14,7 @@ import {
 } from "@vortexfi/shared";
 import { Big } from "big.js";
 import httpStatus from "http-status";
+import { parseAbi } from "viem";
 import logger from "../../../../../config/logger";
 import { APIError } from "../../../../errors/api-error";
 import { createLowLiquidityQuoteError, isLowLiquidityQuoteError } from "../../../quote/core/errors";
@@ -26,12 +27,14 @@ export interface NablaSwapRequest {
 }
 
 export interface NablaSwapResult {
+  swapFeeAmountRaw?: string;
   nablaOutputAmountRaw: string;
   nablaOutputAmountDecimal: Big;
   effectiveExchangeRate?: string;
 }
 
 export interface NablaSwapEvmRequest {
+  includeSwapFee?: boolean;
   inputAmountForSwap: string;
   rampType: RampDirection;
   inputTokenDetails: EvmTokenDetails;
@@ -173,12 +176,39 @@ export async function calculateNablaSwapOutputEvm(request: NablaSwapEvmRequest):
     const outputAddr = outputTokenDetails.erc20AddressSourceChain as `0x${string}`;
     const { router, quoter } = getNablaBasePool(inputAddr, outputAddr);
 
-    const result = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-      abi: swapAbi,
-      address: quoter,
-      args: [BigInt(amountIn), [inputAddr, outputAddr], [router]],
-      functionName: "quoteSwapExactTokensForTokens"
-    });
+    let swapFeeAmountRaw: string | undefined;
+    let result: bigint;
+    if (request.includeSwapFee) {
+      const client = evmClientManager.getClient(Networks.Base);
+      const blockNumber = await client.getBlockNumber();
+      const abi = parseAbi([
+        "function oracleAdapter() view returns(address)",
+        "function getAssetPrice(address) view returns(uint256)",
+        "function getAmountOut(uint256,address[],uint256[]) view returns(uint256,uint256)"
+      ]);
+      const oracle = await client.readContract({ abi, address: router, blockNumber, functionName: "oracleAdapter" });
+      const prices = await Promise.all(
+        [inputAddr, outputAddr].map(asset =>
+          client.readContract({ abi, address: oracle, args: [asset], blockNumber, functionName: "getAssetPrice" })
+        )
+      );
+      const quote = await client.readContract({
+        abi,
+        address: router,
+        args: [BigInt(amountIn), [inputAddr, outputAddr], prices],
+        blockNumber,
+        functionName: "getAmountOut"
+      });
+      result = quote[0];
+      swapFeeAmountRaw = quote[1].toString();
+    } else {
+      result = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
+        abi: swapAbi,
+        address: quoter,
+        args: [BigInt(amountIn), [inputAddr, outputAddr], [router]],
+        functionName: "quoteSwapExactTokensForTokens"
+      });
+    }
 
     const preciseQuotedAmountOut = parseContractBalanceResponse(outputTokenDetails.decimals, result);
     if (!preciseQuotedAmountOut) {
@@ -186,6 +216,7 @@ export async function calculateNablaSwapOutputEvm(request: NablaSwapEvmRequest):
     }
 
     return {
+      ...(swapFeeAmountRaw !== undefined ? { swapFeeAmountRaw } : {}),
       effectiveExchangeRate: stringifyBigWithSignificantDecimals(
         preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountForSwap)),
         4

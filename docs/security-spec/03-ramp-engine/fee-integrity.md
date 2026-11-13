@@ -272,3 +272,11 @@ quotes may already contain snapshots prepared under the old rule.
   after fees have been distributed.
 - [ ] Persisted Mykobo recovery still depends on the historical provider fee metadata;
   new quotes cannot select that rail.
+
+### Stocks-only Nabla fee subsidy
+
+`STOCKS_NABLA_USER_FEE_BPS` is unset by default. Setting it to 5 enables a fee-only rebate for BRL/Pix Stocks BUY and SELL; it does not change the on-chain pool fee or any other flow. The router's net output and fee are read with oracle inputs at one block. Gross output is net output plus fee; retain ceil(gross × target / 10,000) raw units (at most the actual fee) and rebate the remainder. Reject the quote with a public 503 if the rebate exceeds floor(gross × `STOCKS_NABLA_MAX_SUBSIDY_BPS` / 10,000), default 20 bps. Thus a 25 bps pool needs 20 bps of treasury support; a 30 bps pool needs a deliberate cap increase before this route can quote. This is a quote-time DEX-fee target, not an all-in price or an FX/slippage guarantee.
+
+The rebate uses the existing journalled, capped `subsidizePostSwap` execution and is added to output exactly once. It replaces the generic oracle `targetDiscount` calculation for this configured Stocks phase; the two do not stack. BUY rebates USDC on Base, SELL rebates BRLA on Base. The treasury needs those assets plus native gas; an unknown outcome retains the financial journal for reconciliation. Pool movement may use the existing separately bounded execution-discrepancy allowance. `nablaFeeSubsidy` discloses the quoted gross/effective fee and fiat/USD value; the conversion provider row is already net of that rebate. Curve, FX, bridge, Uniswap, Vortex and network costs remain distinct. Base-USDC bypasses Nabla and never receives this subsidy. No partner API key or new partner account is required.
+
+Native-USDC fee rows keep 6 decimals. Fee-free fiat-provider/conversion entries are zero for this route, not inferred prices. The existing 5 bps Vortex fee remains the only product revenue; there is no Stocks markup.

@@ -228,6 +228,7 @@ export class FakeEvm {
           this.feeEstimates.get(network) ?? { maxFeePerGas: 1_000_000_000n, maxPriorityFeePerGas: 1_000_000_000n },
         estimateGas: async () => 21_000n,
         getBalance: async ({ address }: { address: string }) => this.nativeBalance(network, address),
+        getBlockNumber: async () => 1n,
         getBytecode: async ({ address }: { address: string }) =>
           this.contractAddresses.has(address.toLowerCase()) ? ("0x6080" as `0x${string}`) : undefined,
         getGasPrice: async () => 1_000_000_000n,

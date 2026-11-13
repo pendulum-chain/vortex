@@ -1,13 +1,17 @@
 import { EvmTokenDetails, getOnChainTokenDetails, Networks, nativeToDecimal, RampDirection } from "@vortexfi/shared";
 import { Big } from "big.js";
 import logger from "../../../../../../config/logger";
+import { config } from "../../../../../../config/vars";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { evmIO } from "../../core/io";
 import { defineContext, type SerializableBig } from "../../core/metadata";
 import { calculateNablaSwapOutputEvm } from "../../core/nabla";
+import { calculateNablaFeeSubsidy, type NablaFeeSubsidy } from "../../core/nabla-fee-subsidy";
+import { isBrlPixRobinhoodRoute } from "../../core/robinhood-stocks";
 import type { ChainBrand, PhaseCtx, PhaseIO, PhaseResult, TokenBrand } from "../../core/types";
 
 export interface NablaSwapMetadata {
+  feeSubsidy?: NablaFeeSubsidy;
   ammOutputAmountRaw?: string;
   effectiveExchangeRate?: string;
   inputAmountForSwapDecimal: string;
@@ -42,12 +46,29 @@ export async function simulateNablaSwap<Chain extends ChainBrand, InToken extend
   }
   const inputAmountForSwapRaw = input.amountRaw;
   const inputAmountForSwap = nativeToDecimal(inputAmountForSwapRaw, inputTokenDetails.decimals).toString();
+  const targetBps = isBrlPixRobinhoodRoute(ctx.request) ? config.stocks.nablaUserFeeBps : undefined;
   const result = await calculateNablaSwapOutputEvm({
+    ...(targetBps !== undefined ? { includeSwapFee: true } : {}),
     inputAmountForSwap,
     inputTokenDetails,
     outputTokenDetails,
     rampType: ctx.request.rampType
   });
+  let feeSubsidy: NablaFeeSubsidy | undefined;
+  if (targetBps !== undefined) {
+    if (result.swapFeeAmountRaw === undefined) throw new Error("The DEX fee must be known before subsidizing it");
+    feeSubsidy = {
+      ...calculateNablaFeeSubsidy(
+        result.nablaOutputAmountRaw,
+        result.swapFeeAmountRaw,
+        targetBps,
+        config.stocks.nablaMaxSubsidyBps
+      ),
+      outputCurrency: outToken,
+      outputDecimals: outputTokenDetails.decimals
+    };
+    ctx.nablaFeeSubsidy = feeSubsidy;
+  }
   const oracleCurrency = ctx.request.rampType === RampDirection.BUY ? ctx.request.inputCurrency : ctx.request.outputCurrency;
   let oraclePrice: Big | undefined;
   try {
@@ -60,6 +81,7 @@ export async function simulateNablaSwap<Chain extends ChainBrand, InToken extend
   );
   return {
     metadata: {
+      ...(feeSubsidy ? { feeSubsidy } : {}),
       effectiveExchangeRate: result.effectiveExchangeRate,
       inputAmountForSwapDecimal: inputAmountForSwap,
       inputAmountForSwapRaw,
