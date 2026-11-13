@@ -1752,6 +1752,44 @@
         "title": "Redes Suportadas"
       }
     },
+    "productDiscovery": {
+      "business": {
+        "build": "Crie com a Vortex",
+        "description": "Dois produtos. Uma experiência própria. A Vortex cuida do cadastro, dos pagamentos e da liquidação.",
+        "docs": "Leia a documentação",
+        "eyebrow": "CRIADO COM A VORTEX",
+        "gold": {
+          "action": "Ver exemplo de ouro",
+          "previewAlt": "Prévia ilustrativa do ouro., o app de ouro da Vortex em português.",
+          "title": "App de ouro"
+        },
+        "market": "Exemplos com Pix · Brasil",
+        "stocks": {
+          "action": "Ver exemplo de ações",
+          "previewAlt": "Prévia ilustrativa do fatia., o app de tokens de ações da Vortex em português.",
+          "title": "App de ações"
+        },
+        "title": "Veja o que você pode criar com a Vortex."
+      },
+      "individuals": {
+        "accent": "Taxas justas. Custos claros.",
+        "description": "Comece com Pix no Brasil. Veja o custo total antes de pagar.",
+        "eyebrow": "INVISTA COM A VORTEX",
+        "gold": {
+          "action": "Conhecer o ouro",
+          "description": "Tokens com lastro em ouro.\nCompre com Pix.",
+          "title": "Ouro"
+        },
+        "market": "Brasil · Pix",
+        "qualification": "Você compra tokens, não ouro físico nem ações de empresas.",
+        "stocks": {
+          "action": "Conhecer ações",
+          "description": "Tokens de ações dos EUA.\nCompre com Pix.",
+          "title": "Ações"
+        },
+        "title": "Ouro e tokens de ações dos EUA."
+      }
+    },
     "trustedBy": {
       "comingSoon": "Em breve",
       "title": "Confiado por"
