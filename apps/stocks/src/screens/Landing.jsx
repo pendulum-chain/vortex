@@ -51,7 +51,7 @@ export function Landing({ market, rampOpen, onPreview, canPreviewContinue, onLea
   const unavailable = !loading && state.status === "unavailable";
   return (
     <main id="conteudo" tabIndex={-1}>
-      <FairFeesHero previewId="simular" onLearn={onLearn} availabilityNotice={rampOpen === false ? "Compra com Pix em breve" : null} />
+      <FairFeesHero previewId="simular" onLearn={onLearn} buyOpen={rampOpen} />
       <div className="wrap fair-preview">
         <PurchasePreview id="simular" prices={state.prices} onContinue={onPreview} canContinue={canPreviewContinue} />
       </div>

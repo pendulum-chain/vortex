@@ -17,6 +17,8 @@ const COPY = {
     monthly: "Sem mensalidade",
     extra: "Sem taxa extra da fatia.",
     action: "Comprar com Pix",
+    preview: "Ver custos da compra",
+    soon: "Compra com Pix em breve",
     reassurance: "Confira a cotação antes de pagar.",
     rights: "Um Stock Token acompanha a ação, mas não é a ação.",
     learn: "Como funciona?",
@@ -36,6 +38,8 @@ const COPY = {
     monthly: "No monthly fee",
     extra: "No extra fatia. fee",
     action: "Buy with USDC",
+    preview: "See purchase costs",
+    soon: "USDC purchases are coming soon",
     reassurance: "Review your quote before you pay.",
     rights: "A Stock Token tracks a share; it is not the share itself.",
     carousel: "Carousel",
@@ -45,7 +49,9 @@ const COPY = {
   }
 };
 
-export function FairFeesHero({ locale = "pt-BR", previewId, contained = false, onLearn, availabilityNotice }) {
+// buyOpen follows rampOpenState: true promises the purchase, false shows "em breve", and null (not known yet,
+// or a failed listing) promises neither.
+export function FairFeesHero({ locale = "pt-BR", previewId, contained = false, onLearn, buyOpen = true }) {
   const copy = COPY[locale];
   const base = import.meta.env.BASE_URL;
   const id = useId();
@@ -130,8 +136,8 @@ export function FairFeesHero({ locale = "pt-BR", previewId, contained = false, o
         <ul className="fair-hero__fees" aria-label={locale === "en" ? "fatia. fees" : "Taxas da fatia."}>
           <li>{copy.monthly}</li><li>{copy.extra}</li>
         </ul>
-        <button className="btn btn--primary btn--lg fair-hero__action" type="button" onClick={preview} aria-controls={previewId}>{copy.action}</button>
-        {availabilityNotice && <p className="hero__soon" role="status">{availabilityNotice}</p>}
+        <button className="btn btn--primary btn--lg fair-hero__action" type="button" onClick={preview} aria-controls={previewId}>{buyOpen === true ? copy.action : copy.preview}</button>
+        {buyOpen === false && <p className="hero__soon" role="status">{copy.soon}</p>}
         <p className="fair-hero__reassurance">{copy.reassurance}</p>
         <div className="fair-hero__rights"><p>{copy.rights}</p>{onLearn && <button className="link link-button" type="button" onClick={onLearn}>{copy.learn}</button>}</div>
       </div>

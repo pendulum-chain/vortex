@@ -16,7 +16,7 @@ const transformed = await transformWithEsbuild(await readFile(source, "utf8"), f
 const code = transformed.code.replace(/from\s+["']([^"']+)["']/g, (_, specifier) => `from ${JSON.stringify(specifier.startsWith(".") ? new URL(specifier, source).href : pathToFileURL(requireFromSource.resolve(specifier)).href)}`);
 const { FairFeesHero } = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`);
 
-async function harness(locale, run) {
+async function harness(locale, run, props = {}) {
   const previous = [globalThis.window, globalThis.document, globalThis.IS_REACT_ACT_ENVIRONMENT];
   const dom = new JSDOM('<div id="root"></div><section id="purchase"><select><option>NVDA</option></select></section>');
   globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -25,7 +25,7 @@ async function harness(locale, run) {
   dom.window.matchMedia = () => ({ matches: true });
   const root = createRoot(document.getElementById("root"));
   try {
-    await act(async () => root.render(createElement(FairFeesHero, { locale, previewId: "purchase" })));
+    await act(async () => root.render(createElement(FairFeesHero, { locale, previewId: "purchase", ...props })));
     const track = document.querySelector(".fair-hero__track");
     Object.defineProperty(track, "clientWidth", { value: 400, configurable: true });
     track.scrollTo = options => { slides.push(options); track.scrollLeft = options.left; track.dispatchEvent(new dom.window.Event("scroll")); };
@@ -82,6 +82,15 @@ for (const locale of ["pt-BR", "en"]) {
     assert.equal(s.checkoutScrolls.length, 0);
   }));
 }
+
+test("pt-BR: the hero promises a Pix purchase only while Pix is open, and neither promise while it is unknown", async () => {
+  for (const [buyOpen, action, notice] of [[true, "Comprar com Pix", null], [false, "Ver custos da compra", "Compra com Pix em breve"], [null, "Ver custos da compra", null]]) {
+    await harness("pt-BR", async () => {
+      assert.equal(document.querySelector(".fair-hero__action").textContent, action);
+      assert.equal(document.querySelector(".hero__soon")?.textContent ?? null, notice);
+    }, { buyOpen });
+  }
+});
 
 test("mouse drag advances, clamps at the edges and releases pointer capture", () => harness("en", async s => {
   await s.pointer("pointerdown", 300);
