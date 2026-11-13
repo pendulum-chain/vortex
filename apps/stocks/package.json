@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --max-old-space-size=256 --test --test-concurrency=1 tests/*.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

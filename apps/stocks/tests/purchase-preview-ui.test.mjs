@@ -91,7 +91,7 @@ test("a failed intent write keeps the estimate visible and reports the error", (
 test("a missing reference price cannot reuse a previously displayed estimate", () => harness(async s => {
   await s.render(); await s.click("Simular compra");
   await s.render({ prices: {} });
-  assert.equal(document.querySelector(".preview-result"), null);
+  assert.equal(Boolean(document.querySelector(".preview-result")), false);
   assert.equal(s.button("Continuar com Pix").disabled, true);
   assert.match(s.text(), /preço de referência disponível/);
   assert.doesNotMatch(s.text(), /Compra em breve/);

@@ -60,22 +60,21 @@ export function parseGasReserve(raw) {
  * @param {GasReserve} reserve
  */
 export function gasReserveFeeProblem(quote, reserve) {
+  const feeRounding = quote.feeCurrency === "USDC" ? 0.000001 : FEE_ROUNDING;
   const network = Number(quote.networkFeeFiat);
   const service = Number(quote.processingFeeFiat) + Number(quote.partnerFeeFiat);
   const total = Number(quote.totalFeeFiat);
-  if (reserve.brl > network + FEE_ROUNDING + EPSILON) return "the reserve is not inside networkFeeFiat";
-  if (service + network > total + FEE_ROUNDING + EPSILON) return "networkFeeFiat (with the reserve) is not inside totalFeeFiat";
-  if (total > service + network + FEE_ROUNDING + EPSILON) return "totalFeeFiat holds more than processing + partner + network (a reserve outside networkFeeFiat?)";
+  if (reserve.brl > network + feeRounding + EPSILON) return "the reserve is not inside networkFeeFiat";
+  if (service + network > total + feeRounding + EPSILON) return "networkFeeFiat (with the reserve) is not inside totalFeeFiat";
+  if (total > service + network + feeRounding + EPSILON) return "totalFeeFiat holds more than processing + partner + network (a reserve outside networkFeeFiat?)";
   if (!(total < Number(quote.inputAmount))) return "the fees, reserve included, are not below the amount paid";
   const networkUsd = present(quote.networkFeeUsd) ? Number(quote.networkFeeUsd) : null;
-  if (reserve.usd !== null && networkUsd !== null && Number.isFinite(networkUsd) && reserve.usd > networkUsd + FEE_ROUNDING + EPSILON) return "the reserve is not inside networkFeeUsd";
+  if (reserve.usd !== null && networkUsd !== null && Number.isFinite(networkUsd) && reserve.usd > networkUsd + feeRounding + EPSILON) return "the reserve is not inside networkFeeUsd";
   return null;
 }
 
-const cents = (value) => Math.round(value * 100) / 100;
-
 /** The network fee line without the reserve (the reserve gets its own line). */
-export const networkFeeWithoutReserve = (networkFeeBrl, reserve) => (reserve ? Math.max(0, cents(Number(networkFeeBrl) - reserve.brl)) : Number(networkFeeBrl));
+export const networkFeeWithoutReserve = (networkFeeBrl, reserve, decimals = 2) => (reserve ? Math.max(0, Number((Number(networkFeeBrl) - reserve.brl).toFixed(decimals))) : Number(networkFeeBrl));
 
 /** The buy review's line about selling later: states only what the reserve is, never that it pays for a sell. */
 export function sellLaterNotePt(quote) {

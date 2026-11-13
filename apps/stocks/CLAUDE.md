@@ -122,17 +122,7 @@ the sibling of `apps/gold`.
   shows provider rows, Vortex as the only own revenue fee and an explicit zero Stocks surcharge.
   `fees.total` means reported fees, not necessarily the full spread against a fresh market rate.
   Simulated costs are illustrative round placeholders, never a provider's real rates.
-- **Simulated USDC (demo and preview only):** `international.html` + the lazy `InternationalApp.jsx`
-  serve English at `/en/stocks/` using the same bundle assets, auth and wallet as Brazil. `UsdcFlow.jsx`
-  adds native Base USDC as a second method in Brazil. `usdc-checkout.js` owns the simulated quote,
-  deposit, re-quote/price approval, buy/sell, balance and recovery logic; all amounts are integer
-  raw units. It shares `activeRampStore` with Pix (`paymentMethod: "usdc"`). A live build has no
-  USDC: `App` offers it only outside `config.mode === "live"`, `USDC_CHECKOUT` from `config.js` (folded
-  at build time, like `DEMO_TOOLS`) drops its chunks, `vite.config.mjs` drops the English entry, and
-  CI's live-bundle step checks the manifest. Never show a payable address or
-  actual QR in this simulation. `UsdcQuoteCosts` reuses the existing cost detail component/style.
-  Order receipts are deduplicated and holdings settlement uses an operation ID; do not remove
-  either check. Preview holdings are wallet-scoped. See README and `verify-usdc-ui.mjs`.
+- **Base USDC:** English `/en/stocks/` and the Brazil USDC choice ship in all builds. Live execution is independently gated by `VITE_STOCKS_USDC_ENABLED=true` and backend `STOCKS_USDC_ENABLED_DIRECTIONS`; discover with `paymentMethod=usdc`. `LiveUsdcFlow.jsx` waits for two Base confirmations in the user's own wallet, refreshes the quote, then requires explicit approval before an exact-amount source permit. No fiat KYC call is made. `vortex-stocks.js` shares the existing Pix recovery lock, nonce/deadline/maintenance checks and persisted ephemeral keys. Native Base USDC is code-pinned. `USDC_SIMULATION` removes `SimulatedUsdcFlow.jsx` and simulated payment controls from live builds; demo/preview remain fake and never show payable addresses. See README for deployment order and recovery behavior.
 - **Maintenance:** the live adapter reads existing public `/v1/maintenance/status` before registration,
   start and each new wallet broadcast. `PixStep` also polls while visible and invalidates a clear
   result on banking-app/background transitions. Unknown, paused, disabled and expired states hide
@@ -148,8 +138,7 @@ the sibling of `apps/gold`.
   client or ramp adapter. Lazy chunks: `PrivyShell.jsx` (the only Privy import), `runtime.js`
   (adapter + portfolio read, loaded on sign-in, or signed out on the landing and a detail screen while the
   live ramp is on: its answer decides "Comprar com Pix" vs "em breve"; unknown shows neither),
-  `components/PriceChart.jsx` (recharts), `flows/BuyFlow.jsx` / `flows/SellFlow.jsx` (qrcode), and
-  in non-live builds `InternationalApp.jsx` and `flows/UsdcFlow.jsx`.
+  `components/PriceChart.jsx` (recharts), `flows/BuyFlow.jsx` / `flows/SellFlow.jsx` (qrcode), and `InternationalApp.jsx` / `flows/UsdcFlow.jsx`.
   `tests/import-boundaries.test.mjs` walks the entry's static import graph and fails if any of
   them (or `@phosphor-icons/react`) becomes eager. Check `dist/client/.vite/manifest.json` after
   a build: the entry has no static imports.
