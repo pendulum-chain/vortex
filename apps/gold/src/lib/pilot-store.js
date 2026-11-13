@@ -2,9 +2,11 @@ import { createActiveRampStore } from "@vortexfi/consumer-kit";
 
 // Same keys; the shared store reads legacy single records and isolates unfinished orders by wallet.
 export const goldRampStore = createActiveRampStore({ activeKey: "satoshi:gold:active-ramp:v1", historyKey: "satoshi:gold:history:v1" });
+// Only createdAt carries over. A save without a stage means "registered", as before the shared
+// store: inheriting the SDK callback's "registering" would hide a registered buy's Pix QR on resume.
 export function saveActiveRamp(record) {
   const existing = goldRampStore.get(record.walletAddress);
-  return goldRampStore.save({ ...existing, ...record, createdAt: record.createdAt ?? existing?.createdAt ?? Date.now() });
+  return goldRampStore.save({ ...record, createdAt: record.createdAt ?? existing?.createdAt ?? Date.now() });
 }
 export const saveTransactionCheckpoint = (id, phase, hash) => goldRampStore.checkpoint(id, phase, hash);
 export const getActiveRamp = (owner) => goldRampStore.get(owner);
