@@ -47,12 +47,13 @@ test("only src/lib/config.js reads VITE_* variables", () => {
   }
 });
 
-test("served at /pt-br/stocks/ and kept out of search results until launch", () => {
+test("served and indexed at /pt-br/stocks/, with the English edition kept out of search results", () => {
   assert.match(read("vite.config.mjs"), /base:\s*"\/pt-br\/stocks\/"/);
   assert.match(read("vite.config.mjs"), /outDir:\s*"dist\/client"/);
   const html = read("index.html");
   assert.match(html, /<html lang="pt-BR">/);
-  assert.match(html, /<meta name="robots" content="noindex" \/>/);
+  assert.doesNotMatch(html, /noindex/);
+  assert.match(read("international.html"), /<meta name="robots" content="noindex" \/>/);
   assert.match(html, /<link rel="canonical" href="https:\/\/www\.vortexfinance\.co\/pt-br\/stocks\/" \/>/);
   for (const [, href] of html.matchAll(/href="(\/brand\/[^"]+)"/g)) assert.ok(existsSync(join(APP, "public", href)), `${href} is missing from public/`);
 });
