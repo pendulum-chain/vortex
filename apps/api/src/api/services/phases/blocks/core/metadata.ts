@@ -54,6 +54,7 @@ export interface GasReserveQuote {
 }
 
 export interface FlowGlobals {
+  nablaFeeSubsidy?: import("@vortexfi/shared").NablaFeeSubsidyDisplay;
   evmDestinationGas?: EvmDestinationGasQuote;
   fees: {
     displayFiat?: QuoteFeeStructure;

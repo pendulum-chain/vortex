@@ -5,10 +5,12 @@ import { Modal } from "./components/Modal.jsx";
 import { useMarket, useNow, usePortfolio, useRuntime } from "./hooks.js";
 import { STOCK_TOKENS } from "./lib/stocks.js";
 import { formatTokensEn, formatUsdc, formatUsd, BRAZIL_PATH } from "./lib/international.js";
+import { localHistoryRows, mergeHistory } from "./lib/history.js";
 import { useHashRoute } from "./router.js";
 import { stockHash } from "./lib/routes.js";
 import { formatUnits } from "viem";
 import { saveReturnHash, takeReturnHash } from "./lib/stores.js";
+import { FairFeesHero } from "./components/FairFeesHero.jsx";
 import { PurchasePreview } from "./components/PurchasePreview.jsx";
 import { clearPurchaseSelection, readPurchaseSelection, savePurchaseSelection } from "./lib/purchase-preview.js";
 
@@ -22,6 +24,7 @@ export default function InternationalApp({ auth, config }) {
   const portfolio = usePortfolio({ runtime, address: auth.address, prices: market.state.prices });
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState("");
+  const [serverHistory, setServerHistory] = useState(null);
   const [version, setVersion] = useState(0);
   const intent = useRef(null);
   const signed = auth.authenticated;
@@ -29,10 +32,24 @@ export default function InternationalApp({ auth, config }) {
   const selected = route.name === "stock" ? STOCK_TOKENS.find((t) => t.symbol === route.symbol) : null;
   const visible = STOCK_TOKENS.filter((t) => `${t.symbol} ${t.underlyingName}`.toLowerCase().includes(query.toLowerCase()));
   const usdc = runtime?.usdc;
-  const holdings = signed && auth.address && usdc?.enabled ? usdc.positions(auth.address).filter((h) => h.raw > 0n) : portfolio.valued?.holdings || [];
+  const holdings = signed && auth.address && usdc?.enabled && usdc.simulated !== false ? usdc.positions(auth.address).filter((h) => h.raw > 0n) : portfolio.valued?.holdings || [];
   const totalUsd = holdings.reduce((sum, h) => sum + number(h.raw) * (market.state.prices[h.symbol]?.usd || 0), 0);
+  useEffect(() => {
+    if (!signed || !auth.address || usdc?.simulated !== false) return;
+    let alive = true;
+    const refresh = () => usdc.refreshBalance(auth.address).then(() => { if (alive) setVersion(v => v + 1); }).catch(() => {});
+    refresh(); const timer = setInterval(refresh, 15000); return () => { alive = false; clearInterval(timer); };
+  }, [signed, auth.address, usdc]);
   const balance = signed && auth.address && usdc?.enabled ? Number(usdc.balanceRaw(auth.address)) / 1e6 : null;
-  const history = signed && auth.address && usdc?.enabled ? usdc.history(auth.address) : [];
+  const history = signed && auth.address && usdc?.enabled && usdc.simulated !== false ? usdc.history(auth.address) : [];
+  const liveHistory = signed && auth.address && usdc?.simulated === false
+    ? mergeHistory(localHistoryRows(runtime.activeRampStore.history(auth.address)), serverHistory?.owner === auth.address ? serverHistory.rows : []) : [];
+  useEffect(() => {
+    if (!runtime || !signed || !auth.address || usdc?.simulated !== false) return;
+    let current = true;
+    const refresh = () => runtime.serverHistory({ email: auth.user?.email, privyDid: auth.user?.privyDid }).then(rows => { if (current && rows) setServerHistory({ owner: auth.address, rows }); }).catch(() => {});
+    refresh(); const timer = setInterval(refresh, 15000); return () => { current = false; clearInterval(timer); };
+  }, [runtime, signed, auth.address, version]);
   useEffect(() => { document.documentElement.lang = "en"; document.title = `${BRAND.lockupAlt} — Stock Tokens with USDC`; }, []);
   useEffect(() => {
     if (!auth.authenticated) return;
@@ -94,15 +111,19 @@ export default function InternationalApp({ auth, config }) {
       <div className="site-header__right"><a className="link locale-switch" href={BRAZIL_PATH}>Brasil · Pix</a>{signed ? <button className="btn btn--secondary" onClick={async () => { clearPurchaseSelection(); intent.current = null; await auth.logout(); setModal(null); }}>Sign out</button> : <button className="btn btn--secondary" disabled={busyAuth} onClick={() => setModal({ type: "login" })}>{busyAuth ? "Preparing sign-in…" : "Sign in with Vortex"}</button>}</div>
     </div></header>
     <main id="conteudo" tabIndex={-1} className="wrap page international-page">
-      {!selected && <section className="usdc-hero">
-        <div><p className="eyebrow">US Stock Tokens · funded with USDC</p><h1 className="hero__title">Big companies.<br /><span className="accent">Your slice.</span></h1><p className="section__lede">Start with 10 USDC. Choose a company, preview the costs and receive a Stock Token in your own wallet. Pay with USDC on Base.</p><div className="hero__actions"><button className="btn btn--primary btn--lg" onClick={() => document.getElementById("preview-purchase")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Preview your purchase</button><span className="hint">No sign-up to preview. Bank payments are planned.</span></div><p className="hint">Stock Tokens provide economic exposure. You receive a token, not the underlying share.</p></div>
-        <PurchasePreview id="preview-purchase" prices={market.state.prices} locale="en" onContinue={startPreview} canContinue={() => config.mode !== "live"} />
-      </section>}
+      {!selected && <>
+        <FairFeesHero locale="en" previewId="preview-purchase" contained buyOpen={config.usdcEnabled} />
+        <div className="fair-preview">
+          <PurchasePreview id="preview-purchase" prices={market.state.prices} locale="en" onContinue={startPreview} canContinue={() => config.usdcEnabled || config.mode !== "live"} />
+        </div>
+        <p className="hint">Bank payments are planned.</p>
+      </>}
       {pending && <section className="notice notice--info" role="status"><b>You have an unfinished {pending.paymentMethod === "usdc" ? "USDC" : "Pix"} order.</b><button className="btn btn--secondary" onClick={() => start(pending.symbol)}>Resume order</button></section>}
       {signed && <section className="section" id="portfolio"><div className="section__head"><div><p className="eyebrow">Your wallet</p><h2 className="section__title">Portfolio</h2></div><div><b>{portfolio.valued || usdc?.enabled ? formatUsd(totalUsd) : "—"}</b><p className="hint">Available Base USDC: {balance === null ? "—" : formatUsdc(balance, 4)}</p></div></div>
         {holdings.length ? <div className="card international-holdings">{holdings.map((h) => <div key={h.symbol}><span><b>{h.symbol}</b><small>{formatTokensEn(formatUnits(BigInt(h.raw), 18))} tokens</small></span><b>{formatUsd(number(h.raw) * market.state.prices[h.symbol]?.usd)}</b><button className="btn btn--secondary" onClick={() => start(h.symbol, "SELL")}>Sell for USDC</button></div>)}</div> : <p className="hint">Your Stock Tokens appear here after a completed purchase.</p>}
       </section>}
-      {selected ? <section className="section"><a className="back-link" href="#/">← All stocks</a><div className="detail-head"><div className="ticker-tile ticker-tile--lg">{selected.symbol}</div><div><h1>{selected.underlyingName}</h1><p>Stock Token · Robinhood Chain</p></div></div><p className="price-block__value">{formatUsd(market.state.prices[selected.symbol]?.usd)}</p><p className="source-line">{config.prices === "demo" ? "Illustrative demo price" : "Reference: CoinGecko · execution price shown in the quote"}</p><p className="preview-minimum">Price of one token. Buy a fraction from 10 USDC.</p><div className="international-detail-preview"><PurchasePreview key={selected.symbol} symbol={selected.symbol} prices={market.state.prices} locale="en" onContinue={startPreview} canContinue={() => config.mode !== "live"} /></div>{signed && <button className="btn btn--secondary btn--lg" onClick={() => start(selected.symbol, "SELL")}>Sell for USDC</button>}</section> : <section className="section"><div className="section__head"><div><p className="eyebrow">Explore</p><h2 className="section__title">Choose your next slice.</h2><p className="hint">Buy fractions from 10 USDC. Prices below are per token.</p></div><label className="international-search">Search stocks<input value={query} onChange={(e) => setQuery(e.target.value.slice(0, 60))} placeholder="Nvidia, Apple, S&P 500…" /></label></div><div className="card international-stocks">{visible.map((t) => <div key={t.symbol}><a href={stockHash(t.symbol)}><span className="ticker-tile">{t.symbol}</span><span><b>{t.underlyingName}</b><small>Stock Token</small></span></a><span className="mono">{formatUsd(market.state.prices[t.symbol]?.usd)}</span><button className="btn btn--secondary" onClick={() => navigate(stockHash(t.symbol))}>Preview</button></div>)}</div><p className="source-line">{config.prices === "demo" ? "Illustrative prices for this simulation." : "Reference prices: CoinGecko. The executable quote determines the purchase price."}</p></section>}
+      {selected ? <section className="section"><a className="back-link" href="#/">← All stocks</a><div className="detail-head"><div className="ticker-tile ticker-tile--lg">{selected.symbol}</div><div><h1>{selected.underlyingName}</h1><p>Stock Token · Robinhood Chain</p></div></div><p className="price-block__value">{formatUsd(market.state.prices[selected.symbol]?.usd)}</p><p className="source-line">{config.prices === "demo" ? "Illustrative demo price" : "Reference: CoinGecko · execution price shown in the quote"}</p><p className="preview-minimum">Price of one token. Buy a fraction from 10 USDC.</p><div className="international-detail-preview"><PurchasePreview key={selected.symbol} symbol={selected.symbol} prices={market.state.prices} locale="en" onContinue={startPreview} canContinue={() => config.usdcEnabled || config.mode !== "live"} /></div>{signed && <button className="btn btn--secondary btn--lg" onClick={() => start(selected.symbol, "SELL")}>Sell for USDC</button>}</section> : <section className="section"><div className="section__head"><div><p className="eyebrow">Explore</p><h2 className="section__title">Choose your next slice.</h2><p className="hint">Buy fractions from 10 USDC. Prices below are per token.</p></div><label className="international-search">Search stocks<input value={query} onChange={(e) => setQuery(e.target.value.slice(0, 60))} placeholder="Nvidia, Apple, S&P 500…" /></label></div><div className="card international-stocks">{visible.map((t) => <div key={t.symbol}><a href={stockHash(t.symbol)}><span className="ticker-tile">{t.symbol}</span><span><b>{t.underlyingName}</b><small>Stock Token</small></span></a><span className="mono">{formatUsd(market.state.prices[t.symbol]?.usd)}</span><button className="btn btn--secondary" onClick={() => navigate(stockHash(t.symbol))}>Preview</button></div>)}</div><p className="source-line">{config.prices === "demo" ? "Illustrative prices for this simulation." : "Reference prices: CoinGecko. The executable quote determines the purchase price."}</p></section>}
+      {liveHistory.length > 0 && <section className="section"><h2 className="section__title">Recent activity</h2><div className="card international-holdings">{liveHistory.map(row => <div key={row.id}><b>{row.direction === "BUY" ? "Buy" : "Sell"} {row.symbol}</b><span>{row.paymentMethod === "usdc" ? formatUsdc(row.usdcAmount, 6) : "Pix"}</span><small>{row.status} · {row.id}</small></div>)}</div></section>}
       {history.length > 0 && <section className="section"><h2 className="section__title">Recent activity</h2><div className="card international-holdings">{history.map((o) => <div key={o.id}><b>{o.direction === "BUY" ? "Bought" : "Sold"} {o.symbol}</b><span>{formatUsdc(Number(o.direction === "BUY" ? o.quote.grossRaw : o.quote.outputRaw) / 1e6, 4)}</span><small>Completed · simulation</small></div>)}</div></section>}
       <section className="card card__body international-notes"><h2>Your costs, clear before you pay.</h2><p>See what you pay, the costs included and how many tokens you receive before confirming. You can fund a purchase with USDC on Base from a wallet or exchange. To sell, review a new quote and receive USDC.</p><details><summary>Providers, wallet and fees</summary><p>Your tokens are delivered to your wallet on Robinhood Chain. Relay handles the transfer between networks and Uniswap the token purchase. Vortex charges a service fee; {BRAND.name} adds no extra fee. Provider fees, network fees and any reserve for future network fees are itemised in your quote. Your sending wallet or exchange may charge separately.</p></details><p>Availability depends on the asset and your country. Stock Tokens are not offered in the United States or to US persons and have further country restrictions.</p><a className="link" href="https://docs.robinhood.com/chain/stock-tokens/" target="_blank" rel="noreferrer">Read about Stock Tokens ↗</a></section>
     </main>

@@ -400,12 +400,24 @@ describe("vars stocks corridor", () => {
       gasReserveTargetWei: "50000000000000",
       gasReserveThresholdWei: "20000000000000",
       maxPriceDeviationBps: 200,
+      nablaMaxSubsidyBps: 20,
+      usdcEnabledDirections: [],
       priceReferenceMaxAgeHours: 72,
       quoteRateLimitPerMinute: 20,
       saleSubsidyMaxUsd: "500",
       settlementSubsidyMaxBps: 250,
       settlementSubsidyMaxUsd: "50"
     });
+  });
+
+  it("enables USDC independently and supports a fee-only DEX target", async () => {
+    const result = await importVarsWithEnv({ RELAY_API_KEY: "test-relay-api-key", STOCKS_USDC_ENABLED_DIRECTIONS: "buy,SELL", STOCKS_NABLA_USER_FEE_BPS: "5", STOCKS_NABLA_MAX_SUBSIDY_BPS: "20" }, print);
+    expect(result.exitCode).toBe(0);
+    const stocks = JSON.parse(result.stdout);
+    expect(stocks.enabledDirections).toEqual([]);
+    expect(stocks.usdcEnabledDirections).toEqual(["BUY", "SELL"]);
+    expect(stocks.nablaUserFeeBps).toBe(5);
+    expect(stocks.nablaMaxSubsidyBps).toBe(20);
   });
 
   it("parses a mixed-case, padded direction list", async () => {
@@ -418,6 +430,10 @@ describe("vars stocks corridor", () => {
   });
 
   it.each([
+    [{ STOCKS_NABLA_USER_FEE_BPS: "-1" }, "STOCKS_NABLA_USER_FEE_BPS"],
+    [{ STOCKS_NABLA_MAX_SUBSIDY_BPS: "20.5" }, "STOCKS_NABLA_MAX_SUBSIDY_BPS"],
+    [{ STOCKS_USDC_ENABLED_DIRECTIONS: "BUY,HOLD" }, "STOCKS_USDC_ENABLED_DIRECTIONS contains unknown directions: HOLD"],
+    [{ STOCKS_USDC_ENABLED_DIRECTIONS: "BUY" }, "RELAY_API_KEY"],
     [{ STOCKS_ENABLED_DIRECTIONS: "BUY,HOLD" }, "STOCKS_ENABLED_DIRECTIONS contains unknown directions: HOLD"],
     [{ STOCKS_ENABLED_DIRECTIONS: "BUY" }, "RELAY_API_KEY is required when STOCKS_ENABLED_DIRECTIONS is set"],
     [{ STOCKS_MAX_PRICE_DEVIATION_BPS: "0" }, "STOCKS_MAX_PRICE_DEVIATION_BPS must be a positive integer"],

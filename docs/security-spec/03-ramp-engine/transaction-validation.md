@@ -36,16 +36,18 @@ raw transactions are first bound to the unsigned blueprints, then checked for th
 token/router targets, exact input amount, fee tier, hard minimum, deadline, zero call value, and
 recipient before execution (invariant 11).
 
-The stock SELL source follows the Monerium model: `stockPermitTransfer` carries the seller's EIP-712
-permit and an ephemeral-signed exact `transferFrom`. Its typed data is released with the other
+The stock source follows the Monerium model: `stockPermitTransfer` carries the owner's EIP-712 permit and an
+ephemeral-signed exact `transferFrom` on the source chain, the stock on Robinhood Chain for a SELL or native USDC on
+Base for a Base-USDC BUY. A Base-USDC route always takes the permit path and requires the owner wallet to be the
+destination wallet. Its typed data is released with the other
 user-wallet transactions, and `startRamp` requires it. A token without a permit instead issues one
 user-wallet `squidRouterNoPermitTransfer`, verified by hash as listed above. A `gasless` quote binds
 registration to the permit path: if the token no longer answers as having one, registration returns
 503. A failed RPC read is not an answer, so it never selects the transfer: it fails the quote, and a `gasless`
 registration returns the same 503. `relayApprove` and `relayBridge` are strict ephemeral-signed Base
 transactions whose blueprints come from a validated Relay order (`05-integrations/relay.md`).
-`stockBackupApprove`, `relayBackupApprove` and `robinhoodCleanupStock` are strict ephemeral-signed
-approvals to the funding account, for operator recovery and cleanup only. The funding wallet sends
+`stockBackupApprove`, `relayBackupApprove`, `robinhoodCleanupStock` and, on the Base-USDC routes, the Base
+`baseCleanupUsdc` are strict ephemeral-signed approvals to the funding account, for operator recovery and cleanup only. The funding wallet sends
 `stockSettlementTopUp` and `gasReserveTopUp`, so neither has a presigned transaction.
 
 **Layer 1 — `validatePresignedTxs` REJECTS presigned txs for these phases.** Any submitted presigned tx whose phase is in the user-wallet set, including AssetHub `assethubToPendulum`, throws `APIError(BAD_REQUEST, "Phase <phase> is broadcast by the user wallet; do not submit a presigned transaction for it. Submit only the on-chain tx hash via additionalData.")`. The previous behavior silently `continue`d past these phases, which allowed a malicious client to attach an unrelated presigned tx that would never be validated. The reject closes that surface.

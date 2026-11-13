@@ -21,8 +21,8 @@ try {
     await page.getByText("Ambiente de teste.", { exact: true }).waitFor();
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "Landing overflows viewport");
     await page.screenshot({ path: `${output}/landing-${viewport.width}.png`, fullPage: true });
-    const preview = page.getByRole("region", { name: "Simule sua compra" });
-    await preview.getByRole("button", { name: "Simular compra", exact: true }).click();
+    const preview = page.getByRole("region", { name: "Prepare sua compra" });
+    await preview.getByRole("button", { name: "Ver custos da compra", exact: true }).click();
     await preview.getByText("Sua estimativa", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Continuar com Google" }).count(), 0, "Preview works without login");
     await preview.getByRole("button", { name: "Continuar com Pix", exact: true }).waitFor();

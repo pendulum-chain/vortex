@@ -1,8 +1,10 @@
 import {
   EphemeralAccountType,
   EvmClientManager,
+  type EvmTransactionData,
   Networks,
   PRESIGNED_EVM_FEE_MULTIPLIER,
+  RELAY_BASE_USDC_ADDRESS,
   type SignedTypedData
 } from "@vortexfi/shared";
 import httpStatus from "http-status";
@@ -10,11 +12,14 @@ import { encodeFunctionData, erc20Abi } from "viem";
 import logger from "../../../../../../config/logger";
 import { APIError } from "../../../../../errors/api-error";
 import { requireAccount } from "../../core/accounts";
-import { ROBINHOOD_STOCKS } from "../../core/robinhood-stocks";
+import { getEvmFundingAccount } from "../../core/evm-funding";
+import { encodeEvmTransactionData, prepareBaseCleanupApproval } from "../../core/evm-transactions";
+import { isBaseUsdcRobinhoodRoute } from "../../core/robinhood-stocks";
 import type { PrepareCtx, PreparedPhaseTxs, TxIntent } from "../../core/types";
 import { moneriumPermitTypes, moneriumTransferFromAbi } from "../monerium-self-transfer/contract";
 import type { StockPermitSourceRegistrationFacts } from "./registration";
 import { probeStockPermit, STOCK_PERMIT_GAS_LIMIT, type StockPermitProbe, type StockPermitSourceMetadata } from "./simulation";
+import { stockSourcePin } from "./source";
 
 const PERMIT_LIFETIME_SECONDS = 60 * 60;
 const USER_TRANSFER_GAS_LIMIT = 85_000n;
@@ -38,7 +43,8 @@ function permitIntents(
   tokenAddress: `0x${string}`,
   amountRaw: string,
   fees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint },
-  nowMs: number
+  nowMs: number,
+  network: typeof Networks.Base | typeof Networks.Robinhood
 ): TxIntent[] {
   const typedData: SignedTypedData = {
     domain: permit.domain,
@@ -53,10 +59,10 @@ function permitIntents(
     types: moneriumPermitTypes
   };
   return [
-    { lane: "main", network: Networks.Robinhood, phase: "stockPermitTransfer", signer: owner, txData: typedData },
+    { lane: "main", network, phase: "stockPermitTransfer", signer: owner, txData: typedData },
     {
       lane: "main",
-      network: Networks.Robinhood,
+      network,
       phase: "stockPermitTransfer",
       prefundNativeValueRaw: (STOCK_PERMIT_GAS_LIMIT * fees.maxFeePerGas * PRESIGNED_EVM_FEE_MULTIPLIER).toString(),
       signer: ephemeral,
@@ -82,11 +88,12 @@ function userTransferIntent(
   ephemeral: string,
   tokenAddress: `0x${string}`,
   amountRaw: string,
-  fees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }
+  fees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint },
+  network: typeof Networks.Base | typeof Networks.Robinhood
 ): TxIntent {
   return {
     lane: "main",
-    network: Networks.Robinhood,
+    network,
     phase: "squidRouterNoPermitTransfer",
     signer: owner,
     txData: {
@@ -112,7 +119,7 @@ export async function prepareStockPermitSourceTxs(
   if (!facts) throw new Error("StockPermitSource registration facts are required");
   const ephemeral = requireAccount(ctx.accounts, EphemeralAccountType.EVM).address;
   const { amountRaw, token } = ctx.ownMetadata;
-  const tokenAddress = ROBINHOOD_STOCKS[token].address;
+  const { address: tokenAddress, network } = stockSourcePin(token);
   const probe = (dependencies.probePermit ?? probeStockPermit)(token, facts.owner as `0x${string}`);
   const [permit, fees] = await Promise.all([
     // A gasless quote is bound to the permit path, so a permit that cannot be read gets the same answer as a missing one.
@@ -124,11 +131,28 @@ export async function prepareStockPermitSourceTxs(
           return null;
         })
       : probe,
-    dependencies.probeFees
-      ? dependencies.probeFees()
-      : EvmClientManager.getInstance().getClient(Networks.Robinhood).estimateFeesPerGas()
+    dependencies.probeFees ? dependencies.probeFees() : EvmClientManager.getInstance().getClient(network).estimateFeesPerGas()
   ]);
   const state: StockPermitSourceState = { amountRaw, owner: facts.owner, token };
+  // The USDC corridor's Base ephemeral holds the user's USDC before the bridge (BUY) and after it (SELL), but no
+  // later phase of that flow signs a Base cleanup. This approval lets an operator refund it and post-processing sweep it.
+  const cleanup: TxIntent[] = isBaseUsdcRobinhoodRoute(ctx.quote)
+    ? [
+        {
+          lane: "cleanup",
+          network: Networks.Base,
+          phase: "baseCleanupUsdc",
+          signer: ephemeral,
+          txData: encodeEvmTransactionData(
+            await prepareBaseCleanupApproval(
+              RELAY_BASE_USDC_ADDRESS as `0x${string}`,
+              getEvmFundingAccount(Networks.Base).address,
+              Networks.Base
+            )
+          ) as EvmTransactionData
+        }
+      ]
+    : [];
   if (!permit) {
     // The quote promised a sale that needs no ETH. A wallet-paid transfer now could leave the seller unable to send it.
     if (ctx.ownMetadata.gasless) {
@@ -139,12 +163,24 @@ export async function prepareStockPermitSourceTxs(
       });
     }
     return {
-      intents: [userTransferIntent(facts.owner, ephemeral, tokenAddress, amountRaw, fees)],
+      intents: [userTransferIntent(facts.owner, ephemeral, tokenAddress, amountRaw, fees, network), ...cleanup],
       state: { ...state, isNoPermitFallback: true }
     };
   }
   return {
-    intents: permitIntents(permit, facts.owner, ephemeral, tokenAddress, amountRaw, fees, dependencies.now?.() ?? Date.now()),
+    intents: [
+      ...permitIntents(
+        permit,
+        facts.owner,
+        ephemeral,
+        tokenAddress,
+        amountRaw,
+        fees,
+        dependencies.now?.() ?? Date.now(),
+        network
+      ),
+      ...cleanup
+    ],
     state
   };
 }

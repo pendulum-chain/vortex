@@ -38,7 +38,7 @@ export async function overrideFees(ctx: PhaseCtx, override: FeeOverride): Promis
         .plus(networkDisplay)
         .plus(ctx.fees.displayFiat.partnerMarkup)
         .plus(ctx.fees.displayFiat.vortex)
-        .toFixed(2)
+        .toFixed(displayCurrency === EvmToken.USDC ? 6 : 2)
     },
     usd: {
       ...ctx.fees.usd,
@@ -91,7 +91,11 @@ export async function calculateFees(ctx: PhaseCtx, override?: FeeOverride): Prom
   const networkDisplay = new Big(baseNetworkDisplay).plus(destinationExecutionFeeDisplay).toString();
 
   const totalUsd = new Big(vortexUsd).plus(anchorUsd).plus(partnerUsd).plus(networkUsd).toFixed(6);
-  const totalDisplay = new Big(vortexDisplay).plus(anchorDisplay).plus(partnerDisplay).plus(networkDisplay).toFixed(2);
+  const totalDisplay = new Big(vortexDisplay)
+    .plus(anchorDisplay)
+    .plus(partnerDisplay)
+    .plus(networkDisplay)
+    .toFixed(displayCurrency === EvmToken.USDC ? 6 : 2);
 
   return {
     displayFiat: {

@@ -145,6 +145,18 @@ export function isBrlPixRobinhoodRoute(
   );
 }
 
+/** The only crypto-funded corridor: native USDC on Base against pinned stock tokens. */
+export function isBaseUsdcRobinhoodRoute(
+  request: Pick<CreateQuoteRequest, "from" | "inputCurrency" | "outputCurrency" | "rampType" | "to">
+): boolean {
+  const buy = request.rampType === RampDirection.BUY;
+  return (
+    isRobinhoodRoute(request) &&
+    (buy ? request.from : request.to) === Networks.Base &&
+    (buy ? request.inputCurrency : request.outputCurrency) === EvmToken.USDC
+  );
+}
+
 export function isStockSymbol(symbol: unknown): symbol is StockSymbol {
   return typeof symbol === "string" && Object.hasOwn(ROBINHOOD_STOCKS, symbol);
 }
@@ -162,7 +174,12 @@ export function isStockQuoteUnavailableError(error: unknown): error is APIError 
   return (
     error instanceof APIError &&
     error.status === httpStatus.SERVICE_UNAVAILABLE &&
-    (error.message === QuoteError.StockTradingPaused || error.message === QuoteError.StockPriceUnavailable)
+    [
+      QuoteError.StockTradingPaused,
+      QuoteError.StockPriceUnavailable,
+      QuoteError.StockDexSubsidyUnavailable,
+      QuoteError.StockUsdcFundingUnavailable
+    ].includes(error.message as QuoteError)
   );
 }
 

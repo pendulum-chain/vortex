@@ -89,6 +89,11 @@ export function getTargetFiatCurrency(
  * @throws APIError if the chain combination is not supported
  */
 export function validateChainSupport(rampType: RampDirection, from: DestinationType, to: DestinationType): void {
+  if (
+    (rampType === RampDirection.BUY && from === Networks.Base && to === Networks.Robinhood) ||
+    (rampType === RampDirection.SELL && from === Networks.Robinhood && to === Networks.Base)
+  )
+    return;
   if (!SUPPORTED_CHAINS[rampType].from.includes(from) || !SUPPORTED_CHAINS[rampType].to.includes(to)) {
     const rampTypeStr = rampType === RampDirection.BUY ? "on" : "off";
     throw new APIError({

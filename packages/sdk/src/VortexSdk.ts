@@ -29,6 +29,7 @@ import { BrlHandler } from "./handlers/BrlHandler.js";
 import { DomesticHandler } from "./handlers/DomesticHandler.js";
 import { EurHandler } from "./handlers/EurHandler.js";
 import { GoldUsdcHandler, isGoldUsdcQuote } from "./handlers/GoldUsdcHandler.js";
+import { isStockUsdcQuote, StockUsdcHandler } from "./handlers/StockUsdcHandler.js";
 import { assertSufficientOfframpBalance } from "./preflight.js";
 import { ApiService } from "./services/ApiService.js";
 import { NetworkManager } from "./services/NetworkManager.js";
@@ -45,6 +46,7 @@ import type {
   EurOnrampAdditionalData,
   ExtendedQuoteResponse,
   RegisterRampAdditionalData,
+  StockUsdcAdditionalData,
   StoredEphemeralKey,
   SubmitUserTransactionsHandlers,
   UpdateRampAdditionalData,
@@ -61,6 +63,7 @@ export class VortexSdk {
   private domesticHandler: DomesticHandler;
   private eurHandler: EurHandler;
   private goldUsdcHandler: GoldUsdcHandler;
+  private stockUsdcHandler: StockUsdcHandler;
   private storeEphemeralKeys: boolean;
   private storeEphemeralKeysCallback: VortexSdkConfig["storeEphemeralKeysCallback"];
   private offrampFundingMode: NonNullable<VortexSdkConfig["offrampFundingMode"]>;
@@ -85,6 +88,12 @@ export class VortexSdk {
       this.signTransactions.bind(this)
     );
 
+    this.stockUsdcHandler = new StockUsdcHandler(
+      this.apiService,
+      this,
+      this.generateEphemerals.bind(this),
+      this.signTransactions.bind(this)
+    );
     this.brlHandler = new BrlHandler(
       this.apiService,
       this,
@@ -158,6 +167,12 @@ export class VortexSdk {
       const data = additionalData as { walletAddress: string; destinationAddress: string };
       rampProcess = await this.goldUsdcHandler.register(quote.id, data);
       unsignedTransactions = await this.getUserTransactions(rampProcess, data.walletAddress);
+    } else if (isStockUsdcQuote(quote)) {
+      const data = additionalData as StockUsdcAdditionalData;
+      if (this.offrampFundingMode !== "deferred") await assertSufficientOfframpBalance(quote, data.walletAddress);
+      rampProcess = await this.stockUsdcHandler.register(quote.id, data);
+      unsignedTransactions = await this.getUserTransactions(rampProcess, data.walletAddress);
+      if (!unsignedTransactions.length) throw new Error("The stock funding wallet has no permit transaction");
     } else if (quote.rampType === RampDirection.BUY) {
       if (isDomesticToken(quote.inputCurrency)) {
         rampProcess = await this.domesticHandler.registerDomesticOnramp(

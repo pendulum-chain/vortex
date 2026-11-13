@@ -17,6 +17,7 @@ import {
   resolveDiscountPartner
 } from "../../core/discount";
 import { defineContext } from "../../core/metadata";
+import { feeSubsidyDecimal } from "../../core/nabla-fee-subsidy";
 import { getEvmBridgeQuote } from "../../core/squidrouter";
 import type { ChainBrand, PhaseCtx, PhaseIO, PhaseResult, TokenBrand } from "../../core/types";
 import { buildFullSubsidy, computeExpectedOutput, type SubsidyMetadata } from "../subsidize-pre/simulation";
@@ -35,11 +36,48 @@ export interface SubsidizePostSimulationConfig {
   routeValueProbe?: boolean;
 }
 
+function simulateDexFeeSubsidy<Token extends TokenBrand, Chain extends ChainBrand>(
+  input: PhaseIO<Token, Chain>,
+  ctx: PhaseCtx
+): PhaseResult<PhaseIO<Token, Chain>, SubsidizePostMetadata> | undefined {
+  const fee = ctx.nablaFeeSubsidy;
+  if (!fee) return;
+  if (fee.outputCurrency !== input.token) throw new Error("Nabla fee subsidy currency mismatch");
+  const amount = feeSubsidyDecimal(fee);
+  const raw = BigInt(input.amountRaw) + BigInt(fee.rebateRaw);
+  const target = input.amount.plus(amount);
+  return {
+    metadata: {
+      actualOutputAmountDecimal: input.amount,
+      actualOutputAmountRaw: input.amountRaw,
+      adjustedDifference: new Big(0),
+      adjustedTargetDiscount: new Big(0),
+      applied: amount.gt(0),
+      expectedOutputAmountDecimal: target,
+      expectedOutputAmountRaw: raw.toString(),
+      idealSubsidyAmountInOutputTokenDecimal: amount,
+      idealSubsidyAmountInOutputTokenRaw: fee.rebateRaw,
+      network: input.chain,
+      outputCurrency: input.token,
+      outputDecimals: fee.outputDecimals,
+      partnerId: ctx.partner?.id ?? null,
+      subsidyAmountInOutputTokenDecimal: amount,
+      subsidyAmountInOutputTokenRaw: fee.rebateRaw,
+      subsidyRate: amount.div(new Big(fee.grossOutputRaw).div(new Big(10).pow(fee.outputDecimals))),
+      targetOutputAmountDecimal: target,
+      targetOutputAmountRaw: raw.toString()
+    },
+    output: { ...input, amount: target, amountRaw: raw.toString() }
+  };
+}
+
 export async function simulateSubsidizePost<Token extends TokenBrand, Chain extends ChainBrand>(
   input: PhaseIO<Token, Chain>,
   ctx: PhaseCtx,
   { routeValueProbe = true }: SubsidizePostSimulationConfig = {}
 ): Promise<PhaseResult<PhaseIO<Token, Chain>, SubsidizePostMetadata>> {
+  const dexSubsidy = simulateDexFeeSubsidy(input, ctx);
+  if (dexSubsidy) return dexSubsidy;
   const tokenDetails = getOnChainTokenDetails(input.chain as Networks, input.token as OnChainToken);
   if (!tokenDetails) {
     throw new Error(`SubsidizePost: Missing token details for ${input.token} on ${input.chain}`);
@@ -129,6 +167,8 @@ export async function simulateOfframpSubsidizePost<Token extends TokenBrand, Cha
   input: PhaseIO<Token, Chain>,
   ctx: PhaseCtx
 ): Promise<PhaseResult<PhaseIO<Token, Chain>, SubsidizePostMetadata>> {
+  const dexSubsidy = simulateDexFeeSubsidy(input, ctx);
+  if (dexSubsidy) return dexSubsidy;
   const tokenDetails = getOnChainTokenDetails(input.chain as Networks, input.token as OnChainToken);
   if (!tokenDetails) {
     throw new Error(`OfframpSubsidizePost: Missing token details for ${input.token} on ${input.chain}`);
