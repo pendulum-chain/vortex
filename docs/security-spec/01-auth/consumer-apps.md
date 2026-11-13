@@ -126,9 +126,9 @@ is performed by this client.
 
 ## Hosting and verification
 
-- Stocks inherits a scoped anti-framing policy and remains `noindex` until launch. That policy does
-  not restrict scripts (RISK-033). Existing widget proxy routes, Gold paths and real 404 behavior
-  remain covered by routing tests.
+- Stocks inherits a scoped anti-framing policy. The Brazil edition is launched and indexed; the
+  English edition stays `noindex`. That policy does not restrict scripts (RISK-033). Existing
+  widget proxy routes, Gold paths and real 404 behavior remain covered by routing tests.
 - A build fails on an invalid mode or a missing Privy app ID, and a Netlify production build fails
   unless the mode is `live`. CI builds the live bundle and fails if it has simulated USDC payment controls or demo links; the real USDC flow and English page must remain present.
 - `apps/stocks/tests` covers mode isolation, quote validation, recovery, gas and amount maths, and

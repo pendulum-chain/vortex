@@ -4,9 +4,9 @@ Brazil-first consumer showcase of the Vortex API: buy and sell US Stock Tokens o
 Chain with Pix, while the user keeps control of an embedded wallet. Same sign-in ("Entrar com
 Vortex") and the same wallet as ouro. (`apps/gold`).
 
-Status: in development, and not indexed until launch. Production builds run in `live` mode with
-the Vortex ramp off ("em breve") until `VITE_STOCKS_RAMP_ENABLED=true`, and the API's stock corridor
-stays off until its `STOCKS_ENABLED_DIRECTIONS` lists a direction.
+Status: launched in Brazil at `/pt-br/stocks/`; the English edition is not indexed yet. Production
+builds run in `live` mode with the Vortex ramp off ("em breve") until `VITE_STOCKS_RAMP_ENABLED=true`,
+and the API's stock corridor stays off until its `STOCKS_ENABLED_DIRECTIONS` lists a direction.
 
 The frontend Netlify deployment includes this app at `/pt-br/stocks/`. Deploy previews
 explicitly use the labelled demo; they do not need a separate wallet or ramp integration.

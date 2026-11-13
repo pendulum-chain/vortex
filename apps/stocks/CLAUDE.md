@@ -11,8 +11,9 @@ the sibling of `apps/gold`.
   (`apps/frontend/_redirects`). It uses hash routes, so no SPA rewrite is needed. In code, reference
   public assets through `import.meta.env.BASE_URL`, never as root-relative `/brand/...` paths (Vite
   rewrites the ones in `index.html`).
-- **Not indexed until launch:** `<meta name="robots" content="noindex">` in `index.html` and
-  `X-Robots-Tag: noindex` for `/pt-br/stocks/*` in `netlify.toml`. Remove both only at launch.
+- **Indexing:** the Brazil edition (`index.html`, `/pt-br/stocks/*`) is launched and indexed. The
+  English edition keeps `<meta name="robots" content="noindex">` in `international.html` and
+  `X-Robots-Tag: noindex` for `/en/stocks/*` in `netlify.toml`; remove both only at its launch.
 - **Modes:** `VITE_STOCKS_MODE` = `demo` (default when unset: fake login, simulated ramp) |
   `preview` (real Privy login, simulated ramp, no Vortex calls) | `live` (production; the
   Netlify build defaults to it). The Vortex ramp additionally stays off ("em breve") until

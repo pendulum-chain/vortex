@@ -23,12 +23,13 @@ describe("Netlify headers", () => {
     });
   });
 
-  it("keeps the stocks pilot out of frames and search results", () => {
-    expect(headerRules.find(rule => rule.path === "/pt-br/stocks/*")?.values).toMatchObject({
+  it("keeps the Brazil stocks app out of frames but open to search engines", () => {
+    const values = headerRules.find(rule => rule.path === "/pt-br/stocks/*")?.values;
+    expect(values).toMatchObject({
       "Content-Security-Policy": "frame-ancestors 'none'",
-      "X-Frame-Options": "DENY",
-      "X-Robots-Tag": "noindex"
+      "X-Frame-Options": "DENY"
     });
+    expect(values).not.toHaveProperty("X-Robots-Tag");
   });
 
   it("does not apply the anti-framing headers beyond the consumer apps", () => {
