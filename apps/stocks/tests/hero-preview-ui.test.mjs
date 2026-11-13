@@ -83,14 +83,17 @@ for (const locale of ["pt-BR", "en"]) {
   }));
 }
 
-test("pt-BR: the hero promises a Pix purchase only while Pix is open, and neither promise while it is unknown", async () => {
-  for (const [buyOpen, action, notice] of [[true, "Comprar com Pix", null], [false, "Ver custos da compra", "Compra com Pix em breve"], [null, "Ver custos da compra", null]]) {
-    await harness("pt-BR", async () => {
-      assert.equal(document.querySelector(".fair-hero__action").textContent, action);
-      assert.equal(document.querySelector(".hero__soon")?.textContent ?? null, notice);
-    }, { buyOpen });
-  }
-});
+for (const [locale, buy, preview, soon] of [["pt-BR", "Comprar com Pix", "Ver custos da compra", "Compra com Pix em breve"],
+  ["en", "Buy with USDC", "See purchase costs", "USDC purchases are coming soon"]]) {
+  test(`${locale}: the hero promises a purchase only while buying is open, and neither promise while it is unknown`, async () => {
+    for (const [buyOpen, action, notice] of [[true, buy, null], [false, preview, soon], [null, preview, null]]) {
+      await harness(locale, async () => {
+        assert.equal(document.querySelector(".fair-hero__action").textContent, action);
+        assert.equal(document.querySelector(".hero__soon")?.textContent ?? null, notice);
+      }, { buyOpen });
+    }
+  });
+}
 
 test("mouse drag advances, clamps at the edges and releases pointer capture", () => harness("en", async s => {
   await s.pointer("pointerdown", 300);

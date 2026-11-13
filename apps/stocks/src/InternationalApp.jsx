@@ -112,7 +112,7 @@ export default function InternationalApp({ auth, config }) {
     </div></header>
     <main id="conteudo" tabIndex={-1} className="wrap page international-page">
       {!selected && <>
-        <FairFeesHero locale="en" previewId="preview-purchase" contained />
+        <FairFeesHero locale="en" previewId="preview-purchase" contained buyOpen={config.usdcEnabled} />
         <div className="fair-preview">
           <PurchasePreview id="preview-purchase" prices={market.state.prices} locale="en" onContinue={startPreview} canContinue={() => config.usdcEnabled || config.mode !== "live"} />
         </div>
