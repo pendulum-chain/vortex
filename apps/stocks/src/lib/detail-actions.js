@@ -58,3 +58,15 @@ export function flowFor(request, pending) {
   if (pending.paymentMethod === "usdc") return { type: "usdc", symbol: pending.symbol || request.symbol, resume: pending };
   return { type: pending.rampType === "SELL" ? "sell" : "buy", symbol: pending.symbol || request.symbol, resume: pending };
 }
+
+/**
+ * Whether a Pix buy or sell also offers Base USDC (its method step). The backend opens each USDC
+ * direction apart from Pix (STOCKS_USDC_ENABLED_DIRECTIONS), so a live checkout needs that
+ * direction in its own listing; an unread or failed listing offers Pix only. The simulated checkout
+ * has no listing and is always open.
+ * @param {{ checkout:boolean, live:boolean, listing:Record<string,{buy:boolean, sell:boolean}>|null, symbol:string, direction:"BUY"|"SELL" }} args
+ */
+export function usdcOpen({ checkout, live, listing, symbol, direction }) {
+  if (!checkout) return false;
+  return !live || Boolean(listing?.[symbol]?.[direction === "SELL" ? "sell" : "buy"]);
+}
