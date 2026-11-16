@@ -84,6 +84,20 @@ export function StepIntro({ icon: Icon, title, children }) {
   return <ul className="points"><li><span><Icon size={22} aria-hidden="true" /></span><div><b>{title}</b><small>{children}</small></div></li></ul>;
 }
 
+/** Pix or Base USDC, chosen before any Pix step (as Gold does): the Pix-only identity check never meets a USDC order. */
+export function MethodStep({ direction, onPix, onUsdc }) {
+  const buy = direction === "BUY";
+  return (
+    <div className="flow-section">
+      <h3>{buy ? "Como deseja pagar?" : "Como deseja receber?"}</h3>
+      <div className="payment-methods" role="group" aria-label="Forma de pagamento">
+        <button type="button" className="payment-choice" onClick={onPix}><b>Pix · Brasil</b> <span>{buy ? "Em reais, pelo seu banco" : "Em reais, na sua chave Pix"}</span></button>
+        <button type="button" className="payment-choice" onClick={onUsdc}><b>USDC · Base</b> <span>{buy ? "Da sua carteira ou exchange" : "Na sua carteira, na rede Base"}</span></button>
+      </div>
+    </div>
+  );
+}
+
 export function OtpStep({ email, setEmail, otp, setOtp, sent, onSend, onVerify, busy, error, demoCode }) {
   return (
     <div className="flow-section">
