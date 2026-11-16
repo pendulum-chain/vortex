@@ -90,7 +90,7 @@ export function MethodStep({ direction, onPix, onUsdc }) {
   return (
     <div className="flow-section">
       <h3>{buy ? "Como deseja pagar?" : "Como deseja receber?"}</h3>
-      <div className="payment-methods" role="group" aria-label="Forma de pagamento">
+      <div className="payment-methods" role="group" aria-label={buy ? "Forma de pagamento" : "Forma de recebimento"}>
         <button type="button" className="payment-choice" onClick={onPix}><b>Pix · Brasil</b> <span>{buy ? "Em reais, pelo seu banco" : "Em reais, na sua chave Pix"}</span></button>
         <button type="button" className="payment-choice" onClick={onUsdc}><b>USDC · Base</b> <span>{buy ? "Da sua carteira ou exchange" : "Na sua carteira, na rede Base"}</span></button>
       </div>

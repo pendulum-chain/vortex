@@ -149,9 +149,13 @@ test("with USDC on, a sell asks Pix or USDC before the Pix key", () => harness(a
   let usdc = 0;
   await s.render(createElement(SellFlow, { ...fixtures(notReady("not_started")), holdingRaw: 10n ** 18n, onSellUsdc: () => { usdc += 1; } }));
   assert.match(s.text(), /Como deseja receber\?/);
+  assert.ok(document.querySelector('[role="group"][aria-label="Forma de recebimento"]'), "a payout, not a payment");
   assert.equal(document.querySelector("#sell-amount"), null);
   await s.click("USDC · Base Na sua carteira, na rede Base");
   assert.equal(usdc, 1);
+  await s.click("Pix · Brasil Em reais, na sua chave Pix");
+  await s.click("Voltar");
+  assert.match(s.text(), /Como deseja receber\?/);
   await s.click("Pix · Brasil Em reais, na sua chave Pix");
   await sellAmount(s);
   assert.match(s.text(), KYC_FORM, "Pix keeps its KYC");
@@ -221,6 +225,24 @@ function resumed({ ramp, stage = "registered", adapter = {}, verification }) {
   return { calls, props: { ...props, resume: { rampId: ramp?.id ?? "ramp-1", stage } } };
 }
 const initial = (overrides = {}) => ({ id: "ramp-1", currentPhase: "initial", classification: "awaiting_payment", brlAmount: "500", tokenAmount: "0.5", depositQrCode: "pix-code-fake-test-only", startDeadline: Date.now() + 600_000, ...overrides });
+
+test("with USDC on, a resumed Pix operation and the demo deep links skip the method step", async () => {
+  await harness(async (s) => {
+    const { props } = resumed({ ramp: initial() });
+    await s.render(createElement(BuyFlow, { ...props, onPayUsdc: () => {} }));
+    await s.wait();
+    assert.match(s.text(), /Código da operação/);
+    assert.doesNotMatch(s.text(), /Como deseja pagar\?/, "a resumed Pix operation never offers USDC");
+  });
+  await harness(async (s) => {
+    await s.render(createElement(BuyFlow, { ...fixtures(approved), demoQuote: true, onPayUsdc: () => {} }));
+    assert.doesNotMatch(s.text(), /Como deseja pagar\?/, "buy-quote");
+  });
+  await harness(async (s) => {
+    await s.render(createElement(SellFlow, { ...fixtures(approved), holdingRaw: 10n ** 18n, demoReserveUsed: true, onSellUsdc: () => {} }));
+    assert.doesNotMatch(s.text(), /Como deseja receber\?/, "sell-reserve-used");
+  });
+});
 
 test("an expired Pix says a paid one continues, and offers a way out that goes back to the amount", () => harness(async (s) => {
   const { calls, props } = resumed({ ramp: initial({ startDeadline: Date.now() - 1_000 }) });
@@ -658,6 +680,7 @@ test("signed in with Pix and USDC on, the stock page's Comprar asks how to pay a
     window.location.hash = "#/acao/NVDA";
     await renderApp(s, DEMO, true);
     for (let i = 0; i < 2000 && !buyReady(); i += 1) await s.wait();
+    assert.ok(buyReady(), "the stock page's Comprar is enabled (no earlier operation left pending)");
     await s.click("Comprar");
     await untilText(s, /Como deseja pagar\?/);
     assert.doesNotMatch(s.text(), /Quanto deseja investir\?/);
