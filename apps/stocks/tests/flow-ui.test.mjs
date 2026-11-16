@@ -125,6 +125,42 @@ test("a sell with no KYC started opens the form", () => harness(async (s) => {
   assert.match(s.text(), KYC_FORM);
 }));
 
+// With USDC checkout on, the Pix flow is never the default: a USDC order must not reach the Pix KYC.
+const PIX_BUY = "Pix · Brasil Em reais, pelo seu banco";
+const USDC_BUY = "USDC · Base Da sua carteira ou exchange";
+
+test("with USDC on, a buy asks Pix or USDC before any Pix step", () => harness(async (s) => {
+  let usdc = 0;
+  await s.render(createElement(BuyFlow, { ...fixtures(notReady("not_started")), onPayUsdc: () => { usdc += 1; } }));
+  assert.match(s.text(), /Como deseja pagar\?/);
+  assert.doesNotMatch(s.text(), /Quanto deseja investir\?/);
+  await s.click(USDC_BUY);
+  assert.equal(usdc, 1);
+  await s.click(PIX_BUY);
+  assert.match(s.text(), /Quanto deseja investir\?/);
+  await s.click("Voltar");
+  assert.match(s.text(), /Como deseja pagar\?/);
+  await s.click(PIX_BUY);
+  await s.click("Continuar");
+  assert.match(s.text(), KYC_FORM, "Pix keeps its KYC");
+}));
+
+test("with USDC on, a sell asks Pix or USDC before the Pix key", () => harness(async (s) => {
+  let usdc = 0;
+  await s.render(createElement(SellFlow, { ...fixtures(notReady("not_started")), holdingRaw: 10n ** 18n, onSellUsdc: () => { usdc += 1; } }));
+  assert.match(s.text(), /Como deseja receber\?/);
+  assert.ok(document.querySelector('[role="group"][aria-label="Forma de recebimento"]'), "a payout, not a payment");
+  assert.equal(document.querySelector("#sell-amount"), null);
+  await s.click("USDC · Base Na sua carteira, na rede Base");
+  assert.equal(usdc, 1);
+  await s.click("Pix · Brasil Em reais, na sua chave Pix");
+  await s.click("Voltar");
+  assert.match(s.text(), /Como deseja receber\?/);
+  await s.click("Pix · Brasil Em reais, na sua chave Pix");
+  await sellAmount(s);
+  assert.match(s.text(), KYC_FORM, "Pix keeps its KYC");
+}));
+
 // kyc.demo fills the form, so these reach the submit with no files and no Avenia window.
 function kycWith(submit) {
   const calls = { uploads: 0, submit: 0, poll: 0 };
@@ -189,6 +225,24 @@ function resumed({ ramp, stage = "registered", adapter = {}, verification }) {
   return { calls, props: { ...props, resume: { rampId: ramp?.id ?? "ramp-1", stage } } };
 }
 const initial = (overrides = {}) => ({ id: "ramp-1", currentPhase: "initial", classification: "awaiting_payment", brlAmount: "500", tokenAmount: "0.5", depositQrCode: "pix-code-fake-test-only", startDeadline: Date.now() + 600_000, ...overrides });
+
+test("with USDC on, a resumed Pix operation and the demo deep links skip the method step", async () => {
+  await harness(async (s) => {
+    const { props } = resumed({ ramp: initial() });
+    await s.render(createElement(BuyFlow, { ...props, onPayUsdc: () => {} }));
+    await s.wait();
+    assert.match(s.text(), /Código da operação/);
+    assert.doesNotMatch(s.text(), /Como deseja pagar\?/, "a resumed Pix operation never offers USDC");
+  });
+  await harness(async (s) => {
+    await s.render(createElement(BuyFlow, { ...fixtures(approved), demoQuote: true, onPayUsdc: () => {} }));
+    assert.doesNotMatch(s.text(), /Como deseja pagar\?/, "buy-quote");
+  });
+  await harness(async (s) => {
+    await s.render(createElement(SellFlow, { ...fixtures(approved), holdingRaw: 10n ** 18n, demoReserveUsed: true, onSellUsdc: () => {} }));
+    assert.doesNotMatch(s.text(), /Como deseja receber\?/, "sell-reserve-used");
+  });
+});
 
 test("an expired Pix says a paid one continues, and offers a way out that goes back to the amount", () => harness(async (s) => {
   const { calls, props } = resumed({ ramp: initial({ startDeadline: Date.now() - 1_000 }) });
@@ -587,10 +641,13 @@ const openBuyAmount = async (s, config) => {
 test("signed in, the buy offers USDC only outside a live build, and a saved USDC choice opens nothing live", () => withFetch(noNetwork, async () => {
   await harness(async (s) => {
     await openBuyAmount(s, DEMO);
+    await s.click("Voltar");
+    assert.match(s.text(), /Como deseja pagar\?/);
     assert.match(s.text(), /USDC · Base/);
   });
   await harness(async (s) => {
     await openBuyAmount(s, LIVE);
+    assert.ok(!s.has("Voltar"), "no method step to go back to");
     assert.doesNotMatch(s.text(), /USDC · Base/);
   });
   await harness(async (s) => {
@@ -612,6 +669,22 @@ test("signed in with Pix off and USDC on, the stock page opens the USDC buy", ()
     await renderApp(s, usdcOnly, true);
     await untilText(s, /Você já pode comprar e vender com USDC na Base/);
     await s.click("Comprar com USDC");
+    await untilText(s, /Comprar NVDA · USDC|Buy NVDA with USDC/);
+  } finally { window.location.hash = "#/"; }
+})));
+
+// Regression: with both open, "Comprar" went straight to the Pix amount, and on to the Pix KYC.
+test("signed in with Pix and USDC on, the stock page's Comprar asks how to pay and USDC opens the USDC buy", () => withFetch(noNetwork, () => harness(async (s) => {
+  const buyReady = () => [...document.querySelectorAll("button")].some((button) => button.textContent.trim() === "Comprar" && !button.disabled);
+  try {
+    window.location.hash = "#/acao/NVDA";
+    await renderApp(s, DEMO, true);
+    for (let i = 0; i < 2000 && !buyReady(); i += 1) await s.wait();
+    assert.ok(buyReady(), "the stock page's Comprar is enabled (no earlier operation left pending)");
+    await s.click("Comprar");
+    await untilText(s, /Como deseja pagar\?/);
+    assert.doesNotMatch(s.text(), /Quanto deseja investir\?/);
+    await s.click(USDC_BUY);
     await untilText(s, /Comprar NVDA · USDC|Buy NVDA with USDC/);
   } finally { window.location.hash = "#/"; }
 })));

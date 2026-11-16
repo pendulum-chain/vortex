@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { detailActions, flowFor } from "../src/lib/detail-actions.js";
+import { detailActions, flowFor, usdcOpen } from "../src/lib/detail-actions.js";
 import { uniformAvailability } from "../src/lib/ramp-contract.js";
 import { STOCK_TOKENS } from "../src/lib/stocks.js";
 
@@ -94,4 +94,15 @@ test("signed in with Pix closed: USDC on Base stays open unless the issuer pause
   const paused = Object.fromEntries(STOCK_TOKENS.map((token) => [token.symbol, { buy: false, sell: false, reason: "paused" }]));
   const halted = detailActions({ auth: signedIn, availability: paused, comingSoon: false, holding, symbol: "NVDA", usdc: true });
   assert.deepEqual([halted.buy.disabled, halted.sell.disabled, halted.buy.usdc], [true, true, undefined]);
+});
+
+test("a Pix flow offers USDC only in a direction the live USDC listing opens", () => {
+  const buyOnly = { NVDA: { buy: true, sell: false, reason: null } };
+  const ask = (args) => usdcOpen({ checkout: true, live: true, listing: buyOnly, symbol: "NVDA", direction: "BUY", ...args });
+  assert.equal(ask({}), true);
+  assert.equal(ask({ direction: "SELL" }), false, "USDC sell closed on the backend");
+  assert.equal(ask({ symbol: "TSLA" }), false, "not listed");
+  assert.equal(ask({ listing: null }), false, "unread or failed listing: Pix only");
+  assert.equal(ask({ checkout: false }), false);
+  assert.equal(ask({ live: false, listing: null, direction: "SELL" }), true, "the simulated checkout has no listing");
 });

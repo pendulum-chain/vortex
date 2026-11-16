@@ -12,7 +12,7 @@ import { DEMO_USER } from "./DemoAuth.js";
 import { WelcomeSheet } from "./components/Welcome.jsx";
 import { useAvailability, useMarket, useNow, useOnline, usePendingRampRead, usePortfolio, useRuntime } from "./hooks.js";
 import { DEMO_TOOLS, USDC_CHECKOUT } from "./lib/config.js";
-import { flowFor } from "./lib/detail-actions.js";
+import { flowFor, usdcOpen } from "./lib/detail-actions.js";
 import { localHistoryRows, mergeHistory, ownedHistoryRows } from "./lib/history.js";
 import { homeHash, parseHash, stockHash } from "./lib/routes.js";
 import { findStock } from "./lib/stocks.js";
@@ -64,6 +64,16 @@ export function App({ auth, config }) {
   const [version, setVersion] = useState(0);
   const [serverRows, setServerRows] = useState(null);
   const [demoPlan, setDemoPlan] = useState(null);
+  // The live USDC listing: a Pix flow offers USDC (its method step) only where that direction is open.
+  // ponytail: read once per runtime; LiveUsdcFlow re-reads it before every quote, so a stale "open" still stops there.
+  const [usdcListing, setUsdcListing] = useState(null);
+  useEffect(() => {
+    if (!usdcCheckout || runtime?.usdc?.simulated !== false) return undefined;
+    let alive = true;
+    runtime.usdc.adapter.getAvailability().then((map) => { if (alive) setUsdcListing(map); }, () => {});
+    return () => { alive = false; };
+  }, [runtime, usdcCheckout]);
+  const offersUsdc = (symbol, direction) => usdcOpen({ checkout: usdcCheckout, live: runtime?.usdc?.simulated === false, listing: usdcListing, symbol, direction });
   const intent = useRef(null);
   const welcome = useMemo(() => createWelcomeStore(), []);
   const refreshLocal = useCallback(() => setVersion((value) => value + 1), []);
@@ -252,8 +262,8 @@ export function App({ auth, config }) {
         ? (
           <Suspense fallback={<FlowLoading onClose={() => setModal(null)} />}>
             {modal.type === "usdc" ? <UsdcFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} direction={modal.resume?.rampType || modal.direction || "BUY"} resume={modal.resume} initialAmount={modal.initialAmount} onClose={closeFlow} onSettled={onSettled} /> : modal.type === "buy"
-              ? <BuyFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} resume={modal.resume ?? null} initialAmount={modal.initialAmount} demoQuote={modal.demoQuote === true} onClose={closeFlow} onSettled={onSettled} onPayUsdc={usdcCheckout ? () => setModal({ type: "usdc", symbol: flowToken.symbol }) : undefined} />
-              : <SellFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} holdingRaw={holding?.raw ?? 0n} onSellUsdc={usdcCheckout ? () => setModal({ type: "usdc", symbol: flowToken.symbol, direction: "SELL" }) : undefined} resume={modal.resume ?? null} demoReserveUsed={modal.demoReserveUsed === true} onClose={closeFlow} onSettled={onSettled} />}
+              ? <BuyFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} resume={modal.resume ?? null} initialAmount={modal.initialAmount} demoQuote={modal.demoQuote === true} onClose={closeFlow} onSettled={onSettled} onPayUsdc={offersUsdc(flowToken.symbol, "BUY") ? () => setModal({ type: "usdc", symbol: flowToken.symbol }) : undefined} />
+              : <SellFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} holdingRaw={holding?.raw ?? 0n} onSellUsdc={offersUsdc(flowToken.symbol, "SELL") ? () => setModal({ type: "usdc", symbol: flowToken.symbol, direction: "SELL" }) : undefined} resume={modal.resume ?? null} demoReserveUsed={modal.demoReserveUsed === true} onClose={closeFlow} onSettled={onSettled} />}
           </Suspense>
         )
         : <FlowLoading onClose={() => setModal(null)} error={runtimeError} />)}
