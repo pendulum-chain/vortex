@@ -17,8 +17,9 @@ The route bridges Base USDC to Robinhood Chain USDG through Relay, then swaps to
 through Uniswap. Stocks adds no surcharge. Live costs come from the Vortex quote; the frontend never
 overrides them.
 
-The review shows Avenia (Pix), Nabla (conversion), Relay (bridge), Uniswap (stock swap), Vortex,
-network gas and the separate ETH reserve. The extra Stocks fee is explicitly zero. Demo prices and
+The expandable review groups payment/conversion, token trading/delivery and the Vortex service,
+with individual provider details underneath. Any retained ETH balance is separate from spent fees.
+Stocks adds no extra fee. Demo prices and
 all simulated costs are illustrative round placeholders; they mirror no provider's rates.
 
 A quote response carries these fields:
@@ -59,7 +60,7 @@ The user previews a quote, transfers **native Base USDC into their own wallet**,
 
 `vortex-stocks.js` reuses the existing SDK/recovery/maintenance/nonce policies for both payment methods. Before granting a source permit, it pins the delivery token, chain, wallet, quote, input and exact output, plus the client-generated ephemeral spender. Recovery is saved before keys/signatures. A rejected signature or uncertain start resumes the same order; a potentially sent authorization (the wallet prompt opened) retains recovery even if a failed status arrives, while a declined prompt does not hold the wallet lock. Pix and registered USDC operations share the one-operation wallet lock. History retains USDC units.
 
-Provider costs distinguish reported fees from signed execution-price effects, include the ETH reserve once, and show zero additional product fee. Pix quotes may separately show the configured Nabla DEX-fee subsidy; the Nabla row is already net of it. USDC bypasses both Pix and Nabla and receives no Nabla subsidy. Sending wallets/exchanges may charge independently.
+The fee-total row expands into plain-language categories, with individual provider names secondary, in Portuguese and English. Unknown amounts remain unknown; partial breakdowns show reported fees without claiming complete costs. Price effects are counted once, and an already-applied discount is explained without being subtracted again. Retained ETH is displayed separately from spent fees; the displayed funding and receipt amounts remain unchanged. There is no additional product fee. Pix quotes may separately show the configured Nabla DEX-fee subsidy; the Nabla row is already net of it. USDC bypasses both Pix and Nabla and receives no Nabla subsidy. Sending wallets/exchanges may charge independently.
 
 Demo/preview keep `usdc-checkout.js`'s simulated balances and payment controls. They make no funding/trading calls and show no payable address. `USDC_SIMULATION` removes those controls and their lazy chunk from live builds. `node apps/stocks/scripts/verify-usdc-ui.mjs` still checks the demo UI; Node DOM tests additionally exercise the live UI with synthetic adapters. No real Pix bank transfer is required for these checks, and real bank settlement remains unverified.
 

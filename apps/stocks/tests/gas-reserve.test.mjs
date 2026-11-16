@@ -189,15 +189,13 @@ test("ETH amounts read the pt-BR way, with two significant digits", () => {
   assert.equal(formatEthPt(300_000_000_000_000n), "0,0003");
 });
 
-test("buy review: the reserve gets its own line, only when the quote includes one", () => {
+test("reserve copy helper returns a balance only when the quote includes one", () => {
   assert.equal(GAS_RESERVE_LABEL_PT, "Reserva de ETH na sua carteira");
   assert.equal(gasReserveNotePt(RESERVE), "≈ 0,00005 ETH na Robinhood Chain, que fica na sua carteira");
   assert.deepEqual(gasReserveLinePt({ gasReserve: RESERVE }), { label: GAS_RESERVE_LABEL_PT, note: gasReserveNotePt(RESERVE), brl: 0.71 });
   assert.equal(gasReserveLinePt({ gasReserve: null }), null);
   assert.equal(gasReserveLinePt(null), null);
-  const confirm = flowStep("src/flows/BuyFlow.jsx", "function ConfirmStep");
-  assert.match(confirm, /const reserve = gasReserveLinePt\(quote\);/);
-  assert.match(confirm, /\{reserve && <div className="is-sub"><dt>\{reserve\.label\}<small>\{reserve\.note\}<\/small><\/dt><dd>\{formatBRL\(reserve\.brl\)\}<\/dd><\/div>\}/);
+
 });
 
 test("the wallet check before a sell transaction: only advice that works while the sell is open", () => {

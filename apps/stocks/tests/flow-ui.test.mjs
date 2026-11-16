@@ -665,7 +665,7 @@ test("a cancelled USDC permit resumes the same registered order instead of regis
 }));
 test("Brazilian live USDC uses Portuguese copy and the same provider costs",()=>harness(async s=>{
   const f=liveUsdcFixtures("pt-BR");await s.render(createElement(LiveUsdcFlow,f.props));await s.click("Ver cotação");
-  assert.match(s.text(),/Provedores e custos/);assert.match(s.text(),/100,000000 USDC/);assert.match(s.text(),/0,5000 NVDA/);assert.match(s.text(),/Taxas informadas/);assert.doesNotMatch(s.text(),/Illustrative provider/);
+  assert.ok(document.querySelector(".fee-card .fee-summary > summary"));assert.match(s.text(),/Ver detalhes/);assert.match(s.text(),/100,00 USDC/);assert.match(s.text(),/0,5000 NVDA/);assert.match(s.text(),/Taxas informadas/);assert.doesNotMatch(s.text(),/Illustrative provider/);
 }));
 
 test("Brazilian live USDC words a cancelled permit in Portuguese and keeps the same order", () => harness(async s => {
@@ -692,3 +692,21 @@ test("a saved USDC order remains resumable when new USDC purchases are disabled"
   await s.render(createElement(LiveUsdcFlow,f.props));assert.ok(s.has("Resume order"));await s.click("Resume order");
   assert.match(s.text(),/Your Stock Tokens have arrived/);assert.doesNotMatch(s.text(),/USDC is coming soon/);
 }));
+
+
+for (const reserve of [null, { brl: 0.71, ethAmount: "0.00005" }]) {
+  test(`Pix review renders retained ETH separately when quoted: ${Boolean(reserve)}`, () => harness(async s => {
+    const props = fixtures(approved);
+    props.runtime.adapter.quoteBuy = async () => ({ ...quote, gasReserve: reserve, fees: { ...quote.fees, total: 3 + (reserve?.brl || 0) } });
+    await s.render(createElement(BuyFlow, props));
+    await s.click("Continuar");
+    const line = document.querySelector(".reserve-balance");
+    assert.equal(Boolean(line), Boolean(reserve));
+    if (line) {
+      assert.match(line.textContent.replace(/\u00a0/g, " "), /Saldo para futuras taxas.*R\$ 0,71/);
+      assert.equal(line.closest(".fee-summary"), null);
+      assert.match(line.textContent, /Não é uma taxa cobrada/);
+    }
+    assert.match(document.querySelector(".fee-summary > summary").textContent.replace(/\u00a0/g, " "), /R\$ 3,00/);
+  }));
+}

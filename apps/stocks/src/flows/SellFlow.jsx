@@ -8,7 +8,7 @@ import { QuoteCosts } from "../components/QuoteCosts.jsx";
 import { ArrowLeft, ArrowRight, Check, Copy, GasPump } from "../components/icons.js";
 import { Modal } from "../components/Modal.jsx";
 import { Notice } from "../components/ui.jsx";
-import { formatBRL, formatNumber, formatPercent, priceBRL } from "../format.js";
+import { formatBRL, formatPercent, priceBRL } from "../format.js";
 import { useCopy } from "../hooks.js";
 import { DEMO_TOOLS } from "../lib/config.js";
 import { sellGasNoticePt, sellGasRequiredWei } from "../lib/gas-reserve.js";
@@ -86,16 +86,17 @@ function ReviewStep({ token, quote, guard, reference, pixKey, ethWei, requiredWe
   return (
     <div className="flow-section">
       {notice && <Notice tone="info">{notice}</Notice>}
-      <dl className="breakdown">
-        <div><dt>Você vende</dt><dd>{formatTokenAmount(quote.tokenAmount)} {token.symbol} (token)</dd></div>
-        <div><dt>Valor bruto</dt><dd>{formatBRL(gross)}</dd></div>
-        <div><dt>Taxas informadas (já descontadas)</dt><dd>{formatBRL(quote.fees.total)}<small>{formatNumber((quote.fees.total / gross) * 100, 2)}% do valor</small></dd></div>
-        <div className="is-sub"><dt>Conversão e serviço</dt><dd>{formatBRL(quote.fees.service)}</dd></div>
-        <div className="is-sub"><dt>Gas das redes</dt><dd>{formatBRL(quote.fees.network)}</dd></div>
-        <div><dt>Preço por token nesta cotação</dt><dd>{priceBRL(quote.impliedBrlPerToken)}{reference && <small>referência {priceBRL(reference.brl)}{guard?.deviationPct != null ? ` (${formatPercent(guard.deviationPct)})` : ""}</small>}</dd></div>
-        <div className="is-total"><dt>Você recebe no Pix</dt><dd>{formatBRL(quote.brlAmount)}</dd></div>
-      </dl>
-      <QuoteCosts quote={quote} />
+      <div className="fee-card">
+        <dl className="breakdown">
+          <div><dt>Você vende</dt><dd>{formatTokenAmount(quote.tokenAmount)} {token.symbol} (token)</dd></div>
+          <div><dt>Valor bruto</dt><dd>{formatBRL(gross)}</dd></div>
+        </dl>
+        <QuoteCosts quote={quote} />
+        <dl className="breakdown">
+          <div><dt>Preço por token nesta cotação</dt><dd>{priceBRL(quote.impliedBrlPerToken)}{reference && <small>referência {priceBRL(reference.brl)}{guard?.deviationPct != null ? ` (${formatPercent(guard.deviationPct)})` : ""}</small>}</dd></div>
+          <div className="is-total"><dt>Você recebe no Pix</dt><dd>{formatBRL(quote.brlAmount)}</dd></div>
+        </dl>
+      </div>
       <QuoteTimer expiresAt={quote.expiresAt} />
       <p className="hint">Chave Pix: <b style={{ color: "var(--ink)" }}>{pixKey}</b></p>
       {gasNotice && <Notice tone={gasNotice.tone} title={gasNotice.title} role={noGas ? "alert" : undefined}>{gasNotice.text}</Notice>}

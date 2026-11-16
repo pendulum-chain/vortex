@@ -6,16 +6,17 @@ import { useEffect, useRef, useState } from "react";
 import { isTransientError } from "@vortexfi/consumer-kit";
 import { ArrowLeft, ArrowRight, Info } from "../components/icons.js";
 import { Modal } from "../components/Modal.jsx";
+import { ReserveBalance } from "../components/FeeSummary.jsx";
 import { QuoteCosts } from "../components/QuoteCosts.jsx";
 import { Notice } from "../components/ui.jsx";
 import { DEMO_TOOLS } from "../lib/config.js";
-import { formatBRL, formatNumber, formatPercent, priceBRL } from "../format.js";
-import { gasReserveLinePt, sellLaterNotePt } from "../lib/gas-reserve.js";
+import { formatBRL, formatPercent, priceBRL } from "../format.js";
+import { sellLaterNotePt } from "../lib/gas-reserve.js";
 import { MARKET_CLOSED_NOTE_PT, tokenizationClosedNotePt, tokenizationWindowOpen, usMarketStatus } from "../lib/market-hours.js";
 import { waitingCopyPt } from "../lib/phases.js";
 import { checkQuotePrice } from "../lib/price-guard.js";
 import { freshPauseReason } from "../lib/ramp-contract.js";
-import { DEFAULT_BUY, MIN_BUY, QUICK_BUY_VALUES, buyFeePercent, quoteNeedsRefresh, showSmallBuyNote, stepAfterCode, validBuyAmount } from "../lib/purchase-options.js";
+import { DEFAULT_BUY, MIN_BUY, QUICK_BUY_VALUES, quoteNeedsRefresh, showSmallBuyNote, stepAfterCode, validBuyAmount } from "../lib/purchase-options.js";
 import { estimateTokensForBrl, formatSharesApproxPt, formatTokenAmount, multiplierWeiFor, sharesWei } from "../lib/token.js";
 import { FlowIssue, FlowProgress, GuardCard, KYC_IN_REVIEW_PT, KycStep, OtpStep, POLL_RESTART_MS, ProcessingSteps, QuoteTimer, SuccessSeal, TokenSummary, Waiting, errorMessage, needsCode, unavailableMessage } from "./parts.jsx";
 import { PixStep } from "./PixStep.jsx";
@@ -57,25 +58,22 @@ function AmountStep({ token, price, amount, setAmount, onNext, busy, error, onPa
 function ConfirmStep({ token, quote, guard, reference, multiplierWei, onConfirm, onRefresh, busy, error, notice }) {
   const [accepted, setAccepted] = useState(false);
   const [guardAccepted, setGuardAccepted] = useState(false);
-  const fee = buyFeePercent(quote, quote.brlAmount);
   const shares = sharesWei(quote.tokenAmountWei, multiplierWeiFor(token, multiplierWei));
   const deviation = guard?.deviationPct;
   const blocked = guard?.status === "block";
   const canConfirm = accepted && !blocked && (guard?.status !== "warn" || guardAccepted) && !busy;
-  const reserve = gasReserveLinePt(quote);
   return (
     <div className="flow-section">
       {notice && <Notice tone="info">{notice}</Notice>}
-      <dl className="breakdown">
-        <div><dt>Você paga</dt><dd>{formatBRL(quote.brlAmount)}</dd></div>
-        <div><dt>Taxas informadas (já incluídas)</dt><dd>{formatBRL(quote.fees.total)}{fee != null && <small>{formatNumber(fee, 2)}% do valor</small>}</dd></div>
-        <div className="is-sub"><dt>Conversão e serviço</dt><dd>{formatBRL(quote.fees.service)}</dd></div>
-        <div className="is-sub"><dt>Taxas das redes</dt><dd>{formatBRL(quote.fees.network)}</dd></div>
-        {reserve && <div className="is-sub"><dt>{reserve.label}<small>{reserve.note}</small></dt><dd>{formatBRL(reserve.brl)}</dd></div>}
-        <div><dt>Preço por token nesta cotação</dt><dd>{priceBRL(quote.impliedBrlPerToken)}{reference && <small>referência {priceBRL(reference.brl)}{deviation != null ? ` (${formatPercent(deviation)})` : ""}</small>}</dd></div>
-        <div className="is-total"><dt>Você recebe</dt><dd>{formatTokenAmount(quote.tokenAmount)} {token.symbol} (token)<small>{formatSharesApproxPt(shares)}</small></dd></div>
-      </dl>
-      <QuoteCosts quote={quote} />
+      <div className="fee-card">
+        <dl className="breakdown"><div><dt>Você paga</dt><dd>{formatBRL(quote.brlAmount)}</dd></div></dl>
+        <QuoteCosts quote={quote} />
+        <dl className="breakdown">
+          <div><dt>Preço por token nesta cotação</dt><dd>{priceBRL(quote.impliedBrlPerToken)}{reference && <small>referência {priceBRL(reference.brl)}{deviation != null ? ` (${formatPercent(deviation)})` : ""}</small>}</dd></div>
+          <div className="is-total"><dt>Você recebe</dt><dd>{formatTokenAmount(quote.tokenAmount)} {token.symbol} (token)<small>{formatSharesApproxPt(shares)}</small></dd></div>
+        </dl>
+      </div>
+      <ReserveBalance amount={quote.gasReserve?.brl} />
       <QuoteTimer expiresAt={quote.expiresAt} />
       <GuardCard guard={guard} direction="BUY" reference={reference} accepted={guardAccepted} onAccept={setGuardAccepted} />
       <p className="hint">{sellLaterNotePt(quote)}</p>
