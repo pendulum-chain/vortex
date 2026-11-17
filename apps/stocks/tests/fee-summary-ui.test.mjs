@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 import { importJsx } from "./jsx-module.mjs";
 import { simulatedProviderCosts } from "../src/lib/fee-model.js";
 const { FeeSummary, ReserveBalance } = await importJsx(new URL("../src/components/FeeSummary.jsx", import.meta.url));
-const { QuoteCosts, LiveUsdcCosts, UsdcQuoteCosts } = await importJsx(new URL("../src/components/QuoteCosts.jsx", import.meta.url));
+const { QuoteCosts, LiveUsdcCosts, UsdcQuoteCosts, sellGross } = await importJsx(new URL("../src/components/QuoteCosts.jsx", import.meta.url));
 const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
 const marker = css.indexOf("/* Shared cost presentation:");
 assert.ok(marker >= 0);
@@ -107,4 +107,13 @@ for (const locale of ["en", "pt-BR"]) test(`${locale}: simulated USDC quote wrap
   await render(createElement(UsdcQuoteCosts, { quote, locale }));
   assert.match(text(document.querySelector("summary")), locale === "en" ? /Purchase fees.*3.10 USDC/ : /Taxas da compra.*3,10 USDC/);
   assert.match(text(document.body), locale === "en" ? /Illustrative amounts/ : /Valores ilustrativos/);
+}));
+
+test("a Pix sell's gross is its payout plus the cost headline, so the review's rows add up", () => harness(async render => {
+  const cost = (id, provider, amountFiat, includedIn = "fees") => ({ id, provider, amountFiat, includedIn });
+  const quote = { direction: "SELL", brlAmount: 96, fees: { total: 4 }, rawQuote: { totalFeeFiat: "4", providerCosts: [cost("ramp", "avenia", "1"),
+    cost("conversion", "nabla", "0.5", "rate"), cost("bridge", "relay", "0.3", "rate"), cost("swap", "uniswap", "0.2", "rate"), cost("vortex", "vortex", "2"), cost("network", "network", "1")] } };
+  assert.equal(sellGross(quote), 101, "R$ 96 paid out + R$ 4 fees + R$ 1 of price effects already inside the payout");
+  await render(createElement(QuoteCosts, { quote }));
+  assert.match(text(document.querySelector("summary")), /Custos da venda.*R\$ 5,00.*4,95%/);
 }));

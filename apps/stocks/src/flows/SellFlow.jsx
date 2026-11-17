@@ -4,7 +4,7 @@
 //   sign (resume): resumeSell -> start;  processing -> success | issue
 import { useEffect, useRef, useState } from "react";
 import { isTransientError } from "@vortexfi/consumer-kit";
-import { QuoteCosts } from "../components/QuoteCosts.jsx";
+import { QuoteCosts, sellGross } from "../components/QuoteCosts.jsx";
 import { ArrowLeft, ArrowRight, Check, Copy, GasPump } from "../components/icons.js";
 import { Modal } from "../components/Modal.jsx";
 import { Notice } from "../components/ui.jsx";
@@ -81,7 +81,7 @@ function ReviewStep({ token, quote, guard, reference, pixKey, ethWei, requiredWe
   const gasNotice = sellGasNoticePt({ gasless: quote.gasless, ethWei, requiredWei });
   const noGas = gasNotice?.needsEth === true;
   const blocked = guard?.status === "block";
-  const gross = quote.brlAmount + quote.fees.total;
+  const gross = sellGross(quote);
   const canConfirm = accepted && !blocked && !noGas && (guard?.status !== "warn" || guardAccepted) && !busy;
   return (
     <div className="flow-section">

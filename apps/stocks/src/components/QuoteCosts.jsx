@@ -1,10 +1,19 @@
 import { FeeSummary } from "./FeeSummary.jsx";
+import { groupedFees } from "../lib/fee-summary.js";
 import { quoteProviderCosts } from "../lib/provider-costs.js";
 
+const costRows = quote => quoteProviderCosts(quote.rawQuote, { reserve: quote.gasReserve }).rows;
+
+/** A sell's gross: its payout plus the cost headline FeeSummary shows, so gross minus costs is the payout on
+ * screen. A complete breakdown's headline also counts the price effects already inside the payout. */
+export const sellGross = (quote, { currency = "BRL", method = "pix" } = {}) =>
+  (currency === "USDC" ? quote.usdcAmount : quote.brlAmount)
+  + groupedFees({ rows: costRows(quote), total: quote.fees.total, reserve: quote.gasReserve?.brl || 0, currency, method, direction: "SELL" }).amount;
+
 export function QuoteCosts({ quote }) {
-  return <FeeSummary rows={quoteProviderCosts(quote.rawQuote, { reserve: quote.gasReserve }).rows}
+  return <FeeSummary rows={costRows(quote)}
     total={quote.fees.total} reserve={quote.gasReserve?.brl || 0}
-    basis={quote.direction === "SELL" ? quote.brlAmount + quote.fees.total : quote.brlAmount}
+    basis={quote.direction === "SELL" ? sellGross(quote) : quote.brlAmount}
     direction={quote.direction} illustrative={quote.simulated} subsidy={quote.rawQuote.nablaFeeSubsidy} />;
 }
 
@@ -15,8 +24,8 @@ export function UsdcQuoteCosts({ quote, locale = "en" }) {
 }
 
 export function LiveUsdcCosts({ quote, locale = "en" }) {
-  return <FeeSummary rows={quoteProviderCosts(quote.rawQuote, { reserve: quote.gasReserve }).rows}
+  return <FeeSummary rows={costRows(quote)}
     total={quote.fees.total} reserve={quote.gasReserve?.brl || 0}
-    basis={quote.direction === "SELL" ? quote.usdcAmount + quote.fees.total : quote.usdcAmount}
+    basis={quote.direction === "SELL" ? sellGross(quote, { currency: "USDC", method: "usdc" }) : quote.usdcAmount}
     currency="USDC" method="usdc" direction={quote.direction} locale={locale} />;
 }
