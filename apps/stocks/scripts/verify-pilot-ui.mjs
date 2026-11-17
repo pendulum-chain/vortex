@@ -30,16 +30,12 @@ try {
     await page.goto(`${url}#/acao/NVDA?demoFlow=buy-quote`, { waitUntil: "networkidle" });
     const generate = page.getByRole("button", { name: /Gerar Pix de/ });
     await generate.waitFor({ timeout: 20_000 });
-    const costs = page.locator(".provider-costs");
+    const costs = page.locator(".sheet .fee-summary");
     assert.equal(await costs.getAttribute("open"), null, "Cost details are available without crowding the review");
     await costs.locator("summary").click();
-    await costs.getByText("Rota direta · Relay + Uniswap", { exact: true }).waitFor();
-    for (const provider of ["Avenia", "Nabla", "Relay", "Uniswap", "Vortex", "Redes"]) {
-      assert.equal(await costs.getByText(provider, { exact: true }).count(), 1, `${provider} provider shown`);
-    }
-    const ownFee = costs.locator('[data-cost-id="product"]');
-    assert.match(await ownFee.innerText(), /0,00/);
-    assert.match(await ownFee.innerText(), /0 bps/);
+    for (const group of ["payment", "tradeDelivery", "service"]) assert.equal(await costs.locator(`[data-fee-group="${group}"]`).count(), 1, `${group} group shown`);
+    for (const id of ["ramp", "conversion", "bridge", "swap", "network", "vortex"]) assert.equal(await costs.locator(`[data-cost-id="${id}"]`).count(), 1, `${id} cost shown once`);
+    await costs.getByText(/não adiciona outra taxa/).waitFor();
     assert.ok(await page.evaluate(() => document.querySelector(".sheet").scrollWidth <= document.querySelector(".sheet").clientWidth + 1), "Quote detail overflows its modal");
     await page.evaluate(() => { document.querySelector(".sheet").scrollTop = 0; });
     await page.screenshot({ path: `${output}/buy-providers-${viewport.width}.png` });
@@ -59,10 +55,14 @@ try {
     await page.locator(".activity-row").filter({ hasText: /Compra · NVDA/ }).first().waitFor();
     await page.goto(`${url}#/acao/NVDA?demoFlow=sell-reserve-used`, { waitUntil: "networkidle" });
     await page.getByRole("button", { name: "Confirmar venda", exact: true }).waitFor();
-    const sellCosts = page.locator(".provider-costs");
+    const sellCosts = page.locator(".sheet .fee-summary");
     await sellCosts.locator("summary").click();
-    assert.match(await sellCosts.locator("dl > div").first().innerText(), /Uniswap/);
-    assert.match(await sellCosts.locator('[data-cost-id="product"]').innerText(), /0 bps/);
+    assert.deepEqual(await sellCosts.locator("[data-fee-group]").evaluateAll((groups) => groups.map((group) => group.dataset.feeGroup)), ["payment", "tradeDelivery", "service"]);
+    await sellCosts.getByText(/não adiciona outra taxa/).waitFor();
+    const brl = async (locator) => Number((await locator.innerText()).replace(/\s/g, " ").match(/R\$ ([\d.]+,\d{2})/)[1].replace(/\./g, "").replace(",", "."));
+    const gross = await brl(page.locator(".sheet .fee-card .breakdown > div", { hasText: "Valor bruto" }).locator("dd"));
+    const received = await brl(page.locator(".sheet .fee-card .is-total dd"));
+    assert.ok(Math.abs(gross - await brl(sellCosts.locator(".fee-summary__amount")) - received) < 0.011, "Valor bruto − custos = Você recebe no Pix");
     await page.evaluate(() => { document.querySelector(".sheet").scrollTop = 0; });
     await page.screenshot({ path: `${output}/sell-providers-${viewport.width}.png` });
     assert.deepEqual(errors, [], "Runtime errors");
