@@ -867,6 +867,7 @@ button.payment-choice { cursor: pointer; }
 .reserve-balance p { min-width: 0; }
 .reserve-balance small { display: block; color: var(--text-muted); margin-top: 4px; font-size: 12px; line-height: 1.5; }
 .reserve-balance strong { flex-shrink: 0; max-width: 42%; font-family: var(--font-numeric); text-align: right; font-size: 14px; }
+.fee-card > .reserve-balance { border-radius: 0; border-bottom: 1px solid var(--hairline); }
 .preview-result .fee-card .breakdown .is-total { display: block; padding: 16px; }
 .preview-result .fee-card .breakdown .is-total dd { margin-top: 8px; text-align: left; font-size: 25px; }
 .preview-result .fee-card .breakdown .is-total dd small { font-family: var(--font-body); font-size: 14px; }

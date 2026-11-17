@@ -36,6 +36,9 @@ test("anonymous Pix preview needs no sign-in and hands off only the selected amo
   assert.match(document.querySelector(".fee-summary > summary").textContent.replace(/\u00a0/g, " "), /R\$ 2,40/);
   assert.match(document.querySelector(".reserve-balance").textContent.replace(/\u00a0/g, " "), /R\$ 0,71/);
   assert.match(document.querySelector(".fee-card .is-total").textContent.replace(/\u00a0/g, " "), /R\$ 96,89/);
+  // R$ 100 paid \u2212 R$ 2,40 costs \u2212 R$ 0,71 kept as ETH = R$ 96,89 used: all three rows sit in the card, in that order.
+  assert.deepEqual([...document.querySelector(".fee-card").children].map(child => child.className), ["breakdown", "fee-summary", "reserve-balance", "breakdown"]);
+  assert.match(document.querySelector(".fee-card .reserve-balance").textContent, /Sai do valor pago/);
   assert.equal(calls.length, 0);
   await act(async () => document.querySelector(".fee-summary > summary").click());
   assert.equal(document.querySelector(".fee-summary").open, true);

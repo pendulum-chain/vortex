@@ -43,9 +43,9 @@ export function PurchasePreview({ prices = {}, locale = "pt-BR", symbol = null, 
       <div className="fee-card">
         <dl className="breakdown"><div><dt>{en ? "You pay" : "Você paga"}</dt><dd>{money(preview.amount)}</dd></div></dl>
         <FeeSummary rows={rows} total={preview.total} reserve={reserve} basis={preview.amount} currency={preview.currency} method={method} locale={locale} />
+        <ReserveBalance amount={reserve} currency={preview.currency} locale={locale} />
         <dl className="breakdown"><div className="is-total"><dt>{en ? "Amount used to buy your tokens" : "Valor usado para comprar seus tokens"}</dt><dd>{money(preview.net)}<small>≈ {en ? formatTokensEn(preview.tokenAmount) : formatTokenAmount(preview.tokenAmount)} {en ? `${token.symbol} tokens` : `tokens ${token.symbol}`}</small></dd></div></dl>
       </div>
-      <ReserveBalance amount={reserve} currency={preview.currency} locale={locale} />
       {method === "usdc" && <p className="preview-note">{en ? "Your sending wallet or exchange may charge separately." : "A carteira ou corretora de origem pode cobrar à parte."}</p>}
     </div>}
     {error && <p className="field-error" role="alert">{error}</p>}

@@ -55,7 +55,7 @@ export function ReserveBalance({ amount, currency = "BRL", locale = "pt-BR" }) {
   if (!(amount > 0)) return null;
   const en = locale === "en";
   return <div className="reserve-balance" data-cost-id="reserve">
-    <p><b>{en ? "Balance for future network fees" : "Saldo para futuras taxas de rede"}</b><small>{en ? "It stays yours, in your wallet. It is not a fee charged." : "Continua seu, na sua carteira. Não é uma taxa cobrada."}<br />{en ? "Held as ETH on Robinhood Chain." : "Reservado como ETH na Robinhood Chain."}</small></p>
+    <p><b>{en ? "Balance for future network fees" : "Saldo para futuras taxas de rede"}</b><small>{en ? "Taken from your payment, it stays yours, in your wallet. It is not a fee charged." : "Sai do valor pago e continua seu, na sua carteira. Não é uma taxa cobrada."}<br />{en ? "Held as ETH on Robinhood Chain." : "Reservado como ETH na Robinhood Chain."}</small></p>
     <strong>{formatCostAmount(amount, currency, locale)}</strong>
   </div>;
 }
