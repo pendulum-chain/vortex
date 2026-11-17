@@ -43,7 +43,7 @@ test("partial provider detail stays unknown; neither missing amounts nor an unal
   input.rows.push({ id: "bridge", amount: 0, includedIn: "fees" });
   assert.equal(groupedFees(input).groups.flatMap(g => g.items).find(i => i.id === "bridge").amount, 0);
   assert.equal(groupedFees(input).complete, false, "a real zero does not explain a missing charge elsewhere");
-  assert.equal(groupedFees({ rows: rows(), total: 6.01 }).complete, false);
+  assert.equal(groupedFees({ rows: rows(), total: 6.02 }).complete, false);
 });
 
 test("sell grouping reverses the relevant route and keeps the same accounting", () => {
@@ -63,4 +63,13 @@ test("localized overview amounts omit trailing precision but keep exact USDC and
   assert.equal(formatCostPercent(6, 1000), "0,60%");
   assert.equal(formatCostPercent(6, 1000, "en"), "0.60%");
   assert.equal(formatCostPercent(1, 0), null);
+});
+
+test("a fully itemized quote off by the API's one-unit rounding stays complete, as the quote validator accepts it", () => {
+  const input = { rows: rows(), total: 5.72, reserve: 0.71 };
+  input.rows.find(r => r.id === "conversion").includedIn = "rate";
+  const result = groupedFees(input);
+  assert.equal(result.complete, true); assert.equal(result.label, "costs"); assert.equal(result.amount, 6.01);
+  const usdc = groupedFees({ rows: rows().filter(r => !["ramp", "conversion"].includes(r.id)), total: 4.000001, method: "usdc", currency: "USDC" });
+  assert.equal(usdc.complete, true);
 });

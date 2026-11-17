@@ -20,7 +20,9 @@ export function groupedFees({ rows, total, reserve = 0, currency = "BRL", method
   const items = groups.flatMap(group => group.items);
   const reported = round(total - reserve, currency);
   const feeSum = round(items.filter(item => item.includedIn === "fees").reduce((sum, item) => sum + (item.amount ?? 0), 0), currency);
-  const complete = items.every(item => item.amount !== null) && Math.abs(feeSum - reported) < (currency === "USDC" ? 0.0000005 : 0.005);
+  // The same 1-unit allowance as providerCostProblem: the API rounds each fee line, and the total once.
+  const units = value => Math.round(value * (currency === "USDC" ? 1e6 : 100));
+  const complete = items.every(item => item.amount !== null) && Math.abs(units(feeSum) - units(reported)) <= 1;
   const hasPriceEffects = items.some(item => item.includedIn === "rate");
   const priceEffects = items.filter(item => item.includedIn === "rate").reduce((sum, item) => sum + (item.amount ?? 0), 0);
   return { groups, complete, hasPriceEffects, reported, amount: complete ? round(reported + priceEffects, currency) : reported, label: !complete ? "reported" : hasPriceEffects ? "costs" : "fees" };
