@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "../components/Modal.jsx";
+import { ReserveBalance } from "../components/FeeSummary.jsx";
 import { UsdcQuoteCosts } from "../components/QuoteCosts.jsx";
 import { Notice } from "../components/ui.jsx";
 import { formatTokensEn, formatUsdc } from "../lib/international.js";
@@ -113,8 +114,13 @@ export default function SimulatedUsdcFlow({ token, auth, runtime, market, direct
       </>}
       {["review", "needs_review"].includes(status) && shown && <>
         {status === "needs_review" && <Notice tone="warning" title="Review a new quote">The price moved outside your approved limit. No stock purchase has been made. Your USDC remains available.</Notice>}
-        <dl className="breakdown"><div><dt>{direction === "BUY" ? "You pay" : "You sell"}</dt><dd>{direction === "BUY" ? formatUsdc(shown.input) : `${formatTokensEn(shown.input)} ${token.symbol}`}</dd></div><div><dt>Included costs</dt><dd>{formatUsdc(usdcText(shown.totalFeesRaw), 4)}</dd></div><div className="is-total"><dt>You receive (estimate)</dt><dd>{outputText(shown)}</dd></div><div><dt>Network for USDC</dt><dd>Base</dd></div></dl>
-        <UsdcQuoteCosts quote={shown} />
+        <div className="fee-card">
+          <dl className="breakdown"><div><dt>{direction === "BUY" ? "You pay" : "You sell"}</dt><dd>{direction === "BUY" ? formatUsdc(shown.input) : `${formatTokensEn(shown.input)} ${token.symbol}`}</dd></div></dl>
+          <UsdcQuoteCosts quote={shown} locale={runtime.locale} />
+          <dl className="breakdown"><div className="is-total"><dt>You receive (estimate)</dt><dd>{outputText(shown)}</dd></div><div><dt>Network for USDC</dt><dd>Base</dd></div></dl>
+        </div>
+        <ReserveBalance amount={Number(shown.costs.find(cost => cost.id === "reserve")?.raw || 0) / 1e6} currency="USDC" locale={runtime.locale || "en"} />
+        <p className="hint">{runtime.locale === "pt-BR" ? "A carteira ou corretora de origem pode cobrar à parte." : "Your sending wallet or exchange may charge separately."}</p>
         <p className="hint">Price protection: minimum {outputText({ ...shown, outputRaw: (BigInt(shown.outputRaw) * 9950n / 10000n).toString() })}. Maximum included costs: {formatUsdc(usdcText(BigInt(shown.totalFeesRaw) + (BigInt(shown.grossRaw) * 5n + 9999n) / 10000n), 6)}.</p>
         <p className="hint">{seconds ? `Quote valid for ${seconds}s.` : "Quote expired. Refresh before continuing."} Funding may take longer. We recheck the price when funds arrive and buy automatically only within your approved limits.</p>
         {direction === "BUY" && status === "review" && balance < BigInt(shown.grossRaw) && <div className="payment-methods" role="group" aria-label="USDC payment method"><button className="payment-choice" aria-pressed={method === "wallet"} onClick={() => setMethod("wallet")}><b>Pay from a wallet</b><span>Use an external wallet with Base USDC</span></button><button className="payment-choice" aria-pressed={method === "transfer"} onClick={() => setMethod("transfer")}><b>Send USDC</b><span>Transfer from a wallet or exchange</span></button></div>}

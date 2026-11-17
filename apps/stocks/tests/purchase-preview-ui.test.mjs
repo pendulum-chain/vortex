@@ -1,19 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import { JSDOM } from "jsdom";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { transformWithEsbuild } from "vite";
 
-// Exercise the actual JSX with the app's existing Vite transformer; no browser or new runner.
-const source = new URL("../src/components/PurchasePreview.jsx", import.meta.url);
-const requireFromSource = createRequire(source);
-const transformed = await transformWithEsbuild(await readFile(source, "utf8"), fileURLToPath(source), { jsx: "automatic" });
-const code = transformed.code.replace(/from\s+["']([^"']+)["']/g, (_, specifier) => `from ${JSON.stringify(specifier.startsWith(".") ? new URL(specifier, source).href : pathToFileURL(requireFromSource.resolve(specifier)).href)}`);
-const { PurchasePreview } = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`);
+import { importJsx } from "./jsx-module.mjs";
+const { PurchasePreview } = await importJsx(new URL("../src/components/PurchasePreview.jsx", import.meta.url));
 const prices = { NVDA: { brl: 1000, usd: 200 } };
 
 async function harness(run) {
@@ -41,8 +33,18 @@ test("anonymous Pix preview needs no sign-in and hands off only the selected amo
   assert.equal(document.querySelector("input").value, "100");
   await s.click("Ver custos da compra");
   assert.match(s.text(), /Sua estimativa/);
-  assert.match(s.text().replace(/\u00a0/g, " "), /R\$ 3,11/);
+  assert.match(document.querySelector(".fee-summary > summary").textContent.replace(/\u00a0/g, " "), /R\$ 2,40/);
+  assert.match(document.querySelector(".reserve-balance").textContent.replace(/\u00a0/g, " "), /R\$ 0,71/);
+  assert.match(document.querySelector(".fee-card .is-total").textContent.replace(/\u00a0/g, " "), /R\$ 96,89/);
+  // R$ 100 paid \u2212 R$ 2,40 costs \u2212 R$ 0,71 kept as ETH = R$ 96,89 used: all three rows sit in the card, in that order.
+  assert.deepEqual([...document.querySelector(".fee-card").children].map(child => child.className), ["breakdown", "fee-summary", "reserve-balance", "breakdown"]);
+  assert.match(document.querySelector(".fee-card .reserve-balance").textContent, /Sai do valor pago/);
   assert.equal(calls.length, 0);
+  await act(async () => document.querySelector(".fee-summary > summary").click());
+  assert.equal(document.querySelector(".fee-summary").open, true);
+  assert.equal(calls.length, 0, "expanding costs never starts the purchase");
+  await act(async () => document.querySelector(".fee-summary > summary").click());
+  assert.equal(document.querySelector("input").value, "100");
   await s.click("Continuar com Pix");
   assert.deepEqual(calls, [{ symbol: "NVDA", method: "pix", amount: "100", locale: "pt-BR" }]);
 }));
@@ -106,3 +108,16 @@ test("while the ramp's answer is unknown the preview promises neither buying nor
   assert.equal(s.button("Continuar com Pix").disabled, true);
   assert.match(s.text(), /Compra em breve/);
 }));
+
+
+for (const locale of ["pt-BR", "en"]) {
+  test(`${locale}: the USDC sending-wallet notice appears once, including expanded fees`, () => harness(async s => {
+    await s.render({ locale });
+    if (locale !== "en") await s.click("USDC · na Base");
+    await s.click(locale === "en" ? "See purchase costs" : "Ver custos da compra");
+    const warning = locale === "en" ? /Your sending wallet or exchange may charge separately/g : /A carteira ou corretora de origem pode cobrar à parte/g;
+    assert.equal((s.text().match(warning) || []).length, 1);
+    await act(async () => document.querySelector(".fee-summary > summary").click());
+    assert.equal((s.text().match(warning) || []).length, 1);
+  }));
+}

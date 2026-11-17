@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Modal } from "../components/Modal.jsx";
+import { ReserveBalance } from "../components/FeeSummary.jsx";
+import { formatCostAmount } from "../lib/fee-summary.js";
 import { LiveUsdcCosts } from "../components/QuoteCosts.jsx";
 import { Notice } from "../components/ui.jsx";
 import { errorMessage } from "./parts.jsx";
@@ -125,8 +127,12 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
           <p className="hint">{t("Minimum order: 10 USDC. You receive a Stock Token, not the underlying share. Bank payments are planned.", "Mínimo de 10 USDC. Você recebe um token de ação, não a ação. O Pix continua disponível como outra forma de pagamento.")}</p>
         </>}
         {step === "review" && quote && <>
-          <dl className="breakdown"><div><dt>{direction === "BUY" ? t("You pay", "Você paga") : t("You sell", "Você vende")}</dt><dd>{direction === "BUY" ? money(quote.usdcAmount, 6) : `${(pt ? formatTokenAmount(quote.tokenAmount) : formatTokensEn(quote.tokenAmount))} ${token.symbol}`}</dd></div><div className="is-total"><dt>{t("Estimated receipt", "Recebimento estimado")}</dt><dd>{out(quote)}</dd></div></dl>
-          <LiveUsdcCosts quote={quote} locale={runtime.locale} />
+          <div className="fee-card">
+            <dl className="breakdown"><div><dt>{direction === "BUY" ? t("You pay", "Você paga") : t("You sell", "Você vende")}</dt><dd>{direction === "BUY" ? formatCostAmount(quote.usdcAmount, "USDC", runtime.locale) : `${(pt ? formatTokenAmount(quote.tokenAmount) : formatTokensEn(quote.tokenAmount))} ${token.symbol}`}</dd></div></dl>
+            <LiveUsdcCosts quote={quote} locale={runtime.locale} />
+            <dl className="breakdown"><div className="is-total"><dt>{t("Estimated receipt", "Recebimento estimado")}</dt><dd>{out(quote)}</dd></div></dl>
+          </div>
+          <ReserveBalance amount={quote.gasReserve?.brl} currency="USDC" locale={runtime.locale} />
           <p className="hint">{t("Your wallet signs one exact-amount authorization. Vortex pays execution gas. An exchange or sending wallet can charge separately.", "Sua carteira assina uma autorização do valor exato. A Vortex cobre o gas da execução. A corretora ou carteira de origem pode cobrar à parte.")}</p>
           <label className="check"><input type="checkbox" checked={accepted} onChange={e => setAccepted(e.target.checked)} /><span>{t("I reviewed the amount, costs and estimated receipt.", "Revisei o valor, os custos e o recebimento estimado.")}</span></label>
           <button className="btn btn--primary btn--full btn--lg" disabled={busy || !accepted} onClick={confirm}>{direction === "BUY" && balance != null && balance < required ? t("Continue to USDC payment", "Continuar para pagar com USDC") : t("Confirm and authorize", "Confirmar e autorizar")}</button>

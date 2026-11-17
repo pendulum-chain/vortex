@@ -119,8 +119,9 @@ the sibling of `apps/gold`.
   route. `validateStockQuote` requires the server's `routingStrategy: "direct"` and
   `partnerFeeFiat = 0`. `provider-costs.js` validates and
   renders `providerCosts` (schema in README): `fees` partition reported fees, `rate`
-  describes signed price effects embedded in output. Unknown amounts remain unknown. The review
-  shows provider rows, Vortex as the only own revenue fee and an explicit zero Stocks surcharge.
+  describes signed price effects embedded in output. Unknown amounts remain unknown. The fee-total row expands
+  into localized functional categories and individual provider rows. Retained ETH is shown separately
+  from spent fees; Vortex is the only own revenue fee and Stocks adds no surcharge.
   `fees.total` means reported fees, not necessarily the full spread against a fresh market rate.
   Simulated costs are illustrative round placeholders, never a provider's real rates.
 - **Base USDC:** English `/en/stocks/` and the Brazil USDC choice ship in all builds. With USDC checkout on, the Brazil buy and sell flows open on a Pix-or-USDC choice (`MethodStep` in `parts.jsx`, as Gold's picker), so a USDC order never reaches the Pix-only KYC, Pix key or Pix payment steps; a Pix amount carried from the preview or a resumed operation skips it, and a live build offers USDC there only in a direction its USDC listing opens (`usdcOpen` in `detail-actions.js`). Live execution is independently gated by `VITE_STOCKS_USDC_ENABLED=true` and backend `STOCKS_USDC_ENABLED_DIRECTIONS`; discover with `paymentMethod=usdc`. `LiveUsdcFlow.jsx` waits for two Base confirmations in the user's own wallet, refreshes the quote, then requires explicit approval before an exact-amount source permit. No fiat KYC call is made. `vortex-stocks.js` shares the existing Pix recovery lock, nonce/deadline/maintenance checks and persisted ephemeral keys. Native Base USDC is code-pinned. `USDC_SIMULATION` removes `SimulatedUsdcFlow.jsx` and simulated payment controls from live builds; demo/preview remain fake and never show payable addresses. See README for deployment order and recovery behavior.

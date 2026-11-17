@@ -671,16 +671,6 @@ select.text-input { appearance: none; background-image: linear-gradient(45deg, t
 .breakdown .is-total dt { color: var(--ink); font-weight: 600; white-space: nowrap; }
 .breakdown .is-total dd { font-size: 17px; white-space: normal; }
 .quote-timer { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text-muted); font-size: 14px; }
-.provider-costs { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface); }
-.provider-costs summary { min-height: 48px; padding: 14px 16px; cursor: pointer; font-size: 15px; font-weight: 600; }
-.provider-costs summary span { float: right; color: var(--text-muted); font-size: 12px; font-weight: 400; }
-.provider-costs summary small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 13px; font-weight: 400; }
-.provider-costs__body { display: grid; gap: 12px; padding: 0 12px 14px; }
-.provider-costs__rows > div { padding: 12px; align-items: flex-start; }
-.provider-costs__rows dt { min-width: 0; color: var(--ink); }
-.provider-costs__rows .is-total dt { white-space: normal; }
-.provider-costs__rows dd { max-width: 46%; white-space: normal; }
-.provider-costs__rows dt small, .provider-costs__rows dd small { font-family: var(--font-body); font-size: 12px; line-height: 1.45; }
 .payment-methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .payment-choice { display: grid; gap: 5px; min-width: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface); text-align: left; font-size: 14px; }
 button.payment-choice { cursor: pointer; }
@@ -839,16 +829,53 @@ button.payment-choice { cursor: pointer; }
 .preview-result .breakdown dt { min-width: 0; }
 .preview-result .breakdown .is-total dt { white-space: normal; }
 .preview-result .breakdown .is-total dd { font-size: 15px; }
-.preview-costs { font-size: 13px; }
-.preview-costs summary { color: var(--anil-700); cursor: pointer; padding-block: 6px; }
-.preview-costs dl { display: grid; gap: 8px; margin-top: 8px; }
-.preview-costs dl > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.preview-costs dt { color: var(--text-muted); }
-.preview-costs dd { font-family: var(--font-numeric); white-space: nowrap; }
 .preview-note, .preview-assurance { color: var(--text-muted); font-size: 12px; line-height: 1.55; }
 .preview-assurance { border-top: 1px solid var(--hairline); padding-top: 12px; }
 .featured-minimum { color: var(--text-muted); font-size: 14px; margin: -8px 0 18px; }
 .international-detail-preview { max-width: 490px; margin: 24px 0; }
 .international-notes details summary { cursor: pointer; color: var(--anil-700); padding-block: 10px; }
 @media (min-width: 900px) { .hero__grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 56px; align-items: center; } .usdc-hero { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 56px; } }
-@media (max-width: 639px) { .purchase-preview { padding: 20px; gap: 12px; } .hero__grid { gap: 30px; } .purchase-preview .btn--lg { font-size: 15px; } .preview-costs dd { font-size: 12px; } }
+@media (max-width: 639px) { .purchase-preview { padding: 20px; gap: 12px; } .hero__grid { gap: 30px; } .purchase-preview .btn--lg { font-size: 15px; } }
+
+
+/* Shared cost presentation: disclosure stays on the fee-total row. */
+.fee-card { border: 1px solid var(--hairline); border-radius: var(--radius-md); overflow: hidden; min-width: 0; }
+.fee-card > .breakdown { border: 0; border-radius: 0; }
+.fee-summary { border-block: 1px solid var(--hairline); background: var(--surface); min-width: 0; }
+.fee-summary > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-height: 64px; padding: 10px 16px; list-style: none; cursor: pointer; font-size: 14px; }
+.fee-summary > summary::-webkit-details-marker { display: none; }
+.fee-summary > summary:focus-visible { outline: 3px solid var(--anil-600); outline-offset: -4px; }
+.fee-summary__label { flex: 1 1 160px; min-width: 0; color: var(--text-muted); }
+.fee-summary__value { display: flex; flex: 1 1 auto; min-width: 0; align-items: center; justify-content: flex-end; gap: 16px; }
+.fee-summary__amount { min-width: 0; overflow-wrap: anywhere; font-family: var(--font-numeric); font-size: 14px; font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+.fee-summary__amount small { margin-left: 6px; font-family: var(--font-body); font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.fee-summary__toggle { display: flex; align-items: center; justify-content: flex-end; min-height: 48px; min-width: 104px; color: var(--anil-700); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.fee-summary__hide { display: none; }
+.fee-summary[open] .fee-summary__show { display: none; }
+.fee-summary[open] .fee-summary__hide { display: inline; }
+.fee-summary__body { padding: 0 16px 16px; background: #FCFBFF; }
+.fee-summary__group { padding: 16px 0 12px; border-bottom: 1px solid var(--hairline); }
+.fee-summary__group:last-of-type { border: 0; padding-bottom: 0; }
+.fee-summary__group h3 { display: flex; justify-content: space-between; gap: 16px; margin: 0 0 8px; font-size: 15px; font-weight: 600; line-height: 1.4; }
+.fee-summary__group h3 > span:last-child { flex-shrink: 0; max-width: 48%; text-align: right; font-family: var(--font-numeric); font-size: 14px; }
+.fee-summary__group dl > div { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; font-size: 13px; }
+.fee-summary__group dt { min-width: 0; }
+.fee-summary__group dt small { display: block; margin-top: 3px; font-size: 12px; color: var(--text-muted); }
+.fee-summary__group dd { flex-shrink: 0; max-width: 48%; text-align: right; font-family: var(--font-numeric); font-variant-numeric: tabular-nums; }
+.fee-summary__note { margin-top: 10px; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.reserve-balance { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 14px 16px; border-radius: var(--radius-md); background: var(--anil-50); font-size: 13px; }
+.reserve-balance p { min-width: 0; }
+.reserve-balance small { display: block; color: var(--text-muted); margin-top: 4px; font-size: 12px; line-height: 1.5; }
+.reserve-balance strong { flex-shrink: 0; max-width: 42%; font-family: var(--font-numeric); text-align: right; font-size: 14px; }
+.fee-card > .reserve-balance { border-radius: 0; border-bottom: 1px solid var(--hairline); }
+.preview-result .fee-card .breakdown .is-total { display: block; padding: 16px; }
+.preview-result .fee-card .breakdown .is-total dd { margin-top: 8px; text-align: left; font-size: 25px; }
+.preview-result .fee-card .breakdown .is-total dd small { font-family: var(--font-body); font-size: 14px; }
+@media (max-width: 600px) {
+  .fee-summary > summary { gap: 0 12px; padding-inline: 12px; }
+  .fee-summary__amount { max-width: 180px; font-size: 13px; }
+  .fee-summary__toggle { min-height: 48px; font-size: 12px; }
+  .fee-summary__body { padding-inline: 12px; }
+  .fee-summary__group h3 { font-size: 14px; }
+  .fee-summary__group h3 > span:last-child { font-size: 12px; }
+}
