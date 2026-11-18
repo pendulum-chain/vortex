@@ -185,8 +185,12 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
     if (record.stage !== "ready" && !(record.rampType === "BUY" && record.paymentMethod === "pix" && record.stage === "registered")) fail("NOT_AUTHORIZED", "Conclua a confirmação desta mesma operação antes de continuar.");
     try { return await startRampSafely(await client(), id); }
     catch (e) {
-      // The API refuses a start after its window and never runs the order later. The record stays until the hour rule.
-      if (record.stage === "ready" && /time window to start/i.test(String(e?.message))) fail("START_REFUSED", "O prazo para iniciar esta operação terminou e nada foi movimentado. Ela será liberada em até uma hora. Guarde o código.");
+      if (/time window to start/i.test(String(e?.message))) {
+        // The API refuses a start after its window. It never runs a signed permit order later, so nothing has moved; the record stays until the hour rule.
+        if (record.stage === "ready") fail("START_REFUSED", "O prazo para iniciar esta operação terminou e nada foi movimentado. Ela será liberada em até uma hora. Guarde o código.");
+        // A Pix buy is different: the buyer may have just paid, and the API still starts a paid order by itself.
+        if (record.rampType === "BUY" && record.paymentMethod === "pix") fail("START_REFUSED", `O prazo para confirmar esta compra por aqui terminou. ${PIX_PAID_LATE_NOTE} Guarde o código.`);
+      }
       throw e;
     }
   }

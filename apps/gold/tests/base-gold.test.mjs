@@ -115,7 +115,8 @@ test('the 18-decimal echo of the input amount is the same order; any other amoun
 test('a failed order leaves the active slot, keeps its code in the history, and the wallet can order again',async()=>{
   const h=harness(),q=await h.adapter.quote({direction:'SELL',paymentMethod:'usdc',amount:'0.01',owner});
   await h.adapter.register({quote:q,owner,provider:h.provider});h.getRamp().status='failed';
-  await assert.rejects(h.adapter.resume('order',owner,h.provider),{code:'RAMP_NEEDS_ATTENTION'});
+  // Only a Pix buy still waiting for its payment gets the late-payment note.
+  await assert.rejects(h.adapter.resume('order',owner,h.provider),e=>e.code==='RAMP_NEEDS_ATTENTION'&&/Você já pode iniciar uma nova/.test(e.message)&&!/não pague novamente/.test(e.message));
   assert.equal(h.store.get(owner)??null,null);assert.deepEqual(failedRows(h),[['order','failed','base','usdc']]);
   await h.adapter.register({quote:await h.adapter.quote({direction:'SELL',paymentMethod:'usdc',amount:'0.01',owner}),owner,provider:h.provider});assert.equal(h.counts().registered,2);
 });
@@ -155,6 +156,12 @@ test('a start the API refuses after its window says so in Portuguese and keeps t
   const h=harness({refuseStart:true}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
   const r=await h.adapter.register({quote:q,owner,provider:h.provider});
   await assert.rejects(h.adapter.start(r.id,owner),{code:'START_REFUSED',message:/nada foi movimentado/});
+  assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);
+});
+test('a late "Já paguei" on a Pix buy never says that nothing moved: the API still completes a paid order',async()=>{
+  const h=harness({refuseStart:true}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'pix',amount:'50',owner});
+  const r=await h.adapter.register({quote:q,owner,provider:h.provider});
+  await assert.rejects(h.adapter.start(r.id,owner),e=>e.code==='START_REFUSED'&&/não pague novamente/.test(e.message)&&!/nada foi movimentado|Ramp invalidated/.test(e.message));
   assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);
 });
 test('a Pix buy given up by age warns that a payment already made still completes it',async()=>{
