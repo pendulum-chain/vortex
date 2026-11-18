@@ -95,8 +95,9 @@ function readStocksEnabledDirections(name = "STOCKS_ENABLED_DIRECTIONS"): RampDi
   return directions as RampDirection[];
 }
 
+// A blank value counts as unset, so emptying a variable on the host restores its default instead of aborting boot.
 function readNonNegativeBpsEnv(name: string, fallback: string): number {
-  const raw = (process.env[name] ?? fallback).trim();
+  const raw = process.env[name]?.trim() || fallback;
   if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)) || Number(raw) > 10000)
     throw new Error(`${name} must be an integer from 0 to 10000`);
   return Number(raw);
@@ -562,8 +563,9 @@ export const config: Config = {
     gasReserveThresholdWei: readWeiEnv("ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI", "20000000000000"),
     maxPriceDeviationBps: readPositiveIntegerEnv("STOCKS_MAX_PRICE_DEVIATION_BPS", "200"),
     nablaMaxSubsidyBps: readNonNegativeBpsEnv("STOCKS_NABLA_MAX_SUBSIDY_BPS", "20"),
-    nablaUserFeeBps:
-      process.env.STOCKS_NABLA_USER_FEE_BPS === undefined ? undefined : readNonNegativeBpsEnv("STOCKS_NABLA_USER_FEE_BPS", "5"),
+    nablaUserFeeBps: process.env.STOCKS_NABLA_USER_FEE_BPS?.trim()
+      ? readNonNegativeBpsEnv("STOCKS_NABLA_USER_FEE_BPS", "5")
+      : undefined,
     priceReferenceMaxAgeHours: readPositiveIntegerEnv("STOCKS_PRICE_REFERENCE_MAX_AGE_HOURS", "72"),
     quoteRateLimitPerMinute: readPositiveIntegerEnv("STOCKS_QUOTE_RATE_LIMIT_PER_MINUTE", "20"),
     saleSubsidyMaxUsd: readPositiveDecimalEnv("STOCKS_SALE_SUBSIDY_MAX_USD", "500"),
