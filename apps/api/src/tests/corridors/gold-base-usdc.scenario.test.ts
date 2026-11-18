@@ -13,6 +13,7 @@ import { TypedDataEncoder } from "ethers";
 import { parseEther, parseSignature, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
+import phaseProcessor from "../../api/services/phases/phase-processor";
 import { BASE_PAXG_ADDRESS, BASE_USDC_ADDRESS } from "../../api/services/phases/blocks/core/gold-base";
 import sequelize from "../../config/database";
 import { config } from "../../config/vars";
@@ -62,6 +63,7 @@ describe("Gold on Base with native USDC: real executors, simulated chain", () =>
     world.evm.sentTransactions.length = 0;
     world.evm.revertedReceiptHashes.clear();
     world.evm.receiptLogs.clear();
+    world.evm.onSimulateContract = undefined;
     world.evm.onTransaction = undefined;
     world.evm.setFeeEstimate(Networks.Base, 6_500_000n, 1_000_000n);
     world.evm.setNativeBalance(Networks.Base, FUNDING, parseEther("10"));
@@ -95,7 +97,12 @@ describe("Gold on Base with native USDC: real executors, simulated chain", () =>
    */
   async function setup(
     direction: RampDirection,
-    { fillBps = 10_000n, leakRaw = 0n, size = 1 }: { fillBps?: bigint; leakRaw?: bigint; size?: number } = {}
+    {
+      fillBps = 10_000n,
+      leakRaw = 0n,
+      movesAfterApprovalBps,
+      size = 1
+    }: { fillBps?: bigint; leakRaw?: bigint; movesAfterApprovalBps?: bigint; size?: number } = {}
   ) {
     const buy = direction === RampDirection.BUY;
     const owner = privateKeyToAccount(generatePrivateKey());
@@ -134,9 +141,20 @@ describe("Gold on Base with native USDC: real executors, simulated chain", () =>
       [USDC.toLowerCase()]: { name: "USD Coin", version: "2" }
     });
     const outputToken = buy ? PAXG : USDC;
+    // With `movesAfterApprovalBps`, the pool pays only that share of its earlier price once the swap's approval is
+    // mined: the quoter and the router both answer at the new price from then on.
+    const approval = signed.find(tx => tx.phase === "uniswapApprove")?.txData as string;
+    let poolBps = fillBps;
+    const quoted = world.evm.onSimulateContract;
+    world.evm.onSimulateContract = (network, params) => {
+      const result = quoted?.(network, params);
+      if (poolBps === fillBps || params.functionName === "quoteExactOutputSingle" || !Array.isArray(result)) return result;
+      return [((result[0] as bigint) * poolBps) / 10_000n, ...result.slice(1)];
+    };
     world.evm.onTransaction = tx => {
       ledger.apply(tx);
-      applyGoldRouterTx(world.evm, ledger, tx, ephemeral.address, PRICE_USD, fillBps);
+      applyGoldRouterTx(world.evm, ledger, tx, ephemeral.address, PRICE_USD, poolBps);
+      if (movesAfterApprovalBps && tx.serialized === approval) poolBps = movesAfterApprovalBps;
       if (leakRaw > 0n && world.evm.receiptLogs.has(tx.hash)) {
         const held = world.evm.erc20Balance(Networks.Base, outputToken, ephemeral.address);
         world.evm.setErc20Balance(Networks.Base, outputToken, ephemeral.address, held - leakRaw);
@@ -153,7 +171,8 @@ describe("Gold on Base with native USDC: real executors, simulated chain", () =>
       txData: [{ ...payload, signature: { deadline: Number(payload.message.deadline), r, s, v: Number(v) } }]
     } as PresignedTx;
     await post("/v1/ramp/update", { presignedTxs: [authorization], rampId: registered.id }, user.id);
-    return { ephemeral, owner, quote, rampId: registered.id as string, sourceToken, userId: user.id };
+    const presignedSwap = signed.find(tx => tx.phase === "uniswapSwap")?.txData as `0x${string}`;
+    return { ephemeral, owner, presignedSwap, quote, rampId: registered.id as string, sourceToken, userId: user.id };
   }
 
   async function settle(rampId: string) {
@@ -233,6 +252,37 @@ describe("Gold on Base with native USDC: real executors, simulated chain", () =>
     expect(balance(USDC, x.owner.address)).toBe(0n);
     expect(await Subsidy.count({ where: { rampId: x.rampId } })).toBe(0);
   }, 90_000);
+
+  it.each([
+    [RampDirection.SELL, "subsidizePreSwap"],
+    [RampDirection.BUY, "goldSettlementTopUp"]
+  ])(
+    "does not make a %s whole when the customer broadcast the presigned swap themselves",
+    async (direction, phase) => {
+      // The pool moves 3% against the order right after the approval. That is below the swap's soft minimum, so the
+      // API holds the swap. The customer holds the same signed transaction and sends it anyway. The shortfall of
+      // about 3 USD is within the 5 USD cap and is the pool's own, so nothing but the mark stops a top-up.
+      const x = await setup(direction, { movesAfterApprovalBps: 9_700n });
+      const fundingUsdcBefore = balance(USDC, FUNDING);
+      await post("/v1/ramp/start", { rampId: x.rampId }, x.userId);
+      const held = await settle(x.rampId);
+      expect(held.currentPhase).toBe("uniswapSwap");
+      expect(JSON.stringify(held.errorLogs)).toMatch(/soft minimum/);
+
+      const client = world.evm.getClient(Networks.Base) as {
+        sendRawTransaction(args: { serializedTransaction: string }): Promise<string>;
+      };
+      await client.sendRawTransaction({ serializedTransaction: x.presignedSwap });
+      await phaseProcessor.processRamp(x.rampId);
+      const paused = await settle(x.rampId);
+
+      expect(paused.currentPhase as string).toBe(phase);
+      expect(JSON.stringify(paused.errorLogs)).toMatch(/not broadcast by the API/);
+      expect(balance(USDC, FUNDING)).toBe(fundingUsdcBefore);
+      expect(await Subsidy.count({ where: { rampId: x.rampId } })).toBe(0);
+    },
+    90_000
+  );
 
   it.each([
     [RampDirection.SELL, "subsidizePreSwap", 1_000_000n],

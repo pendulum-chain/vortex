@@ -55,7 +55,7 @@ beforeEach(() => {
 
 afterEach(() => mock.restore());
 
-function rampState() {
+function rampState(blockState: Record<string, unknown> = {}) {
   const state = {
     currentPhase: "goldSettlementTopUp",
     errorLogs: [],
@@ -66,7 +66,7 @@ function rampState() {
     phaseHistory: [],
     presignedTxs: [{ phase: "uniswapSwap", txData: SWAP_TX }],
     quoteId: "quote-1",
-    state: { evmEphemeralAddress: ephemeral, flow: { id: "test-flow", version: 1 } },
+    state: { blockState, evmEphemeralAddress: ephemeral, flow: { id: "test-flow", version: 1 } },
     async update(patch: Record<string, unknown>) {
       Object.assign(state, patch);
       return state;
@@ -271,6 +271,17 @@ describe("GoldSettlementExecutor", () => {
     // The buyer holds the ephemeral's key: the funding wallet replaces only what the swap itself fell short by.
     const { chain, executor } = fakeChain(options);
     await expect(executor.execute(rampState())).rejects.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect(chain.sends).toEqual([]);
+    expect(subsidyRows).toEqual([]);
+  });
+
+  it("pauses, sending nothing, when the swap was not broadcast by the API, however small the shortfall", async () => {
+    // Whoever holds the presigned swap can send it at a price of their choosing. That fill is not made whole.
+    const { chain, executor } = fakeChain();
+    const state = rampState({ goldSwap: { sentOutsideApi: true, swapDeadline: "1800000000" } });
+    const error = await executor.execute(state).catch(caught => caught);
+    expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect((error as Error).message).toContain("not broadcast by the API");
     expect(chain.sends).toEqual([]);
     expect(subsidyRows).toEqual([]);
   });

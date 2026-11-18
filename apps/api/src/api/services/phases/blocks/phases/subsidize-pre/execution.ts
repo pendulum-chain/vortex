@@ -24,7 +24,7 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { EvmSubsidyTopUpExecutor } from "../../core/evm-subsidy-top-up";
 import { getBlockMetadata } from "../../core/metadata";
-import { readGoldSwapFill, refuseGoldTopUp } from "../gold-swap/fill";
+import { goldSwapSentOutsideApi, readGoldSwapFill, refuseGoldTopUp } from "../gold-swap/fill";
 import type { GoldSwapMetadata } from "../gold-swap/simulation";
 import { GOLD_SWAP_CONTEXT_KEY, STOCK_ROUTE_CONTEXT_KEY } from "../uniswap-v3-fixed-swap/route";
 import { SubsidizePreContext } from "./simulation";
@@ -221,7 +221,8 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
             goldSale.swap.outputToken as `0x${string}`,
             ephemeral as `0x${string}`
           )
-        : null
+        : null,
+      goldSwapSentOutsideApi(state)
     );
     if (refusal) {
       logger.warn("GOLD_TOP_UP_REFUSED", { rampId: state.id, reason: refusal, topUpRaw: topUp.toFixed(0) });

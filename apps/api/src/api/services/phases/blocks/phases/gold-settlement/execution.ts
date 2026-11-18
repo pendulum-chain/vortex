@@ -23,7 +23,7 @@ import {
   GOLD_TOKEN
 } from "../../core/gold-base";
 import { getBlockMetadata } from "../../core/metadata";
-import { readGoldSwapFill, refuseGoldTopUp } from "../gold-swap/fill";
+import { goldSwapSentOutsideApi, readGoldSwapFill, refuseGoldTopUp } from "../gold-swap/fill";
 import { stockSettlementQuoterAbi } from "../stock-settlement/contract";
 import { UNISWAP_APPROVE_GAS_LIMIT, UNISWAP_SWAP_GAS_LIMIT } from "../uniswap-v3-fixed-swap/contract";
 import { classifyStockRouteFailure } from "../uniswap-v3-fixed-swap/route";
@@ -197,7 +197,8 @@ export class GoldSettlementExecutor extends BasePhaseHandler {
     const refusal = refuseGoldTopUp(
       shortfall,
       target,
-      typeof swapTransaction === "string" ? await dependencies.getSwapFill(swapTransaction as `0x${string}`, ephemeral) : null
+      typeof swapTransaction === "string" ? await dependencies.getSwapFill(swapTransaction as `0x${string}`, ephemeral) : null,
+      goldSwapSentOutsideApi(state)
     );
     if (refusal) {
       logger.warn("GOLD_TOP_UP_REFUSED", { rampId: state.id, reason: refusal, shortfallRaw: shortfall.toString() });

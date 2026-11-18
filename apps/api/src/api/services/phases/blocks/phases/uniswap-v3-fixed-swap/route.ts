@@ -83,6 +83,8 @@ export interface GoldSwapRouteMetadata {
 
 /** The GoldSwap preparation state. */
 export interface GoldSwapState {
+  /** Set when the swap was mined without the API having sent it. See `noteGoldSwapSentOutsideApi`. */
+  sentOutsideApi?: true;
   swapDeadline: string;
 }
 

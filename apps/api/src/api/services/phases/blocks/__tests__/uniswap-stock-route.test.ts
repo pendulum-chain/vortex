@@ -40,7 +40,8 @@ import { validateUniswapApproval, validateUniswapSwap } from "../phases/uniswap-
 
 const financialOperationReal = { ...financialOperationNamespace };
 const operationAttempts: string[] = [];
-const operationRows = new Map<string, "submitted" | "confirmed">();
+/** "unclaimed" is a row an earlier entry created without ever claiming a send. */
+const operationRows = new Map<string, "submitted" | "confirmed" | "unclaimed">();
 
 mock.module("../core/financial-operation", () => ({
   ...financialOperationReal,
@@ -55,6 +56,10 @@ mock.module("../core/financial-operation", () => ({
     reconcile?: (operation: unknown) => Promise<unknown>;
   }) => {
     operationAttempts.push(attemptClass);
+    if (operationRows.get(attemptClass) === "unclaimed") {
+      const reconciled = reconcile ? await reconcile({ status: "not_started" }) : null;
+      if (reconciled !== null) return reconciled;
+    }
     if (operationRows.get(attemptClass) === "submitted") {
       const reconciled = reconcile ? await reconcile({}) : null;
       if (reconciled === null) throw new Error(`operation ${attemptClass} has submitted outcome`);
@@ -993,6 +998,60 @@ describe("stock route execution", () => {
       const error = await run(UniswapSwapExecutor, state, deps);
       expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
       expect((error as Error).message).toContain("below");
+    });
+
+    const sentOutsideApi = (state: { state: { blockState: Record<string, unknown> } }) =>
+      (state.state.blockState.goldSwap as { sentOutsideApi?: true }).sentOutsideApi;
+
+    it.each([
+      ["on its first entry", undefined],
+      ["with a journal row that never claimed a send", "unclaimed"]
+    ] as const)("marks a swap that was mined without the API sending it, %s", async (_label, row) => {
+      // The customer holds the presigned swap and can broadcast it past the soft minimum. Such a fill gets no top-up.
+      const { route, state } = await goldRampState(RampDirection.BUY, "uniswapSwap");
+      const { deps, sendRawTransaction } = dependencies(route, {
+        ...goldBalances(route),
+        getAllowance: async () => 0n,
+        getReceipt: async () => ({ status: "success" as const })
+      });
+      operationAttempts.length = 0;
+      operationRows.clear();
+      if (row) operationRows.set("uniswap-presigned-broadcast", row);
+      try {
+        await new UniswapSwapExecutor(deps).execute(state as never);
+      } finally {
+        operationRows.clear();
+      }
+      expect(sendRawTransaction).not.toHaveBeenCalled();
+      expect(sentOutsideApi(state)).toBe(true);
+      // The rest of the preparation state stays.
+      expect(state.state.blockState.goldSwap).toMatchObject({ swapDeadline: FUTURE_DEADLINE });
+    });
+
+    it("does not mark a swap the API sent itself and finds mined when it resumes", async () => {
+      const { route, state } = await goldRampState(RampDirection.BUY, "uniswapSwap");
+      const { deps } = dependencies(route, {
+        ...goldBalances(route),
+        getAllowance: async () => 0n,
+        getReceipt: async () => ({ status: "success" as const })
+      });
+      operationAttempts.length = 0;
+      operationRows.clear();
+      operationRows.set("uniswap-presigned-broadcast", "submitted");
+      try {
+        await new UniswapSwapExecutor(deps).execute(state as never);
+      } finally {
+        operationRows.clear();
+      }
+      expect(sentOutsideApi(state)).toBeUndefined();
+    });
+
+    it("does not mark a swap it sends itself", async () => {
+      const { route, state } = await goldRampState(RampDirection.SELL, "uniswapSwap");
+      const { deps, sendRawTransaction } = dependencies(route, goldBalances(route));
+      expect(await run(UniswapSwapExecutor, state, deps)).toBeNull();
+      expect(sendRawTransaction).toHaveBeenCalledTimes(1);
+      expect(sentOutsideApi(state)).toBeUndefined();
     });
 
     it("sends a swap again that was claimed in the journal but has no receipt", async () => {
