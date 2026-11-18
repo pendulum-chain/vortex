@@ -13,6 +13,7 @@ import {
   SupportedCryptocurrencyDetails
 } from "@vortexfi/shared";
 import { APIError } from "../api/errors/api-error";
+import { BASE_PAXG_ADDRESS } from "../api/services/phases/blocks/core/gold-base";
 import { isRetiredAssetHubCorridor, validateChainSupport } from "../api/services/phases/blocks/core/helpers";
 import { ROBINHOOD_STOCKS, STOCK_TOKEN_DECIMALS } from "../api/services/phases/blocks/core/robinhood-stocks";
 import { config } from "./vars";
@@ -51,9 +52,13 @@ const isDirectionAvailable = (network: Networks, rampType: RampDirection): boole
 const rampTypesFor = (network: Networks): RampDirection[] =>
   [RampDirection.BUY, RampDirection.SELL].filter(rampType => isDirectionAvailable(network, rampType));
 
+const directionsEnabled = (enabled: RampDirection[]): RampDirection[] =>
+  [RampDirection.BUY, RampDirection.SELL].filter(direction => enabled.includes(direction));
+
 const getEvmNetworkTokens = (
   network: EvmNetworks,
-  tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
+  tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>,
+  paymentMethod: string
 ): SupportedCryptocurrencyDetails[] => {
   // The flow catalog matches EVM sources and destinations structurally, so every listed token shares
   // the network's directions.
@@ -64,12 +69,18 @@ const getEvmNetworkTokens = (
     if (!details) continue;
     const address = details.erc20AddressSourceChain.toLowerCase();
     if (byAddress.has(address)) continue;
+    // PAXG on Base is served by the Gold routes alone, each rail behind its own switch. With none enabled it is not listed.
+    const isBasePaxg = network === Networks.Base && address === BASE_PAXG_ADDRESS.toLowerCase();
+    const tokenRampTypes = isBasePaxg
+      ? directionsEnabled(paymentMethod === "usdc" ? config.gold.usdcEnabledDirections : config.gold.enabledDirections)
+      : rampTypes;
+    if (isBasePaxg && tokenRampTypes.length === 0) continue;
     byAddress.set(address, {
       assetContractAddress: details.erc20AddressSourceChain,
       assetDecimals: details.decimals,
       assetNetwork: details.network,
       assetSymbol: details.assetSymbol,
-      rampTypes
+      rampTypes: tokenRampTypes
     });
   }
   return [...byAddress.values()];
@@ -118,7 +129,7 @@ export function getSupportedCryptocurrencies(
     return getRobinhoodStockTokens(paymentMethod);
   }
   if (network && isNetworkEVM(network)) {
-    return getEvmNetworkTokens(network as EvmNetworks, tokensByNetwork);
+    return getEvmNetworkTokens(network as EvmNetworks, tokensByNetwork, paymentMethod);
   }
   if (network && isNetworkAssetHub(network)) {
     return getAssetHubTokens();

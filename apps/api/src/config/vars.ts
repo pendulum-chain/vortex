@@ -259,6 +259,10 @@ interface Config {
   swap: {
     deadlineMinutes: number;
   };
+  gold: {
+    enabledDirections: RampDirection[];
+    usdcEnabledDirections: RampDirection[];
+  };
   stocks: {
     enabledDirections: RampDirection[];
     usdcEnabledDirections: RampDirection[];
@@ -431,6 +435,12 @@ export const config: Config = {
     networkFeeMarginBps: readEvmDestinationNetworkFeeMarginBps()
   },
   flowVariant: readFlowVariant(),
+  // `GOLD_ENABLED_DIRECTIONS` (Pix) and `GOLD_USDC_ENABLED_DIRECTIONS` (native Base USDC): per-direction switches for
+  // PAXG on Base, read like the stock switches. Empty keeps the routes off.
+  gold: {
+    enabledDirections: readStocksEnabledDirections("GOLD_ENABLED_DIRECTIONS"),
+    usdcEnabledDirections: readStocksEnabledDirections("GOLD_USDC_ENABLED_DIRECTIONS")
+  },
   impersonationEnabled: process.env.IMPERSONATION_ENABLED === "true",
 
   integrations: {

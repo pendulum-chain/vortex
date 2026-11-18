@@ -19,6 +19,7 @@ import pLimit from "p-limit";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import { APIError } from "../../errors/api-error";
+import { isGoldBaseRoute, isGoldRouteEnabled } from "../phases/blocks/core/gold-base";
 import {
   getTargetFiatCurrency,
   isRetiredAssetHubCorridor,
@@ -233,6 +234,7 @@ export class QuoteService extends BaseRampService {
     }
 
     await assertStockRouteQuotable(request);
+    assertGoldRouteQuotable(request);
 
     const resolvedPartner = await resolveQuotePartner(request);
     const partner = resolvedPartner.partner;
@@ -427,6 +429,15 @@ async function assertStockRouteQuotable(
     }
   }
   await assertStockTradable(token);
+}
+
+/** PAXG on Base only: the per-direction switch of the rail that pays for it. A request on any other rail is refused too. */
+function assertGoldRouteQuotable(
+  request: Pick<CreateQuoteRequest, "from" | "inputCurrency" | "outputCurrency" | "rampType" | "to">
+): void {
+  if (isGoldBaseRoute(request) && !isGoldRouteEnabled(request)) {
+    throw new APIError({ isPublic: true, message: QuoteError.UnsupportedCurrency, status: httpStatus.BAD_REQUEST });
+  }
 }
 
 function mapAlfredpayLimitErrorToApiError(error: AlfredpayTradeLimitError, isOnramp: boolean): APIError {

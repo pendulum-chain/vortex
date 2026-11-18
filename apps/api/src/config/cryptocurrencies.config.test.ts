@@ -12,6 +12,7 @@ import {
 } from "@vortexfi/shared";
 import { APIError } from "../api/errors/api-error";
 import { isRetiredAssetHubCorridor, validateChainSupport } from "../api/services/phases/blocks/core/helpers";
+import { BASE_PAXG_ADDRESS } from "../api/services/phases/blocks/core/gold-base";
 import { ROBINHOOD_STOCKS } from "../api/services/phases/blocks/core/robinhood-stocks";
 import { getSupportedCryptocurrencies } from "./cryptocurrencies.config";
 import { config } from "./vars";
@@ -107,6 +108,61 @@ describe("getSupportedCryptocurrencies", () => {
     const result = getSupportedCryptocurrencies(Networks.AssetHub);
     expect(result.map(token => token.assetSymbol).sort()).toEqual(["DOT", "USDC", "USDT"]);
     expect(result.every(token => token.rampTypes.length === 0)).toBe(true);
+  });
+
+  describe("PAXG on Base", () => {
+    const { enabledDirections, usdcEnabledDirections } = config.gold;
+    const basePaxg = (paymentMethod?: string) =>
+      getSupportedCryptocurrencies(Networks.Base, undefined, paymentMethod).find(token => token.assetSymbol === "PAXG");
+    const others = (paymentMethod?: string) =>
+      getSupportedCryptocurrencies(Networks.Base, undefined, paymentMethod).filter(token => token.assetSymbol !== "PAXG");
+
+    afterEach(() => {
+      config.gold.enabledDirections = enabledDirections;
+      config.gold.usdcEnabledDirections = usdcEnabledDirections;
+    });
+
+    it("is not listed while both switches are empty, so the Base listing is what it was", () => {
+      expect(basePaxg()).toBeUndefined();
+      expect(basePaxg("usdc")).toBeUndefined();
+      expect(
+        getSupportedCryptocurrencies(Networks.Base)
+          .map(token => token.assetSymbol)
+          .sort()
+      ).toEqual(
+        Object.values(evmTokenConfig[Networks.Base])
+          .map(token => token.assetSymbol)
+          .sort()
+      );
+    });
+
+    it("lists the pinned contract with the directions of the rail asked for", () => {
+      config.gold.enabledDirections = [RampDirection.SELL, RampDirection.BUY];
+      config.gold.usdcEnabledDirections = [RampDirection.BUY];
+
+      expect(basePaxg()).toEqual({
+        assetContractAddress: BASE_PAXG_ADDRESS,
+        assetDecimals: 18,
+        assetNetwork: Networks.Base,
+        assetSymbol: "PAXG",
+        rampTypes: BOTH
+      });
+      expect(basePaxg("usdc")?.rampTypes).toEqual([RampDirection.BUY]);
+    });
+
+    it("is listed for one rail only when the other switch is empty", () => {
+      config.gold.usdcEnabledDirections = [RampDirection.SELL];
+      expect(basePaxg()).toBeUndefined();
+      expect(basePaxg("usdc")?.rampTypes).toEqual([RampDirection.SELL]);
+    });
+
+    it("leaves every other Base token as it is, whatever the payment method", () => {
+      const before = others();
+      config.gold.enabledDirections = [RampDirection.BUY];
+      config.gold.usdcEnabledDirections = [RampDirection.SELL];
+      expect(others()).toEqual(before);
+      expect(others("usdc")).toEqual(before);
+    });
   });
 
   describe("on Robinhood Chain", () => {

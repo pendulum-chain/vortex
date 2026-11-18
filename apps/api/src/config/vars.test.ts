@@ -388,6 +388,33 @@ describe("vars disabled fiat currencies", () => {
   });
 });
 
+describe("vars gold on Base", () => {
+  const print = "JSON.stringify(vars.config.gold)";
+
+  it("keeps both rails off by default", async () => {
+    const result = await importVarsWithEnv({}, print);
+
+    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: '{"enabledDirections":[],"usdcEnabledDirections":[]}\n' });
+  });
+
+  it("enables each rail and direction on its own", async () => {
+    const result = await importVarsWithEnv({ GOLD_ENABLED_DIRECTIONS: " buy ,SELL", GOLD_USDC_ENABLED_DIRECTIONS: "sell" }, print);
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({ enabledDirections: ["BUY", "SELL"], usdcEnabledDirections: ["SELL"] });
+  });
+
+  it.each([
+    [{ GOLD_ENABLED_DIRECTIONS: "BUY,HOLD" }, "GOLD_ENABLED_DIRECTIONS contains unknown directions: HOLD"],
+    [{ GOLD_USDC_ENABLED_DIRECTIONS: "on" }, "GOLD_USDC_ENABLED_DIRECTIONS contains unknown directions: ON"]
+  ])("refuses to start on %p", async (env, message) => {
+    const result = await importVarsWithEnv(env);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(message);
+  });
+});
+
 describe("vars stocks corridor", () => {
   const print = "JSON.stringify(vars.config.stocks, (_key, value) => (typeof value === 'bigint' ? value.toString() : value))";
 
