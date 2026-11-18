@@ -151,6 +151,11 @@ describe("getSupportedCryptocurrencies", () => {
       // Only the two exact rail names select a switch.
       expect(basePaxg("USDC")).toBeUndefined();
       expect(basePaxg("sepa")).toBeUndefined();
+      // Names every object inherits must neither select a switch nor break the listing.
+      for (const inherited of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+        expect(basePaxg(inherited)).toBeUndefined();
+        expect(others(inherited)).toEqual(others());
+      }
     });
 
     it("is listed for one rail only when the other switch is empty", () => {
