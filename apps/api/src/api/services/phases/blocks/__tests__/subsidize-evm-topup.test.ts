@@ -2,7 +2,16 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, mock, spyOn } fr
 import * as sharedNamespace from "@vortexfi/shared";
 import { type EvmTokenDetails, EvmToken, Networks, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
-import { decodeFunctionData, encodeFunctionData, erc20Abi, EstimateGasExecutionError, ExecutionRevertedError } from "viem";
+import {
+  decodeFunctionData,
+  encodeAbiParameters,
+  encodeEventTopics,
+  encodeFunctionData,
+  erc20Abi,
+  EstimateGasExecutionError,
+  ExecutionRevertedError,
+  keccak256
+} from "viem";
 import logger from "../../../../../config/logger";
 import * as quoteTicketNamespace from "../../../../../models/quoteTicket.model";
 import { priceFeedService } from "../../../priceFeed.service";
@@ -58,6 +67,18 @@ const getTransaction = mock(
 );
 const getTransactionCount = mock(async (_args?: unknown) => 7);
 const waitForTransactionReceipt = mock(async (_args?: unknown) => ({ status: "success" as "reverted" | "success" }));
+// Receipts of the transactions a top-up is measured against, by hash. An unlisted hash has a receipt without transfers.
+const SWAP_TX = "0x02aa" as const;
+const FEE_TX = "0x02bb" as const;
+const DEPOSIT_HASH = "0x3333333333333333333333333333333333333333333333333333333333333333" as const;
+const OTHER = "0x4444444444444444444444444444444444444444" as const;
+const receipts = new Map<string, { logs: unknown[]; status: "reverted" | "success" }>();
+const getTransactionReceipt = mock(async ({ hash }: { hash: string }) => receipts.get(hash) ?? { logs: [], status: "success" });
+const usdcTransfer = (from: `0x${string}`, to: `0x${string}`, value: bigint) => ({
+  address: usdcAddress,
+  data: encodeAbiParameters([{ type: "uint256" }], [value]),
+  topics: encodeEventTopics({ abi: erc20Abi, args: { from, to }, eventName: "Transfer" })
+});
 
 const operationFailures: unknown[] = [];
 let operationReplay: unknown;
@@ -102,6 +123,7 @@ mock.module("@vortexfi/shared", () => ({
         estimateGas,
         getTransaction,
         getTransactionCount,
+        getTransactionReceipt,
         readContract: async () => 10000n,
         waitForTransactionReceipt
       }),
@@ -158,6 +180,8 @@ beforeEach(() => {
   ]) {
     fn.mockReset();
   }
+  getTransactionReceipt.mockClear();
+  receipts.clear();
   runSerializedEvmFundingOperation.mockClear();
   runFinancialOperation.mockClear();
   checkEvmBalanceForToken.mockImplementation(checkEvmBalanceImpl);
@@ -274,8 +298,18 @@ const cases: Case[] = [
   }
 ];
 
-function makeState(testCase: Case, state: Record<string, unknown> = { evmEphemeralAddress: EPHEMERAL }) {
-  return { id: "ramp-1", quoteId: "quote-1", state, type: testCase.direction };
+// The ephemeral's presigned swap and one fee transfer, as every ramp that reaches these phases carries them.
+const presignedTxs = [
+  { network: Networks.Base, phase: "nablaSwap", txData: SWAP_TX },
+  { network: Networks.Base, phase: "distributeFees", txData: FEE_TX }
+];
+
+function makeState(
+  testCase: Case,
+  state: Record<string, unknown> = { evmEphemeralAddress: EPHEMERAL },
+  presigned: unknown[] = presignedTxs
+) {
+  return { id: "ramp-1", presignedTxs: presigned, quoteId: "quote-1", state, type: testCase.direction };
 }
 
 function arrange(testCase: Case, metadata: Record<string, unknown>, quoteOutput = "100") {
@@ -734,6 +768,60 @@ describe("SubsidizePreSwapExecutor EVM top-up specifics", () => {
     expect(conversions).toEqual(["5", "100"]);
     expect(sendTransaction).toHaveBeenCalledTimes(1);
   });
+
+  const depositOn = (fromNetwork: string) => ({
+    blocks: { ...preMetadata().blocks, evmOfframpSource: { fromNetwork } }
+  });
+  const depositState = { evmEphemeralAddress: EPHEMERAL, squidRouterNoPermitTransferHash: DEPOSIT_HASH };
+
+  it("tops up a deposit that arrived short by exactly what it fell short", async () => {
+    // 97 arrived and 2 went out as fees, so the 95 held are all the deposit left
+    receipts.set(DEPOSIT_HASH, { logs: [usdcTransfer(OTHER, EPHEMERAL, 97_000_000n)], status: "success" });
+    receipts.set(keccak256(FEE_TX), { logs: [usdcTransfer(EPHEMERAL, OTHER, 2_000_000n)], status: "success" });
+    balances("95000000");
+    const executor = arrange(preCase, depositOn(Networks.Base));
+
+    await executor.executePhase(makeState(preCase, depositState));
+
+    const transaction = sendTransaction.mock.calls[0][2] as { data: `0x${string}` };
+    expect(decodeFunctionData({ abi: erc20Abi, data: transaction.data }).args?.[1]).toBe(5_000_000n);
+  });
+
+  it("pays nothing when the ephemeral holds less than its deposit left on it", async () => {
+    receipts.set(DEPOSIT_HASH, { logs: [usdcTransfer(OTHER, EPHEMERAL, 102_000_000n)], status: "success" });
+    receipts.set(keccak256(FEE_TX), { logs: [usdcTransfer(EPHEMERAL, OTHER, 2_000_000n)], status: "success" });
+    balances("95000000");
+    const executor = arrange(preCase, depositOn(Networks.Base));
+
+    await expect(executor.executePhase(makeState(preCase, depositState))).rejects.toMatchObject({
+      message:
+        "SubsidizePreSwapExecutor: The ephemeral holds 95000000, below the 100000000 its recorded transactions left on it, so a top-up would cover more than the preceding step fell short by.",
+      name: "ReconciliationRequiredPhaseError"
+    });
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(executor.createSubsidy).not.toHaveBeenCalled();
+  });
+
+  it("tops up a deposit bridged from another network within the cap", async () => {
+    balances("95000000");
+    const executor = arrange(preCase, depositOn(Networks.Arbitrum));
+
+    await executor.executePhase(makeState(preCase, { ...depositState, squidRouterSwapHash: DEPOSIT_HASH }));
+
+    expect(getTransactionReceipt).not.toHaveBeenCalled();
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("tops up after a provider mint within the cap", async () => {
+    balances("95000000");
+    const executor = arrange(preCase, preMetadata());
+
+    await executor.executePhase(makeState(preCase));
+
+    expect(getTransactionReceipt).not.toHaveBeenCalled();
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("SubsidizePostSwapExecutor EVM top-up specifics", () => {
@@ -770,6 +858,116 @@ describe("SubsidizePostSwapExecutor EVM top-up specifics", () => {
       message: "SubsidizePostSwapExecutor: Required discount subsidy $1 exceeds cap $0.50 (0.05 of quote output $10)."
     });
 
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("tops up a swap that filled short by exactly what it fell short", async () => {
+    // the swap paid 97 and 2 went out as fees, so the 95 held are all the swap left
+    receipts.set(keccak256(SWAP_TX), { logs: [usdcTransfer(OTHER, EPHEMERAL, 97_000_000n)], status: "success" });
+    receipts.set(keccak256(FEE_TX), { logs: [usdcTransfer(EPHEMERAL, OTHER, 2_000_000n)], status: "success" });
+    balances("95000000");
+    const executor = arrange(postCase, postMetadata());
+
+    await executor.executePhase(makeState(postCase));
+
+    const transaction = sendTransaction.mock.calls[0][2] as { data: `0x${string}` };
+    expect(decodeFunctionData({ abi: erc20Abi, data: transaction.data }).args?.[1]).toBe(5_000_000n);
+  });
+
+  it("pays nothing when the ephemeral holds less than its swap left on it", async () => {
+    receipts.set(keccak256(SWAP_TX), { logs: [usdcTransfer(OTHER, EPHEMERAL, 100_000_000n)], status: "success" });
+    receipts.set(keccak256(FEE_TX), { logs: [usdcTransfer(EPHEMERAL, OTHER, 2_000_000n)], status: "success" });
+    balances("95000000");
+    const executor = arrange(postCase, postMetadata());
+
+    await expect(executor.executePhase(makeState(postCase))).rejects.toMatchObject({
+      message:
+        "SubsidizePostSwapExecutor: The ephemeral holds 95000000, below the 98000000 its recorded transactions left on it, so a top-up would cover more than the preceding step fell short by.",
+      name: "ReconciliationRequiredPhaseError"
+    });
+
+    expect(conversions).toEqual([]);
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(executor.createSubsidy).not.toHaveBeenCalled();
+  });
+
+  it("ignores transfers of other tokens and between other accounts in the measured receipts", async () => {
+    receipts.set(keccak256(SWAP_TX), {
+      logs: [
+        usdcTransfer(OTHER, EPHEMERAL, 95_000_000n),
+        usdcTransfer(OTHER, fundingAccount.address, 50_000_000n),
+        { ...usdcTransfer(OTHER, EPHEMERAL, 50_000_000n), address: OTHER }
+      ],
+      status: "success"
+    });
+    balances("95000000");
+    const executor = arrange(postCase, postMetadata());
+
+    await executor.executePhase(makeState(postCase));
+
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("measures the Uniswap swap on a route without a Nabla swap", async () => {
+    const uniswapSwap = [{ network: Networks.Base, phase: "uniswapSwap", txData: SWAP_TX }];
+    receipts.set(keccak256(SWAP_TX), { logs: [usdcTransfer(OTHER, EPHEMERAL, 100_000_000n)], status: "success" });
+    balances("95000000");
+    const executor = arrange(postCase, postMetadata());
+
+    await expect(
+      executor.executePhase(makeState(postCase, { evmEphemeralAddress: EPHEMERAL }, uniswapSwap))
+    ).rejects.toMatchObject({ name: "ReconciliationRequiredPhaseError" });
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("retries without sending while a measured transaction has no successful receipt", async () => {
+    receipts.set(keccak256(SWAP_TX), { logs: [], status: "reverted" });
+    balances("95000000");
+    const executor = arrange(postCase, postMetadata());
+
+    await expect(executor.executePhase(makeState(postCase))).rejects.toMatchObject({
+      message: "SubsidizePostSwapExecutor: A transaction the top-up is measured against has no successful receipt yet.",
+      name: "RecoverablePhaseError"
+    });
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("retries without sending while the node does not have a measured receipt yet", async () => {
+    getTransactionReceipt.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("not found"), { name: "TransactionReceiptNotFoundError" });
+    });
+    balances("95000000");
+    const executor = arrange(postCase, postMetadata());
+
+    await expect(executor.executePhase(makeState(postCase))).rejects.toMatchObject({
+      message: "SubsidizePostSwapExecutor: A transaction the top-up is measured against has no successful receipt yet.",
+      name: "RecoverablePhaseError"
+    });
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("pauses a top-up that has no presigned swap to be measured against", async () => {
+    balances("95000000");
+    const executor = arrange(postCase, postMetadata());
+
+    await expect(executor.executePhase(makeState(postCase, { evmEphemeralAddress: EPHEMERAL }, []))).rejects.toMatchObject({
+      message: "SubsidizePostSwapExecutor: No presigned swap to measure the top-up against.",
+      name: "ReconciliationRequiredPhaseError"
+    });
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("needs no receipt when the ephemeral already holds the target", async () => {
+    balances("100000000");
+    const executor = arrange(postCase, postMetadata());
+
+    await executor.executePhase(makeState(postCase, { evmEphemeralAddress: EPHEMERAL }, []));
+
+    expect(getTransactionReceipt).not.toHaveBeenCalled();
     expect(sendTransaction).not.toHaveBeenCalled();
   });
 

@@ -24,6 +24,7 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { EvmSubsidyTopUpExecutor } from "../../core/evm-subsidy-top-up";
 import { getBlockMetadata } from "../../core/metadata";
+import { EvmOfframpSourceContext, type EvmOfframpSourceMetadata } from "../evm-offramp-source/simulation";
 import { STOCK_ROUTE_CONTEXT_KEY } from "../uniswap-v3-fixed-swap/route";
 import { SubsidizePreContext } from "./simulation";
 
@@ -125,6 +126,14 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
         STOCK_ROUTE_CONTEXT_KEY
       ];
       const isStockSale = stockRoute?.direction === RampDirection.SELL;
+      // A deposit made on this network is the transaction that put the input on the ephemeral, so the top-up is
+      // measured against it.
+      const offrampSource = (quote.metadata as { blocks?: Record<string, Partial<EvmOfframpSourceMetadata> | undefined> })
+        .blocks?.[EvmOfframpSourceContext.key];
+      const deposit =
+        offrampSource?.fromNetwork === inputNetwork
+          ? (state.state.squidRouterNoPermitTransferHash ?? state.state.squidRouterSwapHash)
+          : undefined;
       // The swap consumes targetInputAmountRaw; feeReserveRaw (Alfredpay corridors)
       // additionally keeps the later distributeFees transfers funded on the ephemeral.
       const targetRaw = Big(
@@ -134,6 +143,7 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
       );
 
       await this.topUpEvmEphemeral({
+        accountedBy: deposit ? [deposit as `0x${string}`, ...this.presignedFeeTransferHashes(state, inputNetwork)] : undefined,
         assess: currentBalance => ({
           enforceCaps: async maximumTransferAmount => {
             const subsidyDecimal = nativeToDecimal(maximumTransferAmount, metadata.inputDecimals).toString();

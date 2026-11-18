@@ -15,9 +15,10 @@ import {
   TokenType,
   type UnsignedTx
 } from "@vortexfi/shared";
-import { parseUnits } from "viem";
+import { decodeFunctionData, erc20Abi, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import rampService from "../../api/services/ramp/ramp.service";
 import RampRecoveryWorker from "../../api/workers/ramp-recovery.worker";
 import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
@@ -25,6 +26,7 @@ import { resolvePersistedBlockFlow } from "../../api/services/phases/blocks/flow
 import { assertPersistedBlockFlowVersionsSupported } from "../../api/services/phases/blocks/register-handlers";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
+import Subsidy from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
@@ -344,12 +346,21 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
 
   /**
    * Scripts the fake world for the happy path: the ephemeral has Base gas, the
-   * squid-bridged USDC has already landed on Base, and broadcast transactions
-   * apply their ledger effects (Nabla swap credit + raw ERC-20 transfers).
+   * squid-bridged USDC has already landed on Base (`bridgeShortfallRaw` short of
+   * the swap input), and broadcast transactions apply their ledger effects
+   * (Nabla swap credit, payout, and the funding wallet's top-up).
    */
-  function scriptHappyWorld(setup: CorridorSetup): void {
+  function scriptHappyWorld(setup: CorridorSetup, options: { bridgeShortfallRaw?: bigint } = {}): void {
+    const fundingAccount = getEvmFundingAccount(Networks.Base);
     world.evm.setNativeBalance(Networks.Base, setup.ephemeral.address, parseUnits("2", 18));
-    world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, setup.swapInputRaw);
+    world.evm.setNativeBalance(Networks.Base, fundingAccount.address, parseUnits("2", 18));
+    world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, fundingAccount.address, parseUnits("1000000", 6));
+    world.evm.setErc20Balance(
+      Networks.Base,
+      USDC_ON_BASE,
+      setup.ephemeral.address,
+      setup.swapInputRaw - (options.bridgeShortfallRaw ?? 0n)
+    );
     world.evm.onTransaction = tx => {
       if (tx.serialized === setup.signedNablaSwap) {
         world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, setup.swapOutputRaw);
@@ -357,6 +368,19 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
       }
       if (tx.serialized === setup.signedPayout) {
         world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet, setup.swapOutputRaw);
+        return;
+      }
+      if (!tx.serialized && tx.to?.toLowerCase() === USDC_ON_BASE.toLowerCase() && tx.data) {
+        const [recipient, amount] = decodeFunctionData({ abi: erc20Abi, data: tx.data as `0x${string}` }).args as [
+          string,
+          bigint
+        ];
+        world.evm.setErc20Balance(
+          tx.network,
+          USDC_ON_BASE,
+          recipient,
+          world.evm.erc20Balance(tx.network, USDC_ON_BASE, recipient) + amount
+        );
       }
     };
   }
@@ -406,6 +430,53 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
       expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore + 1);
     },
     30000
+  );
+
+  it(
+    "pre-swap top-up: a bridged deposit that arrives short is topped up by exactly its shortfall",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      // 1 USDC short of the swap input: well below the 5% subsidy cap.
+      const shortfall = parseUnits("1", 6);
+      scriptHappyWorld(setup, { bridgeShortfallRaw: shortfall });
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      const subsidies = await Subsidy.findAll();
+      expect(subsidies.map(subsidy => subsidy.phase)).toEqual(["subsidizePreSwap"]);
+      expect(Number(subsidies[0].amount)).toBeCloseTo(1);
+      expect(submissionsOf(setup.signedNablaSwap)).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
+    },
+    30000
+  );
+
+  it(
+    "subsidy cap (F-001 class): a pre-swap shortfall beyond the cap pauses the ramp before the swap",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      // Only half the swap input arrived: the required top-up (~50% of the
+      // quote output) is far beyond the 5% pre-swap subsidy cap.
+      scriptHappyWorld(setup, { bridgeShortfallRaw: setup.swapInputRaw / 2n });
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const stuck = await RampState.findByPk(setup.rampId);
+      expect(stuck?.currentPhase).toBe("subsidizePreSwap");
+      expect(stuck?.processingLock).toEqual({ locked: false, lockedAt: null });
+      const capLogs = stuck?.errorLogs.filter(log => log.error.includes("exceeds cap")) ?? [];
+      expect(capLogs.length).toBeGreaterThanOrEqual(1);
+      expect(capLogs.every(log => log.recoverable === true)).toBe(true);
+
+      // Nothing was subsidized, swapped, or paid out.
+      expect(await Subsidy.count()).toBe(0);
+      expect(submissionsOf(setup.signedNablaSwap)).toBe(0);
+      expect(submissionsOf(setup.signedPayout)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(0n);
+    },
+    60000
   );
 
   it(

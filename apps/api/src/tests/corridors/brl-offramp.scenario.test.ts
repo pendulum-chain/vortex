@@ -6,13 +6,14 @@ import {
   EvmToken,
   evmTokenConfig,
   FiatToken,
+  NABLA_ROUTER_BASE_BRLA,
   Networks,
   PRESIGNED_EVM_FEE_MULTIPLIER,
   RampDirection,
   type RampPhase,
   type UnsignedTx
 } from "@vortexfi/shared";
-import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
+import { decodeFunctionData, encodeFunctionData, erc20Abi, keccak256, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import RampRecoveryWorker from "../../api/workers/ramp-recovery.worker";
@@ -24,11 +25,11 @@ import ProfilePartnerAssignment from "../../models/profilePartnerAssignment.mode
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
-import type { SubsidyToken } from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestPartner, createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
+import { erc20TransferLog } from "../../test-utils/fake-world/fake-evm";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
 
 function requireBaseToken(token: EvmToken) {
@@ -372,23 +373,37 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
 
   /**
    * Scripts the fake world for the happy path:
-   * - the ephemeral has Base gas and the user's USDC already arrived, short by
-   *   `usdcShortfallRaw` so subsidizePreSwap tops it up from the funding wallet,
+   * - the ephemeral has Base gas and the user's USDC deposit has arrived; the
+   *   ephemeral holds `usdcShortfallRaw` less than the deposit left on it,
    * - raw ERC-20 transfers (serialized presigns and funding-wallet data txs)
    *   are applied to the in-memory ledger,
-   * - the broadcast Nabla swap credits the ephemeral's BRLA at the quoted output.
+   * - the broadcast Nabla swap pays the ephemeral `swapOutputRaw` BRLA (the
+   *   quoted output by default), of which it then holds `brlaLeftRaw` less.
    */
-  function scriptHappyWorld(setup: CorridorSetup, options: { usdcShortfallRaw?: bigint; swapOutputRaw?: bigint } = {}): void {
+  function scriptHappyWorld(
+    setup: CorridorSetup,
+    options: { brlaLeftRaw?: bigint; usdcShortfallRaw?: bigint; swapOutputRaw?: bigint } = {}
+  ): void {
     const shortfall = options.usdcShortfallRaw ?? 0n;
     const swapOutput = options.swapOutputRaw ?? setup.swapOutputRaw;
     const fundingAccount = getEvmFundingAccount(Networks.Base);
     world.evm.setNativeBalance(Networks.Base, setup.ephemeral.address, parseUnits("2", 18));
     world.evm.setNativeBalance(Networks.Base, fundingAccount.address, parseUnits("2", 18));
     world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, fundingAccount.address, parseUnits("1000000", 6));
+    world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, fundingAccount.address, parseUnits("1000000", 18));
     world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, setup.swapInputRaw - shortfall);
+    // The pool's payout, as the post-swap top-up reads the swap's fill from its receipt.
+    world.evm.receiptLogs.set(keccak256(setup.signedNablaSwap), [
+      erc20TransferLog(BRLA_ON_BASE, NABLA_ROUTER_BASE_BRLA, setup.ephemeral.address, swapOutput)
+    ]);
     world.evm.onTransaction = tx => {
       if (tx.serialized === setup.signedNablaSwap) {
-        world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, swapOutput);
+        world.evm.setErc20Balance(
+          Networks.Base,
+          BRLA_ON_BASE,
+          setup.ephemeral.address,
+          swapOutput - (options.brlaLeftRaw ?? 0n)
+        );
         return;
       }
       const parsed = tx.serialized ? parseTransaction(tx.serialized as `0x${string}`) : { data: tx.data, to: tx.to };
@@ -419,12 +434,10 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
   }
 
   it(
-    "happy path: swap corridor completes with a capped pre-swap subsidy and pays the Avenia subaccount",
+    "happy path: swap corridor completes on the deposit alone and pays the Avenia subaccount",
     async () => {
       const setup = await setUpRegisteredRamp();
-      // 1 USDC short of the swap input: well below the 5% subsidy cap.
-      const shortfall = parseUnits("1", 6);
-      scriptHappyWorld(setup, { usdcShortfallRaw: shortfall });
+      scriptHappyWorld(setup);
       const pixOutBefore = world.brla.pixOutputTickets.length;
 
       await phaseProcessor.processRamp(setup.rampId);
@@ -434,15 +447,10 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
-      // Quote stays consumed and the pre-swap shortfall was subsidized once.
+      // Quote stays consumed; a deposit made in full and a swap filled at its quote need no subsidy.
       const quote = await QuoteTicket.findByPk(setup.quoteId);
       expect(quote?.status).toBe("consumed");
-      const subsidies = await Subsidy.findAll();
-      expect(subsidies.length).toBe(1);
-      // The handler stores the EvmToken value cast into the SubsidyToken column.
-      expect(subsidies[0].token).toBe(EvmToken.USDC as unknown as SubsidyToken);
-      expect(Number(subsidies[0].amount)).toBeCloseTo(1);
-      expect(subsidies[0].phase).toBe("subsidizePreSwap");
+      expect(await Subsidy.count()).toBe(0);
 
       // The swap and payout were each broadcast exactly once; the Avenia
       // subaccount wallet received exactly the swap output per the fake ledger.
@@ -658,26 +666,74 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
     60000
   );
 
+  /** Transfers the funding wallet sent to the ephemeral in `token`. */
+  function topUpsOf(setup: CorridorSetup, token: `0x${string}`): bigint[] {
+    const funding = getEvmFundingAccount(Networks.Base).address.toLowerCase();
+    return world.evm.sentTransactions
+      .filter(tx => tx.from?.toLowerCase() === funding && tx.to?.toLowerCase() === token.toLowerCase() && tx.data)
+      .map(tx => decodeFunctionData({ abi: erc20Abi, data: tx.data as `0x${string}` }).args as [string, bigint])
+      .filter(([recipient]) => recipient.toLowerCase() === setup.ephemeral.address.toLowerCase())
+      .map(([, amount]) => amount);
+  }
+
   it(
-    "subsidy cap (F-001 class): a pre-swap shortfall beyond the cap pauses the ramp before the swap",
+    "pre-swap top-up: a balance below what the deposit left pauses the ramp before the swap, with nothing paid",
     async () => {
       const setup = await setUpRegisteredRamp();
-      // Only half the swap input arrived: the required top-up (~50% of the
-      // quote output) is far beyond the 5% pre-swap subsidy cap.
-      scriptHappyWorld(setup, { usdcShortfallRaw: setup.swapInputRaw / 2n });
+      // The deposit arrived in full and the ephemeral holds 1 USDC less than it left.
+      scriptHappyWorld(setup, { usdcShortfallRaw: parseUnits("1", 6) });
 
       await phaseProcessor.processRamp(setup.rampId);
 
-      const stuck = await RampState.findByPk(setup.rampId);
-      expect(stuck?.currentPhase).toBe("subsidizePreSwap");
-      expect(stuck?.processingLock).toEqual({ locked: false, lockedAt: null });
-      const capLogs = stuck?.errorLogs.filter(log => log.error.includes("exceeds cap")) ?? [];
-      expect(capLogs.length).toBeGreaterThanOrEqual(1);
-      expect(capLogs.every(log => log.recoverable === true)).toBe(true);
+      const paused = await RampState.findByPk(setup.rampId);
+      expect(paused?.currentPhase).toBe("subsidizePreSwap");
+      expect(paused?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(paused?.errorLogs.at(-1)?.error).toContain("a top-up would cover more than the preceding step fell short by");
 
       // Nothing was subsidized, swapped, or paid out.
+      expect(topUpsOf(setup, USDC_ON_BASE)).toEqual([]);
       expect(await Subsidy.count()).toBe(0);
       expect(submissionsOf(setup.signedNablaSwap)).toBe(0);
+      expect(submissionsOf(setup.signedPayout)).toBe(0);
+    },
+    60000
+  );
+
+  it(
+    "post-swap top-up: a swap that fills below its quote is topped up by exactly its shortfall",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      const shortfall = setup.swapOutputRaw / 100n;
+      scriptHappyWorld(setup, { swapOutputRaw: setup.swapOutputRaw - shortfall });
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(topUpsOf(setup, BRLA_ON_BASE)).toEqual([shortfall]);
+      const subsidies = await Subsidy.findAll();
+      expect(subsidies.map(subsidy => subsidy.phase)).toEqual(["subsidizePostSwap"]);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
+    },
+    60000
+  );
+
+  it(
+    "post-swap top-up: a balance below what the swap paid pauses the ramp, with nothing paid",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      // The swap filled at its quote and the ephemeral holds 1% less than it paid.
+      scriptHappyWorld(setup, { brlaLeftRaw: setup.swapOutputRaw / 100n });
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const paused = await RampState.findByPk(setup.rampId);
+      expect(paused?.currentPhase).toBe("subsidizePostSwap");
+      expect(paused?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(paused?.errorLogs.at(-1)?.error).toContain("a top-up would cover more than the preceding step fell short by");
+
+      expect(topUpsOf(setup, BRLA_ON_BASE)).toEqual([]);
+      expect(await Subsidy.count()).toBe(0);
       expect(submissionsOf(setup.signedPayout)).toBe(0);
       expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(0n);
     },

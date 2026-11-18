@@ -11,6 +11,7 @@ import {
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { keccak256 } from "viem";
 import logger from "../../../../../../config/logger";
 import { config } from "../../../../../../config/vars";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
@@ -131,8 +132,15 @@ export class SubsidizePostSwapExecutor extends EvmSubsidyTopUpExecutor {
       // For BUY operations, top up to the simulated Squid bridge input; for SELL, to the
       // simulated Nabla output.
       const expectedSwapOutputAmountRaw = Big(metadata.targetOutputAmountRaw);
+      // The swap that produced this token: the Nabla swap, or on a route without one the fixed Uniswap swap.
+      const swapTransaction = (["nablaSwap", "uniswapSwap"] as const)
+        .map(phase => state.presignedTxs?.find(tx => tx.phase === phase && tx.network === outputNetwork)?.txData)
+        .find(txData => typeof txData === "string");
 
       await this.topUpEvmEphemeral({
+        accountedBy: swapTransaction
+          ? [keccak256(swapTransaction as `0x${string}`), ...this.presignedFeeTransferHashes(state, outputNetwork)]
+          : undefined,
         assess: currentBalance => {
           const subsidyComponents = calculatePostSwapSubsidyComponents({
             currentBalanceRaw: currentBalance,
@@ -142,6 +150,11 @@ export class SubsidizePostSwapExecutor extends EvmSubsidyTopUpExecutor {
           });
           return {
             enforceCaps: async () => {
+              if (!swapTransaction) {
+                throw this.createReconciliationRequiredError(
+                  "SubsidizePostSwapExecutor: No presigned swap to measure the top-up against."
+                );
+              }
               const quoteOutputUsd = await priceFeedService.convertCurrency(
                 quote.outputAmount,
                 quote.outputCurrency as RampCurrency,
