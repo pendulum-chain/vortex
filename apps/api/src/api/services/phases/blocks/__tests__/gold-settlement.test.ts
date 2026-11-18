@@ -286,6 +286,59 @@ describe("GoldSettlementExecutor", () => {
     expect(subsidyRows).toHaveLength(1);
   });
 
+  it("records the subsidy and sends nothing when re-entered after a crash past the journal", async () => {
+    const { chain, executor } = fakeChain();
+    const state = rampState();
+    await executor.execute(state);
+    subsidyRows.length = 0;
+
+    await executor.execute(state);
+
+    expect(chain.sends).toHaveLength(2);
+    expect(subsidyRows).toEqual([expect.objectContaining({ phase: "goldSettlementTopUp" })]);
+  });
+
+  it("reconciles a top-up that landed before a crash by the ephemeral balance, and does not buy again", async () => {
+    let receipts = 0;
+    const { chain, executor } = fakeChain({
+      overrides: {
+        waitForReceipt: async () => {
+          receipts += 1;
+          // The approval confirms; the read of the swap's receipt is lost after the swap was sent.
+          if (receipts === 2) throw new Error("rpc lost");
+          return { status: "success" };
+        }
+      }
+    });
+    const state = rampState();
+    await expect(executor.execute(state)).rejects.toBeInstanceOf(RecoverablePhaseError);
+
+    await executor.execute(state);
+
+    expect(chain.sends).toHaveLength(2);
+    expect(subsidyRows).toEqual([expect.objectContaining({ transactionHash: `0x${"2".padStart(64, "0")}` })]);
+  });
+
+  it("pauses instead of buying again when the swap after a mined approval cannot be proven", async () => {
+    let sent = 0;
+    const { executor } = fakeChain({
+      overrides: {
+        send: async () => {
+          sent += 1;
+          // The approval goes out; the process dies with the swap's outcome unknown.
+          if (sent === 2) throw new Error("rpc lost");
+          return `0x${sent.toString(16).padStart(64, "0")}`;
+        }
+      }
+    });
+    const state = rampState();
+    await expect(executor.execute(state)).rejects.toBeInstanceOf(RecoverablePhaseError);
+
+    await expect(executor.execute(state)).rejects.toBeInstanceOf(ReconciliationRequiredPhaseError);
+
+    expect(sent).toBe(2);
+  });
+
   it("waits, sending nothing, while the funding wallet lacks the USDC", async () => {
     const { chain, executor } = fakeChain({ fundingUsdc: 403_999n });
     await expect(executor.execute(rampState())).rejects.toBeInstanceOf(RecoverablePhaseError);

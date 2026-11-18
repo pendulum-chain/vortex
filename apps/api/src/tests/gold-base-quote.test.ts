@@ -18,6 +18,8 @@ import { baseGoldRequest, validateBaseGoldQuote } from "../../../gold/src/lib/ba
 import { priceFeedService } from "../api/services/priceFeed.service";
 import sequelize from "../config/database";
 import { config } from "../config/vars";
+import { up as seedStocks } from "../database/migrations/089-add-stocks-partner";
+import { up as seedStocksUsdc } from "../database/migrations/090-add-stocks-usdc-pricing";
 import { up as seedGoldPricing } from "../database/migrations/091-add-gold-usdc-pricing";
 import QuoteTicket from "../models/quoteTicket.model";
 import RampState from "../models/rampState.model";
@@ -32,6 +34,7 @@ import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { scriptGoldBase } from "../test-utils/fake-world/gold-base";
+import { scriptRobinhoodChain } from "../test-utils/fake-world/robinhood-chain";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
 // Captured before the fake world replaces it.
@@ -381,5 +384,54 @@ describe("PAXG on Base quotes", () => {
     // The lock reads Gold's own block state, so a finished order frees it.
     await RampState.update({ currentPhase: "failed" }, { where: { id: rampId } });
     expect((await again()).status).toBe(201);
+  });
+
+  it("lets one account hold a Gold order and a stock sale together, each under its own lock", async () => {
+    const stockSell = {
+      from: Networks.Robinhood,
+      inputAmount: "1",
+      inputCurrency: EvmToken.NVDA,
+      network: Networks.Robinhood,
+      outputCurrency: EvmToken.USDC,
+      rampType: RampDirection.SELL,
+      to: Networks.Base
+    };
+    const stocksUsdcDirections = config.stocks.usdcEnabledDirections;
+    config.stocks.usdcEnabledDirections = [RampDirection.SELL];
+    await seedStocks(sequelize.getQueryInterface());
+    await seedStocksUsdc(sequelize.getQueryInterface());
+    world.evm.setFeeEstimate(Networks.Robinhood, 30_000_000n, 0n);
+    scriptRobinhoodChain(world.evm, 181n);
+    scriptGoldBase(world.evm, 4000n);
+    try {
+      const owner = privateKeyToAccount(generatePrivateKey()).address;
+      const gold = await register(usdcSell, owner, { destinationAddress: owner, walletAddress: owner });
+      expect(gold.response.status, await gold.response.clone().text()).toBe(201);
+      const registerAgain = async (body: Record<string, unknown>) => {
+        const quote = await (await post({ ...body, destinationAddress: owner })).json();
+        return app.request("/v1/ramp/register", {
+          body: JSON.stringify({
+            additionalData: { destinationAddress: owner, walletAddress: owner },
+            quoteId: quote.id,
+            signingAccounts: [{ address: privateKeyToAccount(generatePrivateKey()).address, type: "EVM" }]
+          }),
+          headers: { Authorization: `Bearer ${testUserToken(gold.userId)}`, "Content-Type": "application/json" },
+          method: "POST"
+        });
+      };
+
+      // The open Gold order does not stand in the way of a stock sale.
+      const stock = await registerAgain(stockSell);
+      expect(stock.status, await stock.clone().text()).toBe(201);
+      // Each lock still refuses a second order of its own kind, and names it.
+      const secondGold = await registerAgain(usdcBuy);
+      expect(secondGold.status).toBe(409);
+      expect(await secondGold.text()).toContain("A gold order is already in progress");
+      const secondStock = await registerAgain(stockSell);
+      expect(secondStock.status).toBe(409);
+      expect(await secondStock.text()).toContain("A stock sale is already in progress");
+    } finally {
+      config.stocks.usdcEnabledDirections = stocksUsdcDirections;
+    }
   });
 });
