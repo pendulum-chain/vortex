@@ -6,11 +6,13 @@ import { RAMP_START_EXPIRATION_TIME_SECONDS } from "../../../../../../constants/
 import RampState from "../../../../../../models/rampState.model";
 import { APIError } from "../../../../../errors/api-error";
 import { validateOfframpQuote } from "../../core/offramp-validation";
+import { isBaseUsdcRobinhoodRoute } from "../../core/robinhood-stocks";
 import type { RegisterCtx, RegistrationResult } from "../../core/types";
 import type { StockPermitSourceMetadata } from "./simulation";
 
 export interface StockPermitSourceRegistrationInput extends Record<string, unknown> {
   walletAddress?: string;
+  destinationAddress?: string;
 }
 
 export interface StockPermitSourceRegistrationFacts {
@@ -81,9 +83,15 @@ export async function registerStockPermitSource(
   if (!isAddress(walletAddress, { strict: false })) {
     throw new APIError({ message: "walletAddress is not a valid EVM address", status: httpStatus.BAD_REQUEST });
   }
-  validateOfframpQuote(ctx.quote as Parameters<typeof validateOfframpQuote>[0], [...ctx.signingAccounts], {
-    requireSubstrateEphemeral: false
-  });
+  if (isBaseUsdcRobinhoodRoute(ctx.quote)) {
+    if (walletAddress.toLowerCase() !== ctx.input.destinationAddress?.toLowerCase()) {
+      throw new APIError({ message: "Stock USDC funding and delivery must use the same wallet", status: 400 });
+    }
+  } else {
+    validateOfframpQuote(ctx.quote as Parameters<typeof validateOfframpQuote>[0], [...ctx.signingAccounts], {
+      requireSubstrateEphemeral: false
+    });
+  }
   const activeRampId = await findActiveStockSale(ctx.authenticatedUser.id, ctx.transaction);
   if (activeRampId) {
     throw new APIError({

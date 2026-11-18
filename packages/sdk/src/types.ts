@@ -120,22 +120,45 @@ export type AnyAdditionalData =
   | DomesticOfframpAdditionalData
   | BrlOnrampAdditionalData
   | EurOnrampAdditionalData
-  | DomesticOnrampAdditionalData;
+  | DomesticOnrampAdditionalData
+  | StockUsdcAdditionalData;
 
 // Branch order mirrors ExtendedQuoteResponse (domestic-corridor first per direction). Keys are mutually exclusive, so order is cosmetic here.
-export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends DomesticOnrampQuote
-  ? DomesticOnrampAdditionalData
-  : Q extends BrlOnrampQuote
-    ? BrlOnrampAdditionalData
-    : Q extends EurOnrampQuote
-      ? EurOnrampAdditionalData
-      : Q extends DomesticOfframpQuote
-        ? DomesticOfframpAdditionalData
-        : Q extends BrlOfframpQuote
-          ? BrlOfframpAdditionalData
-          : Q extends EurOfframpQuote
-            ? EurOfframpAdditionalData
-            : AnyAdditionalData;
+export type StockUsdcQuote = QuoteResponse &
+  (
+    | {
+        rampType: RampDirection.BUY;
+        from: typeof Networks.Base;
+        to: typeof Networks.Robinhood;
+        inputCurrency: typeof EvmToken.USDC;
+      }
+    | {
+        rampType: RampDirection.SELL;
+        from: typeof Networks.Robinhood;
+        to: typeof Networks.Base;
+        outputCurrency: typeof EvmToken.USDC;
+      }
+  );
+export interface StockUsdcAdditionalData {
+  walletAddress: string;
+  destinationAddress: string;
+}
+
+export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends StockUsdcQuote
+  ? StockUsdcAdditionalData
+  : Q extends DomesticOnrampQuote
+    ? DomesticOnrampAdditionalData
+    : Q extends BrlOnrampQuote
+      ? BrlOnrampAdditionalData
+      : Q extends EurOnrampQuote
+        ? EurOnrampAdditionalData
+        : Q extends DomesticOfframpQuote
+          ? DomesticOfframpAdditionalData
+          : Q extends BrlOfframpQuote
+            ? BrlOfframpAdditionalData
+            : Q extends EurOfframpQuote
+              ? EurOfframpAdditionalData
+              : AnyAdditionalData;
 
 export interface BrlOnrampAdditionalData {
   destinationAddress: string;

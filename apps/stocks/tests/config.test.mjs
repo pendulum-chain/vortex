@@ -120,10 +120,18 @@ test("a production build must be live; other contexts keep their own mode", asyn
   await viteBuild({ CONTEXT: "branch-deploy", VITE_STOCKS_MODE: "live", VITE_PRIVY_APP_ID: APP_ID });
 });
 
-test("only a non-live build has the English USDC entry", async () => {
+test("English USDC entry is available in every build with execution independently gated", async () => {
   const input = async (vars) => (await viteBuild(vars)).build.rollupOptions.input;
-  assert.deepEqual(await input({ VITE_STOCKS_MODE: "live", VITE_PRIVY_APP_ID: APP_ID }), { main: "index.html" });
+  assert.deepEqual(await input({ VITE_STOCKS_MODE: "live", VITE_PRIVY_APP_ID: APP_ID }), { main: "index.html", international: "international.html" });
   const both = { main: "index.html", international: "international.html" };
   assert.deepEqual(await input({ VITE_STOCKS_MODE: "demo" }), both);
   assert.deepEqual(await input({ VITE_STOCKS_MODE: "preview", VITE_PRIVY_APP_ID: APP_ID }), both);
+});
+
+test("live Base-USDC is enabled independently from Pix and only by the exact flag", () => {
+  const cfg = vars => readConfig({ VITE_STOCKS_MODE: "live", VITE_PRIVY_APP_ID: APP_ID, ...vars });
+  assert.equal(cfg({ VITE_STOCKS_RAMP_ENABLED: "true" }).usdcEnabled, false);
+  assert.equal(cfg({ VITE_STOCKS_USDC_ENABLED: "true" }).usdcEnabled, true);
+  assert.equal(cfg({ VITE_STOCKS_USDC_ENABLED: "true" }).rampEnabled, false);
+  for (const v of ["TRUE", " true", "1"]) assert.equal(cfg({ VITE_STOCKS_USDC_ENABLED: v }).usdcEnabled, false);
 });

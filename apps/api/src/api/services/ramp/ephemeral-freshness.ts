@@ -18,6 +18,7 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../errors/api-error";
+import { isBaseUsdcRobinhoodRoute } from "../phases/blocks/core/robinhood-stocks";
 
 /**
  * The quote fields that determine which chains a ramp's ephemerals will sign on.
@@ -80,6 +81,10 @@ export function quoteToSigningNetworks(quote: FreshnessQuote): SigningNetworks {
       evm.add(Networks.Base); // evm-to-mykobo
     } else if (isDomesticToken(quote.outputCurrency as FiatToken)) {
       evm.add(Networks.Polygon); // evm-to-alfredpay
+    } else if (isBaseUsdcRobinhoodRoute(quote as Parameters<typeof isBaseUsdcRobinhoodRoute>[0])) {
+      // Stock sold on Robinhood Chain, USDC fees and delivery on Base.
+      evm.add(Networks.Robinhood);
+      evm.add(Networks.Base);
     }
     return { evm: [...evm], substrate: [...substrate] };
   }

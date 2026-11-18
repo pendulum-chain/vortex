@@ -108,15 +108,22 @@ export class TokenLedger {
   constructor(
     private readonly evm: FakeEvm,
     private readonly priceUsd: bigint,
-    private readonly rawSender: string
+    private readonly rawSender: string,
+    private readonly permitDomains: Record<string, { name: string; version: string }> = {}
   ) {
     const scripted = evm.onReadContract;
     evm.onReadContract = (network, params) => {
-      if (network === Networks.Robinhood && params.functionName === "allowance") {
+      if (
+        (network === Networks.Robinhood || this.permitDomains[params.address.toLowerCase()]) &&
+        params.functionName === "allowance"
+      ) {
         const [owner, spender] = params.args as [string, string];
         return this.allowance(network, params.address, owner, spender);
       }
-      if (network === Networks.Robinhood && params.functionName === "nonces") {
+      if (
+        (network === Networks.Robinhood || this.permitDomains[params.address.toLowerCase()]) &&
+        params.functionName === "nonces"
+      ) {
         return this.permitNonces.get(this.key(params.address, params.args?.[0] as string)) ?? 0n;
       }
       return scripted?.(network, params);
@@ -142,9 +149,8 @@ export class TokenLedger {
   ): string | null {
     const domain = {
       chainId: getNetworkId(tx.network as Networks),
-      name: stockName(token),
-      verifyingContract: token,
-      version: "1"
+      ...(this.permitDomains[token.toLowerCase()] ?? { name: stockName(token), version: "1" }),
+      verifyingContract: token
     };
     const message = { deadline, nonce: this.permitNonce(token, owner), owner, spender, value };
     try {

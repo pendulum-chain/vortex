@@ -1,6 +1,6 @@
 import { EvmClientManager, Networks, type RampPhase } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeFunctionData, erc20Abi, formatUnits } from "viem";
+import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from "viem";
 import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../../models/rampState.model";
@@ -217,7 +217,9 @@ export class StockSettlementExecutor extends BasePhaseHandler {
 
     const quoted = await dependencies.quoteUsdgIn(token, shortfall);
     assertWithinCap(new Big(formatUnits(quoted, USDG_DECIMALS)));
-    const amountInMaximum = (quoted * 101n + 99n) / 100n;
+    const slippageMaximum = (quoted * 101n + 99n) / 100n;
+    const subsidyMaximum = parseUnits(new Big(maxSubsidyUsd).toFixed(USDG_DECIMALS, Big.roundDown), USDG_DECIMALS);
+    const amountInMaximum = slippageMaximum < subsidyMaximum ? slippageMaximum : subsidyMaximum;
     const available = await dependencies.getTokenBalance(ROBINHOOD_USDG_ADDRESS, funding);
     if (available < amountInMaximum) {
       logger.error("EVM_FUNDING_TOKEN_BALANCE_LOW", {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
-import { mainnet } from "viem/chains";
+import { mainnet, base } from "viem/chains";
+import { GOLD_CONFIG } from "./lib/gold-config.js";
 
 function AuthBridge({ onAuth }) {
   const { ready, authenticated, user, login, logout, error } = usePrivy();
@@ -15,5 +16,5 @@ function AuthBridge({ onAuth }) {
 }
 
 export function PrivyShell({ appId, onAuth }) {
-  return <PrivyProvider appId={appId} config={{ loginMethodsAndOrder: { primary: ["google"], overflow: ["email"] }, appearance: { theme: "light", accentColor: "#1F513F" }, embeddedWallets: { ethereum: { createOnLogin: "users-without-wallets" } }, defaultChain: mainnet, supportedChains: [mainnet] }}><AuthBridge onAuth={onAuth} /></PrivyProvider>;
+  return <PrivyProvider appId={appId} config={{ loginMethodsAndOrder: { primary: ["google"], overflow: ["email"] }, appearance: { theme: "light", accentColor: "#1F513F" }, embeddedWallets: { ethereum: { createOnLogin: "users-without-wallets" } }, defaultChain: GOLD_CONFIG.asset.chain, supportedChains: [mainnet, base] }}><AuthBridge onAuth={onAuth} /></PrivyProvider>;
 }

@@ -47,14 +47,28 @@ test("only src/lib/config.js reads VITE_* variables", () => {
   }
 });
 
-test("served at /pt-br/stocks/ and kept out of search results until launch", () => {
+test("served and indexed at /pt-br/stocks/, with the English edition kept out of search results", () => {
   assert.match(read("vite.config.mjs"), /base:\s*"\/pt-br\/stocks\/"/);
   assert.match(read("vite.config.mjs"), /outDir:\s*"dist\/client"/);
   const html = read("index.html");
   assert.match(html, /<html lang="pt-BR">/);
-  assert.match(html, /<meta name="robots" content="noindex" \/>/);
+  assert.doesNotMatch(html, /noindex/);
+  assert.match(read("international.html"), /<meta name="robots" content="noindex" \/>/);
   assert.match(html, /<link rel="canonical" href="https:\/\/www\.vortexfinance\.co\/pt-br\/stocks\/" \/>/);
   for (const [, href] of html.matchAll(/href="(\/brand\/[^"]+)"/g)) assert.ok(existsSync(join(APP, "public", href)), `${href} is missing from public/`);
+});
+
+// /en/stocks/ ships in live builds while USDC checkout may be off: its sell buttons would only reach
+// "coming soon", and polling the Base balance would call a public RPC for a value it never shows.
+test("the English edition offers USDC sells and reads the Base balance only while USDC checkout is on", () => {
+  const app = read("src/InternationalApp.jsx");
+  const sells = [...app.matchAll(/Sell for USDC<\/button>/g)];
+  assert.ok(sells.length >= 2, "sell buttons not found");
+  for (const match of sells) {
+    const button = app.lastIndexOf("<button", match.index);
+    assert.match(app.slice(button - 40, button), /config\.usdcEnabled && $/, "a Sell for USDC button is not gated");
+  }
+  assert.match(app, /usdc\?\.simulated !== false \|\| !usdc\.enabled\) return;/, "the Base balance poll runs with USDC off");
 });
 
 test("a simulated ramp can never show a Pix code: no EMV Pix payload anywhere in src", () => {

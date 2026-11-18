@@ -1,29 +1,30 @@
 // Buy flow: Gold's TransactionFlow state machine over the ramp adapter.
-//   amount -> (code) -> prepare: availability, quote, price guard, readiness -> (kyc) -> confirm
+//   (method: Pix, or leave for the USDC checkout) -> amount -> (code) -> prepare: availability, quote, price guard, readiness -> (kyc) -> confirm
 //   confirm -> re-quote if it expires within 15 s, else register -> pix -> start -> processing
 //   processing -> success | issue;  resume: getRamp -> success | issue | pix | processing | code
 import { useEffect, useRef, useState } from "react";
 import { isTransientError } from "@vortexfi/consumer-kit";
 import { ArrowLeft, ArrowRight, Info } from "../components/icons.js";
 import { Modal } from "../components/Modal.jsx";
+import { ReserveBalance } from "../components/FeeSummary.jsx";
 import { QuoteCosts } from "../components/QuoteCosts.jsx";
 import { Notice } from "../components/ui.jsx";
 import { DEMO_TOOLS } from "../lib/config.js";
-import { formatBRL, formatNumber, formatPercent, priceBRL } from "../format.js";
-import { gasReserveLinePt, sellLaterNotePt } from "../lib/gas-reserve.js";
+import { formatBRL, formatPercent, priceBRL } from "../format.js";
+import { sellLaterNotePt } from "../lib/gas-reserve.js";
 import { MARKET_CLOSED_NOTE_PT, tokenizationClosedNotePt, tokenizationWindowOpen, usMarketStatus } from "../lib/market-hours.js";
 import { waitingCopyPt } from "../lib/phases.js";
 import { checkQuotePrice } from "../lib/price-guard.js";
 import { freshPauseReason } from "../lib/ramp-contract.js";
-import { DEFAULT_BUY, MIN_BUY, QUICK_BUY_VALUES, buyFeePercent, quoteNeedsRefresh, showSmallBuyNote, stepAfterCode, validBuyAmount } from "../lib/purchase-options.js";
+import { DEFAULT_BUY, MIN_BUY, QUICK_BUY_VALUES, quoteNeedsRefresh, showSmallBuyNote, stepAfterCode, validBuyAmount } from "../lib/purchase-options.js";
 import { estimateTokensForBrl, formatSharesApproxPt, formatTokenAmount, multiplierWeiFor, sharesWei } from "../lib/token.js";
-import { FlowIssue, FlowProgress, GuardCard, KYC_IN_REVIEW_PT, KycStep, OtpStep, POLL_RESTART_MS, ProcessingSteps, QuoteTimer, SuccessSeal, TokenSummary, Waiting, errorMessage, needsCode, unavailableMessage } from "./parts.jsx";
+import { FlowIssue, FlowProgress, GuardCard, KYC_IN_REVIEW_PT, KycStep, MethodStep, OtpStep, POLL_RESTART_MS, ProcessingSteps, QuoteTimer, SuccessSeal, TokenSummary, Waiting, errorMessage, needsCode, unavailableMessage } from "./parts.jsx";
 import { PixStep } from "./PixStep.jsx";
 
 const PROGRESS = ["Valor", "Segurança", "Revisão", "Pix"];
-const PROGRESS_INDEX = { amount: 0, otp: 1, kyc: 1, confirm: 2, pix: 3 };
+const PROGRESS_INDEX = { method: 0, amount: 0, otp: 1, kyc: 1, confirm: 2, pix: 3 };
 
-function AmountStep({ token, price, amount, setAmount, onNext, busy, error, onPayUsdc }) {
+function AmountStep({ token, price, amount, setAmount, onNext, busy, error }) {
   const valid = validBuyAmount(amount);
   const estimate = valid ? estimateTokensForBrl(amount, price?.brl) : null;
   const now = new Date();
@@ -32,7 +33,6 @@ function AmountStep({ token, price, amount, setAmount, onNext, busy, error, onPa
   return (
     <div className="flow-section">
       <TokenSummary token={token} price={price} />
-      {onPayUsdc && <div className="payment-methods" role="group" aria-label="Forma de pagamento"><div className="payment-choice" aria-current="true"><b>Pix · Brasil</b><span>Em reais, pelo seu banco</span></div><button type="button" className="payment-choice" onClick={onPayUsdc}><b>USDC · Base</b><span>Wallet ou exchange · English checkout</span></button></div>}
       <div>
         <label className="field-label" htmlFor="buy-amount">Quanto deseja investir?</label>
         <div className="amount-input">
@@ -57,25 +57,22 @@ function AmountStep({ token, price, amount, setAmount, onNext, busy, error, onPa
 function ConfirmStep({ token, quote, guard, reference, multiplierWei, onConfirm, onRefresh, busy, error, notice }) {
   const [accepted, setAccepted] = useState(false);
   const [guardAccepted, setGuardAccepted] = useState(false);
-  const fee = buyFeePercent(quote, quote.brlAmount);
   const shares = sharesWei(quote.tokenAmountWei, multiplierWeiFor(token, multiplierWei));
   const deviation = guard?.deviationPct;
   const blocked = guard?.status === "block";
   const canConfirm = accepted && !blocked && (guard?.status !== "warn" || guardAccepted) && !busy;
-  const reserve = gasReserveLinePt(quote);
   return (
     <div className="flow-section">
       {notice && <Notice tone="info">{notice}</Notice>}
-      <dl className="breakdown">
-        <div><dt>Você paga</dt><dd>{formatBRL(quote.brlAmount)}</dd></div>
-        <div><dt>Taxas informadas (já incluídas)</dt><dd>{formatBRL(quote.fees.total)}{fee != null && <small>{formatNumber(fee, 2)}% do valor</small>}</dd></div>
-        <div className="is-sub"><dt>Conversão e serviço</dt><dd>{formatBRL(quote.fees.service)}</dd></div>
-        <div className="is-sub"><dt>Taxas das redes</dt><dd>{formatBRL(quote.fees.network)}</dd></div>
-        {reserve && <div className="is-sub"><dt>{reserve.label}<small>{reserve.note}</small></dt><dd>{formatBRL(reserve.brl)}</dd></div>}
-        <div><dt>Preço por token nesta cotação</dt><dd>{priceBRL(quote.impliedBrlPerToken)}{reference && <small>referência {priceBRL(reference.brl)}{deviation != null ? ` (${formatPercent(deviation)})` : ""}</small>}</dd></div>
-        <div className="is-total"><dt>Você recebe</dt><dd>{formatTokenAmount(quote.tokenAmount)} {token.symbol} (token)<small>{formatSharesApproxPt(shares)}</small></dd></div>
-      </dl>
-      <QuoteCosts quote={quote} />
+      <div className="fee-card">
+        <dl className="breakdown"><div><dt>Você paga</dt><dd>{formatBRL(quote.brlAmount)}</dd></div></dl>
+        <QuoteCosts quote={quote} />
+        <dl className="breakdown">
+          <div><dt>Preço por token nesta cotação</dt><dd>{priceBRL(quote.impliedBrlPerToken)}{reference && <small>referência {priceBRL(reference.brl)}{deviation != null ? ` (${formatPercent(deviation)})` : ""}</small>}</dd></div>
+          <div className="is-total"><dt>Você recebe</dt><dd>{formatTokenAmount(quote.tokenAmount)} {token.symbol} (token)<small>{formatSharesApproxPt(shares)}</small></dd></div>
+        </dl>
+      </div>
+      <ReserveBalance amount={quote.gasReserve?.brl} />
       <QuoteTimer expiresAt={quote.expiresAt} />
       <GuardCard guard={guard} direction="BUY" reference={reference} accepted={guardAccepted} onAccept={setGuardAccepted} />
       <p className="hint">{sellLaterNotePt(quote)}</p>
@@ -93,7 +90,7 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume: r
   const [resume, setResume] = useState(resumed); // null again once the resumed operation is given up
   const wallet = auth.address;
   const privyDid = auth.user?.privyDid;
-  const [step, setStep] = useState(resume ? "resuming" : "amount");
+  const [step, setStep] = useState(resume ? "resuming" : onPayUsdc && initialAmount == null && !demoQuote ? "method" : "amount");
   const [amount, setAmount] = useState(validBuyAmount(initialAmount) ? String(initialAmount) : String(DEFAULT_BUY));
   const [email, setEmail] = useState(auth.user?.email || "");
   const [otp, setOtp] = useState("");
@@ -277,7 +274,8 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume: r
 
   return (
     <Modal title={title} onClose={onClose} wide closeDisabled={closeDisabled} stepKey={step} headerExtra={progress != null ? <FlowProgress labels={PROGRESS} current={progress} /> : null}>
-      {step === "amount" && <AmountStep token={token} price={price} amount={amount} setAmount={setAmount} onNext={continueFromAmount} busy={busy} error={error} onPayUsdc={onPayUsdc} />}
+      {step === "method" && <MethodStep direction="BUY" onPix={() => setStep("amount")} onUsdc={onPayUsdc} />}
+      {step === "amount" && <AmountStep token={token} price={price} amount={amount} setAmount={setAmount} onNext={continueFromAmount} busy={busy} error={error} />}
       {step === "otp" && <OtpStep email={email} setEmail={setEmail} otp={otp} setOtp={setOtp} sent={otpSent} onSend={sendOtp} onVerify={verifyOtp} busy={busy} error={error} demoCode={verification.demoCode} />}
       {step === "kyc" && <KycStep kyc={runtime.kyc} quote={quote} email={email} initialName={auth.user?.name} onApproved={() => { setNotice(""); setStep("confirm"); }} />}
       {step === "confirm" && quote && <ConfirmStep key={quote.id} token={token} quote={quote} guard={guard} reference={reference} multiplierWei={multiplierWei} onConfirm={generatePix} onRefresh={refreshQuote} busy={busy} error={error} notice={notice} />}
@@ -306,7 +304,7 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume: r
       )}
       {step === "issue" && <FlowIssue message={error} onRetry={ramp?.classification === "failure" ? null : retry} onClose={onClose} />}
       {operationId && step !== "success" && <p className="op-ref">Código da operação: <code>{operationId}</code></p>}
-      {["otp", "kyc", "confirm"].includes(step) && !busy && !ramp && <div className="flow-foot" style={{ marginTop: 8 }}><button className="back-button" type="button" onClick={() => { setError(""); setStep("amount"); }}><ArrowLeft size={16} aria-hidden="true" /> Voltar</button></div>}
+      {(["otp", "kyc", "confirm"].includes(step) || (step === "amount" && onPayUsdc)) && !busy && !ramp && <div className="flow-foot" style={{ marginTop: 8 }}><button className="back-button" type="button" onClick={() => { setError(""); setStep(step === "amount" ? "method" : "amount"); }}><ArrowLeft size={16} aria-hidden="true" /> Voltar</button></div>}
       {step === "amount" && <p className="legal-note" style={{ marginTop: 16 }}><Info size={14} aria-hidden="true" style={{ display: "inline", verticalAlign: "-2px" }} /> Você recebe um Stock Token, não a ação. O custo total aparece antes do Pix.</p>}
     </Modal>
   );

@@ -18,6 +18,10 @@ state or a user's wallet.
   `handlers/BaseRampHandler.ts` implements once (register, persist ephemerals, presign,
   update). `EurHandler` registers the Monerium onramp with the user's linked wallet and
   keeps the legacy Mykobo SELL adapter for persisted flows.
+- `GoldUsdcHandler` narrowly recognizes PAXG/native-USDC on Base in both directions and reuses
+  the same durable registration/presigning lifecycle without a fiat provider. It returns
+  user-owned transactions to the caller; it neither funds the wallet nor grants an owner permit.
+  API corridor availability remains a separate requirement.
 - `eip712.ts` classifies and attaches signatures for user-owned typed-data operations.
 - `storage.ts` optionally persists ephemeral recovery material for the caller.
 

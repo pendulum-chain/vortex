@@ -57,7 +57,7 @@ const PoweredBySatoshipay = () => {
 };
 
 const FooterSection = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className="mr-8 mb-8 flex min-w-[160px] flex-col">
+  <div className="mr-8 mb-8 flex min-w-0 flex-col">
     <h3 className="mb-4 font-bold text-gray-900">{title}</h3>
     <div className="flex flex-col gap-3 text-gray-600 text-sm">{children}</div>
   </div>

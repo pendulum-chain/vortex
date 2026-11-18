@@ -112,6 +112,7 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
   let restoreChainIdRpc: () => void;
   let app: TestApp;
   const enabledDirections = config.stocks.enabledDirections;
+  const nablaUserFeeBps = config.stocks.nablaUserFeeBps;
 
   beforeAll(async () => {
     world = installFakeWorld();
@@ -123,6 +124,7 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
 
   afterAll(async () => {
     config.stocks.enabledDirections = enabledDirections;
+    config.stocks.nablaUserFeeBps = nablaUserFeeBps;
     await app?.close();
     auth?.restore();
     restoreChainIdRpc?.();
@@ -135,6 +137,7 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
     // The fee distribution pays the vortex partner's EVM address.
     await updatePartnerPricing("vortex", RampDirection.BUY, { payoutAddressEvm: FEE_PAYOUT });
     config.stocks.enabledDirections = [RampDirection.BUY, RampDirection.SELL];
+    config.stocks.nablaUserFeeBps = undefined;
     world.evm.strictReceipts = true;
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
@@ -342,6 +345,33 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
     expect(usdgOf(setup.ephemeral.address)).toBe(0n);
     expect(world.evm.nativeBalance(Networks.Robinhood, setup.destination)).toBe(config.stocks.gasReserveTargetWei);
   }
+
+  it("executes the 25-to-5 bps Nabla rebate once through the journalled treasury top-up", async () => {
+    config.stocks.nablaUserFeeBps = 5;
+    world.evm.onReadContract = (_network, p) => {
+      if (p.functionName === "oracleAdapter") return "0x00000000000000000000000000000000000000ab";
+      if (p.functionName === "getAssetPrice") return 10n ** 18n;
+      if (p.functionName !== "getAmountOut" && p.functionName !== "quoteSwapExactTokensForTokens") return undefined;
+      const gross = (p.args?.[0] as bigint) / 5n / 10n ** 12n;
+      const fee = gross * 25n / 10000n;
+      return p.functionName === "getAmountOut" ? [gross - fee, fee] : gross - fee;
+    };
+    scriptRobinhoodChain(world.evm, NVDA_USD);
+    world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, FUNDING, parseUnits("10000", 6));
+    const setup = await setUpRegisteredRamp();
+    scriptPaidWorld(setup);
+    const final = await startAndSettle(setup);
+    expectDelivered(setup, final);
+    const ticket = (await QuoteTicket.findByPk(final.quoteId))!;
+    const fee = getBlockMetadata(ticket.metadata, NablaSwapContext).feeSubsidy!;
+    const rows = await Subsidy.findAll({ where: { phase: "subsidizePostSwap", rampId: setup.rampId } });
+    expect(rows).toHaveLength(1);
+    expect(parseUnits(String(rows[0].amount), 6)).toBe(BigInt(fee.rebateRaw));
+    const count = world.evm.sentTransactions.length;
+    await phaseProcessor.processRamp(setup.rampId);
+    expect(world.evm.sentTransactions).toHaveLength(count);
+    expect(await Subsidy.count({ where: { phase: "subsidizePostSwap", rampId: setup.rampId } })).toBe(1);
+  }, 60_000);
 
   it(
     "delivers exactly the quoted tokens and the gas reserve",

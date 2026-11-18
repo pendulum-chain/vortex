@@ -390,6 +390,9 @@ h1 { margin-bottom: 0; font-size: clamp(82px,7.3vw,119px); line-height: .83; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
+.legacy-gold { border-top: 1px solid #e8e1d5; margin-top: 20px; padding-top: 14px; font-size: 14px; }
+.wallet-address { overflow-wrap: anywhere; font-size: 14px; }
+
 .operation-reference { margin-top: 20px; color: var(--muted, #666); font-size: 12px; overflow-wrap: anywhere; }
 .wallet-copy { width: 100%; min-width: 0; text-align: left; margin-block: 16px; }
 .wallet-copy span { min-width: 0; display: grid; gap: 8px; }

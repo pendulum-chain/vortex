@@ -78,6 +78,20 @@ const BRL_OFFRAMP_ROBINHOOD = {
   rampType: RampDirection.SELL,
   to: "pix"
 };
+const USDC_STOCK_SELL = {
+  from: Networks.Robinhood,
+  inputCurrency: "NVDA",
+  outputCurrency: "USDC",
+  rampType: RampDirection.SELL,
+  to: Networks.Base
+};
+const USDC_STOCK_BUY = {
+  from: Networks.Base,
+  inputCurrency: "USDC",
+  outputCurrency: "NVDA",
+  rampType: RampDirection.BUY,
+  to: Networks.Robinhood
+};
 
 const BRL_OFFRAMP_ASSETHUB = { ...BRL_OFFRAMP_EVM, from: Networks.AssetHub };
 const ALFREDPAY_OFFRAMP = {
@@ -139,6 +153,14 @@ describe("quoteToSigningNetworks", () => {
 
   it("BRL off-ramp of a stock from Robinhood Chain signs on Base and Robinhood Chain", () => {
     expect(quoteToSigningNetworks(BRL_OFFRAMP_ROBINHOOD)).toEqual({ evm: [Networks.Base, Networks.Robinhood], substrate: [] });
+  });
+
+  it("stock sale for Base USDC signs on Robinhood Chain and Base", () => {
+    expect(quoteToSigningNetworks(USDC_STOCK_SELL)).toEqual({ evm: [Networks.Robinhood, Networks.Base], substrate: [] });
+  });
+
+  it("stock purchase with Base USDC signs on Base and Robinhood Chain", () => {
+    expect(quoteToSigningNetworks(USDC_STOCK_BUY)).toEqual({ evm: [Networks.Base, Networks.Robinhood], substrate: [] });
   });
 
   it("Avenia on-ramp to Robinhood Chain signs on Base plus Robinhood Chain", () => {
@@ -227,6 +249,8 @@ describe("quoteToSigningNetworks", () => {
       [
         BRL_OFFRAMP_EVM,
         BRL_OFFRAMP_ROBINHOOD,
+        USDC_STOCK_SELL,
+        USDC_STOCK_BUY,
         BRL_OFFRAMP_ASSETHUB,
         ALFREDPAY_OFFRAMP,
         EUR_OFFRAMP,

@@ -12,7 +12,7 @@ import { DEMO_USER } from "./DemoAuth.js";
 import { WelcomeSheet } from "./components/Welcome.jsx";
 import { useAvailability, useMarket, useNow, useOnline, usePendingRampRead, usePortfolio, useRuntime } from "./hooks.js";
 import { DEMO_TOOLS, USDC_CHECKOUT } from "./lib/config.js";
-import { flowFor } from "./lib/detail-actions.js";
+import { flowFor, usdcOpen } from "./lib/detail-actions.js";
 import { localHistoryRows, mergeHistory, ownedHistoryRows } from "./lib/history.js";
 import { homeHash, parseHash, stockHash } from "./lib/routes.js";
 import { findStock } from "./lib/stocks.js";
@@ -47,8 +47,7 @@ function FlowLoading({ onClose, error }) {
 
 export function App({ auth, config }) {
   const [route, navigate] = useHashRoute();
-  const usdcCheckout = config.mode !== "live";
-  const isFlow = (type) => type === "buy" || type === "sell" || (type === "usdc" && usdcCheckout);
+  const usdcCheckout = config.usdcEnabled || config.mode !== "live";
   const market = useMarket(config);
   const now = useNow(30_000);
   const online = useOnline();
@@ -65,12 +64,23 @@ export function App({ auth, config }) {
   const [version, setVersion] = useState(0);
   const [serverRows, setServerRows] = useState(null);
   const [demoPlan, setDemoPlan] = useState(null);
+  // The live USDC listing: a Pix flow offers USDC (its method step) only where that direction is open.
+  // ponytail: read once per runtime; LiveUsdcFlow re-reads it before every quote, so a stale "open" still stops there.
+  const [usdcListing, setUsdcListing] = useState(null);
+  useEffect(() => {
+    if (!usdcCheckout || runtime?.usdc?.simulated !== false) return undefined;
+    let alive = true;
+    runtime.usdc.adapter.getAvailability().then((map) => { if (alive) setUsdcListing(map); }, () => {});
+    return () => { alive = false; };
+  }, [runtime, usdcCheckout]);
+  const offersUsdc = (symbol, direction) => usdcOpen({ checkout: usdcCheckout, live: runtime?.usdc?.simulated === false, listing: usdcListing, symbol, direction });
   const intent = useRef(null);
   const welcome = useMemo(() => createWelcomeStore(), []);
   const refreshLocal = useCallback(() => setVersion((value) => value + 1), []);
 
   // The active ramp (resume banner) and the device history; the adapter writes them, we only read.
   const pending = useMemo(() => (runtime && address ? runtime.activeRampStore.get(address) : null), [runtime, address, version, modal, now]);
+  const isFlow = (type) => type === "buy" || type === "sell" || (type === "usdc" && USDC_CHECKOUT && (usdcCheckout || pending?.paymentMethod === "usdc"));
   const localRows = useMemo(() => (runtime && address ? localHistoryRows(runtime.activeRampStore.history(address)) : []), [runtime, address, version, modal]);
   usePendingRampRead({ runtime, rampId: pending?.rampId, walletAddress: address, who: { email: auth.user?.email, privyDid: auth.user?.privyDid }, idle: !modal, onSettled: () => { portfolio.refreshSoon(); refreshLocal(); } });
   const historyOwner = `${auth.user?.privyDid ?? ""}:${address ?? ""}`;
@@ -107,7 +117,7 @@ export function App({ auth, config }) {
     clearPurchaseSelection();
     navigate(stockHash(next.symbol));
     if (isFlow(next.type)) setModal(next);
-  }, [navigate]);
+  }, [navigate, usdcCheckout, pending?.rampId, pending?.paymentMethod]);
 
   // Signed in (after the sheet, after an OAuth return, or a session found on load): restore the
   // route, welcome a new user on this device, then continue what they were doing.
@@ -218,7 +228,7 @@ export function App({ auth, config }) {
 
   let screen;
   if (route.name === "stock") {
-    screen = <StockDetail key={route.symbol} symbol={route.symbol} auth={auth} market={market} portfolio={portfolio} availability={availability} comingSoon={comingSoon} pending={pending} onBuy={() => startFlow("buy", route.symbol)} onPreview={startPreview} canPreviewContinue={canPreviewContinue} onSell={() => startFlow("sell", route.symbol)} now={now} />;
+    screen = <StockDetail key={route.symbol} symbol={route.symbol} auth={auth} market={market} portfolio={portfolio} availability={availability} comingSoon={comingSoon} pending={pending} onBuy={() => startFlow("buy", route.symbol)} onPreview={startPreview} canPreviewContinue={canPreviewContinue} onSell={() => startFlow("sell", route.symbol)} usdcCheckout={usdcCheckout} onUsdc={(direction) => setModal({ type: "usdc", symbol: route.symbol, direction })} now={now} />;
   } else if (route.name === "explore") {
     screen = <Explore route={route} market={market} navigate={navigate} now={now} />;
   } else if (route.name === "history") {
@@ -251,9 +261,9 @@ export function App({ auth, config }) {
       {flowToken && (runtime && auth.address && modal.checked
         ? (
           <Suspense fallback={<FlowLoading onClose={() => setModal(null)} />}>
-            {modal.type === "usdc" ? <UsdcFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} direction={modal.resume?.rampType || "BUY"} resume={modal.resume} initialAmount={modal.initialAmount} onClose={closeFlow} onSettled={onSettled} /> : modal.type === "buy"
-              ? <BuyFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} resume={modal.resume ?? null} initialAmount={modal.initialAmount} demoQuote={modal.demoQuote === true} onClose={closeFlow} onSettled={onSettled} onPayUsdc={usdcCheckout ? () => setModal({ type: "usdc", symbol: flowToken.symbol }) : undefined} />
-              : <SellFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} holdingRaw={holding?.raw ?? 0n} resume={modal.resume ?? null} demoReserveUsed={modal.demoReserveUsed === true} onClose={closeFlow} onSettled={onSettled} />}
+            {modal.type === "usdc" ? <UsdcFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} direction={modal.resume?.rampType || modal.direction || "BUY"} resume={modal.resume} initialAmount={modal.initialAmount} onClose={closeFlow} onSettled={onSettled} /> : modal.type === "buy"
+              ? <BuyFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} resume={modal.resume ?? null} initialAmount={modal.initialAmount} demoQuote={modal.demoQuote === true} onClose={closeFlow} onSettled={onSettled} onPayUsdc={offersUsdc(flowToken.symbol, "BUY") ? () => setModal({ type: "usdc", symbol: flowToken.symbol }) : undefined} />
+              : <SellFlow key={modal.resume?.rampId || flowToken.symbol} token={flowToken} auth={auth} runtime={runtime} market={market} flags={portfolio.flags} holdingRaw={holding?.raw ?? 0n} onSellUsdc={offersUsdc(flowToken.symbol, "SELL") ? () => setModal({ type: "usdc", symbol: flowToken.symbol, direction: "SELL" }) : undefined} resume={modal.resume ?? null} demoReserveUsed={modal.demoReserveUsed === true} onClose={closeFlow} onSettled={onSettled} />}
           </Suspense>
         )
         : <FlowLoading onClose={() => setModal(null)} error={runtimeError} />)}

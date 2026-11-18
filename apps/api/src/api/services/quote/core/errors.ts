@@ -6,7 +6,9 @@ const LOW_LIQUIDITY_ERROR_PATTERNS = [
   "low liquidity",
   "reduce swap amount",
   "insufficientliquidity",
-  "exceeds_max_coverage_ratio"
+  "exceeds_max_coverage_ratio",
+  // A Nabla swap pool asked to pay out more than its reserve reverts with an arithmetic panic (0x11).
+  "underflow or overflow"
 ];
 
 export function isLowLiquidityQuoteError(error: unknown): boolean {

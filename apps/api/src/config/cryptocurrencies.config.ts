@@ -76,9 +76,9 @@ const getEvmNetworkTokens = (
 };
 
 /** Only the allowlist is public on Robinhood Chain: ETH, USDG and anything discovered there are never ramp assets. */
-const getRobinhoodStockTokens = (): SupportedCryptocurrencyDetails[] => {
+const getRobinhoodStockTokens = (paymentMethod = "pix"): SupportedCryptocurrencyDetails[] => {
   const rampTypes = [RampDirection.BUY, RampDirection.SELL].filter(direction =>
-    config.stocks.enabledDirections.includes(direction)
+    (paymentMethod === "usdc" ? config.stocks.usdcEnabledDirections : config.stocks.enabledDirections).includes(direction)
   );
   return Object.entries(ROBINHOOD_STOCKS).map(([assetSymbol, { address }]) => ({
     assetContractAddress: address,
@@ -110,10 +110,12 @@ const getAssetHubTokens = (): SupportedCryptocurrencyDetails[] => {
  */
 export function getSupportedCryptocurrencies(
   network: Networks | undefined,
-  tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> = getEvmTokenConfig()
+  tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> = getEvmTokenConfig(),
+  paymentMethod = "pix"
 ): SupportedCryptocurrencyDetails[] {
   if (network === Networks.Robinhood) {
-    return getRobinhoodStockTokens();
+    if (!["pix", "usdc"].includes(paymentMethod)) throw new APIError({ message: "Invalid stock payment method", status: 400 });
+    return getRobinhoodStockTokens(paymentMethod);
   }
   if (network && isNetworkEVM(network)) {
     return getEvmNetworkTokens(network as EvmNetworks, tokensByNetwork);

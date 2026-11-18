@@ -17,7 +17,7 @@ export interface AveniaStockMintDependencies {
   getNativeBalance?: (address: `0x${string}`) => Promise<bigint>;
 }
 
-async function quoteGasReserve(ctx: PhaseCtx, dependencies: AveniaStockMintDependencies): Promise<GasReserveQuote> {
+export async function quoteGasReserve(ctx: PhaseCtx, dependencies: AveniaStockMintDependencies): Promise<GasReserveQuote> {
   const { gasReserveTargetWei: target, gasReserveThresholdWei: threshold } = config.stocks;
   if (target === 0n) return { amountRaw: "0", currency: "ETH", fiat: "0", usd: "0" };
 

@@ -1,5 +1,6 @@
 import {
   DestinationType,
+  EvmToken,
   getNetworkFromDestination,
   Networks,
   QuoteError,
@@ -294,10 +295,10 @@ export async function calculateFeeComponents(request: CalculateFeeComponentsRequ
     }
 
     return {
-      anchorFee: anchorFeeInFeeCurrency.toFixed(2),
+      anchorFee: anchorFeeInFeeCurrency.toFixed(feeCurrency === EvmToken.USDC ? 6 : 2),
       feeCurrency,
-      partnerMarkupFee: partnerMarkupFee.toFixed(2),
-      vortexFee: vortexFee.toFixed(2)
+      partnerMarkupFee: partnerMarkupFee.toFixed(feeCurrency === EvmToken.USDC ? 6 : 2),
+      vortexFee: vortexFee.toFixed(feeCurrency === EvmToken.USDC ? 6 : 2)
     };
   } catch (error) {
     logger.error("Error calculating fee components:", error);

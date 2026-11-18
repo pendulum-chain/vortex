@@ -29,6 +29,7 @@ import { runBlockQuoteFlow } from "../phases/blocks/core/quote";
 import { buildBlockQuoteResponse } from "../phases/blocks/core/quote-response";
 import {
   assertStockTradable,
+  isBaseUsdcRobinhoodRoute,
   isBrlPixRobinhoodRoute,
   isRobinhoodRoute,
   isStockQuoteUnavailableError,
@@ -388,14 +389,28 @@ async function assertStockRouteQuotable(
   if (!isRobinhoodRoute(request)) {
     return;
   }
-  if (!config.stocks.enabledDirections.includes(request.rampType)) {
+  if (
+    !(isBaseUsdcRobinhoodRoute(request) ? config.stocks.usdcEnabledDirections : config.stocks.enabledDirections).includes(
+      request.rampType
+    )
+  ) {
     throw new APIError({ isPublic: true, message: `Invalid network: ${Networks.Robinhood}`, status: httpStatus.BAD_REQUEST });
   }
 
-  if (!isBrlPixRobinhoodRoute(request)) {
+  if (!isBrlPixRobinhoodRoute(request) && !isBaseUsdcRobinhoodRoute(request)) {
     return;
   }
 
+  if (isBaseUsdcRobinhoodRoute(request) && request.rampType === RampDirection.BUY) {
+    const usdc = new Big(request.inputAmount);
+    if (usdc.lt(10) || usdc.gt(1_000_000) || !usdc.round(6, Big.roundDown).eq(usdc)) {
+      throw new APIError({
+        isPublic: true,
+        message: "USDC amount must be between 10 and 1000000 with at most 6 decimals",
+        status: 400
+      });
+    }
+  }
   const token = request.rampType === RampDirection.BUY ? request.outputCurrency : request.inputCurrency;
   if (!isStockSymbol(token)) {
     throw new APIError({ isPublic: true, message: QuoteError.StockTokenNotAvailable, status: httpStatus.BAD_REQUEST });

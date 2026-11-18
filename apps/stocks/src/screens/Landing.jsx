@@ -1,5 +1,5 @@
 // Landing (#/, anonymous). Renders from the eager bundle with no Privy, SDK or chart code.
-import { ArrowRight, ArrowSquareOut, Bank, CheckCircle, Clock, CurrencyCircleDollar, HandCoins, Plus } from "../components/icons.js";
+import { ArrowSquareOut, Bank, CheckCircle, CurrencyCircleDollar, HandCoins, Plus } from "../components/icons.js";
 import { B2BBand } from "../components/SiteFooter.jsx";
 import { BRAND } from "../brand.js";
 import { ROBINHOOD_CHAIN_DOCS } from "../components/TokenRights.jsx";
@@ -10,6 +10,7 @@ import { MIN_BUY } from "../lib/purchase-options.js";
 import { exploreHash } from "../lib/routes.js";
 import { DEFAULT_ORDER, SHARED_COPY_PT, findStock, hoursPt } from "../lib/stocks.js";
 import { formatTokenAmount } from "../lib/token.js";
+import { FairFeesHero } from "../components/FairFeesHero.jsx";
 import { PurchasePreview } from "../components/PurchasePreview.jsx";
 import { estimatePurchase } from "../lib/purchase-preview.js";
 
@@ -50,26 +51,10 @@ export function Landing({ market, rampOpen, onPreview, canPreviewContinue, onLea
   const unavailable = !loading && state.status === "unavailable";
   return (
     <main id="conteudo" tabIndex={-1}>
-      <section className="hero wrap" aria-labelledby="hero-title">
-        <div className="hero__grid">
-          <div className="hero__copy">
-            <p className="eyebrow">Tokens de ações dos EUA · com Pix</p>
-            <h1 className="hero__title" id="hero-title">As maiores empresas do mundo, em <span className="accent">fatias</span>.</h1>
-            <p className="hero__lede">Comece com R$ 100. Escolha uma empresa, pague com Pix e receba na sua carteira um token que acompanha o preço da ação.</p>
-            <div className="hero__actions">
-              <button className="btn btn--primary btn--lg" type="button" onClick={() => { document.getElementById("simular")?.scrollIntoView({ behavior: "smooth", block: "start" }); document.querySelector("#simular select")?.focus({ preventScroll: true }); }}>Simular minha compra <ArrowRight size={18} weight="bold" aria-hidden="true" /></button>
-              <button className="link link-button" type="button" onClick={onLearn} style={{ minHeight: 44 }}>Como funciona?</button>
-            </div>
-            {rampOpen === false && <p className="hero__soon"><Clock size={18} weight="bold" aria-hidden="true" /> Compra com Pix em breve</p>}
-            <ul className="trust-list">
-              <li><span className="dot" aria-hidden="true" />Acompanha o preço da ação</li>
-              <li><span className="dot" aria-hidden="true" />Custos informados antes de pagar</li>
-              <li><span className="dot" aria-hidden="true" />Carteira no seu controle</li>
-            </ul>
-          </div>
-          <PurchasePreview id="simular" prices={state.prices} onContinue={onPreview} canContinue={canPreviewContinue} />
-        </div>
-      </section>
+      <FairFeesHero previewId="simular" onLearn={onLearn} buyOpen={rampOpen} />
+      <div className="wrap fair-preview">
+        <PurchasePreview id="simular" prices={state.prices} onContinue={onPreview} canContinue={canPreviewContinue} />
+      </div>
 
       <section className="section wrap" aria-labelledby="featured-title">
         <div className="section__head">
@@ -95,11 +80,11 @@ export function Landing({ market, rampOpen, onPreview, canPreviewContinue, onLea
         <div className="section__head">
           <div>
             <p className="eyebrow">Como funciona</p>
-            <h2 className="section__title" id="how-title" style={{ marginTop: 10 }}>Da simulação à sua carteira.</h2>
+            <h2 className="section__title" id="how-title" style={{ marginTop: 10 }}>Da cotação à sua carteira.</h2>
           </div>
         </div>
         <ol className="steps">
-          <li className="card step"><span className="step__num">01</span><h3>Simule sem cadastro</h3><p>Escolha uma empresa e o valor. Veja uma estimativa de quanto recebe e dos custos.</p></li>
+          <li className="card step"><span className="step__num">01</span><h3>Veja os custos antes de comprar</h3><p>Escolha uma empresa e o valor. Veja uma estimativa de quanto recebe e dos custos.</p></li>
           <li className="card step"><span className="step__num">02</span><h3>Entre e confira os valores</h3><p>Use Google ou e-mail. Na primeira compra com Pix, confirme seu e-mail e verifique sua identidade, se necessário. Confira a cotação atualizada antes de pagar.</p></li>
           <li className="card step"><span className="step__num">03</span><h3>Pague com Pix e receba</h3><p>Após a confirmação do pagamento, os tokens chegam à sua carteira. Para vender, confira a cotação e receba na sua chave Pix.</p></li>
         </ol>

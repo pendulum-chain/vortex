@@ -20,10 +20,11 @@ import { throwIfAborted } from "../../core/cancellation";
 import { runSerializedEvmFundingOperation, sendEvmFundingTransaction } from "../../core/evm-funding";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockState } from "../../core/metadata";
-import { ROBINHOOD_STOCKS, readStockFlags } from "../../core/robinhood-stocks";
+import { isStockSymbol, readStockFlags } from "../../core/robinhood-stocks";
 import { moneriumPermitAbi } from "../monerium-self-transfer/contract";
 import { resolveUniswapRoute } from "../uniswap-v3-fixed-swap/route";
 import { STOCK_PERMIT_GAS_LIMIT, StockPermitSourceContext } from "./simulation";
+import { stockSourcePin } from "./source";
 import type { StockPermitSourceState } from "./transactions";
 import { readStockPermit, readStockTransfer, type StockPermitExpectation, type ValidatedStockPermit } from "./validation";
 
@@ -63,9 +64,9 @@ export interface StockPermitExecutionDependencies {
   waitForReceipt(hash: `0x${string}`): Promise<Receipt>;
 }
 
-function defaultDependencies(): StockPermitExecutionDependencies {
+function defaultDependencies(network: typeof Networks.Base | typeof Networks.Robinhood): StockPermitExecutionDependencies {
   const manager = EvmClientManager.getInstance();
-  const client = manager.getClient(Networks.Robinhood);
+  const client = manager.getClient(network);
   return {
     getAllowance: (token, owner, spender) =>
       client.readContract({ abi: erc20Abi, address: token, args: [owner, spender], functionName: "allowance" }),
@@ -93,13 +94,12 @@ function defaultDependencies(): StockPermitExecutionDependencies {
     },
     readStockFlags,
     sendPermit: (token, args) =>
-      sendEvmFundingTransaction(Networks.Robinhood, {
+      sendEvmFundingTransaction(network, {
         data: encodeFunctionData({ abi: moneriumPermitAbi, args, functionName: "permit" }),
         gas: STOCK_PERMIT_GAS_LIMIT,
         to: token
       }),
-    sendRawTransaction: async transaction =>
-      (await manager.sendRawTransactionWithRetry(Networks.Robinhood, transaction)) as `0x${string}`,
+    sendRawTransaction: async transaction => (await manager.sendRawTransactionWithRetry(network, transaction)) as `0x${string}`,
     verifyUserTransfer: verifyUserSubmittedTxByHash,
     waitForBalance: (token, owner, amountRaw, signal) =>
       checkEvmBalancePeriodically(
@@ -108,7 +108,7 @@ function defaultDependencies(): StockPermitExecutionDependencies {
         amountRaw,
         USER_TRANSFER_BALANCE_POLL_MS,
         USER_TRANSFER_BALANCE_TIMEOUT_MS,
-        Networks.Robinhood,
+        network,
         signal
       ),
     waitForReceipt: hash => client.waitForTransactionReceipt({ hash })
@@ -137,15 +137,17 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
       amountRaw,
       ephemeral,
       owner: owner as `0x${string}`,
-      tokenAddress: ROBINHOOD_STOCKS[token].address
+      tokenAddress: stockSourcePin(token).address
     };
-    const dependencies = this.injectedDependencies ?? defaultDependencies();
+    const dependencies = this.injectedDependencies ?? defaultDependencies(this.sourceNetwork(state));
     try {
-      const { paused } = await dependencies.readStockFlags(token);
-      if (paused) throw this.createRecoverableError(`StockPermitSource: trading in ${token} is paused by the issuer`);
+      if (isStockSymbol(token)) {
+        const { paused } = await dependencies.readStockFlags(token);
+        if (paused) throw this.createRecoverableError(`StockPermitSource: trading in ${token} is paused by the issuer`);
+      }
       if (isNoPermitFallback) {
         await dependencies.verifyUserTransfer({
-          fromNetwork: Networks.Robinhood,
+          fromNetwork: this.sourceNetwork(state),
           hash: state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
           label: "User stock transfer to ephemeral",
           presignedPhase: "squidRouterNoPermitTransfer",
@@ -236,7 +238,7 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
     };
     try {
       await runSerializedEvmFundingOperation(
-        Networks.Robinhood,
+        this.sourceNetwork(state),
         () =>
           this.runFinancialOperation(state, {
             attemptClass: "stock-permit",
@@ -258,7 +260,7 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
               if (!result) throw new Error(`Stock permit ${hash} has no receipt`);
               return result;
             },
-            provider: Networks.Robinhood,
+            provider: this.sourceNetwork(state),
             reconcile: async () => {
               const hash = this.getState(state).permitTxHash;
               return hash ? settle(hash, await dependencies.getReceipt(hash)) : null;
@@ -373,10 +375,10 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
           if (!result) throw new Error(`Stock transferFrom ${hash} has no receipt`);
           return result;
         },
-        provider: Networks.Robinhood,
+        provider: this.sourceNetwork(state),
         reconcile: async () => settle(await dependencies.getReceipt(deterministicHash)),
         reconcileRequestMismatch: true,
-        request: { network: Networks.Robinhood, signedTransaction: transaction },
+        request: { network: this.sourceNetwork(state), signedTransaction: transaction },
         settleAfterAbort: true,
         signal
       });
@@ -398,6 +400,10 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
       );
     }
     logger.info(`StockPermitSource confirmed exact transfer ${deterministicHash}`);
+  }
+
+  private sourceNetwork(state: RampState): typeof Networks.Base | typeof Networks.Robinhood {
+    return stockSourcePin(this.getState(state).token).network;
   }
 
   private findTransaction(state: RampState, signer: string): PresignedTx {

@@ -36,6 +36,7 @@ async function jsxModuleUrl(url) {
   return loaded.get(url.href);
 }
 const flow = async (path) => import(await jsxModuleUrl(new URL(path, import.meta.url)));
+const { default: LiveUsdcFlow } = await flow("../src/flows/LiveUsdcFlow.jsx");
 const { default: BuyFlow } = await flow("../src/flows/BuyFlow.jsx");
 const { default: SellFlow } = await flow("../src/flows/SellFlow.jsx");
 const { KycStep, POLL_RESTART_MS } = await flow("../src/flows/parts.jsx");
@@ -124,6 +125,42 @@ test("a sell with no KYC started opens the form", () => harness(async (s) => {
   assert.match(s.text(), KYC_FORM);
 }));
 
+// With USDC checkout on, the Pix flow is never the default: a USDC order must not reach the Pix KYC.
+const PIX_BUY = "Pix · Brasil Em reais, pelo seu banco";
+const USDC_BUY = "USDC · Base Da sua carteira ou exchange";
+
+test("with USDC on, a buy asks Pix or USDC before any Pix step", () => harness(async (s) => {
+  let usdc = 0;
+  await s.render(createElement(BuyFlow, { ...fixtures(notReady("not_started")), onPayUsdc: () => { usdc += 1; } }));
+  assert.match(s.text(), /Como deseja pagar\?/);
+  assert.doesNotMatch(s.text(), /Quanto deseja investir\?/);
+  await s.click(USDC_BUY);
+  assert.equal(usdc, 1);
+  await s.click(PIX_BUY);
+  assert.match(s.text(), /Quanto deseja investir\?/);
+  await s.click("Voltar");
+  assert.match(s.text(), /Como deseja pagar\?/);
+  await s.click(PIX_BUY);
+  await s.click("Continuar");
+  assert.match(s.text(), KYC_FORM, "Pix keeps its KYC");
+}));
+
+test("with USDC on, a sell asks Pix or USDC before the Pix key", () => harness(async (s) => {
+  let usdc = 0;
+  await s.render(createElement(SellFlow, { ...fixtures(notReady("not_started")), holdingRaw: 10n ** 18n, onSellUsdc: () => { usdc += 1; } }));
+  assert.match(s.text(), /Como deseja receber\?/);
+  assert.ok(document.querySelector('[role="group"][aria-label="Forma de recebimento"]'), "a payout, not a payment");
+  assert.equal(document.querySelector("#sell-amount"), null);
+  await s.click("USDC · Base Na sua carteira, na rede Base");
+  assert.equal(usdc, 1);
+  await s.click("Pix · Brasil Em reais, na sua chave Pix");
+  await s.click("Voltar");
+  assert.match(s.text(), /Como deseja receber\?/);
+  await s.click("Pix · Brasil Em reais, na sua chave Pix");
+  await sellAmount(s);
+  assert.match(s.text(), KYC_FORM, "Pix keeps its KYC");
+}));
+
 // kyc.demo fills the form, so these reach the submit with no files and no Avenia window.
 function kycWith(submit) {
   const calls = { uploads: 0, submit: 0, poll: 0 };
@@ -188,6 +225,24 @@ function resumed({ ramp, stage = "registered", adapter = {}, verification }) {
   return { calls, props: { ...props, resume: { rampId: ramp?.id ?? "ramp-1", stage } } };
 }
 const initial = (overrides = {}) => ({ id: "ramp-1", currentPhase: "initial", classification: "awaiting_payment", brlAmount: "500", tokenAmount: "0.5", depositQrCode: "pix-code-fake-test-only", startDeadline: Date.now() + 600_000, ...overrides });
+
+test("with USDC on, a resumed Pix operation and the demo deep links skip the method step", async () => {
+  await harness(async (s) => {
+    const { props } = resumed({ ramp: initial() });
+    await s.render(createElement(BuyFlow, { ...props, onPayUsdc: () => {} }));
+    await s.wait();
+    assert.match(s.text(), /Código da operação/);
+    assert.doesNotMatch(s.text(), /Como deseja pagar\?/, "a resumed Pix operation never offers USDC");
+  });
+  await harness(async (s) => {
+    await s.render(createElement(BuyFlow, { ...fixtures(approved), demoQuote: true, onPayUsdc: () => {} }));
+    assert.doesNotMatch(s.text(), /Como deseja pagar\?/, "buy-quote");
+  });
+  await harness(async (s) => {
+    await s.render(createElement(SellFlow, { ...fixtures(approved), holdingRaw: 10n ** 18n, demoReserveUsed: true, onSellUsdc: () => {} }));
+    assert.doesNotMatch(s.text(), /Como deseja receber\?/, "sell-reserve-used");
+  });
+});
 
 test("an expired Pix says a paid one continues, and offers a way out that goes back to the amount", () => harness(async (s) => {
   const { calls, props } = resumed({ ramp: initial({ startDeadline: Date.now() - 1_000 }) });
@@ -292,7 +347,7 @@ for (const [name, Flow] of [["buy", BuyFlow], ["sell", SellFlow]]) {
     assert.equal(reads, 2);
     assert.match(s.text(), /Não foi possível conectar à Vortex/);
     assert.ok(s.has("Tentar novamente"));
-    assert.equal(document.querySelector(".spinner"), null);
+    assert.equal(Boolean(document.querySelector(".spinner")), false);
   }));
 }
 
@@ -586,10 +641,13 @@ const openBuyAmount = async (s, config) => {
 test("signed in, the buy offers USDC only outside a live build, and a saved USDC choice opens nothing live", () => withFetch(noNetwork, async () => {
   await harness(async (s) => {
     await openBuyAmount(s, DEMO);
+    await s.click("Voltar");
+    assert.match(s.text(), /Como deseja pagar\?/);
     assert.match(s.text(), /USDC · Base/);
   });
   await harness(async (s) => {
     await openBuyAmount(s, LIVE);
+    assert.ok(!s.has("Voltar"), "no method step to go back to");
     assert.doesNotMatch(s.text(), /USDC · Base/);
   });
   await harness(async (s) => {
@@ -597,10 +655,39 @@ test("signed in, the buy offers USDC only outside a live build, and a saved USDC
     await renderApp(s, LIVE, true);
     await untilText(s, /NVDA/);
     for (let i = 0; i < 20; i += 1) await s.wait();
-    assert.equal(document.querySelector(".sheet"), null);
+    assert.equal(Boolean(document.querySelector(".sheet")), false);
     assert.doesNotMatch(s.text(), /USDC/);
   });
 }));
+
+// The runtime is one instance per page (useRuntime), so an earlier demo render may serve this one:
+// the check is the wiring from the detail button to the USDC buy, which does not depend on it.
+test("signed in with Pix off and USDC on, the stock page opens the USDC buy", () => withFetch(noNetwork, () => harness(async (s) => {
+  const usdcOnly = readConfig({ VITE_STOCKS_MODE: "live", VITE_PRIVY_APP_ID: "fake-test-only", VITE_STOCKS_USDC_ENABLED: "true" });
+  try {
+    window.location.hash = "#/acao/NVDA";
+    await renderApp(s, usdcOnly, true);
+    await untilText(s, /Você já pode comprar e vender com USDC na Base/);
+    await s.click("Comprar com USDC");
+    await untilText(s, /Comprar NVDA · USDC|Buy NVDA with USDC/);
+  } finally { window.location.hash = "#/"; }
+})));
+
+// Regression: with both open, "Comprar" went straight to the Pix amount, and on to the Pix KYC.
+test("signed in with Pix and USDC on, the stock page's Comprar asks how to pay and USDC opens the USDC buy", () => withFetch(noNetwork, () => harness(async (s) => {
+  const buyReady = () => [...document.querySelectorAll("button")].some((button) => button.textContent.trim() === "Comprar" && !button.disabled);
+  try {
+    window.location.hash = "#/acao/NVDA";
+    await renderApp(s, DEMO, true);
+    for (let i = 0; i < 2000 && !buyReady(); i += 1) await s.wait();
+    assert.ok(buyReady(), "the stock page's Comprar is enabled (no earlier operation left pending)");
+    await s.click("Comprar");
+    await untilText(s, /Como deseja pagar\?/);
+    assert.doesNotMatch(s.text(), /Quanto deseja investir\?/);
+    await s.click(USDC_BUY);
+    await untilText(s, /Comprar NVDA · USDC|Buy NVDA with USDC/);
+  } finally { window.location.hash = "#/"; }
+})));
 
 test("a resumed record for a token this build no longer bundles still opens its operation", () => withFetch(noNetwork, () => harness(async (s) => {
   createRampStores({ simulated: true }).activeRamp.save({ rampId: "sim-delisted", walletAddress: WALLET, rampType: "BUY", stage: "registered", symbol: "DELISTED", inputAmount: 500, outputAmount: "0.5", createdAt: Date.now(), simulated: true });
@@ -614,3 +701,85 @@ test("a resumed record for a token this build no longer bundles still opens its 
     assert.match(s.text(), /DELISTED/);
   } finally { sessionStorage.removeItem(STOCKS_KEYS.simActiveRamp); }
 })));
+
+function liveUsdcFixtures(locale = "en") {
+  const calls = { register: 0, resume: 0, start: 0 }, intents = new Map();
+  let balance = 0n, active = null;
+  const liveQuote = { ...quote, direction: "BUY", usdcAmount: 100, tokenAmount: "0.5", symbol: "NVDA", gasReserve: null,
+    fees: { network: 0.15, service: 0.05, total: 0.20, currency: "USDC" },
+    rawQuote: { inputAmount: "100", outputAmount: "0.5", totalFeeFiat: "0.20", anchorFeeFiat: "0", vortexFeeFiat: "0.05", networkFeeFiat: "0.15", routingStrategy: "direct" } };
+  const ramp = { id: "live-usdc-order", direction: "BUY", symbol: "NVDA", currentPhase: "initial", classification: "processing" };
+  const adapter = { getAvailability: async () => open, quoteBuy: async () => ({ ...liveQuote, expiresAt: Date.now()+60000 }),
+    registerBuy: async ({ onRegistered }) => { calls.register++; active = { rampId: ramp.id }; onRegistered(ramp); throw new Error("rejected"); },
+    resumeSell: async () => { calls.resume++; return ramp; }, startRamp: async () => { calls.start++; }, getRamp: async () => ({...ramp,currentPhase:"relayBridge"}) };
+  const props = fixtures(notReady("not_started"));
+  props.runtime = { ...props.runtime, locale, baseChain: { id:8453 },
+    usdc: { enabled:true, simulated:false, adapter, refreshBalance: async () => balance },
+    fundingIntents: { get: owner => intents.get(owner), save: (owner,value) => intents.set(owner,value), clear: owner => intents.delete(owner) },
+    activeRampStore: { get: () => active } };
+  return { props, calls, intents, fund: value => { balance = value; } };
+}
+
+test("live USDC shows the user's Base address, never simulated payments, and no fiat KYC", () => harness(async s => {
+  const f = liveUsdcFixtures();
+  await s.render(createElement(LiveUsdcFlow, f.props));await s.click("Get quote");
+  assert.doesNotMatch(s.text(), KYC_FORM);await s.check();await s.click("Continue to USDC payment");
+  assert.match(s.text(), /Add Base USDC/);assert.match(s.text(), new RegExp(WALLET));
+  assert.ok(document.querySelector("svg"));assert.doesNotMatch(s.text(), /Simulate incoming|Simulate wallet|Simulation/);
+  assert.equal(f.calls.register,0);assert.equal(f.intents.size,1);
+  assert.equal([...document.querySelectorAll("button")].find(b=>b.textContent==="Review fresh quote").disabled,true);
+  await s.click("Cancel order · keep USDC");assert.equal(f.intents.size,0);assert.equal(f.calls.register,0);
+}));
+test("a cancelled USDC permit resumes the same registered order instead of registering twice", () => harness(async s => {
+  const f = liveUsdcFixtures();f.fund(100000000n);
+  await s.render(createElement(LiveUsdcFlow,f.props));await s.click("Get quote");await s.check();await s.click("Confirm and authorize");
+  assert.equal(f.calls.register,1);assert.match(s.text(),/live-usdc-order/);assert.ok(s.has("Resume order"));
+  await s.click("Resume order");assert.equal(f.calls.register,1);assert.equal(f.calls.resume,1);assert.equal(f.calls.start,1);
+}));
+test("Brazilian live USDC uses Portuguese copy and the same provider costs",()=>harness(async s=>{
+  const f=liveUsdcFixtures("pt-BR");await s.render(createElement(LiveUsdcFlow,f.props));await s.click("Ver cotação");
+  assert.ok(document.querySelector(".fee-card .fee-summary > summary"));assert.match(s.text(),/Ver detalhes/);assert.match(s.text(),/100,00 USDC/);assert.match(s.text(),/0,5000 NVDA/);assert.match(s.text(),/Taxas informadas/);assert.doesNotMatch(s.text(),/Illustrative provider/);
+}));
+
+test("Brazilian live USDC words a cancelled permit in Portuguese and keeps the same order", () => harness(async s => {
+  const f = liveUsdcFixtures("pt-BR");f.fund(100000000n);
+  f.props.runtime.usdc.adapter.registerBuy = async ({ onRegistered }) => { f.calls.register++; onRegistered({ id: "live-usdc-order" }); throw Object.assign(new Error("User rejected the request."), { code: 4001 }); };
+  await s.render(createElement(LiveUsdcFlow, f.props));await s.click("Ver cotação");await s.check();await s.click("Confirmar e autorizar");
+  assert.match(document.querySelector("[role=alert]").textContent, /Confirmação cancelada\. Você pode continuar esta mesma operação\./);
+  assert.doesNotMatch(s.text(), /User rejected/);assert.ok(s.has("Retomar operação"));
+}));
+
+for (const direction of ["BUY", "SELL"]) test(`live USDC ${direction} success displays the asset actually received`,()=>harness(async s=>{
+  const f=liveUsdcFixtures();
+  f.props.direction=direction;f.props.resume={rampId:"completed-usdc-order"};
+  f.props.runtime.usdc.adapter.resumeSell=async()=>({ id:"completed-usdc-order", classification:"success", tokenAmount:"0.5", usdcAmount:"70" });
+  await s.render(createElement(LiveUsdcFlow,f.props));await s.click("Resume order");
+  const receipt=document.querySelector(".result__amount").textContent;
+  assert.match(receipt,direction==="SELL"?/70.*USDC/:/0.5.*NVDA/);
+  assert.doesNotMatch(receipt,direction==="SELL"?/NVDA/:/USDC/);
+}));
+
+test("a saved USDC order remains resumable when new USDC purchases are disabled",()=>harness(async s=>{
+  const f=liveUsdcFixtures();f.props.runtime.usdc.enabled=false;f.props.resume={rampId:"saved-order"};
+  f.props.runtime.usdc.adapter.resumeSell=async()=>({id:"saved-order",classification:"success",tokenAmount:"0.5",usdcAmount:"70"});
+  await s.render(createElement(LiveUsdcFlow,f.props));assert.ok(s.has("Resume order"));await s.click("Resume order");
+  assert.match(s.text(),/Your Stock Tokens have arrived/);assert.doesNotMatch(s.text(),/USDC is coming soon/);
+}));
+
+
+for (const reserve of [null, { brl: 0.71, ethAmount: "0.00005" }]) {
+  test(`Pix review renders retained ETH separately when quoted: ${Boolean(reserve)}`, () => harness(async s => {
+    const props = fixtures(approved);
+    props.runtime.adapter.quoteBuy = async () => ({ ...quote, gasReserve: reserve, fees: { ...quote.fees, total: 3 + (reserve?.brl || 0) } });
+    await s.render(createElement(BuyFlow, props));
+    await s.click("Continuar");
+    const line = document.querySelector(".reserve-balance");
+    assert.equal(Boolean(line), Boolean(reserve));
+    if (line) {
+      assert.match(line.textContent.replace(/\u00a0/g, " "), /Saldo para futuras taxas.*R\$ 0,71/);
+      assert.equal(line.closest(".fee-summary"), null);
+      assert.match(line.textContent, /Não é uma taxa cobrada/);
+    }
+    assert.match(document.querySelector(".fee-summary > summary").textContent.replace(/\u00a0/g, " "), /R\$ 3,00/);
+  }));
+}

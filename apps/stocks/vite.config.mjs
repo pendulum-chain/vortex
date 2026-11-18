@@ -18,7 +18,7 @@ export default defineConfig(({ mode, command }) => {
     build: {
       outDir: "dist/client",
       manifest: true,
-      rollupOptions: { input: { main: "index.html", ...(stocks.mode === "live" ? {} : { international: "international.html" }) } },
+      rollupOptions: { input: { main: "index.html", international: "international.html" } },
     },
     resolve: {
       // One copy of each, shared with @vortexfi/consumer-kit (a workspace package with peers).

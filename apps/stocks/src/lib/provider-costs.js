@@ -31,7 +31,8 @@ export function providerCostProblem(raw, reserve = null) {
     if (cost.includedIn === "fees") feeSum += Number(cost.amountFiat);
   }
   const feeTotal = Number(raw.totalFeeFiat) - (reserve?.brl || 0);
-  const feeDifferenceCents = Math.round(feeSum * 100) - Math.round(feeTotal * 100);
+  const precision = raw.feeCurrency === "USDC" ? 1e6 : 100;
+  const feeDifferenceCents = Math.round(feeSum * precision) - Math.round(feeTotal * precision);
   if (feeDifferenceCents > 1) return "fees-exceed-total";
   if (seen.size === DIRECT_PROVIDERS.length && Math.abs(feeDifferenceCents) > 1) return "fees-do-not-reconcile";
   // Vortex and network amounts cannot be hidden inside the execution rate.
@@ -40,7 +41,7 @@ export function providerCostProblem(raw, reserve = null) {
   }
   const vortex = raw.providerCosts.find((cost) => cost.id === "vortex");
   if (vortex && raw.vortexFeeFiat != null && (!validAmount(raw.vortexFeeFiat)
-    || Math.abs(Number(vortex.amountFiat) - Number(raw.vortexFeeFiat)) > 0.01)) return "vortex-fee-mismatch";
+    || Math.abs(Number(vortex.amountFiat) - Number(raw.vortexFeeFiat)) > (raw.feeCurrency === "USDC" ? 0.000001 : 0.01))) return "vortex-fee-mismatch";
   return null;
 }
 

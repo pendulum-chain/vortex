@@ -80,7 +80,9 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   // Robinhood Chain is disabled in this app, so these never need translating here.
   [QuoteError.StockTokenNotAvailable]: QuoteError.StockTokenNotAvailable,
   [QuoteError.StockTradingPaused]: QuoteError.StockTradingPaused,
-  [QuoteError.StockPriceUnavailable]: QuoteError.StockPriceUnavailable
+  [QuoteError.StockPriceUnavailable]: QuoteError.StockPriceUnavailable,
+  [QuoteError.StockDexSubsidyUnavailable]: QuoteError.StockDexSubsidyUnavailable,
+  [QuoteError.StockUsdcFundingUnavailable]: QuoteError.StockUsdcFundingUnavailable
 };
 
 function getFriendlyErrorMessage(error: unknown) {

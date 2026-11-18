@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { detailActions, flowFor } from "../src/lib/detail-actions.js";
+import { detailActions, flowFor, usdcOpen } from "../src/lib/detail-actions.js";
 import { uniformAvailability } from "../src/lib/ramp-contract.js";
 import { STOCK_TOKENS } from "../src/lib/stocks.js";
 
@@ -78,4 +78,31 @@ test("a buy or sell request resumes the pending operation instead of starting a 
   const buy = { rampId: "buy-earlier", rampType: "BUY", symbol: "SPY", stage: "registered" };
   assert.deepEqual(flowFor({ type: "sell", symbol: "NVDA" }, buy), { type: "buy", symbol: "SPY", resume: buy });
   assert.equal(flowFor({ type: "buy", symbol: "TSLA" }, { rampId: "x", rampType: "BUY" }).symbol, "TSLA", "a record without a symbol keeps the requested one");
+});
+
+test("signed in with Pix closed: USDC on Base stays open unless the issuer paused the token", () => {
+  const off = uniformAvailability(STOCK_TOKENS, "not_enabled");
+  const usdc = detailActions({ auth: signedIn, availability: off, comingSoon: true, holding, symbol: "NVDA", usdc: true });
+  assert.deepEqual([usdc.buy, usdc.sell], [{ label: "Comprar com USDC", disabled: false, usdc: true }, { label: "Vender por USDC", disabled: false, usdc: true }]);
+  assert.match(usdc.note, /USDC na Base/);
+  assert.equal(detailActions({ auth: signedIn, availability: off, comingSoon: true, holding: null, symbol: "NVDA", usdc: true }).sell.disabled, true, "no tokens, nothing to sell");
+  const pixOff = detailActions({ auth: signedIn, availability: off, comingSoon: true, holding, symbol: "NVDA" });
+  assert.deepEqual([pixOff.buy.disabled, pixOff.sell.disabled], [true, true], "without the USDC checkout nothing changes");
+  const sellClosed = Object.fromEntries(STOCK_TOKENS.map((token) => [token.symbol, { buy: true, sell: false, reason: null }]));
+  const mixed = detailActions({ auth: signedIn, availability: sellClosed, comingSoon: false, holding, symbol: "NVDA", usdc: true });
+  assert.deepEqual([mixed.buy, mixed.sell.usdc, mixed.note], [{ label: "Comprar", disabled: false }, true, null], "an open Pix buy keeps its flow, which offers USDC inside");
+  const paused = Object.fromEntries(STOCK_TOKENS.map((token) => [token.symbol, { buy: false, sell: false, reason: "paused" }]));
+  const halted = detailActions({ auth: signedIn, availability: paused, comingSoon: false, holding, symbol: "NVDA", usdc: true });
+  assert.deepEqual([halted.buy.disabled, halted.sell.disabled, halted.buy.usdc], [true, true, undefined]);
+});
+
+test("a Pix flow offers USDC only in a direction the live USDC listing opens", () => {
+  const buyOnly = { NVDA: { buy: true, sell: false, reason: null } };
+  const ask = (args) => usdcOpen({ checkout: true, live: true, listing: buyOnly, symbol: "NVDA", direction: "BUY", ...args });
+  assert.equal(ask({}), true);
+  assert.equal(ask({ direction: "SELL" }), false, "USDC sell closed on the backend");
+  assert.equal(ask({ symbol: "TSLA" }), false, "not listed");
+  assert.equal(ask({ listing: null }), false, "unread or failed listing: Pix only");
+  assert.equal(ask({ checkout: false }), false);
+  assert.equal(ask({ live: false, listing: null, direction: "SELL" }), true, "the simulated checkout has no listing");
 });

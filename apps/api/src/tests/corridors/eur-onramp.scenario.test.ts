@@ -14,6 +14,7 @@ import {
 } from "@vortexfi/shared";
 import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
+import { registerBlockFlowHandlers } from "../../api/services/phases/blocks/register-handlers";
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import { accountCapabilities } from "../../api/services/phases/blocks/core/accounts";
 import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
@@ -69,6 +70,7 @@ describe("legacy Mykobo EUR onramp recovery", () => {
 
   beforeAll(async () => {
     world = installFakeWorld();
+    registerBlockFlowHandlers();
     await setupTestDatabase();
   });
 
@@ -304,7 +306,7 @@ describe("legacy Mykobo EUR onramp recovery", () => {
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
+      expect(final?.currentPhase, JSON.stringify(final?.errorLogs)).toBe("complete");
       expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
       expect(final?.state.destinationTransferTxHash).toBeTruthy();

@@ -4,6 +4,7 @@ import {
   EvmNetworks,
   EvmTokenDetails,
   getOnChainTokenDetails,
+  OnChainToken,
   RampPhase
 } from "@vortexfi/shared";
 import { decodeFunctionData, erc20Abi, keccak256, parseTransaction } from "viem";
@@ -71,10 +72,12 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails;
+    const delivery = getBlockMetadata(quote.metadata, DestinationTransferContext);
+    const destinationNetwork = delivery.network as EvmNetworks;
+    const outTokenDetails = getOnChainTokenDetails(destinationNetwork, delivery.token as OnChainToken) as EvmTokenDetails;
     if (!outTokenDetails) {
       throw new Error(
-        `DestinationTransferExecutor: Unsupported output token ${quote.outputCurrency} for network ${quote.network}`
+        `DestinationTransferExecutor: Unsupported output token ${delivery.token} for network ${destinationNetwork}`
       );
     }
 
@@ -82,8 +85,7 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
     // The precondition must demand the exact raw integer the presigned transfer spends (and the
     // preceding subsidy funded); reconstructing it from the decimal quote.outputAmount can round
     // one raw unit above the funded amount and wedge the ramp.
-    const expectedAmountRaw = getBlockMetadata(quote.metadata, DestinationTransferContext).amountRaw;
-    const destinationNetwork = quote.network as EvmNetworks;
+    const expectedAmountRaw = delivery.amountRaw;
     const { destinationTransferTxHash, destinationAddress } = state.state as StateMetadata;
 
     if (destinationAddress) {

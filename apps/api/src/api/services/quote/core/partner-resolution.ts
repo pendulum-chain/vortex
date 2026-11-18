@@ -8,7 +8,7 @@ import { APIError } from "../../../errors/api-error";
 import { UUID_PATTERN } from "../../../helpers/uuid";
 import { findPartnerWithPricing, PartnerWithPricing } from "../../partners/partner-pricing.service";
 import { getTargetFiatCurrency } from "../../phases/blocks/core/helpers";
-import { isBrlPixRobinhoodRoute } from "../../phases/blocks/core/robinhood-stocks";
+import { isBaseUsdcRobinhoodRoute, isBrlPixRobinhoodRoute } from "../../phases/blocks/core/robinhood-stocks";
 import type { PartnerPricingSource } from "./types";
 
 const STOCKS_PRICING_PARTNER = "vortex-stocks";
@@ -104,7 +104,7 @@ export async function resolveQuotePartner(
 ): Promise<ResolvedQuotePartner> {
   const fiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
-  if (isBrlPixRobinhoodRoute(request)) {
+  if (isBrlPixRobinhoodRoute(request) || isBaseUsdcRobinhoodRoute(request)) {
     return resolveStocksPartner(request, fiatCurrency);
   }
 

@@ -124,7 +124,8 @@ function partitionUnsignedTxs(
 // and validated. This prevents older SDK versions from kicking off the user's source-of-funds
 // transfer when the backend has added new ephemeral txs that the SDK does not know how to sign.
 function filterUnsignedTxsForResponse(rampState: RampState, ephemeralPresignChecksPass: boolean): UnsignedTx[] {
-  if (rampState.type !== RampDirection.SELL) return rampState.unsignedTxs;
+  const stockFunding = rampState.unsignedTxs.some(tx => tx.phase === "stockPermitTransfer");
+  if (rampState.type !== RampDirection.SELL && !stockFunding) return rampState.unsignedTxs;
   if (ephemeralPresignChecksPass) return rampState.unsignedTxs;
 
   const { ephemeralTxs } = partitionUnsignedTxs(rampState.unsignedTxs, {

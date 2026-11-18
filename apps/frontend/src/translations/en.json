@@ -1748,6 +1748,44 @@
         "title": "Supported Networks"
       }
     },
+    "productDiscovery": {
+      "business": {
+        "build": "Build with Vortex",
+        "description": "Two products. Your own experience. Vortex handles onboarding, payments and settlement.",
+        "docs": "Read the docs",
+        "eyebrow": "BUILT WITH VORTEX",
+        "gold": {
+          "action": "View Gold example",
+          "previewAlt": "Illustrative preview of ouro., the Vortex gold app in Portuguese.",
+          "title": "Gold app"
+        },
+        "market": "Brazil · Pix examples",
+        "stocks": {
+          "action": "View Stocks example",
+          "previewAlt": "Illustrative preview of fatia., the Vortex Stock Tokens app in Portuguese.",
+          "title": "Stocks app"
+        },
+        "title": "See what you can build with Vortex."
+      },
+      "individuals": {
+        "accent": "Fair fees. Clear costs.",
+        "description": "Start with Pix in Brazil. See your total cost before you pay.",
+        "eyebrow": "INVEST WITH VORTEX",
+        "gold": {
+          "action": "Explore Gold",
+          "description": "Gold-backed tokens.\nBought with Pix.",
+          "title": "Gold"
+        },
+        "market": "Brazil · Pix",
+        "qualification": "You buy tokens, not physical gold or company shares.",
+        "stocks": {
+          "action": "Explore Stocks",
+          "description": "US Stock Tokens.\nBought with Pix.",
+          "title": "Stocks"
+        },
+        "title": "Gold and US stock tokens."
+      }
+    },
     "trustedBy": {
       "comingSoon": "Coming soon",
       "title": "Trusted by"

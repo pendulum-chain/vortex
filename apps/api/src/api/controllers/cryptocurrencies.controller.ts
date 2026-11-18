@@ -20,9 +20,9 @@ export const getSupportedCryptocurrenciesHandler = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { network } = req.query;
+    const { network, paymentMethod } = req.query;
 
-    const cryptocurrencies: SupportedCryptocurrencyDetails[] = getSupportedCryptocurrencies(network);
+    const cryptocurrencies: SupportedCryptocurrencyDetails[] = getSupportedCryptocurrencies(network, undefined, paymentMethod);
 
     res.status(httpStatus.OK).json({
       cryptocurrencies

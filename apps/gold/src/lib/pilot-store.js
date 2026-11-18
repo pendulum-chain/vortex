@@ -1,50 +1,24 @@
-const ACTIVE_KEY = "satoshi:gold:active-ramp:v1";
-const HISTORY_KEY = "satoshi:gold:history:v1";
+import { createActiveRampStore } from "@vortexfi/consumer-kit";
 
-function read(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch { return fallback; }
+// Same keys; the shared store reads legacy single records and isolates unfinished orders by wallet.
+export const goldRampStore = createActiveRampStore({ activeKey: "satoshi:gold:active-ramp:v1", historyKey: "satoshi:gold:history:v1" });
+// Only createdAt carries over. A save without a stage means "registered", as before the shared
+// store: inheriting the SDK callback's "registering" would hide a registered buy's Pix QR on resume.
+export function saveActiveRamp(record) {
+  const existing = goldRampStore.get(record.walletAddress);
+  return goldRampStore.save({ ...record, createdAt: record.createdAt ?? existing?.createdAt ?? Date.now() });
 }
-
-export function saveActiveRamp({ rampId, walletAddress, inputAmount, outputAmount, rampType = "BUY", stage = "registered", createdAt = Date.now() }) {
-  const existing = read(ACTIVE_KEY, null);
-  const safe = { rampId, walletAddress: walletAddress?.toLowerCase(), inputAmount: String(inputAmount || ""), outputAmount: String(outputAmount || ""), rampType, stage, transactions: existing?.rampId === rampId ? existing.transactions || {} : {}, createdAt };
-  localStorage.setItem(ACTIVE_KEY, JSON.stringify(safe));
-  return safe;
-}
-
-export function saveTransactionCheckpoint(rampId, phase, hash) {
-  const active = read(ACTIVE_KEY, null);
-  if (active?.rampId !== rampId) throw new Error("Não foi possível salvar a operação. Pare e contate o suporte.");
-  localStorage.setItem(ACTIVE_KEY, JSON.stringify({ ...active, transactions: { ...active.transactions, [phase]: hash } }));
-}
-
-export function getActiveRamp(walletAddress) {
-  const active = read(ACTIVE_KEY, null);
-  if (!active || !walletAddress || active.walletAddress !== walletAddress.toLowerCase()) return null;
-  return active;
-}
-
-export function clearActiveRamp(rampId) {
-  const active = read(ACTIVE_KEY, null);
-  if (!rampId || active?.rampId === rampId) localStorage.removeItem(ACTIVE_KEY);
-}
-
-// A failed or abandoned operation stops blocking new ones but stays listed with its code for support.
-export function failActiveRamp(rampId) {
-  const active = read(ACTIVE_KEY, null);
-  if (!rampId || active?.rampId !== rampId) return;
-  const { walletAddress, inputAmount, outputAmount, rampType } = active;
-  addRampHistory({ rampId, walletAddress, inputAmount, outputAmount, rampType, status: "failed" });
-  localStorage.removeItem(ACTIVE_KEY);
-}
-
-export function addRampHistory(item) {
-  const history = read(HISTORY_KEY, []);
-  const next = [{ ...item, completedAt: Date.now() }, ...history.filter((entry) => entry.rampId !== item.rampId)].slice(0, 12);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-  return next;
-}
-
-export function getRampHistory(walletAddress) {
-  return read(HISTORY_KEY, []).filter((item) => item.walletAddress === walletAddress?.toLowerCase());
+export const saveTransactionCheckpoint = (id, phase, hash) => goldRampStore.checkpoint(id, phase, hash);
+export const getActiveRamp = (owner) => goldRampStore.get(owner);
+export const clearActiveRamp = (id) => goldRampStore.clear(id);
+export const addRampHistory = (item) => goldRampStore.addHistory(item);
+export const getRampHistory = (owner) => goldRampStore.history(owner);
+export function failActiveRamp(id) {
+  let all;
+  try { all = JSON.parse(localStorage.getItem("satoshi:gold:active-ramp:v1") || "null"); } catch { return; }
+  const record = all?.rampId === id ? all : Object.values(all || {}).find((r) => r?.rampId === id);
+  if (!record) return;
+  const { walletAddress, inputAmount, outputAmount, rampType, network, paymentMethod } = record;
+  addRampHistory({ rampId: id, walletAddress, inputAmount, outputAmount, rampType, status: "failed", ...(network ? { network } : {}), ...(paymentMethod ? { paymentMethod } : {}) });
+  clearActiveRamp(id);
 }

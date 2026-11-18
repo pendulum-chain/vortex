@@ -6,9 +6,11 @@ import { createDemoVerification } from "./lib/demo-verification.js";
 import { serverHistoryRows } from "./lib/history.js";
 import { DEMO_GAS_PRICE_WEI, DEMO_RESERVE_DUST_WEI, createDemoHoldings, createRobinhoodClient, readPortfolio, tokenFlags, valuePortfolio } from "./lib/portfolio.js";
 import { createRampAdapter, withIssuerPauses } from "./lib/ramp-adapter.js";
-import { USDC_CHECKOUT } from "./lib/config.js";
+import { USDC_CHECKOUT, USDC_SIMULATION } from "./lib/config.js";
 import { STOCKS_KEYS, createRampStores } from "./lib/stores.js";
 import { getVortexSession } from "./services.js";
+import { base } from "viem/chains";
+import { createLiveUsdc, fundingIntentStore } from "./lib/live-usdc.js";
 import { createUsdcCheckout } from "./lib/usdc-checkout.js";
 
 /**
@@ -33,10 +35,10 @@ export function createRuntime({ config, market }) {
     }
     return scopedHoldings.get(owner);
   };
-  const usdc = USDC_CHECKOUT ? createUsdcCheckout({ mode: config.mode, storage: tabStorage, activeRampStore: stores.activeRamp, holdings: usdcHoldings,
+  const session = getVortexSession();
+  const usdc = (!USDC_SIMULATION || config.rampKind === "vortex") ? createLiveUsdc({ config, session, stores }) : USDC_CHECKOUT ? createUsdcCheckout({ mode: config.mode, storage: tabStorage, activeRampStore: stores.activeRamp, holdings: usdcHoldings,
     getPrice: (symbol) => { const s = market.peek(); const p = s.status === "unavailable" ? null : s.prices[symbol]; return p ? { usd: p.usd, updatedAt: p.updatedAt ?? s.savedAt } : null; },
   }) : null;
-  const session = getVortexSession();
   const demoVerification = demo ? createDemoVerification() : null;
   const kyc = demoVerification ? demoVerification.kyc : createBrazilKyc({ session });
   const adapter = createRampAdapter(config, {
@@ -67,17 +69,17 @@ export function createRuntime({ config, market }) {
 
   /** Server history, only with a Vortex session already verified in this tab; never prompts. */
   async function serverHistory({ email, privyDid }) {
-    if (adapter.kind !== "vortex" || !adapter.enabled || !session.hasSession({ email, privyDid })) return null;
+    if (adapter.kind !== "vortex" || (!adapter.enabled && !usdc?.enabled) || !session.hasSession({ email, privyDid })) return null;
     return serverHistoryRows(await session.authenticatedApi("/v1/ramp/history?limit=20", { method: "GET" }), config.network);
   }
 
   /** The wallet a real sell signs with, on Robinhood Chain. A simulated sell never touches it. */
-  async function walletSeam(auth) {
+  async function walletSeam(auth, chain = robinhoodChain) {
     if (adapter.kind !== "vortex") return { provider: null, chain: robinhoodChain };
-    await auth.switchChain(robinhoodChain);
+    await auth.switchChain(chain);
     const provider = await auth.getEthereumProvider();
     if (!provider) throw Object.assign(new Error("Sua carteira ainda está sendo preparada. Aguarde alguns segundos."), { code: "WALLET_NOT_READY" });
-    return { provider, chain: robinhoodChain };
+    return { provider, chain };
   }
 
   /** Demo deep link sell-reserve-used only: the demo gas reserve spent down to dust. */
@@ -94,6 +96,7 @@ export function createRuntime({ config, market }) {
   }
 
   return {
+    locale: config.locale, fundingIntents: fundingIntentStore(tabStorage), baseChain: base,
     adapter, usdc, activeRampStore: stores.activeRamp, verification, kyc, getReadiness,
     readHoldings, readGasPrice, valuePortfolio, tokenFlags, withIssuerPauses, serverHistory, walletSeam, resetDemo, spendDemoReserve,
     simulated: adapter.kind === "simulated",

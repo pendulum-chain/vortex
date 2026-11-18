@@ -24,6 +24,7 @@ export interface SupportedCryptocurrencyDetailsBase {
 
 export interface GetSupportedCryptocurrenciesRequest {
   network: Networks;
+  paymentMethod?: "pix" | "usdc";
 }
 
 export interface GetSupportedCryptocurrenciesResponse {

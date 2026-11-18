@@ -1765,6 +1765,8 @@ export interface paths {
                      * @example ethereum
                      */
                     network: components["schemas"]["SupportedCryptocurrencyNetwork"];
+                    /** @description For robinhood, select independently enabled Pix or native Base-USDC directions. Defaults to pix. */
+                    paymentMethod?: "pix" | "usdc";
                 };
                 header?: never;
                 path?: never;
@@ -2389,6 +2391,7 @@ export interface components {
             /** @description Immutable idempotency key for this subject within the authenticated manager. */
             externalSubjectId: string;
         };
+        /** @description Stock Tokens support BRL/Pix or native Base USDC only. For USDC BUY: from=base, to=robinhood, network=robinhood, inputCurrency=USDC, outputCurrency=<allowlisted stock>. Reverse these for SELL (outputCurrency=USDC). BUY USDC amounts accept up to 6 decimals and must be between 10 and 1000000. Discovery and direction enablement are independent from Pix. Best quotes do not evaluate robinhood. */
         CreateQuoteRequest: {
             /** @description Your api key, if available. */
             apiKey?: string;
@@ -3325,7 +3328,7 @@ export interface components {
              */
             memoType?: string;
         };
-        /** @description `PIX`, `SEPA`, `CBU` */
+        /** @description Payment method, including pix, sepa, cbu, and usdc (native Base USDC for Stock Tokens). */
         PaymentMethod: string;
         /** @description A transaction envelope from registration with its raw transaction or typed-data signature attached. */
         PresignedTx: components["schemas"]["UnsignedTx"];
@@ -3365,6 +3368,14 @@ export interface components {
             /** @description The input amount specified in the request. */
             inputAmount?: string;
             inputCurrency?: components["schemas"]["RampCurrency"];
+            /** @description Only configured BRL/Pix Stocks routes. Informational fee-only rebate, already included once in output and net Nabla provider cost; never subtract it again. Other costs and price effects remain. */
+            nablaFeeSubsidy?: {
+                amountFiat: string;
+                amountUsd: string;
+                chargedFeeBps: string;
+                currency: string;
+                effectiveFeeBps: string;
+            };
             networkFeeFiat: string;
             networkFeeUSD: string;
             /** @description The calculated output amount after fees and conversions. */
@@ -3372,6 +3383,7 @@ export interface components {
             outputCurrency?: components["schemas"]["RampCurrency"];
             partnerFeeFiat: string;
             partnerFeeUSD: string;
+            paymentMethod?: components["schemas"]["PaymentMethod"];
             processingFeeFiat: string;
             processingFeeUSD: string;
             /** @description Stock corridor only: an itemized view of what each leg of the route costs. Rows with `includedIn: fees` add up to the total fee less the gas reserve. Rows with `includedIn: rate` are signed estimates already reflected in the output amount. */
@@ -3499,7 +3511,7 @@ export interface components {
             taxId: string;
         };
         RegisterRampRequest: {
-            /** @description Optional route data. For Brazil onramps, destinationAddress is required. For Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID. For EUR BUY, destinationAddress is required; profile, owner address, and IBAN are derived server-side and must not be supplied. */
+            /** @description Optional route data. For Brazil onramps, destinationAddress is required. For Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID. For EUR BUY, destinationAddress is required; profile, owner address, and IBAN are derived server-side and must not be supplied. For native Base-USDC Stock Token BUY/SELL, walletAddress and destinationAddress must be the same wallet. No fiat-provider identity fields are used. The owner permit is withheld until ephemeral transactions are presigned; never start before validating and submitting that permit. */
             additionalData?: {
                 /** @description Destination address, used for onramp. */
                 destinationAddress?: string;

@@ -432,15 +432,15 @@ CreateBestQuoteRequest: {
   api?: boolean;
   apiKey?: string;
   countryCode?: string;
-  from?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   networks?: Array<enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" }>;
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerId?: string;
-  paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE;
+  paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE;
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
-  to?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
 }
 
 CreateQuoteRequest: {
@@ -448,15 +448,15 @@ CreateQuoteRequest: {
   apiKey?: string;
   countryCode?: string;
   destinationAddress?: string;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerId?: string;
-  paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE;
+  paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE;
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
 }
 
 CreateSiweRequest: {
@@ -857,7 +857,7 @@ DomesticStatusResponse: {
   status: enum AlfredPayStatus { Consulted = "CONSULTED", Failed = "FAILED", LinkOpened = "LINK_OPENED", Success = "SUCCESS", UpdateRequired = "UPDATE_REQUIRED", UserCompleted = "USER_COMPLETED", Verifying = "VERIFYING" };
 }
 
-EPaymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" }
+EPaymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" }
 
 EphemeralAccountType: enum EphemeralAccountType { EVM = "EVM", Substrate = "Substrate" }
 
@@ -960,12 +960,12 @@ GetRampHistoryResponse: {
     expiresAt: string;
     externalTxExplorerLink?: string;
     externalTxHash?: string;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     fromAmount: string;
     fromCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     id: string;
     status: enum TransactionStatus { COMPLETE = "COMPLETE", FAILED = "FAILED", PENDING = "PENDING" };
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     toAmount: string;
     toCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -979,12 +979,12 @@ GetRampHistoryTransaction: {
   expiresAt: string;
   externalTxExplorerLink?: string;
   externalTxHash?: string;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   fromAmount: string;
   fromCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   id: string;
   status: enum TransactionStatus { COMPLETE = "COMPLETE", FAILED = "FAILED", PENDING = "PENDING" };
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   toAmount: string;
   toCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -1030,7 +1030,7 @@ GetRampStatusResponse: {
   discountUsd?: string;
   expiresAt?: string;
   feeCurrency: string;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -1051,13 +1051,13 @@ GetRampStatusResponse: {
   outputCurrency: string;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   quoteId: string;
   sessionId?: string;
   status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   transactionExplorerLink?: string;
@@ -1172,6 +1172,7 @@ GetSupportedCountryResponse: {
 
 GetSupportedCryptocurrenciesRequest: {
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
+  paymentMethod?: "pix" | "usdc";
 }
 
 GetSupportedCryptocurrenciesResponse: {
@@ -1210,7 +1211,7 @@ GetSupportedPaymentMethodsRequest: {
 
 GetSupportedPaymentMethodsResponse: {
   paymentMethods: Array<{
-    id: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    id: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     name: enum PaymentMethodName { ACH = "ACH", CBU = "CBU", PIX = "PIX", SEPA = "SEPA", SPEI = "SPEI", WIRE = "WIRE" };
     supportedFiats: Array<{
       id: enum FiatToken { ARS = "ARS", BRL = "BRL", COP = "COP", EURC = "EUR", MXN = "MXN", USD = "USD" };
@@ -1259,7 +1260,7 @@ GetWidgetUrlRefresh: {
   inputAmount: string;
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   partnerId?: string;
-  paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE;
+  paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE;
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   walletAddressLocked?: string;
 }
@@ -1285,6 +1286,14 @@ MoonpayPriceResponse: {
   quoteAmount: number;
   requestedAmount: number;
   totalFee: number;
+}
+
+NablaFeeSubsidyDisplay: {
+  amountFiat: string;
+  amountUsd: string;
+  chargedFeeBps: string;
+  currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  effectiveFeeBps: string;
 }
 
 ONBOARDING_REQUIREMENTS: Record<"AR" | "BR" | "CO" | "MX" | "US", Partial<Record<"business" | "individual", {
@@ -1362,10 +1371,10 @@ PaymentData: {
   memoType: "hash" | "id" | "text";
 }
 
-PaymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" }
+PaymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" }
 
 PaymentMethodConfig: {
-  id: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  id: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   name: enum PaymentMethodName { ACH = "ACH", CBU = "CBU", PIX = "PIX", SEPA = "SEPA", SPEI = "SPEI", WIRE = "WIRE" };
   supportedFiats: Array<{
     id: enum FiatToken { ARS = "ARS", BRL = "BRL", COP = "COP", EURC = "EUR", MXN = "MXN", USD = "USD" };
@@ -1522,7 +1531,7 @@ ProviderCost: {
   provider: "avenia" | "nabla" | "network" | "relay" | "uniswap" | "vortex";
 }
 
-QuoteError: enum QuoteError { AboveUpperLimitBuy = "Input amount exceeds maximum BUY limit of", AboveUpperLimitSell = "Output amount exceeds maximum SELL limit of", AnchorTemporarilyUnavailable = "This payment provider is temporarily unavailable. Please try again in a few minutes.", AssetHubNotSupportedForAlfredPay = "AssetHub is not supported for this currency. Please select a different network.", BelowLowerLimitBuy = "Input amount below minimum BUY limit of", BelowLowerLimitSell = "Output amount below minimum SELL limit of", EurOnrampNetworkUnsupported = "EUR pay-ins are not available on this network yet. Please select a different network.", FailedToCalculateFeeComponents = "Failed to calculate fee components", FailedToCalculatePreNablaDeductibleFees = "Failed to calculate pre-Nabla deductible fees", FailedToCalculateQuote = "Failed to calculate the quote. Please try a lower amount.", InputAmountForSwapMustBeGreaterThanZero = "Input amount for swap must be greater than 0", InputAmountTooLow = "Input amount too low. Please try a larger amount.", InputAmountTooLowToCoverCalculatedFees = "Input amount too low to cover calculated fees.", InputAmountTooLowToCoverFees = "Input amount too low to cover fees", InvalidNetworks = "Invalid 'networks' value: must be an array of valid network identifiers", InvalidRampType = "Invalid ramp type, must be \"BUY\" or \"SELL\"", LowLiquidity = "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.", MissingFromField = "BUY rampType requires 'from' parameter", MissingRequiredFields = "Missing required fields", MissingToField = "SELL rampType requires 'to' parameter", NetworkFeesTooHigh = "Destination network fees are temporarily too high. Please try again later.", QuoteNotFound = "Quote not found", StockPriceUnavailable = "The market price for this token is temporarily unavailable. Please try again later.", StockTokenNotAvailable = "This token is not available on Robinhood Chain.", StockTradingPaused = "Trading in this token is paused by the issuer. Please try again later.", UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details", UnsupportedCurrency = "Currency not supported" }
+QuoteError: enum QuoteError { AboveUpperLimitBuy = "Input amount exceeds maximum BUY limit of", AboveUpperLimitSell = "Output amount exceeds maximum SELL limit of", AnchorTemporarilyUnavailable = "This payment provider is temporarily unavailable. Please try again in a few minutes.", AssetHubNotSupportedForAlfredPay = "AssetHub is not supported for this currency. Please select a different network.", BelowLowerLimitBuy = "Input amount below minimum BUY limit of", BelowLowerLimitSell = "Output amount below minimum SELL limit of", EurOnrampNetworkUnsupported = "EUR pay-ins are not available on this network yet. Please select a different network.", FailedToCalculateFeeComponents = "Failed to calculate fee components", FailedToCalculatePreNablaDeductibleFees = "Failed to calculate pre-Nabla deductible fees", FailedToCalculateQuote = "Failed to calculate the quote. Please try a lower amount.", InputAmountForSwapMustBeGreaterThanZero = "Input amount for swap must be greater than 0", InputAmountTooLow = "Input amount too low. Please try a larger amount.", InputAmountTooLowToCoverCalculatedFees = "Input amount too low to cover calculated fees.", InputAmountTooLowToCoverFees = "Input amount too low to cover fees", InvalidNetworks = "Invalid 'networks' value: must be an array of valid network identifiers", InvalidRampType = "Invalid ramp type, must be \"BUY\" or \"SELL\"", LowLiquidity = "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.", MissingFromField = "BUY rampType requires 'from' parameter", MissingRequiredFields = "Missing required fields", MissingToField = "SELL rampType requires 'to' parameter", NetworkFeesTooHigh = "Destination network fees are temporarily too high. Please try again later.", QuoteNotFound = "Quote not found", StockDexSubsidyUnavailable = "The stock DEX fee subsidy exceeds its configured budget. Please try again later.", StockPriceUnavailable = "The market price for this token is temporarily unavailable. Please try again later.", StockTokenNotAvailable = "This token is not available on Robinhood Chain.", StockTradingPaused = "Trading in this token is paused by the issuer. Please try again later.", StockUsdcFundingUnavailable = "Base USDC funding is temporarily unavailable. Please try again later.", UnableToGetPendulumTokenDetails = "Unable to get Pendulum token details", UnsupportedCurrency = "Currency not supported" }
 
 QuoteFeeStructure: {
   anchor: string;
@@ -1546,7 +1555,7 @@ QuoteResponse: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -1555,6 +1564,13 @@ QuoteResponse: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -1562,7 +1578,7 @@ QuoteResponse: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -1574,7 +1590,7 @@ QuoteResponse: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -1612,7 +1628,7 @@ RampProcess: {
   currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
   depositQrCode?: string;
   expiresAt?: string;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   ibanPaymentData?: {
     bic: string;
     iban: string;
@@ -1625,11 +1641,11 @@ RampProcess: {
   network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   outputAmount: string;
   outputCurrency: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   quoteId: string;
   sessionId?: string;
   status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   transactionExplorerLink?: string;
   transactionHash?: string;
   type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -1760,7 +1776,7 @@ RegisterRampResponse: {
   currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
   depositQrCode?: string;
   expiresAt?: string;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   ibanPaymentData?: {
     bic: string;
     iban: string;
@@ -1773,11 +1789,11 @@ RegisterRampResponse: {
   network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   outputAmount: string;
   outputCurrency: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   quoteId: string;
   sessionId?: string;
   status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   transactionExplorerLink?: string;
   transactionHash?: string;
   type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -1952,7 +1968,7 @@ StartRampResponse: {
   currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
   depositQrCode?: string;
   expiresAt?: string;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   ibanPaymentData?: {
     bic: string;
     iban: string;
@@ -1965,11 +1981,11 @@ StartRampResponse: {
   network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   outputAmount: string;
   outputCurrency: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   quoteId: string;
   sessionId?: string;
   status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   transactionExplorerLink?: string;
   transactionHash?: string;
   type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -2448,7 +2464,7 @@ UpdateRampResponse: {
   currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
   depositQrCode?: string;
   expiresAt?: string;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   ibanPaymentData?: {
     bic: string;
     iban: string;
@@ -2461,11 +2477,11 @@ UpdateRampResponse: {
   network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   outputAmount: string;
   outputCurrency: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   quoteId: string;
   sessionId?: string;
   status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   transactionExplorerLink?: string;
   transactionHash?: string;
   type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -3244,7 +3260,7 @@ AlfredpayOfframpQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3253,6 +3269,13 @@ AlfredpayOfframpQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3260,7 +3283,7 @@ AlfredpayOfframpQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3272,7 +3295,7 @@ AlfredpayOfframpQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -3328,7 +3351,7 @@ AlfredpayOnrampQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3337,6 +3360,13 @@ AlfredpayOnrampQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3344,7 +3374,7 @@ AlfredpayOnrampQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3356,7 +3386,7 @@ AlfredpayOnrampQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -3395,6 +3425,9 @@ AnyAdditionalData: {
   destinationAddress: string;
   taxId?: string;
 } | {
+  destinationAddress: string;
+  walletAddress: string;
+} | {
   fiatAccountId: string;
   sessionId?: string;
   walletAddress: string;
@@ -3418,7 +3451,7 @@ AnyQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3427,6 +3460,13 @@ AnyQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3434,7 +3474,7 @@ AnyQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3446,7 +3486,7 @@ AnyQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -3467,7 +3507,7 @@ AnyQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3476,6 +3516,13 @@ AnyQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3483,7 +3530,7 @@ AnyQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3495,7 +3542,7 @@ AnyQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -3516,7 +3563,7 @@ AnyQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3525,6 +3572,13 @@ AnyQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3532,7 +3586,7 @@ AnyQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3544,7 +3598,7 @@ AnyQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -3565,7 +3619,7 @@ AnyQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3574,6 +3628,13 @@ AnyQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3581,7 +3642,7 @@ AnyQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3593,7 +3654,7 @@ AnyQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -3614,7 +3675,7 @@ AnyQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3623,6 +3684,13 @@ AnyQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3630,7 +3698,7 @@ AnyQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3642,7 +3710,7 @@ AnyQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -3663,7 +3731,7 @@ AnyQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3672,6 +3740,13 @@ AnyQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3679,7 +3754,7 @@ AnyQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3691,7 +3766,7 @@ AnyQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -3750,7 +3825,7 @@ BrlOfframpQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3759,6 +3834,13 @@ BrlOfframpQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3766,7 +3848,7 @@ BrlOfframpQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3778,7 +3860,7 @@ BrlOfframpQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -3821,7 +3903,7 @@ BrlOnrampQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3830,6 +3912,13 @@ BrlOnrampQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3837,7 +3926,7 @@ BrlOnrampQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3849,7 +3938,7 @@ BrlOnrampQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -3864,15 +3953,15 @@ CreateQuoteRequest: {
   apiKey?: string;
   countryCode?: string;
   destinationAddress?: string;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerId?: string;
-  paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE;
+  paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE;
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
 }
 
 DomesticCountry: enum DomesticCountry { AR = "AR", BO = "BO", BR = "BR", CL = "CL", CN = "CN", CO = "CO", DO = "DO", HK = "HK", MX = "MX", PE = "PE", US = "US" }
@@ -3942,7 +4031,7 @@ DomesticOfframpQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -3951,6 +4040,13 @@ DomesticOfframpQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -3958,7 +4054,7 @@ DomesticOfframpQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -3970,7 +4066,7 @@ DomesticOfframpQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4024,7 +4120,7 @@ DomesticOnrampQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4033,6 +4129,13 @@ DomesticOnrampQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4040,7 +4143,7 @@ DomesticOnrampQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4052,7 +4155,7 @@ DomesticOnrampQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4062,7 +4165,7 @@ DomesticOnrampQuote: {
   rampType: RampDirection.BUY;
 }
 
-EPaymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" }
+EPaymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" }
 
 EphemeralChain: "EVM" | "Substrate"
 
@@ -4117,7 +4220,7 @@ EurOfframpQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4126,6 +4229,13 @@ EurOfframpQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4133,7 +4243,7 @@ EurOfframpQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4145,7 +4255,7 @@ EurOfframpQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4191,7 +4301,7 @@ EurOnrampQuote: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4200,6 +4310,13 @@ EurOnrampQuote: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4207,7 +4324,7 @@ EurOnrampQuote: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4219,7 +4336,7 @@ EurOnrampQuote: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4246,15 +4363,15 @@ ExtendedQuoteResponse: <T extends {
   apiKey?: string;
   countryCode?: string;
   destinationAddress?: string;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerId?: string;
-  paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE;
+  paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE;
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
 }> T extends {
   inputCurrency: FiatToken.ARS | FiatToken.COP | FiatToken.MXN | FiatToken.USD;
   rampType: RampDirection.BUY;
@@ -4271,7 +4388,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4280,6 +4397,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4287,7 +4411,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4299,7 +4423,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4323,7 +4447,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4332,6 +4456,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4339,7 +4470,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4351,7 +4482,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4375,7 +4506,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4384,6 +4515,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4391,7 +4529,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4403,7 +4541,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4427,7 +4565,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4436,6 +4574,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4443,7 +4588,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4455,7 +4600,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4479,7 +4624,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4488,6 +4633,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4495,7 +4647,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4507,7 +4659,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4531,7 +4683,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4540,6 +4692,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4547,7 +4706,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4559,7 +4718,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4580,7 +4739,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4589,6 +4748,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4596,7 +4762,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4608,7 +4774,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4629,7 +4795,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4638,6 +4804,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4645,7 +4818,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4657,7 +4830,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4678,7 +4851,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4687,6 +4860,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4694,7 +4874,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4706,7 +4886,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4727,7 +4907,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4736,6 +4916,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4743,7 +4930,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4755,7 +4942,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4776,7 +4963,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4785,6 +4972,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4792,7 +4986,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4804,7 +4998,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -4825,7 +5019,7 @@ ExtendedQuoteResponse: <T extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -4834,6 +5028,13 @@ ExtendedQuoteResponse: <T extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -4841,7 +5042,7 @@ ExtendedQuoteResponse: <T extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -4853,7 +5054,7 @@ ExtendedQuoteResponse: <T extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -5130,7 +5331,7 @@ OfframpUpdateAdditionalData: {
   squidRouterSwapHash?: string;
 }
 
-PaymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" }
+PaymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" }
 
 QuoteExpiredError: class QuoteExpiredError {
   constructor();
@@ -5163,7 +5364,7 @@ QuoteResponse: {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -5172,6 +5373,13 @@ QuoteResponse: {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -5179,7 +5387,7 @@ QuoteResponse: {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -5191,7 +5399,7 @@ QuoteResponse: {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -5327,7 +5535,7 @@ RegisterRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -5336,6 +5544,13 @@ RegisterRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -5343,7 +5558,7 @@ RegisterRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -5355,7 +5570,7 @@ RegisterRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -5373,7 +5588,7 @@ RegisterRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -5382,6 +5597,13 @@ RegisterRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -5389,7 +5611,7 @@ RegisterRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -5401,7 +5623,126 @@ RegisterRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  totalFeeFiat: string;
+  totalFeeUsd: string;
+  vortexFeeFiat: string;
+  vortexFeeUsd: string;
+} & {
+  from: Networks.Base;
+  inputCurrency: EvmToken.USDC;
+  rampType: RampDirection.BUY;
+  to: Networks.Robinhood;
+} | {
+  alfredpayInputLimits?: {
+    max: string;
+    min: string;
+  };
+  anchorFeeFiat: string;
+  anchorFeeUsd: string;
+  createdAt: Date;
+  discountCurrency?: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  discountFiat?: string;
+  discountUsd?: string;
+  expiresAt: Date;
+  feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  gasReserveAmount?: string;
+  gasReserveCurrency?: "ETH";
+  gasReserveFiat?: string;
+  gasReserveUsd?: string;
+  gasless?: boolean;
+  id: string;
+  inputAmount: string;
+  inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
+  network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
+  networkFeeFiat: string;
+  networkFeeUsd: string;
+  outputAmount: string;
+  outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  partnerFeeFiat: string;
+  partnerFeeUsd: string;
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
+  processingFeeFiat: string;
+  processingFeeUsd: string;
+  providerCosts?: Array<{
+    amountFiat: string;
+    id: "bridge" | "conversion" | "network" | "ramp" | "swap" | "vortex";
+    includedIn: "fees" | "rate";
+    provider: "avenia" | "nabla" | "network" | "relay" | "uniswap" | "vortex";
+  }>;
+  rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
+  routingStrategy?: "direct";
+  sessionId?: string;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  totalFeeFiat: string;
+  totalFeeUsd: string;
+  vortexFeeFiat: string;
+  vortexFeeUsd: string;
+} & {
+  from: Networks.Robinhood;
+  outputCurrency: EvmToken.USDC;
+  rampType: RampDirection.SELL;
+  to: Networks.Base;
+} ? {
+  destinationAddress: string;
+  walletAddress: string;
+} : Q extends {
+  alfredpayInputLimits?: {
+    max: string;
+    min: string;
+  };
+  anchorFeeFiat: string;
+  anchorFeeUsd: string;
+  createdAt: Date;
+  discountCurrency?: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  discountFiat?: string;
+  discountUsd?: string;
+  expiresAt: Date;
+  feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  gasReserveAmount?: string;
+  gasReserveCurrency?: "ETH";
+  gasReserveFiat?: string;
+  gasReserveUsd?: string;
+  gasless?: boolean;
+  id: string;
+  inputAmount: string;
+  inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
+  network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
+  networkFeeFiat: string;
+  networkFeeUsd: string;
+  outputAmount: string;
+  outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  partnerFeeFiat: string;
+  partnerFeeUsd: string;
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
+  processingFeeFiat: string;
+  processingFeeUsd: string;
+  providerCosts?: Array<{
+    amountFiat: string;
+    id: "bridge" | "conversion" | "network" | "ramp" | "swap" | "vortex";
+    includedIn: "fees" | "rate";
+    provider: "avenia" | "nabla" | "network" | "relay" | "uniswap" | "vortex";
+  }>;
+  rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
+  routingStrategy?: "direct";
+  sessionId?: string;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -5427,7 +5768,7 @@ RegisterRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -5436,6 +5777,13 @@ RegisterRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -5443,7 +5791,7 @@ RegisterRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -5455,7 +5803,7 @@ RegisterRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -5479,7 +5827,7 @@ RegisterRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -5488,6 +5836,13 @@ RegisterRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -5495,7 +5850,7 @@ RegisterRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -5507,7 +5862,7 @@ RegisterRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -5534,7 +5889,7 @@ RegisterRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -5543,6 +5898,13 @@ RegisterRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -5550,7 +5912,7 @@ RegisterRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -5562,7 +5924,7 @@ RegisterRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -5587,7 +5949,7 @@ RegisterRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -5596,6 +5958,13 @@ RegisterRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -5603,7 +5972,7 @@ RegisterRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -5615,7 +5984,7 @@ RegisterRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -5641,7 +6010,7 @@ RegisterRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -5650,6 +6019,13 @@ RegisterRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -5657,7 +6033,7 @@ RegisterRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -5669,7 +6045,7 @@ RegisterRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -5702,6 +6078,9 @@ RegisterRampAdditionalData: <Q extends {
   destinationAddress: string;
   taxId?: string;
 } | {
+  destinationAddress: string;
+  walletAddress: string;
+} | {
   fiatAccountId: string;
   sessionId?: string;
   walletAddress: string;
@@ -5728,6 +6107,129 @@ StartRampError: class StartRampError {
   readonly isPublic: boolean;
   readonly originalError?: Error;
   readonly status: number;
+}
+
+StockUsdcAdditionalData: {
+  destinationAddress: string;
+  walletAddress: string;
+}
+
+StockUsdcQuote: {
+  alfredpayInputLimits?: {
+    max: string;
+    min: string;
+  };
+  anchorFeeFiat: string;
+  anchorFeeUsd: string;
+  createdAt: Date;
+  discountCurrency?: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  discountFiat?: string;
+  discountUsd?: string;
+  expiresAt: Date;
+  feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  gasReserveAmount?: string;
+  gasReserveCurrency?: "ETH";
+  gasReserveFiat?: string;
+  gasReserveUsd?: string;
+  gasless?: boolean;
+  id: string;
+  inputAmount: string;
+  inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
+  network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
+  networkFeeFiat: string;
+  networkFeeUsd: string;
+  outputAmount: string;
+  outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  partnerFeeFiat: string;
+  partnerFeeUsd: string;
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
+  processingFeeFiat: string;
+  processingFeeUsd: string;
+  providerCosts?: Array<{
+    amountFiat: string;
+    id: "bridge" | "conversion" | "network" | "ramp" | "swap" | "vortex";
+    includedIn: "fees" | "rate";
+    provider: "avenia" | "nabla" | "network" | "relay" | "uniswap" | "vortex";
+  }>;
+  rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
+  routingStrategy?: "direct";
+  sessionId?: string;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  totalFeeFiat: string;
+  totalFeeUsd: string;
+  vortexFeeFiat: string;
+  vortexFeeUsd: string;
+} & {
+  from: Networks.Base;
+  inputCurrency: EvmToken.USDC;
+  rampType: RampDirection.BUY;
+  to: Networks.Robinhood;
+} | {
+  alfredpayInputLimits?: {
+    max: string;
+    min: string;
+  };
+  anchorFeeFiat: string;
+  anchorFeeUsd: string;
+  createdAt: Date;
+  discountCurrency?: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  discountFiat?: string;
+  discountUsd?: string;
+  expiresAt: Date;
+  feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  gasReserveAmount?: string;
+  gasReserveCurrency?: "ETH";
+  gasReserveFiat?: string;
+  gasReserveUsd?: string;
+  gasless?: boolean;
+  id: string;
+  inputAmount: string;
+  inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
+  network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
+  networkFeeFiat: string;
+  networkFeeUsd: string;
+  outputAmount: string;
+  outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  partnerFeeFiat: string;
+  partnerFeeUsd: string;
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
+  processingFeeFiat: string;
+  processingFeeUsd: string;
+  providerCosts?: Array<{
+    amountFiat: string;
+    id: "bridge" | "conversion" | "network" | "ramp" | "swap" | "vortex";
+    includedIn: "fees" | "rate";
+    provider: "avenia" | "nabla" | "network" | "relay" | "uniswap" | "vortex";
+  }>;
+  rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
+  routingStrategy?: "direct";
+  sessionId?: string;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  totalFeeFiat: string;
+  totalFeeUsd: string;
+  vortexFeeFiat: string;
+  vortexFeeUsd: string;
+} & {
+  from: Networks.Robinhood;
+  outputCurrency: EvmToken.USDC;
+  rampType: RampDirection.SELL;
+  to: Networks.Base;
 }
 
 StoreEphemeralKeysCallback: (keys: Array<{
@@ -6034,7 +6536,7 @@ UpdateRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -6043,6 +6545,13 @@ UpdateRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -6050,7 +6559,7 @@ UpdateRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -6062,7 +6571,7 @@ UpdateRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -6080,7 +6589,7 @@ UpdateRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -6089,6 +6598,13 @@ UpdateRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -6096,7 +6612,7 @@ UpdateRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -6108,7 +6624,7 @@ UpdateRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -6129,7 +6645,7 @@ UpdateRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -6138,6 +6654,13 @@ UpdateRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -6145,7 +6668,7 @@ UpdateRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -6157,7 +6680,7 @@ UpdateRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -6178,7 +6701,7 @@ UpdateRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -6187,6 +6710,13 @@ UpdateRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -6194,7 +6724,7 @@ UpdateRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -6206,7 +6736,7 @@ UpdateRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -6227,7 +6757,7 @@ UpdateRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -6236,6 +6766,13 @@ UpdateRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -6243,7 +6780,7 @@ UpdateRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -6255,7 +6792,7 @@ UpdateRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -6280,7 +6817,7 @@ UpdateRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -6289,6 +6826,13 @@ UpdateRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -6296,7 +6840,7 @@ UpdateRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -6308,7 +6852,7 @@ UpdateRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -6333,7 +6877,7 @@ UpdateRampAdditionalData: <Q extends {
   discountUsd?: string;
   expiresAt: Date;
   feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   gasReserveAmount?: string;
   gasReserveCurrency?: "ETH";
   gasReserveFiat?: string;
@@ -6342,6 +6886,13 @@ UpdateRampAdditionalData: <Q extends {
   id: string;
   inputAmount: string;
   inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+  nablaFeeSubsidy?: {
+    amountFiat: string;
+    amountUsd: string;
+    chargedFeeBps: string;
+    currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    effectiveFeeBps: string;
+  };
   network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
   networkFeeFiat: string;
   networkFeeUsd: string;
@@ -6349,7 +6900,7 @@ UpdateRampAdditionalData: <Q extends {
   outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
   partnerFeeFiat: string;
   partnerFeeUsd: string;
-  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+  paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
   processingFeeFiat: string;
   processingFeeUsd: string;
   providerCosts?: Array<{
@@ -6361,7 +6912,7 @@ UpdateRampAdditionalData: <Q extends {
   rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
   routingStrategy?: "direct";
   sessionId?: string;
-  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+  to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   totalFeeFiat: string;
   totalFeeUsd: string;
   vortexFeeFiat: string;
@@ -6562,15 +7113,15 @@ VortexSdk: class VortexSdk {
     apiKey?: string;
     countryCode?: string;
     destinationAddress?: string;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerId?: string;
-    paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE;
+    paymentMethod?: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE;
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
   }>(request: T) => Promise<T extends {
     inputCurrency: FiatToken.ARS | FiatToken.COP | FiatToken.MXN | FiatToken.USD;
     rampType: RampDirection.BUY;
@@ -6587,7 +7138,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -6596,6 +7147,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -6603,7 +7161,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -6615,7 +7173,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -6639,7 +7197,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -6648,6 +7206,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -6655,7 +7220,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -6667,7 +7232,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -6691,7 +7256,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -6700,6 +7265,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -6707,7 +7279,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -6719,7 +7291,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -6743,7 +7315,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -6752,6 +7324,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -6759,7 +7338,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -6771,7 +7350,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -6795,7 +7374,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -6804,6 +7383,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -6811,7 +7397,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -6823,7 +7409,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -6847,7 +7433,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -6856,6 +7442,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -6863,7 +7456,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -6875,7 +7468,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -6896,7 +7489,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -6905,6 +7498,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -6912,14 +7512,14 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<ProviderCost>;
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -6940,7 +7540,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -6949,6 +7549,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -6956,14 +7563,14 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<ProviderCost>;
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -6984,7 +7591,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -6993,6 +7600,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -7000,14 +7614,14 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<ProviderCost>;
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -7028,7 +7642,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -7037,6 +7651,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -7044,14 +7665,14 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<ProviderCost>;
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -7072,7 +7693,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -7081,6 +7702,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -7088,14 +7716,14 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<ProviderCost>;
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -7116,7 +7744,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -7125,6 +7753,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -7132,14 +7767,14 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<ProviderCost>;
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -7161,7 +7796,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -7170,6 +7805,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -7177,7 +7819,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -7189,7 +7831,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -7229,7 +7871,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt?: string;
     feeCurrency: string;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -7250,13 +7892,13 @@ VortexSdk: class VortexSdk {
     outputCurrency: string;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     quoteId: string;
     sessionId?: string;
     status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     transactionExplorerLink?: string;
@@ -7599,7 +8241,7 @@ VortexSdk: class VortexSdk {
     currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
     depositQrCode?: string;
     expiresAt?: string;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     ibanPaymentData?: {
       bic: string;
       iban: string;
@@ -7612,11 +8254,11 @@ VortexSdk: class VortexSdk {
     network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     outputAmount: string;
     outputCurrency: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     quoteId: string;
     sessionId?: string;
     status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     transactionExplorerLink?: string;
     transactionHash?: string;
     type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -7805,7 +8447,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -7814,6 +8456,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -7821,7 +8470,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -7833,7 +8482,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -7851,7 +8500,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -7860,6 +8509,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -7867,7 +8523,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -7879,7 +8535,126 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    totalFeeFiat: string;
+    totalFeeUsd: string;
+    vortexFeeFiat: string;
+    vortexFeeUsd: string;
+  } & {
+    from: Networks.Base;
+    inputCurrency: EvmToken.USDC;
+    rampType: RampDirection.BUY;
+    to: Networks.Robinhood;
+  } | {
+    alfredpayInputLimits?: {
+      max: string;
+      min: string;
+    };
+    anchorFeeFiat: string;
+    anchorFeeUsd: string;
+    createdAt: Date;
+    discountCurrency?: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    discountFiat?: string;
+    discountUsd?: string;
+    expiresAt: Date;
+    feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    gasReserveAmount?: string;
+    gasReserveCurrency?: "ETH";
+    gasReserveFiat?: string;
+    gasReserveUsd?: string;
+    gasless?: boolean;
+    id: string;
+    inputAmount: string;
+    inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
+    network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
+    networkFeeFiat: string;
+    networkFeeUsd: string;
+    outputAmount: string;
+    outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    partnerFeeFiat: string;
+    partnerFeeUsd: string;
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
+    processingFeeFiat: string;
+    processingFeeUsd: string;
+    providerCosts?: Array<{
+      amountFiat: string;
+      id: "bridge" | "conversion" | "network" | "ramp" | "swap" | "vortex";
+      includedIn: "fees" | "rate";
+      provider: "avenia" | "nabla" | "network" | "relay" | "uniswap" | "vortex";
+    }>;
+    rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
+    routingStrategy?: "direct";
+    sessionId?: string;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    totalFeeFiat: string;
+    totalFeeUsd: string;
+    vortexFeeFiat: string;
+    vortexFeeUsd: string;
+  } & {
+    from: Networks.Robinhood;
+    outputCurrency: EvmToken.USDC;
+    rampType: RampDirection.SELL;
+    to: Networks.Base;
+  } ? {
+    destinationAddress: string;
+    walletAddress: string;
+  } : Q extends {
+    alfredpayInputLimits?: {
+      max: string;
+      min: string;
+    };
+    anchorFeeFiat: string;
+    anchorFeeUsd: string;
+    createdAt: Date;
+    discountCurrency?: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    discountFiat?: string;
+    discountUsd?: string;
+    expiresAt: Date;
+    feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    gasReserveAmount?: string;
+    gasReserveCurrency?: "ETH";
+    gasReserveFiat?: string;
+    gasReserveUsd?: string;
+    gasless?: boolean;
+    id: string;
+    inputAmount: string;
+    inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
+    network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
+    networkFeeFiat: string;
+    networkFeeUsd: string;
+    outputAmount: string;
+    outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    partnerFeeFiat: string;
+    partnerFeeUsd: string;
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
+    processingFeeFiat: string;
+    processingFeeUsd: string;
+    providerCosts?: Array<{
+      amountFiat: string;
+      id: "bridge" | "conversion" | "network" | "ramp" | "swap" | "vortex";
+      includedIn: "fees" | "rate";
+      provider: "avenia" | "nabla" | "network" | "relay" | "uniswap" | "vortex";
+    }>;
+    rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
+    routingStrategy?: "direct";
+    sessionId?: string;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -7905,7 +8680,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -7914,6 +8689,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -7921,7 +8703,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -7933,7 +8715,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -7957,7 +8739,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -7966,6 +8748,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -7973,7 +8762,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -7985,7 +8774,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -8012,7 +8801,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -8021,6 +8810,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -8028,7 +8824,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -8040,7 +8836,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -8065,7 +8861,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -8074,6 +8870,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -8081,7 +8884,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -8093,7 +8896,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -8119,7 +8922,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -8128,6 +8931,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -8135,7 +8945,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -8147,7 +8957,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -8180,6 +8990,9 @@ VortexSdk: class VortexSdk {
     destinationAddress: string;
     taxId?: string;
   } | {
+    destinationAddress: string;
+    walletAddress: string;
+  } | {
     fiatAccountId: string;
     sessionId?: string;
     walletAddress: string;
@@ -8210,7 +9023,7 @@ VortexSdk: class VortexSdk {
       currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
       depositQrCode?: string;
       expiresAt?: string;
-      from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+      from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
       ibanPaymentData?: {
         bic: string;
         iban: string;
@@ -8223,11 +9036,11 @@ VortexSdk: class VortexSdk {
       network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
       outputAmount: string;
       outputCurrency: string;
-      paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+      paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
       quoteId: string;
       sessionId?: string;
       status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-      to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+      to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
       transactionExplorerLink?: string;
       transactionHash?: string;
       type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -8394,7 +9207,7 @@ VortexSdk: class VortexSdk {
     currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
     depositQrCode?: string;
     expiresAt?: string;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     ibanPaymentData?: {
       bic: string;
       iban: string;
@@ -8407,11 +9220,11 @@ VortexSdk: class VortexSdk {
     network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     outputAmount: string;
     outputCurrency: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     quoteId: string;
     sessionId?: string;
     status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     transactionExplorerLink?: string;
     transactionHash?: string;
     type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -8586,7 +9399,7 @@ VortexSdk: class VortexSdk {
     currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
     depositQrCode?: string;
     expiresAt?: string;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     ibanPaymentData?: {
       bic: string;
       iban: string;
@@ -8599,11 +9412,11 @@ VortexSdk: class VortexSdk {
     network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     outputAmount: string;
     outputCurrency: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     quoteId: string;
     sessionId?: string;
     status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     transactionExplorerLink?: string;
     transactionHash?: string;
     type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -9016,7 +9829,7 @@ VortexSdk: class VortexSdk {
     currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
     depositQrCode?: string;
     expiresAt?: string;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     ibanPaymentData?: {
       bic: string;
       iban: string;
@@ -9029,11 +9842,11 @@ VortexSdk: class VortexSdk {
     network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     outputAmount: string;
     outputCurrency: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     quoteId: string;
     sessionId?: string;
     status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     transactionExplorerLink?: string;
     transactionHash?: string;
     type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -9198,7 +10011,7 @@ VortexSdk: class VortexSdk {
     currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
     depositQrCode?: string;
     expiresAt?: string;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     ibanPaymentData?: {
       bic: string;
       iban: string;
@@ -9211,11 +10024,11 @@ VortexSdk: class VortexSdk {
     network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     outputAmount: string;
     outputCurrency: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     quoteId: string;
     sessionId?: string;
     status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     transactionExplorerLink?: string;
     transactionHash?: string;
     type: enum RampDirection { BUY = "BUY", SELL = "SELL" };
@@ -9304,7 +10117,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -9313,6 +10126,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -9320,7 +10140,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -9332,7 +10152,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -9350,7 +10170,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -9359,6 +10179,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -9366,7 +10193,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -9378,7 +10205,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -9399,7 +10226,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -9408,6 +10235,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -9415,7 +10249,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -9427,7 +10261,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -9448,7 +10282,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -9457,6 +10291,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -9464,7 +10305,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -9476,7 +10317,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -9497,7 +10338,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -9506,6 +10347,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -9513,7 +10361,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -9525,7 +10373,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -9550,7 +10398,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -9559,6 +10407,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -9566,7 +10421,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -9578,7 +10433,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -9603,7 +10458,7 @@ VortexSdk: class VortexSdk {
     discountUsd?: string;
     expiresAt: Date;
     feeCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     gasReserveAmount?: string;
     gasReserveCurrency?: "ETH";
     gasReserveFiat?: string;
@@ -9612,6 +10467,13 @@ VortexSdk: class VortexSdk {
     id: string;
     inputAmount: string;
     inputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+    nablaFeeSubsidy?: {
+      amountFiat: string;
+      amountUsd: string;
+      chargedFeeBps: string;
+      currency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
+      effectiveFeeBps: string;
+    };
     network: enum Networks { Arbitrum = "arbitrum", AssetHub = "assethub", Avalanche = "avalanche", BSC = "bsc", Base = "base", BaseSepolia = "base-sepolia", Ethereum = "ethereum", Hydration = "hydration", Moonbeam = "moonbeam", Paseo = "paseo", Pendulum = "pendulum", Polygon = "polygon", PolygonAmoy = "polygonAmoy", Robinhood = "robinhood" };
     networkFeeFiat: string;
     networkFeeUsd: string;
@@ -9619,7 +10481,7 @@ VortexSdk: class VortexSdk {
     outputCurrency: AssetHubToken.DOT | AssetHubToken.USDC | AssetHubToken.USDT | EvmToken.AAPL | EvmToken.AMZN | EvmToken.AXLUSDC | EvmToken.BRLA | EvmToken.ETH | EvmToken.EURC | EvmToken.GOOGL | EvmToken.META | EvmToken.MSFT | EvmToken.MU | EvmToken.NVDA | EvmToken.POL | EvmToken.QQQ | EvmToken.SGOV | EvmToken.SPCX | EvmToken.SPY | EvmToken.TSLA | EvmToken.USDC | EvmToken.USDCE | EvmToken.USDG | EvmToken.USDT | FiatToken.ARS | FiatToken.BRL | FiatToken.COP | FiatToken.EURC | FiatToken.MXN | FiatToken.USD;
     partnerFeeFiat: string;
     partnerFeeUsd: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     processingFeeFiat: string;
     processingFeeUsd: string;
     providerCosts?: Array<{
@@ -9631,7 +10493,7 @@ VortexSdk: class VortexSdk {
     rampType: enum RampDirection { BUY = "BUY", SELL = "SELL" };
     routingStrategy?: "direct";
     sessionId?: string;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     totalFeeFiat: string;
     totalFeeUsd: string;
     vortexFeeFiat: string;
@@ -9668,7 +10530,7 @@ VortexSdk: class VortexSdk {
     currentPhase: "alfredOnrampMintFallback" | "alfredpayOfframpTransfer" | "alfredpayOfframpTransferFallback" | "alfredpayOnrampMint" | "assethubToPendulum" | "backupApprove" | "backupSquidRouterApprove" | "backupSquidRouterSwap" | "baseTransfer" | "brlaOnrampMint" | "brlaPayoutOnBase" | "complete" | "destinationTransfer" | "distributeFees" | "failed" | "finalSettlementSubsidy" | "fundEphemeral" | "gasReserveTopUp" | "hydrationSwap" | "hydrationToAssethubXcm" | "initial" | "moneriumOnrampMint" | "moneriumOnrampSelfTransfer" | "moonbeamToPendulum" | "moonbeamToPendulumXcm" | "mykoboOnrampDeposit" | "mykoboPayoutOnBase" | "nablaApprove" | "nablaSwap" | "onHoldForComplianceCheck" | "pendulumToAssethubXcm" | "pendulumToHydrationXcm" | "pendulumToMoonbeamXcm" | "relayApprove" | "relayBackupApprove" | "relayBridge" | "squidRouterApprove" | "squidRouterNoPermitApprove" | "squidRouterNoPermitSwap" | "squidRouterNoPermitTransfer" | "squidRouterPay" | "squidRouterPermitExecute" | "squidRouterSwap" | "stockBackupApprove" | "stockPermitTransfer" | "stockSettlementTopUp" | "subsidizePostSwap" | "subsidizePreSwap" | "timedOut" | "uniswapApprove" | "uniswapSwap";
     depositQrCode?: string;
     expiresAt?: string;
-    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    from: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     ibanPaymentData?: {
       bic: string;
       iban: string;
@@ -9681,11 +10543,11 @@ VortexSdk: class VortexSdk {
     network?: Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     outputAmount: string;
     outputCurrency: string;
-    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", WIRE = "wire" };
+    paymentMethod: enum EPaymentMethod { ACH = "ach", CBU = "cbu", PIX = "pix", SEPA = "sepa", SPEI = "spei", USDC = "usdc", WIRE = "wire" };
     quoteId: string;
     sessionId?: string;
     status?: TransactionStatus.COMPLETE | TransactionStatus.FAILED | TransactionStatus.PENDING;
-    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
+    to: EPaymentMethod.ACH | EPaymentMethod.CBU | EPaymentMethod.PIX | EPaymentMethod.SEPA | EPaymentMethod.SPEI | EPaymentMethod.USDC | EPaymentMethod.WIRE | Networks.Arbitrum | Networks.AssetHub | Networks.Avalanche | Networks.BSC | Networks.Base | Networks.BaseSepolia | Networks.Ethereum | Networks.Hydration | Networks.Moonbeam | Networks.Paseo | Networks.Pendulum | Networks.Polygon | Networks.PolygonAmoy | Networks.Robinhood;
     transactionExplorerLink?: string;
     transactionHash?: string;
     type: enum RampDirection { BUY = "BUY", SELL = "SELL" };

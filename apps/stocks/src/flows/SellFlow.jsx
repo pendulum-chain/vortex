@@ -1,14 +1,14 @@
 // Sell flow: Gold's SellFlow over the ramp adapter.
-//   amount (tokens + Pix key) -> (code) -> prepare: availability, wallet on Robinhood Chain, balance
+//   (method: Pix, or leave for the USDC checkout) -> amount (tokens + Pix key) -> (code) -> prepare: availability, wallet on Robinhood Chain, balance
 //   and ETH, quote, price guard, readiness -> (kyc) -> review -> register + sign -> start -> processing
 //   sign (resume): resumeSell -> start;  processing -> success | issue
 import { useEffect, useRef, useState } from "react";
 import { isTransientError } from "@vortexfi/consumer-kit";
-import { QuoteCosts } from "../components/QuoteCosts.jsx";
+import { QuoteCosts, sellGross } from "../components/QuoteCosts.jsx";
 import { ArrowLeft, ArrowRight, Check, Copy, GasPump } from "../components/icons.js";
 import { Modal } from "../components/Modal.jsx";
 import { Notice } from "../components/ui.jsx";
-import { formatBRL, formatNumber, formatPercent, priceBRL } from "../format.js";
+import { formatBRL, formatPercent, priceBRL } from "../format.js";
 import { useCopy } from "../hooks.js";
 import { DEMO_TOOLS } from "../lib/config.js";
 import { sellGasNoticePt, sellGasRequiredWei } from "../lib/gas-reserve.js";
@@ -18,10 +18,10 @@ import { checkQuotePrice } from "../lib/price-guard.js";
 import { freshPauseReason } from "../lib/ramp-contract.js";
 import { quoteNeedsRefresh, stepAfterCode, validSellAmount } from "../lib/purchase-options.js";
 import { formatTokenAmount, formatTokensPt, maxSellAmount, tokensToWei } from "../lib/token.js";
-import { FlowIssue, FlowProgress, GuardCard, KYC_IN_REVIEW_PT, KycStep, OtpStep, POLL_RESTART_MS, ProcessingSteps, QuoteTimer, StepIntro, SuccessSeal, TokenSummary, Waiting, errorMessage, needsCode, unavailableMessage } from "./parts.jsx";
+import { FlowIssue, FlowProgress, GuardCard, KYC_IN_REVIEW_PT, KycStep, MethodStep, OtpStep, POLL_RESTART_MS, ProcessingSteps, QuoteTimer, StepIntro, SuccessSeal, TokenSummary, Waiting, errorMessage, needsCode, unavailableMessage } from "./parts.jsx";
 
 const PROGRESS = ["Quantidade", "Segurança", "Revisão", "Confirmação"];
-const PROGRESS_INDEX = { amount: 0, otp: 1, kyc: 1, review: 2, sign: 3 };
+const PROGRESS_INDEX = { method: 0, amount: 0, otp: 1, kyc: 1, review: 2, sign: 3 };
 
 const toInput = (decimal) => String(decimal).replace(".", ",");
 
@@ -80,21 +80,22 @@ function ReviewStep({ token, quote, guard, reference, pixKey, ethWei, requiredWe
   const gasNotice = sellGasNoticePt({ gasless: quote.gasless, ethWei, requiredWei });
   const noGas = gasNotice?.needsEth === true;
   const blocked = guard?.status === "block";
-  const gross = quote.brlAmount + quote.fees.total;
+  const gross = sellGross(quote);
   const canConfirm = accepted && !blocked && !noGas && (guard?.status !== "warn" || guardAccepted) && !busy;
   return (
     <div className="flow-section">
       {notice && <Notice tone="info">{notice}</Notice>}
-      <dl className="breakdown">
-        <div><dt>Você vende</dt><dd>{formatTokenAmount(quote.tokenAmount)} {token.symbol} (token)</dd></div>
-        <div><dt>Valor bruto</dt><dd>{formatBRL(gross)}</dd></div>
-        <div><dt>Taxas informadas (já descontadas)</dt><dd>{formatBRL(quote.fees.total)}<small>{formatNumber((quote.fees.total / gross) * 100, 2)}% do valor</small></dd></div>
-        <div className="is-sub"><dt>Conversão e serviço</dt><dd>{formatBRL(quote.fees.service)}</dd></div>
-        <div className="is-sub"><dt>Gas das redes</dt><dd>{formatBRL(quote.fees.network)}</dd></div>
-        <div><dt>Preço por token nesta cotação</dt><dd>{priceBRL(quote.impliedBrlPerToken)}{reference && <small>referência {priceBRL(reference.brl)}{guard?.deviationPct != null ? ` (${formatPercent(guard.deviationPct)})` : ""}</small>}</dd></div>
-        <div className="is-total"><dt>Você recebe no Pix</dt><dd>{formatBRL(quote.brlAmount)}</dd></div>
-      </dl>
-      <QuoteCosts quote={quote} />
+      <div className="fee-card">
+        <dl className="breakdown">
+          <div><dt>Você vende</dt><dd>{formatTokenAmount(quote.tokenAmount)} {token.symbol} (token)</dd></div>
+          <div><dt>Valor bruto</dt><dd>{formatBRL(gross)}</dd></div>
+        </dl>
+        <QuoteCosts quote={quote} />
+        <dl className="breakdown">
+          <div><dt>Preço por token nesta cotação</dt><dd>{priceBRL(quote.impliedBrlPerToken)}{reference && <small>referência {priceBRL(reference.brl)}{guard?.deviationPct != null ? ` (${formatPercent(guard.deviationPct)})` : ""}</small>}</dd></div>
+          <div className="is-total"><dt>Você recebe no Pix</dt><dd>{formatBRL(quote.brlAmount)}</dd></div>
+        </dl>
+      </div>
       <QuoteTimer expiresAt={quote.expiresAt} />
       <p className="hint">Chave Pix: <b style={{ color: "var(--ink)" }}>{pixKey}</b></p>
       {gasNotice && <Notice tone={gasNotice.tone} title={gasNotice.title} role={noGas ? "alert" : undefined}>{gasNotice.text}</Notice>}
@@ -109,11 +110,11 @@ function ReviewStep({ token, quote, guard, reference, pixKey, ethWei, requiredWe
   );
 }
 
-export default function SellFlow({ token, auth, runtime, market, flags, holdingRaw = 0n, resume = null, demoReserveUsed = false, onClose, onSettled }) {
+export default function SellFlow({ token, auth, runtime, market, flags, holdingRaw = 0n, resume = null, demoReserveUsed = false, onClose, onSettled, onSellUsdc }) {
   const { adapter, verification } = runtime;
   const wallet = auth.address;
   const privyDid = auth.user?.privyDid;
-  const [step, setStep] = useState(resume ? "resuming" : "amount");
+  const [step, setStep] = useState(resume ? "resuming" : onSellUsdc && !demoReserveUsed ? "method" : "amount");
   const [raw, setRaw] = useState(() => BigInt(holdingRaw || 0n));
   const [amount, setAmount] = useState(() => (demoReserveUsed ? toInput(maxSellAmount(holdingRaw || 0n)) : ""));
   const [pixKey, setPixKey] = useState(() => (demoReserveUsed ? auth.user?.email || "" : ""));
@@ -305,6 +306,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
 
   return (
     <Modal title={title} onClose={onClose} wide closeDisabled={closeDisabled} stepKey={step} headerExtra={progress != null ? <FlowProgress labels={PROGRESS} current={progress} /> : null}>
+      {step === "method" && <MethodStep direction="SELL" onPix={() => setStep("amount")} onUsdc={onSellUsdc} />}
       {step === "amount" && <AmountStep token={token} price={price} raw={raw} amount={amount} setAmount={setAmount} pixKey={pixKey} setPixKey={setPixKey} onNext={continueFromAmount} busy={busy} error={error} />}
       {step === "otp" && <OtpStep email={email} setEmail={setEmail} otp={otp} setOtp={setOtp} sent={otpSent} onSend={sendOtp} onVerify={verifyOtp} busy={busy} error={error} demoCode={verification.demoCode} />}
       {step === "kyc" && <KycStep kyc={runtime.kyc} quote={quote} email={email} initialName={auth.user?.name} onApproved={() => { setNotice(""); setStep("review"); }} />}
@@ -341,7 +343,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
       )}
       {step === "issue" && <FlowIssue message={error} onRetry={resume && errorCode !== "SELL_EXPIRED" ? () => { setError(""); run(loadExisting); } : null} onClose={onClose} />}
       {operationId && step !== "success" && <p className="op-ref">Código da operação: <code>{operationId}</code></p>}
-      {["otp", "kyc", "review"].includes(step) && !busy && !ramp && <div className="flow-foot" style={{ marginTop: 8 }}><button className="back-button" type="button" onClick={() => { setError(""); setStep("amount"); }}><ArrowLeft size={16} aria-hidden="true" /> Voltar</button></div>}
+      {(["otp", "kyc", "review"].includes(step) || (step === "amount" && onSellUsdc)) && !busy && !ramp && <div className="flow-foot" style={{ marginTop: 8 }}><button className="back-button" type="button" onClick={() => { setError(""); setStep(step === "amount" ? "method" : "amount"); }}><ArrowLeft size={16} aria-hidden="true" /> Voltar</button></div>}
     </Modal>
   );
 }

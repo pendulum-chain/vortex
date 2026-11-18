@@ -21,16 +21,16 @@ function ChartFallback() {
   return <section className="card chart-card" aria-label="Gráfico de preço"><div className="chart-state"><Skeleton width="92%" height={200} /></div></section>;
 }
 
-function ActionButtons({ actions, onBuy, onSell }) {
+function ActionButtons({ actions, onBuy, onSell, onUsdc }) {
   return (
     <>
-      <button className="btn btn--primary btn--lg" type="button" onClick={onBuy} disabled={actions.buy.disabled}>{actions.buy.loading ? <span className="spinner" aria-hidden="true" /> : null}{actions.buy.label}</button>
-      {actions.sell && <button className="btn btn--secondary btn--lg" type="button" onClick={onSell} disabled={actions.sell.disabled}>{actions.sell.label}</button>}
+      <button className="btn btn--primary btn--lg" type="button" onClick={actions.buy.usdc ? () => onUsdc("BUY") : onBuy} disabled={actions.buy.disabled}>{actions.buy.loading ? <span className="spinner" aria-hidden="true" /> : null}{actions.buy.label}</button>
+      {actions.sell && <button className="btn btn--secondary btn--lg" type="button" onClick={actions.sell.usdc ? () => onUsdc("SELL") : onSell} disabled={actions.sell.disabled}>{actions.sell.label}</button>}
     </>
   );
 }
 
-export function StockDetail({ symbol, auth, market, portfolio, availability, comingSoon, pending = null, onBuy, onPreview, canPreviewContinue, onSell, now }) {
+export function StockDetail({ symbol, auth, market, portfolio, availability, comingSoon, pending = null, onBuy, onPreview, canPreviewContinue, onSell, onUsdc, usdcCheckout = false, now }) {
   const token = findStock(symbol);
   const reducedMotion = useReducedMotion();
   const { state, loading, fx, chartLoader } = market;
@@ -40,7 +40,7 @@ export function StockDetail({ symbol, auth, market, portfolio, availability, com
   const holding = portfolio.valued?.holdings.find((item) => item.symbol === symbol) ?? null;
   const date = new Date(now);
   const pause = issuerPauseNotePt(expectedIssuerPause(symbol, date), date);
-  const actions = detailActions({ auth, availability, comingSoon, holding, symbol, pending, balanceStatus: portfolio.status, now });
+  const actions = detailActions({ auth, availability, comingSoon, holding, symbol, pending, balanceStatus: portfolio.status, now, usdc: usdcCheckout && Boolean(onUsdc) });
   const usd = price?.usd ?? (price?.brl && fx?.bid ? price.brl / fx.bid : null);
   const risks = riskNotesPt(token);
   const priceMissing = !loading && !(Number(price?.brl) > 0);
@@ -101,7 +101,7 @@ export function StockDetail({ symbol, auth, market, portfolio, availability, com
               </dl>
             )}
             <div className="action-card__buttons" style={actions.sell ? undefined : { gridTemplateColumns: "1fr" }}>
-              <ActionButtons actions={actions} onBuy={onBuy} onSell={onSell} />
+              <ActionButtons actions={actions} onBuy={onBuy} onSell={onSell} onUsdc={onUsdc} />
             </div>
             {actions.note && <p className="action-card__note">{actions.note}</p>}
             {pause && <Notice tone={pause.active ? "warning" : "info"} title={pause.title}>{pause.text}</Notice>}
@@ -133,7 +133,7 @@ export function StockDetail({ symbol, auth, market, portfolio, availability, com
       </div>
       {actions.buy && (
         <div className={`action-bar${actions.sell ? "" : " action-bar--single"}`}>
-          {auth.authenticated ? <ActionButtons actions={actions} onBuy={onBuy} onSell={onSell} /> : <a className="btn btn--primary btn--lg" href="#simular" onClick={e => { e.preventDefault(); document.getElementById("simular")?.scrollIntoView({ behavior: reducedMotion ? "instant" : "smooth", block: "start" }); }}>Simular compra · a partir de R$ 100</a>}
+          {auth.authenticated ? <ActionButtons actions={actions} onBuy={onBuy} onSell={onSell} onUsdc={onUsdc} /> : <a className="btn btn--primary btn--lg" href="#simular" onClick={e => { e.preventDefault(); document.getElementById("simular")?.scrollIntoView({ behavior: reducedMotion ? "instant" : "smooth", block: "start" }); }}>Simular compra · a partir de R$ 100</a>}
         </div>
       )}
     </main>
