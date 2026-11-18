@@ -68,20 +68,26 @@ export function getEvmTokensLoadedSnapshot(): boolean {
  */
 const registeredTokens: EvmTokenDetails[] = [];
 
-/** A registered token wins over a discovered one of the same symbol, like a static token, and keeps its price and logo. */
+/**
+ * A registered token wins over a discovered one of the same symbol, like a static token. It keeps the discovered
+ * price and logo only when both are the same contract: a symbol alone does not identify a token.
+ */
 function addRegisteredTokens(
   tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
 ): Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> {
   for (const token of registeredTokens) {
     const networkTokens = tokensByNetwork[token.network as EvmNetworks];
     const key = token.assetSymbol.toUpperCase();
-    networkTokens[key] = { ...networkTokens[key], ...token, isFromStaticConfig: true };
+    const discovered = networkTokens[key];
+    const sameContract = discovered?.erc20AddressSourceChain.toLowerCase() === token.erc20AddressSourceChain.toLowerCase();
+    networkTokens[key] = { ...(sameContract ? discovered : undefined), ...token, isFromStaticConfig: true };
   }
   return tokensByNetwork;
 }
 
 /** Call before the first lookup. Registering the same network and symbol again replaces the earlier entry. */
 export function registerEvmToken(token: EvmTokenDetails): void {
+  if (!isNetworkEVM(token.network)) throw new Error(`Cannot register ${token.assetSymbol} on non-EVM network ${token.network}`);
   const index = registeredTokens.findIndex(
     known => known.network === token.network && known.assetSymbol.toUpperCase() === token.assetSymbol.toUpperCase()
   );

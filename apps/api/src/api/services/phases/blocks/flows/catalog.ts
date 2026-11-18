@@ -273,6 +273,7 @@ const flowDefinitions: FlowDefinition[] = [
         network !== undefined &&
         network !== Networks.Robinhood &&
         isNetworkEVM(network) &&
+        !isGoldBaseRoute(request) &&
         isOnChainToken(request.inputCurrency) &&
         !isDormantMoneriumEure(request.inputCurrency)
       );
@@ -434,7 +435,8 @@ const flowDefinitions: FlowDefinition[] = [
         network !== undefined &&
         network !== Networks.Polygon &&
         network !== Networks.Robinhood &&
-        isNetworkEVM(network)
+        isNetworkEVM(network) &&
+        !isGoldBaseRoute(request)
       );
     }
   },

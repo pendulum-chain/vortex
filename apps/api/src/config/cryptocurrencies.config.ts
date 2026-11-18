@@ -65,15 +65,18 @@ const getEvmNetworkTokens = (
   const rampTypes = rampTypesFor(network);
   // The merged config stores static tokens under both their enum key and their symbol; dedupe by contract address.
   const byAddress = new Map<string, SupportedCryptocurrencyDetails>();
+  // Only the two exact rail names select a Gold switch; any other value lists no Gold route.
+  const goldDirections: Record<string, RampDirection[]> = {
+    pix: config.gold.enabledDirections,
+    usdc: config.gold.usdcEnabledDirections
+  };
   for (const details of Object.values(tokensByNetwork[network] ?? {})) {
     if (!details) continue;
     const address = details.erc20AddressSourceChain.toLowerCase();
     if (byAddress.has(address)) continue;
     // PAXG on Base is served by the Gold routes alone, each rail behind its own switch. With none enabled it is not listed.
     const isBasePaxg = network === Networks.Base && address === BASE_PAXG_ADDRESS.toLowerCase();
-    const tokenRampTypes = isBasePaxg
-      ? directionsEnabled(paymentMethod === "usdc" ? config.gold.usdcEnabledDirections : config.gold.enabledDirections)
-      : rampTypes;
+    const tokenRampTypes = isBasePaxg ? directionsEnabled(goldDirections[paymentMethod] ?? []) : rampTypes;
     if (isBasePaxg && tokenRampTypes.length === 0) continue;
     byAddress.set(address, {
       assetContractAddress: details.erc20AddressSourceChain,

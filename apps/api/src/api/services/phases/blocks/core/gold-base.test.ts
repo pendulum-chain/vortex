@@ -137,4 +137,18 @@ describe("PAXG on Base", () => {
       resolveBlockFlow({ ...request, ...pixBuy, from: EPaymentMethod.SEPA, inputCurrency: FiatToken.EURC })
     ).toThrow(/No block flow mapped/);
   });
+
+  it("is matched by no generic flow, whatever fiat currency and rail pay for it", () => {
+    const rails = [...Object.values(EPaymentMethod), ...Object.values(Networks)];
+    for (const fiat of [...Object.values(FiatToken), EvmToken.USDC, EvmToken.USDT]) {
+      for (const rail of rails) {
+        const buy = { from: rail, inputAmount: "1", inputCurrency: fiat, network: Networks.Base, outputCurrency: paxg };
+        const sell = { inputAmount: "1", inputCurrency: paxg, network: Networks.Base, outputCurrency: fiat, to: rail };
+        expect(() => resolveBlockFlow({ ...buy, rampType: RampDirection.BUY, to: Networks.Base })).toThrow(/No block flow mapped/);
+        expect(() => resolveBlockFlow({ ...sell, from: Networks.Base, rampType: RampDirection.SELL })).toThrow(
+          /No block flow mapped/
+        );
+      }
+    }
+  });
 });
