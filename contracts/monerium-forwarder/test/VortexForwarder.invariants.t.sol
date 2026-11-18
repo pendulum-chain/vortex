@@ -43,10 +43,16 @@ contract ForwarderHandler is Test {
     uint256 public markerRetimes;
     /// Swaps whose vault subsidy exceeded the caller's maxSubsidy. Must stay zero.
     uint256 public capViolations;
+    /// Permissionless swaps that left less EURe on the clone than arrived within the last
+    /// TRIGGER_DELAY, i.e. that took EURe younger than that. Must stay zero.
+    uint256 public youngPublicSwaps;
+    uint256[] internal fundTimes;
+    uint256[] internal fundAmounts;
     uint32 public immutable INITIAL_TARGET_PPM = 1_250;
     uint32 public immutable INITIAL_FLOOR_PPM = 1_500;
     uint256 public constant VAULT_FUNDING = 10_000e6;
     uint256 public constant RECOVERY_DELAY = 2 hours;
+    uint256 public constant TRIGGER_DELAY = 24 hours;
     uint256 constant REFERENCE = 1.14e8;
 
     constructor() {
@@ -70,7 +76,7 @@ contract ForwarderHandler is Test {
                 maxFeePpm: 10_000,
                 maxReferenceDeviationBps: 100,
                 recoveryDelay: RECOVERY_DELAY, // registry P3
-                triggerDelay: 24 hours,
+                triggerDelay: TRIGGER_DELAY, // registry P4
                 recoveryHash: bytes32(0)
             }),
             1e18,
@@ -100,14 +106,26 @@ contract ForwarderHandler is Test {
         uint256 amount = bound(uint256(raw), 0, 20_000e18);
         eure.mint(address(fwd), amount);
         ghostEureMinted += amount;
+        fundTimes.push(block.timestamp);
+        fundAmounts.push(amount);
+    }
+
+    /// EURe minted to the clone less than TRIGGER_DELAY ago (time only moves forward, so
+    /// the newest entries come last).
+    function _arrivedWithinTriggerDelay() internal view returns (uint256 young) {
+        for (uint256 i = fundTimes.length; i > 0 && fundTimes[i - 1] + TRIGGER_DELAY > block.timestamp; i--) {
+            young += fundAmounts[i - 1];
+        }
     }
 
     function doPoke() external {
         fwd.poke();
     }
 
+    /// Mostly steps of hours, so that arrivals, swaps and forwards meet inside the one or
+    /// two TRIGGER_DELAY windows the forwarder's clocks are measured in; sometimes weeks.
     function warp(uint32 raw) external {
-        vm.warp(block.timestamp + bound(uint256(raw), 1, 90 days));
+        vm.warp(block.timestamp + bound(uint256(raw), 1, raw % 4 == 0 ? 90 days : 36 hours));
     }
 
     /// Router pays a randomized amount around the fair oracle value: far below exercises
@@ -118,6 +136,10 @@ contract ForwarderHandler is Test {
 
     function randoSwap(uint96 raw, uint96 rawAmount, uint32 rawCap) external {
         _swapAs(rando, raw, rawAmount, rawCap);
+    }
+
+    function guardianSwap(uint96 raw, uint96 rawAmount, uint32 rawCap) external {
+        _swapAs(address(this), raw, rawAmount, rawCap); // the handler deployed the factory
     }
 
     struct SwapSnapshot {
@@ -147,11 +169,12 @@ contract ForwarderHandler is Test {
     }
 
     /// Mostly legal amounts (occasionally out of bounds to exercise the reverts) and a
-    /// router payout randomized around the fair oracle value.
+    /// router payout randomized around the fair oracle value. Every fourth swap takes all
+    /// it may, so that clones are emptied and batches close and reopen.
     function _arrangeFill(uint96 raw, uint96 rawAmount) internal returns (uint256 amountIn, uint256 fair) {
         uint256 balance = eure.balanceOf(address(fwd));
         uint256 ceiling = balance > 10_000e18 ? 10_000e18 : balance;
-        amountIn = bound(uint256(rawAmount), 0, ceiling + 30e18);
+        amountIn = rawAmount % 4 == 0 ? ceiling : bound(uint256(rawAmount), 0, ceiling + 30e18);
         fair = (amountIn * REFERENCE) / 1e20;
         router.setNextOut(bound(uint256(raw), (fair * 95) / 100, (fair * 105) / 100));
     }
@@ -164,9 +187,10 @@ contract ForwarderHandler is Test {
         if (subsidy > maxSubsidy) capViolations++;
         uint256 net = usdc.balanceOf(address(fwd)) - before.clone; // fill - fee + subsidy
         if (net < (fair * 9_940) / 10_000) pricingViolations++; // Chainlink - 60 bps
-        if (caller == keeper && net < (fair * (1_000_000 - fwd.floorPpm())) / 1_000_000) pricingViolations++;
+        if (caller != rando && net < (fair * (1_000_000 - fwd.floorPpm())) / 1_000_000) pricingViolations++;
         if (usdc.balanceOf(feeRecipient) - before.fee > paid / 100) pricingViolations++; // MAX_FEE_PPM
         if (before.marker != 0 && fwd.batchOpenedAt() != before.marker) markerRetimes++;
+        if (caller == rando && eure.balanceOf(address(fwd)) < _arrivedWithinTriggerDelay()) youngPublicSwaps++;
     }
 
     function keeperForward(uint96 raw) external {
@@ -181,7 +205,8 @@ contract ForwarderHandler is Test {
     }
 
     function keeperRecover(uint96 rawEure, uint96 rawUsdc) external {
-        uint256 eureAmount = bound(uint256(rawEure), 0, eure.balanceOf(address(fwd)) + 1e18);
+        uint256 eureBalance = eure.balanceOf(address(fwd));
+        uint256 eureAmount = rawEure % 4 == 0 ? eureBalance : bound(uint256(rawEure), 0, eureBalance + 1e18);
         uint256 usdcAmount = bound(uint256(rawUsdc), 0, usdc.balanceOf(address(fwd)) + 1e6);
         uint64 opened = fwd.batchOpenedAt();
         vm.prank(keeper);
@@ -287,6 +312,22 @@ contract VortexForwarderInvariantTest is Test {
     /// The vault never pays more for a swap than the caller allowed (A+).
     function invariant_subsidyNeverAboveCallerCap() public view {
         assertEq(handler.capViolations(), 0, "the vault paid above the caller's maxSubsidy");
+    }
+
+    /// The permissionless swap never takes EURe that reached the clone less than
+    /// TRIGGER_DELAY ago, however old the batch marker is: the keeper always gets that
+    /// long to convert or refund a payment first.
+    function invariant_publicSwapNeverTakesYoungEure() public view {
+        assertEq(handler.youngPublicSwaps(), 0, "a permissionless swap took EURe younger than TRIGGER_DELAY");
+    }
+
+    /// The arrival ledger never claims more EURe than the clone holds, and holds nothing
+    /// booked as late while no batch is open.
+    function invariant_arrivalLedgerNeverAheadOfTheBalance() public view {
+        assertLe(handler.fwd().eureSeen(), handler.eure().balanceOf(address(handler.fwd())));
+        if (handler.fwd().batchOpenedAt() == 0) {
+            assertEq(handler.fwd().arrivedThisWindow() + handler.fwd().arrivedLastWindow(), 0);
+        }
     }
 
     /// Config changes only through their authorized paths: the fee policy moves

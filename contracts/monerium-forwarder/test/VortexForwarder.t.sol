@@ -1112,11 +1112,239 @@ contract VortexForwarderTest is Test {
         assertEq(usdc.balanceOf(address(fwd)), 1_136e6);
         assertEq(usdc.balanceOf(address(vault)), 1_000e6);
 
-        _fund(1_000e18);
+        _fund(1_000e18); // arrives into the open batch: closed to the public until it has aged
+        fwd.poke();
+        skip(2 * TRIGGER_DELAY);
+        oracle.set(1.14e8, block.timestamp);
         router.setNextOut(1_145e6); // above the Chainlink-based target: the fee still applies
         vm.prank(rando);
         fwd.swap(999, 0, 1_000e18, NO_CAP);
         assertEq(usdc.balanceOf(feeRecipient), 1_145e6 - TARGET_1K);
+    }
+
+    // ------------------------------------- late arrivals and the permissionless swap
+
+    /// One unit of unsolicited USDC arms the batch marker (any USDC opens a batch).
+    function _armWithDust() internal {
+        usdc.mint(address(fwd), 1);
+        fwd.poke();
+    }
+
+    function _randoSwap(uint256 amountIn) internal {
+        vm.prank(rando);
+        fwd.swap(REF, 0, amountIn, NO_CAP);
+    }
+
+    function _expectRandoSwapNotAuthorized(uint256 amountIn) internal {
+        vm.prank(rando);
+        vm.expectRevert(VortexForwarder.NotAuthorizedYet.selector);
+        fwd.swap(REF, 0, amountIn, NO_CAP);
+    }
+
+    /// The reported scenario: a stray unit of USDC and a poke age the batch marker long
+    /// before a payment lands. The payment must not be open to anyone in the block it is
+    /// minted, nor a full TRIGGER_DELAY later, while the keeper converts it at once.
+    function test_swap_public_dustArmedMarkerDoesNotExposeAFreshPayment() public {
+        _armWithDust();
+        skip(TRIGGER_DELAY + 1);
+        oracle.set(1.14e8, block.timestamp);
+
+        _fund(10_000e18); // the client's payment is minted
+        router.setNextOut(ORACLE_FLOOR_1K * 10); // a fill pushed down to the Chainlink floor
+        _expectRandoSwapNotAuthorized(10_000e18); // same block, before anyone booked it
+        _expectRandoSwapNotAuthorized(25e18); // not even the minimum chunk
+
+        fwd.poke(); // books the arrival; the marker stays as old as it was
+        skip(TRIGGER_DELAY);
+        oracle.set(1.14e8, block.timestamp);
+        _expectRandoSwapNotAuthorized(10_000e18);
+
+        router.setNextOut(TARGET_10K);
+        _keeperSwap(10_000e18); // the keeper is never held back
+        assertEq(usdc.balanceOf(address(fwd)), TARGET_10K + 1);
+    }
+
+    /// The keeper forwards a payment by its exact amount, so the stray unit stays behind
+    /// and re-times the marker. A day later the next payment still lands closed.
+    function test_swap_public_dustLeftByAKeeperForwardDoesNotExposeTheNextPayment() public {
+        _armWithDust();
+        _fund(1_000e18);
+        router.setNextOut(TARGET_1K);
+        _keeperSwap(1_000e18);
+        skip(1 hours);
+        vm.prank(keeper);
+        fwd.forward(TARGET_1K);
+        assertEq(fwd.batchOpenedAt(), block.timestamp, "the stray unit keeps the batch open");
+
+        skip(TRIGGER_DELAY + 1);
+        oracle.set(1.14e8, block.timestamp);
+        _fund(1_000e18);
+        router.setNextOut(ORACLE_FLOOR_1K);
+        _expectRandoSwapNotAuthorized(1_000e18);
+    }
+
+    /// An arrival into an open batch waits for two window boundaries, wherever in a window
+    /// it was booked: still closed one TRIGGER_DELAY later, open after two.
+    function testFuzz_swap_public_lateArrivalOpensBetweenOneAndTwoTriggerDelays(uint32 rawOffset) public {
+        _armWithDust();
+        skip(bound(uint256(rawOffset), TRIGGER_DELAY + 1, 4 * TRIGGER_DELAY));
+        _fund(1_000e18);
+        fwd.poke();
+        router.setNextOut(TARGET_1K);
+
+        skip(TRIGGER_DELAY);
+        oracle.set(1.14e8, block.timestamp);
+        _expectRandoSwapNotAuthorized(1_000e18);
+
+        skip(TRIGGER_DELAY);
+        oracle.set(1.14e8, block.timestamp);
+        _randoSwap(1_000e18); // liveness: nothing stays closed past two TRIGGER_DELAYs
+        assertEq(eure.balanceOf(address(fwd)), 0);
+    }
+
+    /// The payment that opened the batch is timed by the marker and opens after exactly
+    /// TRIGGER_DELAY, as before; a later one sharing the clone stays closed.
+    function test_swap_public_onlyTheAgedPartOfTheBalanceIsOpen() public {
+        _fund(1_000e18);
+        fwd.poke();
+        skip(TRIGGER_DELAY - 1);
+        _fund(3_000e18); // a second payment, a moment before the first opens
+        skip(1);
+        oracle.set(1.14e8, block.timestamp);
+        router.setNextOut(TARGET_1K);
+
+        _expectRandoSwapNotAuthorized(1_000e18 + 1); // one unit of the young payment
+        _randoSwap(1_000e18);
+        _expectRandoSwapNotAuthorized(25e18);
+        assertEq(eure.balanceOf(address(fwd)), 3_000e18);
+    }
+
+    /// A keeper swap in the block a payment arrives books it first, so the payment cannot
+    /// pass for the older EURe that the swap took.
+    function test_swap_public_arrivalCannotHideBehindAKeeperSwap() public {
+        _fund(5_000e18);
+        fwd.poke();
+        skip(TRIGGER_DELAY + 1);
+        oracle.set(1.14e8, block.timestamp);
+        _fund(3_000e18); // nobody has booked it yet
+        router.setNextOut(TARGET_1K * 4);
+        _keeperSwap(4_000e18);
+        assertEq(fwd.eureSeen(), 4_000e18);
+        assertEq(fwd.arrivedThisWindow(), 3_000e18);
+
+        router.setNextOut(TARGET_1K);
+        _expectRandoSwapNotAuthorized(1_000e18 + 1);
+        _randoSwap(1_000e18); // 4,000 left, 3,000 of them young
+    }
+
+    /// The sums are never reduced by a keeper swap, because the contract cannot tell which
+    /// EURe the keeper took. A young payment the keeper has converted therefore keeps
+    /// older EURe closed until its own two windows have passed, and no longer.
+    function test_swap_public_aConvertedYoungPaymentHoldsBackOlderEureForItsWindows() public {
+        _fund(1_000e18); // stays on the clone, e.g. a payment waiting for its refund
+        fwd.poke();
+        skip(TRIGGER_DELAY + 1);
+        oracle.set(1.14e8, block.timestamp);
+        _fund(1_000e18); // a new payment, converted by the keeper at once
+        router.setNextOut(TARGET_1K);
+        _keeperSwap(1_000e18);
+        assertEq(eure.balanceOf(address(fwd)), 1_000e18);
+
+        _expectRandoSwapNotAuthorized(1_000e18); // old enough, but 1,000 still counts as young
+        skip(2 * TRIGGER_DELAY);
+        oracle.set(1.14e8, block.timestamp);
+        _randoSwap(1_000e18);
+    }
+
+    /// The booked sums belong to the batch they were booked into. Once the keeper has
+    /// forwarded everything and the batch is closed, they must not count against the
+    /// payment that opens the next one: it is open after exactly TRIGGER_DELAY.
+    function test_swap_public_aClosedBatchLeavesNothingBookedAgainstTheNext() public {
+        _fund(1_000e18);
+        fwd.poke();
+        skip(1 hours);
+        _fund(1_000e18); // lands in the open batch: booked as a late arrival
+        router.setNextOut(2 * TARGET_1K);
+        _keeperSwap(2_000e18);
+        vm.prank(keeper);
+        fwd.forward(2 * TARGET_1K);
+        assertEq(fwd.batchOpenedAt(), 0, "the emptied clone closed its batch");
+
+        skip(1 hours);
+        _fund(1_000e18); // opens the next batch; then the keeper goes silent
+        fwd.poke();
+        skip(TRIGGER_DELAY - 1);
+        oracle.set(1.14e8, block.timestamp);
+        router.setNextOut(TARGET_1K);
+        _expectRandoSwapNotAuthorized(1_000e18);
+        skip(1);
+        _randoSwap(1_000e18);
+    }
+
+    /// The same when the keeper's forward leaves EURe behind: it closes the batch and the
+    /// new marker times the remainder, so a late arrival the keeper has already converted
+    /// holds older EURe back no longer than that.
+    function test_swap_public_aKeeperForwardRestartsTheLedgerWithTheMarker() public {
+        _fund(1_000e18); // stays on the clone
+        fwd.poke();
+        skip(TRIGGER_DELAY + 1);
+        oracle.set(1.14e8, block.timestamp);
+        _fund(1_000e18); // a new payment: booked late, converted and forwarded at once
+        router.setNextOut(TARGET_1K);
+        _keeperSwap(1_000e18);
+        vm.prank(keeper);
+        fwd.forward(TARGET_1K);
+        assertEq(fwd.batchOpenedAt(), block.timestamp);
+
+        skip(TRIGGER_DELAY - 1);
+        oracle.set(1.14e8, block.timestamp);
+        _expectRandoSwapNotAuthorized(1_000e18);
+        skip(1);
+        _randoSwap(1_000e18);
+    }
+
+    /// Nobody can postpone the fallback by sending EURe: a stray amount is booked on its
+    /// own and takes nothing away from what has already aged.
+    function test_swap_public_strayEureCannotPostponeAnAgedPayment() public {
+        _fund(1_000e18);
+        fwd.poke();
+        skip(TRIGGER_DELAY + 1);
+        oracle.set(1.14e8, block.timestamp);
+
+        eure.mint(address(fwd), 1); // vandal: one unit and a poke, right as the path opens
+        fwd.poke();
+        router.setNextOut(TARGET_1K);
+        _expectRandoSwapNotAuthorized(1_000e18 + 1);
+        _randoSwap(1_000e18);
+        assertEq(eure.balanceOf(address(fwd)), 1);
+    }
+
+    /// A recovery books what arrived before it moves funds, and keeps the ledger in step
+    /// with the balance. What it leaves behind is timed by the marker it re-times, as
+    /// after a keeper forward.
+    function test_recover_booksArrivalsBeforeMovingFunds() public {
+        _fund(1_000e18);
+        fwd.poke();
+        skip(RECOVERY_DELAY);
+        _fund(600e18); // a younger payment shares the clone; nobody has booked it yet
+        vm.prank(keeper);
+        fwd.recover(1_000e18, 0);
+        assertEq(fwd.eureSeen(), 600e18);
+        assertEq(fwd.batchOpenedAt(), block.timestamp);
+
+        skip(TRIGGER_DELAY - 1);
+        oracle.set(1.14e8, block.timestamp);
+        router.setNextOut(684e6);
+        _expectRandoSwapNotAuthorized(600e18);
+        skip(1);
+        _randoSwap(600e18);
+    }
+
+    function test_constructor_rejectsAZeroTriggerDelay() public {
+        VortexForwarder.ImmutableConfig memory cfg = _config(address(router), bytes32(0));
+        cfg.triggerDelay = 0;
+        vm.expectRevert(VortexForwarder.InvalidTriggerDelay.selector);
+        new VortexForwarderFactory(cfg, 1e18, 50_000e18, 25e18, 10_000e18, _route(500, 500));
     }
 
     // ------------------------------------------------------- fee policy (P11)
