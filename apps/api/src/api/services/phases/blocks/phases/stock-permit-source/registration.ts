@@ -130,7 +130,10 @@ export async function registerStockPermitSource(
   ) {
     throw new APIError({
       isPublic: true,
-      message: `Too many ${gold ? "gold orders" : "stock sales"} failed in the last 24 hours; try again later`,
+      // Each message stays a whole literal: the consumer apps map it verbatim, and their tests look for it in this source.
+      message: gold
+        ? "Too many gold orders failed in the last 24 hours; try again later"
+        : "Too many stock sales failed in the last 24 hours; try again later",
       status: httpStatus.TOO_MANY_REQUESTS
     });
   }
