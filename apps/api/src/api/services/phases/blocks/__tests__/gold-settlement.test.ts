@@ -134,11 +134,11 @@ describe("Gold settlement simulation", () => {
   });
   const ctx = { addNote: () => {} } as unknown as PhaseCtx;
 
-  it("caps the top-up at 0.25% of the trade, between 5 and 50 USD, by default", () => {
+  it("caps the top-up at 0.05% of the trade, between 5 and 50 USD, by default", () => {
     expect(goldSettlementSubsidyCapUsd(new Big("8.45")).toString()).toBe("5");
-    expect(goldSettlementSubsidyCapUsd(new Big("2000")).toString()).toBe("5");
-    expect(goldSettlementSubsidyCapUsd(new Big("5000")).toString()).toBe("12.5");
-    expect(goldSettlementSubsidyCapUsd(new Big("20000")).toString()).toBe("50");
+    expect(goldSettlementSubsidyCapUsd(new Big("10000")).toString()).toBe("5");
+    expect(goldSettlementSubsidyCapUsd(new Big("25000")).toString()).toBe("12.5");
+    expect(goldSettlementSubsidyCapUsd(new Big("100000")).toString()).toBe("50");
     expect(goldSettlementSubsidyCapUsd(new Big("1000000")).toString()).toBe("50");
     config.gold.settlementSubsidyMinUsd = "0.5";
     config.gold.settlementSubsidyMaxBps = 50;
@@ -149,10 +149,10 @@ describe("Gold settlement simulation", () => {
   });
 
   it("passes the promised amount through and records the cap, rounded down", async () => {
-    const input = paxg("3333.33333333");
+    const input = paxg("33333.33333333");
     const { metadata: simulated, output } = await simulateGoldSettlement(input as never, ctx);
     expect(output).toBe(input as never);
-    expect(simulated).toEqual({ amountRaw: TARGET.toString(), maxSubsidyUsd: "8.333333" });
+    expect(simulated).toEqual({ amountRaw: TARGET.toString(), maxSubsidyUsd: "16.666666" });
   });
 
   it.each([

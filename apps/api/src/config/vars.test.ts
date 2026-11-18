@@ -397,7 +397,7 @@ describe("vars gold on Base", () => {
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       enabledDirections: [],
-      settlementSubsidyMaxBps: 25,
+      settlementSubsidyMaxBps: 5,
       settlementSubsidyMaxUsd: "50",
       settlementSubsidyMinUsd: "5",
       usdcEnabledDirections: []

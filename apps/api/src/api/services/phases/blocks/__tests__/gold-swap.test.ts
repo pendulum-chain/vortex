@@ -84,10 +84,12 @@ describe("Gold swap simulation", () => {
   it.each([
     // 1,000 USDC: the 5 USD floor is 0.5% of the trade, and nine tenths of it sizes the margin: 0.45%.
     ["1000", 250_000_000_000_000_000n, "248875000000000000"],
-    // 10,000 USDC: 0.25% is 25 USD, so the margin is 0.225%.
-    ["10000", 2_500_000_000_000_000_000n, "2494375000000000000"],
-    // 100,000 USDC: the 50 USD ceiling is 0.05% of the trade, so the margin is 0.045%.
-    ["100000", 25_000_000_000_000_000_000n, "24988750000000000000"]
+    // 10,000 USDC: 0.05% is 5 USD, so the margin is 0.045%.
+    ["10000", 2_500_000_000_000_000_000n, "2498875000000000000"],
+    // 100,000 USDC: 0.05% is 50 USD, the ceiling, so the margin is still 0.045%.
+    ["100000", 25_000_000_000_000_000_000n, "24988750000000000000"],
+    // 1,000,000 USDC: the 50 USD ceiling is 0.005% of the trade, so the margin is 0.0045%.
+    ["1000000", 250_000_000_000_000_000_000n, "249988750000000000000"]
   ])("narrows the soft minimum of a %s USDC buy to what its top-up cap covers", async (usdc, outputRaw, softMinimum) => {
     const { metadata } = await simulateGoldSwapBuy(usdcIn(usdc), ctx(), dependencies(outputRaw));
     expect(metadata.swap.softMinimumOutputRaw).toBe(softMinimum);
@@ -120,11 +122,11 @@ describe("Gold swap simulation", () => {
   });
 
   it("narrows the soft minimum of a large sale to what its top-up cap covers", async () => {
-    // 2.5 PAXG for 9,995 USDC: 0.25% is 24.9875 USD, and nine tenths of it sizes the margin: 0.225%.
-    const { metadata } = await simulateGoldSwapSell(paxgIn("2.5"), ctx(), dependencies(9_995_000_000n));
-    expect(metadata.saleSubsidyMaxUsd).toBe("24.987500");
-    expect(metadata.swap.softMinimumOutputRaw).toBe("9972511250");
-    expect(metadata.swap.hardMinimumOutputRaw).toBe("9495250000");
+    // 25 PAXG for 99,950 USDC: 0.05% is 49.975 USD, and nine tenths of it sizes the margin: 0.045%.
+    const { metadata } = await simulateGoldSwapSell(paxgIn("25"), ctx(), dependencies(99_950_000_000n));
+    expect(metadata.saleSubsidyMaxUsd).toBe("49.975000");
+    expect(metadata.swap.softMinimumOutputRaw).toBe("99905022500");
+    expect(metadata.swap.hardMinimumOutputRaw).toBe("94952500000");
   });
 
   it.each([
