@@ -148,6 +148,9 @@ describe("getSupportedCryptocurrencies", () => {
         rampTypes: BOTH
       });
       expect(basePaxg("usdc")?.rampTypes).toEqual([RampDirection.BUY]);
+      // Only the two exact rail names select a switch.
+      expect(basePaxg("USDC")).toBeUndefined();
+      expect(basePaxg("sepa")).toBeUndefined();
     });
 
     it("is listed for one rail only when the other switch is empty", () => {
