@@ -160,13 +160,28 @@ describe("registerEvmToken", () => {
     expect(basePaxgAddress()).toBeUndefined();
   });
 
-  test("a registered address wins over a discovered token of the same symbol and keeps its price", async () => {
+  test("a registered address wins over a discovered token of the same symbol and does not take its price", async () => {
     tokens.registerEvmToken({ ...basePaxg, network: Networks.Ethereum });
     stubFetch(async () => okResponse());
     expect(await tokens.initializeEvmTokens()).toBe(true);
 
     const paxg = tokens.getEvmTokenConfig()[Networks.Ethereum].PAXG;
     expect(paxg?.erc20AddressSourceChain).toBe(BASE_PAXG);
+    expect(paxg?.usdPrice).not.toBe(3300);
+  });
+
+  test("a registered token keeps the discovered price of its own contract", async () => {
+    const registered = PAXG_ADDRESS.toUpperCase().replace("0X", "0x") as `0x${string}`;
+    tokens.registerEvmToken({ ...basePaxg, erc20AddressSourceChain: registered, network: Networks.Ethereum });
+    stubFetch(async () => okResponse());
+    expect(await tokens.initializeEvmTokens()).toBe(true);
+
+    const paxg = tokens.getEvmTokenConfig()[Networks.Ethereum].PAXG;
+    expect(paxg?.erc20AddressSourceChain).toBe(registered);
     expect(paxg?.usdPrice).toBe(3300);
+  });
+
+  test("a token on a non-EVM network is refused", () => {
+    expect(() => tokens.registerEvmToken({ ...basePaxg, network: Networks.AssetHub })).toThrow(/non-EVM/);
   });
 });
