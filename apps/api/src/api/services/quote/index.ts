@@ -19,7 +19,7 @@ import pLimit from "p-limit";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import { APIError } from "../../errors/api-error";
-import { isGoldBaseRoute, isGoldRouteEnabled } from "../phases/blocks/core/gold-base";
+import { BASE_PAXG_DECIMALS, isBaseUsdcGoldRoute, isGoldBaseRoute, isGoldRouteEnabled } from "../phases/blocks/core/gold-base";
 import {
   getTargetFiatCurrency,
   isRetiredAssetHubCorridor,
@@ -433,10 +433,31 @@ async function assertStockRouteQuotable(
 
 /** PAXG on Base only: the per-direction switch of the rail that pays for it. A request on any other rail is refused too. */
 function assertGoldRouteQuotable(
-  request: Pick<CreateQuoteRequest, "from" | "inputCurrency" | "outputCurrency" | "rampType" | "to">
+  request: Pick<CreateQuoteRequest, "from" | "inputAmount" | "inputCurrency" | "outputCurrency" | "rampType" | "to">
 ): void {
-  if (isGoldBaseRoute(request) && !isGoldRouteEnabled(request)) {
+  if (!isGoldBaseRoute(request)) {
+    return;
+  }
+  if (!isGoldRouteEnabled(request)) {
     throw new APIError({ isPublic: true, message: QuoteError.UnsupportedCurrency, status: httpStatus.BAD_REQUEST });
+  }
+  const amount = new Big(request.inputAmount);
+  if (isBaseUsdcGoldRoute(request) && request.rampType === RampDirection.BUY) {
+    if (amount.lt(10) || amount.gt(1_000_000) || !amount.round(6, Big.roundDown).eq(amount)) {
+      throw new APIError({
+        isPublic: true,
+        message: "USDC amount must be between 10 and 1000000 with at most 6 decimals",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  }
+  // The ticket rounds a finer amount to 18 decimals while the flow floors it, so its echo could differ from what moves.
+  if (request.rampType === RampDirection.SELL && !amount.round(BASE_PAXG_DECIMALS, Big.roundDown).eq(amount)) {
+    throw new APIError({
+      isPublic: true,
+      message: `The amount has more than ${BASE_PAXG_DECIMALS} decimal places.`,
+      status: httpStatus.BAD_REQUEST
+    });
   }
 }
 

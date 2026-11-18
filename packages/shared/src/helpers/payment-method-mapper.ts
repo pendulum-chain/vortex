@@ -68,7 +68,11 @@ export function getPaymentMethodFromDestinations(from: DestinationType, to: Dest
     return to as PaymentMethod;
   }
 
-  if ((from === Networks.Base && to === Networks.Robinhood) || (from === Networks.Robinhood && to === Networks.Base)) {
+  if (
+    (from === Networks.Base && to === Networks.Robinhood) ||
+    (from === Networks.Robinhood && to === Networks.Base) ||
+    (from === Networks.Base && to === Networks.Base)
+  ) {
     return EPaymentMethod.USDC;
   }
 
