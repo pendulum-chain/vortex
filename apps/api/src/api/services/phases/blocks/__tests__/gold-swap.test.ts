@@ -76,15 +76,22 @@ describe("Gold swap simulation", () => {
       quoter: BASE_PANCAKE_V3_QUOTER_V2,
       router: BASE_PANCAKE_V3_ROUTER,
       routerKind: "v1",
-      // The cap is 1% of 100 USDC, and nine tenths of it sizes the margin: 0.9% below the quote.
-      softMinimumOutputRaw: "24775000000000000"
+      // The 5 USD floor covers far more than 2% of 100 USDC, so the swap's own 2% margin applies.
+      softMinimumOutputRaw: "24500000000000000"
     });
   });
 
-  it("narrows the soft minimum on a large buy, whose top-up is capped in dollars", async () => {
-    // 10,000 USDC: the 1 USD cap is 0.01% of the input, so the margin is 0.009%.
-    const { metadata } = await simulateGoldSwapBuy(usdcIn("10000"), ctx(), dependencies(2_500_000_000_000_000_000n));
-    expect(metadata.swap.softMinimumOutputRaw).toBe("2499775000000000000");
+  it.each([
+    // 1,000 USDC: the 5 USD floor is 0.5% of the trade, and nine tenths of it sizes the margin: 0.45%.
+    ["1000", 250_000_000_000_000_000n, "248875000000000000"],
+    // 10,000 USDC: 0.25% is 25 USD, so the margin is 0.225%.
+    ["10000", 2_500_000_000_000_000_000n, "2494375000000000000"],
+    // 100,000 USDC: the 50 USD ceiling is 0.05% of the trade, so the margin is 0.045%.
+    ["100000", 25_000_000_000_000_000_000n, "24988750000000000000"]
+  ])("narrows the soft minimum of a %s USDC buy to what its top-up cap covers", async (usdc, outputRaw, softMinimum) => {
+    const { metadata } = await simulateGoldSwapBuy(usdcIn(usdc), ctx(), dependencies(outputRaw));
+    expect(metadata.swap.softMinimumOutputRaw).toBe(softMinimum);
+    expect(metadata.saleSubsidyMaxUsd).toBeUndefined();
   });
 
   it("never widens the soft minimum beyond the swap's own 2%, whatever the cap", async () => {
@@ -94,11 +101,12 @@ describe("Gold swap simulation", () => {
     expect(metadata.swap.softMinimumOutputRaw).toBe("24500000000000000");
   });
 
-  it("quotes a sell into USDC with the swap's own margins", async () => {
+  it("quotes a sell into USDC with the swap's own margins and records what topping it up may cost", async () => {
     const { metadata, output } = await simulateGoldSwapSell(paxgIn("0.025"), ctx(), dependencies(99_950_000n));
     expect(output).toMatchObject({ amountRaw: "99950000", chain: Networks.Base, token: "USDC" });
     expect(output.requestInputAmountUsd?.toString()).toBe("99.95");
     expect(metadata.direction).toBe(RampDirection.SELL);
+    expect(metadata.saleSubsidyMaxUsd).toBe("5.000000");
     expect(metadata.swap).toMatchObject({
       hardMinimumOutputRaw: "94952500",
       inputAmountRaw: "25000000000000000",
@@ -109,6 +117,14 @@ describe("Gold swap simulation", () => {
     });
     // 3998 against the reference 4000 is 5 bps worse for the seller.
     expect(metadata.reference.deviationBps).toBe(5);
+  });
+
+  it("narrows the soft minimum of a large sale to what its top-up cap covers", async () => {
+    // 2.5 PAXG for 9,995 USDC: 0.25% is 24.9875 USD, and nine tenths of it sizes the margin: 0.225%.
+    const { metadata } = await simulateGoldSwapSell(paxgIn("2.5"), ctx(), dependencies(9_995_000_000n));
+    expect(metadata.saleSubsidyMaxUsd).toBe("24.987500");
+    expect(metadata.swap.softMinimumOutputRaw).toBe("9972511250");
+    expect(metadata.swap.hardMinimumOutputRaw).toBe("9495250000");
   });
 
   it.each([

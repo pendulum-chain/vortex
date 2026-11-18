@@ -1,5 +1,5 @@
 import { Networks } from "@vortexfi/shared";
-import { decodeFunctionData, parseAbi, parseTransaction } from "viem";
+import { decodeFunctionData, encodeAbiParameters, encodeEventTopics, erc20Abi, parseAbi, parseTransaction } from "viem";
 import {
   BASE_PANCAKE_V3_FACTORY,
   BASE_PANCAKE_V3_QUOTER_V2,
@@ -98,7 +98,20 @@ export function applyGoldRouterTx(
       return;
     }
     if (ledger.pull(tx, tokenIn, sender, BASE_PANCAKE_V3_ROUTER, BASE_PANCAKE_V3_ROUTER, amountIn)) {
-      ledger.credit(tx.network, `0x${path.slice(-40)}`, recipient, amountOut);
+      const tokenOut = `0x${path.slice(-40)}` as `0x${string}`;
+      ledger.credit(tx.network, tokenOut, recipient, amountOut);
+      // The pool's payout, as the executors read a swap's fill from its receipt.
+      evm.receiptLogs.set(tx.hash, [
+        {
+          address: tokenOut,
+          data: encodeAbiParameters([{ type: "uint256" }], [amountOut]),
+          topics: encodeEventTopics({
+            abi: erc20Abi,
+            args: { from: BASE_PAXG_USDC_POOL, to: recipient },
+            eventName: "Transfer"
+          })
+        }
+      ]);
     }
     return;
   }

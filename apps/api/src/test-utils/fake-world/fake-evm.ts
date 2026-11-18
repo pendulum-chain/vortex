@@ -84,6 +84,8 @@ export class FakeEvm {
   failNextReceiptReads = 0;
   /** Hashes whose receipts report a mined-but-reverted transaction. */
   readonly revertedReceiptHashes = new Set<string>();
+  /** Event logs a test attaches to a transaction's receipt, by hash. Receipts carry none otherwise. */
+  readonly receiptLogs = new Map<string, unknown[]>();
   baseL1FeeRaw = 8_000_000_000_000n;
   baseL1FeeUpperBoundRaw = 10_000_000_000_000n;
   arbitrumL1GasComponent = 520n;
@@ -213,7 +215,7 @@ export class FakeEvm {
       return {
         blockNumber: 1n,
         from: recorded?.from,
-        logs: [],
+        logs: this.receiptLogs.get(hash) ?? [],
         status: this.revertedReceiptHashes.has(hash) ? ("reverted" as const) : ("success" as const),
         to: recorded?.to,
         transactionHash: hash

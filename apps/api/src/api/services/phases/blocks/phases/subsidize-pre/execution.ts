@@ -24,7 +24,9 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { EvmSubsidyTopUpExecutor } from "../../core/evm-subsidy-top-up";
 import { getBlockMetadata } from "../../core/metadata";
-import { STOCK_ROUTE_CONTEXT_KEY } from "../uniswap-v3-fixed-swap/route";
+import { readGoldSwapFill, refuseGoldTopUp } from "../gold-swap/fill";
+import type { GoldSwapMetadata } from "../gold-swap/simulation";
+import { GOLD_SWAP_CONTEXT_KEY, STOCK_ROUTE_CONTEXT_KEY } from "../uniswap-v3-fixed-swap/route";
 import { SubsidizePreContext } from "./simulation";
 
 export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
@@ -125,6 +127,10 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
         STOCK_ROUTE_CONTEXT_KEY
       ];
       const isStockSale = stockRoute?.direction === RampDirection.SELL;
+      const goldSwap = (quote.metadata as { blocks?: Record<string, Partial<GoldSwapMetadata> | undefined> }).blocks?.[
+        GOLD_SWAP_CONTEXT_KEY
+      ];
+      const goldSale = goldSwap?.direction === RampDirection.SELL ? goldSwap : undefined;
       // The swap consumes targetInputAmountRaw; feeReserveRaw (Alfredpay corridors)
       // additionally keeps the later distributeFees transfers funded on the ephemeral.
       const targetRaw = Big(
@@ -137,6 +143,10 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
         assess: currentBalance => ({
           enforceCaps: async maximumTransferAmount => {
             const subsidyDecimal = nativeToDecimal(maximumTransferAmount, metadata.inputDecimals).toString();
+            if (goldSale) {
+              await this.enforceGoldSaleCaps(state, goldSale, maximumTransferAmount, subsidyDecimal, evmEphemeralAddress);
+              return;
+            }
             const subsidyUsd = await priceFeedService.convertCurrency(
               subsidyDecimal,
               inputToken as RampCurrency,
@@ -186,6 +196,44 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
         throw e;
       }
       throw this.createRecoverableError("SubsidizePreSwapExecutor: Failed to subsidize pre swap on EVM.");
+    }
+  }
+
+  /**
+   * The gold is already sold and its fill is final, so a top-up the Gold cap does not cover waits for an operator. The
+   * seller holds the ephemeral's key, so the funding wallet replaces only what the swap itself fell short by. USDC
+   * counts as a dollar, as it does when the cap is sized.
+   */
+  private async enforceGoldSaleCaps(
+    state: RampState,
+    goldSale: Partial<GoldSwapMetadata>,
+    topUp: Big,
+    topUpUsd: string,
+    ephemeral: string
+  ): Promise<void> {
+    const swapTransaction = this.getPresignedTransaction(state, "uniswapSwap")?.txData;
+    const refusal = refuseGoldTopUp(
+      BigInt(topUp.toFixed(0)),
+      BigInt(goldSale.swap?.outputAmountRaw ?? "0"),
+      typeof swapTransaction === "string" && goldSale.swap
+        ? await readGoldSwapFill(
+            swapTransaction as `0x${string}`,
+            goldSale.swap.outputToken as `0x${string}`,
+            ephemeral as `0x${string}`
+          )
+        : null
+    );
+    if (refusal) {
+      logger.warn("GOLD_TOP_UP_REFUSED", { rampId: state.id, reason: refusal, topUpRaw: topUp.toFixed(0) });
+      throw this.createReconciliationRequiredError(`SubsidizePreSwapExecutor: ${refusal}.`);
+    }
+    // A sale quoted without a cap gets no top-up.
+    const saleSubsidyMaxUsd = goldSale.saleSubsidyMaxUsd ?? "0";
+    if (Big(topUpUsd).gt(saleSubsidyMaxUsd)) {
+      logger.warn("GOLD_SALE_SUBSIDY_CAP_EXCEEDED", { rampId: state.id, saleSubsidyMaxUsd, subsidyUsd: topUpUsd });
+      throw this.createReconciliationRequiredError(
+        `SubsidizePreSwapExecutor: Required subsidy $${topUpUsd} exceeds the Gold sale cap $${saleSubsidyMaxUsd}.`
+      );
     }
   }
 }

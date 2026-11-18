@@ -23,6 +23,7 @@ import {
   GOLD_TOKEN
 } from "../../core/gold-base";
 import { getBlockMetadata } from "../../core/metadata";
+import { readGoldSwapFill, refuseGoldTopUp } from "../gold-swap/fill";
 import { stockSettlementQuoterAbi } from "../stock-settlement/contract";
 import { UNISWAP_APPROVE_GAS_LIMIT, UNISWAP_SWAP_GAS_LIMIT } from "../uniswap-v3-fixed-swap/contract";
 import { classifyStockRouteFailure } from "../uniswap-v3-fixed-swap/route";
@@ -59,6 +60,8 @@ interface TopUpPlan {
 export interface GoldSettlementDependencies {
   estimateMaxFeePerGas(): Promise<bigint>;
   getNativeBalance(owner: `0x${string}`): Promise<bigint>;
+  /** What the buy's own swap paid the ephemeral, or null when that swap has no successful receipt. */
+  getSwapFill(swapTransaction: `0x${string}`, ephemeral: `0x${string}`): Promise<bigint | null>;
   getTokenBalance(token: `0x${string}`, owner: `0x${string}`): Promise<bigint>;
   now(): number;
   quoteUsdcIn(paxgOut: bigint): Promise<bigint>;
@@ -71,6 +74,7 @@ function defaultDependencies(): GoldSettlementDependencies {
   return {
     estimateMaxFeePerGas: async () => (await client.estimateFeesPerGas()).maxFeePerGas,
     getNativeBalance: owner => client.getBalance({ address: owner }),
+    getSwapFill: (swapTransaction, ephemeral) => readGoldSwapFill(swapTransaction, BASE_PAXG_ADDRESS, ephemeral),
     getTokenBalance: (token, owner) =>
       client.readContract({ abi: erc20Abi, address: token, args: [owner], functionName: "balanceOf" }),
     now: Date.now,
@@ -99,10 +103,10 @@ function defaultDependencies(): GoldSettlementDependencies {
 }
 
 /**
- * Delivers the exact PAXG a buy promised. By now the buyer has paid, and whatever the swap produced is safe on the
- * ephemeral, so nothing here fails the ramp: the funding wallet buys the shortfall through the pinned pool, a top-up
- * above the cap pauses for an operator, and the phase moves on once the balance suffices. A surplus stays on the
- * ephemeral for the cleanup sweep.
+ * Delivers the exact PAXG a buy promised. By now the buyer has paid, and whatever the swap produced is on the
+ * ephemeral, so nothing here fails the ramp: the funding wallet buys what the swap fell short by through the pinned
+ * pool, a top-up above the cap or beyond the swap's own shortfall pauses for an operator, and the phase moves on once
+ * the balance suffices. A surplus stays on the ephemeral for the cleanup sweep.
  */
 export class GoldSettlementExecutor extends BasePhaseHandler {
   constructor(private readonly injectedDependencies?: GoldSettlementDependencies) {
@@ -187,6 +191,18 @@ export class GoldSettlementExecutor extends BasePhaseHandler {
     const balance = await dependencies.getTokenBalance(BASE_PAXG_ADDRESS, ephemeral);
     if (balance >= target) return null;
     const shortfall = target - balance;
+
+    // The buyer holds the ephemeral's key: only what the swap itself fell short by is topped up.
+    const swapTransaction = this.getPresignedTransaction(state, "uniswapSwap")?.txData;
+    const refusal = refuseGoldTopUp(
+      shortfall,
+      target,
+      typeof swapTransaction === "string" ? await dependencies.getSwapFill(swapTransaction as `0x${string}`, ephemeral) : null
+    );
+    if (refusal) {
+      logger.warn("GOLD_TOP_UP_REFUSED", { rampId: state.id, reason: refusal, shortfallRaw: shortfall.toString() });
+      throw this.createReconciliationRequiredError(`GoldSettlement: ${refusal}`);
+    }
 
     const quoted = await dependencies.quoteUsdcIn(shortfall);
     const costUsd = new Big(formatUnits(quoted, BASE_USDC_DECIMALS));

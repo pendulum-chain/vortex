@@ -397,8 +397,9 @@ describe("vars gold on Base", () => {
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       enabledDirections: [],
-      settlementSubsidyMaxBps: 100,
-      settlementSubsidyMaxUsd: "1",
+      settlementSubsidyMaxBps: 25,
+      settlementSubsidyMaxUsd: "50",
+      settlementSubsidyMinUsd: "5",
       usdcEnabledDirections: []
     });
   });
@@ -413,8 +414,13 @@ describe("vars gold on Base", () => {
   it.each([
     [{ GOLD_ENABLED_DIRECTIONS: "BUY,HOLD" }, "GOLD_ENABLED_DIRECTIONS contains unknown directions: HOLD"],
     [{ GOLD_USDC_ENABLED_DIRECTIONS: "on" }, "GOLD_USDC_ENABLED_DIRECTIONS contains unknown directions: ON"],
-    [{ GOLD_SETTLEMENT_SUBSIDY_MAX_BPS: "0" }, "GOLD_SETTLEMENT_SUBSIDY_MAX_BPS must be a positive integer"],
-    [{ GOLD_SETTLEMENT_SUBSIDY_MAX_USD: "free" }, "GOLD_SETTLEMENT_SUBSIDY_MAX_USD must be a positive number"]
+    [{ GOLD_SETTLEMENT_SUBSIDY_MAX_BPS: "10001" }, "GOLD_SETTLEMENT_SUBSIDY_MAX_BPS must be an integer from 0 to 10000"],
+    [{ GOLD_SETTLEMENT_SUBSIDY_MAX_USD: "free" }, "GOLD_SETTLEMENT_SUBSIDY_MAX_USD must be a positive number"],
+    [{ GOLD_SETTLEMENT_SUBSIDY_MIN_USD: "0" }, "GOLD_SETTLEMENT_SUBSIDY_MIN_USD must be a positive number"],
+    [
+      { GOLD_SETTLEMENT_SUBSIDY_MAX_USD: "4", GOLD_SETTLEMENT_SUBSIDY_MIN_USD: "5" },
+      "GOLD_SETTLEMENT_SUBSIDY_MIN_USD must not exceed GOLD_SETTLEMENT_SUBSIDY_MAX_USD"
+    ]
   ])("refuses to start on %p", async (env, message) => {
     const result = await importVarsWithEnv(env);
 

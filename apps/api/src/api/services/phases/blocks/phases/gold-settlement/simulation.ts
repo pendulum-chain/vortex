@@ -12,11 +12,15 @@ export interface GoldSettlementMetadata {
 
 export const GoldSettlementContext = defineContext<GoldSettlementMetadata>()("goldSettlement");
 
-/** What a top-up may cost: a share of the swap input, capped. */
-export function goldSettlementSubsidyCapUsd(inputUsd: Big): Big {
-  const { settlementSubsidyMaxBps, settlementSubsidyMaxUsd } = config.gold;
-  const share = inputUsd.mul(settlementSubsidyMaxBps).div(10_000);
-  return share.lt(settlementSubsidyMaxUsd) ? share : new Big(settlementSubsidyMaxUsd);
+/**
+ * What delivering a Gold order at its quote may cost the funding wallet, on a buy and on a sale: a share of the trade,
+ * capped, but never below the floor that keeps small orders from waiting on every tick.
+ */
+export function goldSettlementSubsidyCapUsd(tradeUsd: Big): Big {
+  const { settlementSubsidyMaxBps, settlementSubsidyMaxUsd, settlementSubsidyMinUsd } = config.gold;
+  const share = tradeUsd.mul(settlementSubsidyMaxBps).div(10_000);
+  const ceiling = share.lt(settlementSubsidyMaxUsd) ? share : new Big(settlementSubsidyMaxUsd);
+  return ceiling.gt(settlementSubsidyMinUsd) ? ceiling : new Big(settlementSubsidyMinUsd);
 }
 
 /** Pass-through. Records the exact amount promised and how much Vortex may spend to deliver it. */

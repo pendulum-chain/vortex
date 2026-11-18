@@ -25,6 +25,7 @@ import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-
 import { config } from "../../config/vars";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
+import Subsidy from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeChainIdRpc, installFakeWorld } from "../../test-utils/fake-world";
@@ -171,9 +172,13 @@ describe("Gold on Base with Pix: real executors, simulated chain and provider", 
       [USDC.toLowerCase()]: { name: "USD Coin", version: "2" }
     });
 
-  it(
-    "buys PAXG with Pix: mint, Nabla, the pinned pool, and the exact quoted amount to the buyer",
-    async () => {
+  it.each([
+    ["at its quote", 10_000n],
+    // Within the cap the swap's soft minimum was sized with, so the order neither waits nor pauses.
+    ["0.2% below its quote, which the funding wallet tops up", 9_980n]
+  ])(
+    "buys PAXG with Pix when the pool fills %s: mint, Nabla, the pinned pool, and the exact quoted amount to the buyer",
+    async (_label, fillBps) => {
       const secret = generatePrivateKey();
       const ephemeral = privateKeyToAccount(secret);
       const destination = privateKeyToAccount(generatePrivateKey()).address;
@@ -215,12 +220,13 @@ describe("Gold on Base with Pix: real executors, simulated chain and provider", 
           ledger.credit(Networks.Base, BRLA, walletAddress, parseUnits(new Big(mint.mint.outputAmountDecimal).toFixed(2, 0), 18));
         }
       };
-      scriptChain(ledger, ephemeral.address, presignedTxs.find(tx => tx.phase === "nablaSwap")?.txData as string, {
-        inputRaw: BigInt(nabla.inputAmountForSwapRaw),
-        inputToken: BRLA,
-        outputRaw: BigInt(nabla.outputAmountRaw),
-        outputToken: USDC
-      });
+      scriptChain(
+        ledger,
+        ephemeral.address,
+        presignedTxs.find(tx => tx.phase === "nablaSwap")?.txData as string,
+        { inputRaw: BigInt(nabla.inputAmountForSwapRaw), inputToken: BRLA, outputRaw: BigInt(nabla.outputAmountRaw), outputToken: USDC },
+        fillBps
+      );
 
       await post("/v1/ramp/start", { rampId: registered.id }, user.id);
       const final = await settle(registered.id);
@@ -228,6 +234,8 @@ describe("Gold on Base with Pix: real executors, simulated chain and provider", 
       expect(final.phaseHistory.map(entry => entry.phase)).toEqual(BUY_PHASES);
       expect(world.evm.revertedReceiptHashes.size).toBe(0);
       expect(balance(PAXG, destination)).toBe(parseUnits(quote.outputAmount, 18));
+      const topUps = await Subsidy.count({ where: { phase: "goldSettlementTopUp", rampId: registered.id } });
+      expect(topUps).toBe(fillBps === 10_000n ? 0 : 1);
       expect(balance(USDC, FEE_PAYOUT)).toBe(parseUnits(getBlockMetadata(metadata, DistributeFeesContext).totalFeesUsd, 6));
     },
     90_000

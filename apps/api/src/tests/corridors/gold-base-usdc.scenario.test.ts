@@ -61,6 +61,7 @@ describe("Gold on Base with native USDC: real executors, simulated chain", () =>
     world.evm.strictReceipts = true;
     world.evm.sentTransactions.length = 0;
     world.evm.revertedReceiptHashes.clear();
+    world.evm.receiptLogs.clear();
     world.evm.onTransaction = undefined;
     world.evm.setFeeEstimate(Networks.Base, 6_500_000n, 1_000_000n);
     world.evm.setNativeBalance(Networks.Base, FUNDING, parseEther("10"));
@@ -88,14 +89,20 @@ describe("Gold on Base with native USDC: real executors, simulated chain", () =>
     return response.json();
   }
 
-  /** Quotes, registers, presigns as the ephemeral, signs the owner's permit, and wires the simulated chain. */
-  async function setup(direction: RampDirection, { fillBps = 10_000n } = {}) {
+  /**
+   * Quotes, registers, presigns as the ephemeral, signs the owner's permit, and wires the simulated chain. `leakRaw` of
+   * the swap's output leaves the ephemeral right after the swap, as a transfer signed with the ephemeral's key would.
+   */
+  async function setup(
+    direction: RampDirection,
+    { fillBps = 10_000n, leakRaw = 0n, size = 1 }: { fillBps?: bigint; leakRaw?: bigint; size?: number } = {}
+  ) {
     const buy = direction === RampDirection.BUY;
     const owner = privateKeyToAccount(generatePrivateKey());
     const secret = generatePrivateKey();
     const ephemeral = privateKeyToAccount(secret);
     const user = await createTestUser();
-    const amount = buy ? "100" : "0.025";
+    const amount = new Big(buy ? "100" : "0.025").mul(size).toString();
     const sourceToken = buy ? USDC : PAXG;
     world.evm.setNativeBalance(Networks.Base, owner.address, 0n);
     world.evm.setErc20Balance(Networks.Base, sourceToken, owner.address, parseUnits(amount, buy ? 6 : 18));
@@ -126,9 +133,14 @@ describe("Gold on Base with native USDC: real executors, simulated chain", () =>
       [PAXG.toLowerCase()]: { name: "Paxos Gold", version: "1" },
       [USDC.toLowerCase()]: { name: "USD Coin", version: "2" }
     });
+    const outputToken = buy ? PAXG : USDC;
     world.evm.onTransaction = tx => {
       ledger.apply(tx);
       applyGoldRouterTx(world.evm, ledger, tx, ephemeral.address, PRICE_USD, fillBps);
+      if (leakRaw > 0n && world.evm.receiptLogs.has(tx.hash)) {
+        const held = world.evm.erc20Balance(Networks.Base, outputToken, ephemeral.address);
+        world.evm.setErc20Balance(Networks.Base, outputToken, ephemeral.address, held - leakRaw);
+      }
     };
 
     const updated = await post("/v1/ramp/update", { presignedTxs: signed, rampId: registered.id }, user.id);
@@ -188,9 +200,58 @@ describe("Gold on Base with native USDC: real executors, simulated chain", () =>
     expect(balance(PAXG, x.owner.address)).toBe(parseUnits(x.quote.outputAmount, 18));
     const subsidies = await Subsidy.findAll({ where: { rampId: x.rampId } });
     expect(subsidies.map(subsidy => [subsidy.phase, subsidy.token])).toEqual([["goldSettlementTopUp", "PAXG"]]);
-    // About 0.5% of a 100 USDC buy, paid by the funding wallet and within the 1 USD cap.
+    // About 0.5% of a 100 USDC buy, paid by the funding wallet and within the 5 USD cap.
     const spent = fundingUsdcBefore - balance(USDC, FUNDING);
     expect(spent).toBeGreaterThan(400_000n);
     expect(spent).toBeLessThan(600_000n);
   }, 90_000);
+
+  it("tops a sale up to the exact quoted USDC when the pool fills 0.5% short", async () => {
+    const x = await setup(RampDirection.SELL, { fillBps: 9_950n });
+    const fundingUsdcBefore = balance(USDC, FUNDING);
+    await post("/v1/ramp/start", { rampId: x.rampId }, x.userId);
+    const final = await settle(x.rampId);
+    expect(final.currentPhase, JSON.stringify(final.errorLogs)).toBe("complete");
+
+    expect(balance(USDC, x.owner.address)).toBe(parseUnits(x.quote.outputAmount, 6));
+    const subsidies = await Subsidy.findAll({ where: { rampId: x.rampId } });
+    expect(subsidies.map(subsidy => [subsidy.phase, subsidy.token])).toEqual([["subsidizePreSwap", "USDC"]]);
+    // Exactly what the pool fell short by: 0.5% of the 100 USDC the gold was quoted at.
+    expect(fundingUsdcBefore - balance(USDC, FUNDING)).toBe(500_000n);
+  }, 90_000);
+
+  it("pauses a sale for an operator, paying nothing, when the fill is short by more than the Gold cap", async () => {
+    // 0.25 PAXG is quoted at 1,000 USDC, so the cap is the 5 USD floor. A fill 1% short misses by 10 USDC.
+    const x = await setup(RampDirection.SELL, { fillBps: 9_900n, size: 10 });
+    const fundingUsdcBefore = balance(USDC, FUNDING);
+    await post("/v1/ramp/start", { rampId: x.rampId }, x.userId);
+    const paused = await settle(x.rampId);
+
+    expect(paused.currentPhase).toBe("subsidizePreSwap");
+    expect(JSON.stringify(paused.errorLogs)).toMatch(/exceeds the Gold sale cap \$5\.000000/);
+    expect(balance(USDC, FUNDING)).toBe(fundingUsdcBefore);
+    expect(balance(USDC, x.owner.address)).toBe(0n);
+    expect(await Subsidy.count({ where: { rampId: x.rampId } })).toBe(0);
+  }, 90_000);
+
+  it.each([
+    [RampDirection.SELL, "subsidizePreSwap", 1_000_000n],
+    [RampDirection.BUY, "goldSettlementTopUp", 100_000_000_000_000n]
+  ])(
+    "does not replace what left the ephemeral of a %s by a transfer the flow did not sign",
+    async (direction, phase, leakRaw) => {
+      // Whoever holds the ephemeral's key can move its tokens with a signed authorization, without a transaction of
+      // the ephemeral's own. The pool filled 0.5% short, which alone would be topped up.
+      const x = await setup(direction, { fillBps: 9_950n, leakRaw });
+      const fundingUsdcBefore = balance(USDC, FUNDING);
+      await post("/v1/ramp/start", { rampId: x.rampId }, x.userId);
+      const paused = await settle(x.rampId);
+
+      expect(paused.currentPhase as string).toBe(phase);
+      expect(JSON.stringify(paused.errorLogs)).toMatch(/funds left the ephemeral another way/);
+      expect(balance(USDC, FUNDING)).toBe(fundingUsdcBefore);
+      expect(await Subsidy.count({ where: { rampId: x.rampId } })).toBe(0);
+    },
+    90_000
+  );
 });

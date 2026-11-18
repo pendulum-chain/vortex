@@ -36,6 +36,8 @@ const TARGET = 25_000_000_000_000_000n;
 const SHORTFALL = 100_000_000_000_000n;
 const USDC_IN = 400_000n;
 const NOW_MS = Date.UTC(2026, 10, 18, 12);
+/** Stands in for the buy's presigned swap; only its presence matters here, the fill is injected. */
+const SWAP_TX = "0x02c0";
 const metadata: GoldSettlementMetadata = { amountRaw: TARGET.toString(), maxSubsidyUsd: "1.000000" };
 
 let subsidyRows: Array<Record<string, unknown>>;
@@ -62,6 +64,7 @@ function rampState() {
     },
     id: "ramp-1",
     phaseHistory: [],
+    presignedTxs: [{ phase: "uniswapSwap", txData: SWAP_TX }],
     quoteId: "quote-1",
     state: { evmEphemeralAddress: ephemeral, flow: { id: "test-flow", version: 1 } },
     async update(patch: Record<string, unknown>) {
@@ -78,8 +81,15 @@ function fakeChain({
   ephemeralPaxg = TARGET - SHORTFALL,
   fundingEth = 10n ** 18n,
   fundingUsdc = 1_000_000_000n,
-  overrides = {}
-}: { ephemeralPaxg?: bigint; fundingEth?: bigint; fundingUsdc?: bigint; overrides?: Partial<Dependencies> } = {}) {
+  overrides = {},
+  swapFill = TARGET - SHORTFALL
+}: {
+  ephemeralPaxg?: bigint;
+  fundingEth?: bigint;
+  fundingUsdc?: bigint;
+  overrides?: Partial<Dependencies>;
+  swapFill?: bigint | null;
+} = {}) {
   const chain = {
     balances: new Map([
       [key(BASE_PAXG_ADDRESS, ephemeral), ephemeralPaxg],
@@ -91,6 +101,7 @@ function fakeChain({
   const dependencies: Dependencies = {
     estimateMaxFeePerGas: async () => 20_000_000n,
     getNativeBalance: async owner => (owner === funding ? fundingEth : 0n),
+    getSwapFill: async () => swapFill,
     getTokenBalance: async (token, owner) => chain.balances.get(key(token, owner)) ?? 0n,
     now: () => NOW_MS,
     quoteUsdcIn: async () => USDC_IN,
@@ -108,10 +119,11 @@ function fakeChain({
 }
 
 describe("Gold settlement simulation", () => {
-  const { settlementSubsidyMaxBps, settlementSubsidyMaxUsd } = config.gold;
+  const { settlementSubsidyMaxBps, settlementSubsidyMaxUsd, settlementSubsidyMinUsd } = config.gold;
   afterEach(() => {
     config.gold.settlementSubsidyMaxBps = settlementSubsidyMaxBps;
     config.gold.settlementSubsidyMaxUsd = settlementSubsidyMaxUsd;
+    config.gold.settlementSubsidyMinUsd = settlementSubsidyMinUsd;
   });
   const paxg = (usd?: string) => ({
     amount: new Big("0.025"),
@@ -122,21 +134,25 @@ describe("Gold settlement simulation", () => {
   });
   const ctx = { addNote: () => {} } as unknown as PhaseCtx;
 
-  it("caps the top-up at 1% of the swap input and at 1 USD by default", () => {
-    expect(goldSettlementSubsidyCapUsd(new Big("8.45")).toString()).toBe("0.0845");
-    expect(goldSettlementSubsidyCapUsd(new Big("100")).toString()).toBe("1");
-    expect(goldSettlementSubsidyCapUsd(new Big("5000")).toString()).toBe("1");
+  it("caps the top-up at 0.25% of the trade, between 5 and 50 USD, by default", () => {
+    expect(goldSettlementSubsidyCapUsd(new Big("8.45")).toString()).toBe("5");
+    expect(goldSettlementSubsidyCapUsd(new Big("2000")).toString()).toBe("5");
+    expect(goldSettlementSubsidyCapUsd(new Big("5000")).toString()).toBe("12.5");
+    expect(goldSettlementSubsidyCapUsd(new Big("20000")).toString()).toBe("50");
+    expect(goldSettlementSubsidyCapUsd(new Big("1000000")).toString()).toBe("50");
+    config.gold.settlementSubsidyMinUsd = "0.5";
     config.gold.settlementSubsidyMaxBps = 50;
     config.gold.settlementSubsidyMaxUsd = "20";
     expect(goldSettlementSubsidyCapUsd(new Big("5000")).toString()).toBe("20");
-    expect(goldSettlementSubsidyCapUsd(new Big("100")).toString()).toBe("0.5");
+    expect(goldSettlementSubsidyCapUsd(new Big("200")).toString()).toBe("1");
+    expect(goldSettlementSubsidyCapUsd(new Big("10")).toString()).toBe("0.5");
   });
 
   it("passes the promised amount through and records the cap, rounded down", async () => {
-    const input = paxg("8.4567891");
+    const input = paxg("3333.33333333");
     const { metadata: simulated, output } = await simulateGoldSettlement(input as never, ctx);
     expect(output).toBe(input as never);
-    expect(simulated).toEqual({ amountRaw: TARGET.toString(), maxSubsidyUsd: "0.084567" });
+    expect(simulated).toEqual({ amountRaw: TARGET.toString(), maxSubsidyUsd: "8.333333" });
   });
 
   it.each([
@@ -245,6 +261,29 @@ describe("GoldSettlementExecutor", () => {
     await expect(executor.execute(rampState())).rejects.toBeInstanceOf(ReconciliationRequiredPhaseError);
     expect(chain.sends).toEqual([]);
     expect(subsidyRows).toEqual([]);
+  });
+
+  it.each([
+    ["the ephemeral holds less than the swap delivered", { swapFill: TARGET - SHORTFALL + 1n }],
+    ["the swap delivered the full amount and the balance is short anyway", { swapFill: TARGET }],
+    ["the swap has no successful receipt", { swapFill: null }]
+  ])("pauses for an operator, sending nothing, when %s", async (_label, options) => {
+    // The buyer holds the ephemeral's key: the funding wallet replaces only what the swap itself fell short by.
+    const { chain, executor } = fakeChain(options);
+    await expect(executor.execute(rampState())).rejects.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    expect(chain.sends).toEqual([]);
+    expect(subsidyRows).toEqual([]);
+  });
+
+  it("buys the shortfall again after a top-up that reverted, and records one subsidy", async () => {
+    const { chain, executor } = fakeChain();
+    const state = rampState();
+    chain.receiptStatus = "reverted";
+    await expect(executor.execute(state)).rejects.toBeInstanceOf(ReconciliationRequiredPhaseError);
+    chain.receiptStatus = "success";
+    await executor.execute(state);
+    expect(chain.balances.get(key(BASE_PAXG_ADDRESS, ephemeral))).toBe(TARGET);
+    expect(subsidyRows).toHaveLength(1);
   });
 
   it("waits, sending nothing, while the funding wallet lacks the USDC", async () => {

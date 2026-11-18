@@ -29,6 +29,8 @@ import { quoteGoldSwap, verifyGoldSwapDeployment } from "../uniswap-v3-fixed-swa
 export interface GoldSwapMetadata {
   direction: RampDirection;
   reference: { deviationBps: number; priceUsd: string; updatedAt: string };
+  /** Sales only: what topping the sold USDC up to the quote may cost. A buy records its cap with GoldSettlement. */
+  saleSubsidyMaxUsd?: string;
   swap: GoldSwapRouteMetadata;
 }
 
@@ -105,6 +107,16 @@ async function quoteGuarded(
   };
 }
 
+/**
+ * How far below its quote a swap may fill and still go out: the usual soft margin, or less when the top-up cap covers
+ * less. The swap then waits for a fill the funding wallet can still make whole, while the input can still be
+ * recovered. A tenth of the cap is left for the pool fee and price impact of buying a shortfall.
+ */
+function softMarginWithin(capUsd: Big, usdc: Big): Big {
+  const covered = capUsd.div(usdc).mul(0.9);
+  return covered.lt(AMM_MINIMUM_OUTPUT_SOFT_MARGIN) ? covered : new Big(AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+}
+
 export async function simulateGoldSwapBuy(
   input: PhaseIO<typeof EvmToken.USDC, typeof Networks.Base>,
   ctx: PhaseCtx,
@@ -113,9 +125,6 @@ export async function simulateGoldSwapBuy(
   assertInput(input, EvmToken.USDC);
   const { outputAmountRaw, paxg, reference, usdc } = await quoteGuarded(RampDirection.BUY, input.amountRaw, ctx, dependencies);
   ctx.addNote(`GoldSwap: ${usdc.toFixed()} USDC -> ${paxg.toFixed()} ${GOLD_TOKEN}`);
-  // The swap waits for a fill GoldSettlement can still top up within its cap, while the USDC can still be recovered.
-  // A tenth of the cap is left for the pool fee and price impact of buying the shortfall.
-  const settlementMargin = goldSettlementSubsidyCapUsd(usdc).div(usdc).mul(0.9);
   return {
     metadata: {
       direction: RampDirection.BUY,
@@ -124,7 +133,7 @@ export async function simulateGoldSwapBuy(
         RampDirection.BUY,
         input.amountRaw,
         outputAmountRaw.toString(),
-        settlementMargin.lt(AMM_MINIMUM_OUTPUT_SOFT_MARGIN) ? settlementMargin : AMM_MINIMUM_OUTPUT_SOFT_MARGIN
+        softMarginWithin(goldSettlementSubsidyCapUsd(usdc), usdc)
       )
     },
     output: { ...evmIO(GOLD_TOKEN, Networks.Base, paxg, outputAmountRaw.toString()), requestInputAmountUsd: usdc }
@@ -139,11 +148,19 @@ export async function simulateGoldSwapSell(
   assertInput(input, GOLD_TOKEN);
   const { outputAmountRaw, paxg, reference, usdc } = await quoteGuarded(RampDirection.SELL, input.amountRaw, ctx, dependencies);
   ctx.addNote(`GoldSwap: ${paxg.toFixed()} ${GOLD_TOKEN} -> ${usdc.toFixed()} USDC`);
+  // Rounded down, so the recorded cap never exceeds the margin the soft minimum was sized with.
+  const saleSubsidyMaxUsd = goldSettlementSubsidyCapUsd(usdc).toFixed(6, Big.roundDown);
   return {
     metadata: {
       direction: RampDirection.SELL,
       reference,
-      swap: swapMetadata(RampDirection.SELL, input.amountRaw, outputAmountRaw.toString())
+      saleSubsidyMaxUsd,
+      swap: swapMetadata(
+        RampDirection.SELL,
+        input.amountRaw,
+        outputAmountRaw.toString(),
+        softMarginWithin(new Big(saleSubsidyMaxUsd), usdc)
+      )
     },
     output: { ...evmIO(EvmToken.USDC, Networks.Base, usdc, outputAmountRaw.toString()), requestInputAmountUsd: usdc }
   };
