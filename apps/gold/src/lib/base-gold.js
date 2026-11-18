@@ -4,7 +4,7 @@ import { base } from "viem/chains";
 import { BASE_USDC, GOLD_ASSETS } from "./gold-config.js";
 import { goldRampStore } from "./pilot-store.js";
 import { storeEphemeralRampKeys } from "./ephemeral-store.js";
-import { getFreshAccessToken, VORTEX_API_BASE, classifyRamp } from "./vortex.js";
+import { getFreshAccessToken, VORTEX_API_BASE, classifyRamp, startRampSafely } from "./vortex.js";
 
 export const BASE_PAXG = GOLD_ASSETS.base;
 export const GOLD_SOURCE_PHASE = "goldPermitTransfer";
@@ -174,7 +174,7 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
     const record = owned(id, owner);
     await maintenance();
     if (record.stage !== "ready" && !(record.rampType === "BUY" && record.paymentMethod === "pix" && record.stage === "registered")) fail("NOT_AUTHORIZED", "Conclua a confirmação desta mesma operação antes de continuar.");
-    return (await client()).startRamp(id);
+    return startRampSafely(await client(), id);
   }
   return { isEnabled: method => enabled && (method !== "usdc" || usdcEnabled), availability, balance, quote, register, resume, start, canPay: async () => { try { await maintenance(); return (await availability("pix")).buy; } catch { return false; } }, getRamp: async id => (await client()).getRampStatus(id) };
 }

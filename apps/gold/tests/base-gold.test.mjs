@@ -13,7 +13,7 @@ const transfer=parseAbi(['function transfer(address to, uint256 amount)']);
 const dec18=v=>{const [i,f='']=String(v).split('.');return `${i}.${f.padEnd(18,'0')}`;};
 const request=(direction='BUY',paymentMethod='usdc')=>baseGoldRequest({direction,paymentMethod,amount:direction==='BUY'?'50':'0.01',owner});
 const raw=(req=request())=>({...req,id:'quote',outputAmount:req.rampType==='BUY'?'0.01':'40',expiresAt:new Date(Date.now()+600000).toISOString(),feeCurrency:req.paymentMethod==='usdc'?'USDC':'BRL',anchorFeeFiat:req.paymentMethod==='usdc'?'0':'0.50',networkFeeFiat:'0.10',processingFeeFiat:'0.20',partnerFeeFiat:'0',totalFeeFiat:'0.30',gasless:true});
-function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=false,head=100n,failNonceReads=0 }={}) {
+function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=false,head=100n,failNonceReads=0,lostStartResponse=false }={}) {
   let data={},storedKeys=0,registered=0,signatures=0,starts=0,ramp;const clock={t:Date.now()};
   const store=createActiveRampStore({activeKey:'active',historyKey:'history',storage:{get:(k,f)=>data[k]??f,set:(k,v)=>(data[k]=v,true),remove:k=>delete data[k]}});
   const reader={getBlockNumber:async()=>head,readContract:async ({functionName,blockNumber})=>{if(functionName==='balanceOf') { assert.equal(blockNumber,head-2n);return 100n*10n**18n;}if(functionName==='nonces'&&failNonceReads-->0)throw new Error('rpc unavailable');return 0n;}};
@@ -24,7 +24,7 @@ function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=
     ramp={id:'order',quoteId:q.id,type:q.rampType,currentPhase:'initial',createdAt:new Date().toISOString(),inputAmount:dec18(q.inputAmount),outputAmount:q.outputAmount,depositQrCode:'synthetic-not-payable',unsignedTxs:[{phase:'destinationTransfer',network:'base',signer:ephemeral,txData:{to:destination.address,data:encodeFunctionData({abi:transfer,functionName:'transfer',args:[owner,parseUnits(q.outputAmount,destination.decimals)]}),value:'0'}}]};
     const permit={phase:GOLD_SOURCE_PHASE,network:'base',signer:owner,txData:{primaryType:'Permit',domain:{name:'Synthetic',version:'1',chainId:8453,verifyingContract:source.address},types:{Permit:[{name:'owner',type:'address'},{name:'spender',type:'address'},{name:'value',type:'uint256'},{name:'nonce',type:'uint256'},{name:'deadline',type:'uint256'}]},message:{owner,spender:ephemeral,value:parseUnits(q.inputAmount,source.decimals).toString(),nonce:'0',deadline:String(Math.floor(Date.now()/1000)+3600)}}};
     if (!(buy&&q.paymentMethod==='pix')) ramp.unsignedTxs.push(permit); mutateRamp?.(ramp); return {rampProcess:ramp,unsignedTransactions:buy&&q.paymentMethod==='pix'?[]:[permit]};
-  },submitUserTransactions:async(id,txs,handlers)=>{const payload=txs[0].txData;await handlers.signTypedData(payload,{payloadCount:1,unsignedTransaction:txs[0]});},startRamp:async()=>{starts++;return {...ramp,currentPhase:'swapping'};},getRampStatus:async()=>ramp};
+  },submitUserTransactions:async(id,txs,handlers)=>{const payload=txs[0].txData;await handlers.signTypedData(payload,{payloadCount:1,unsignedTransaction:txs[0]});},startRamp:async()=>{starts++;ramp={...ramp,currentPhase:'swapping'};if(lostStartResponse)throw new Error('network');return ramp;},getRampStatus:async()=>ramp};
   const api=async path=>path.includes('maintenance')?{is_maintenance_active:paused}:path.includes('supported-cryptocurrencies')?{cryptocurrencies:[{assetSymbol:'PAXG',assetNetwork:'base',assetDecimals:18,assetContractAddress:BASE_PAXG.address,rampTypes:['BUY','SELL']}]}:ramp;
   const adapter=createBaseGoldAdapter({enabled,usdcEnabled,store,reader,api,createClient:c=>(cfg=c,sdk),ephemeralStore:{put:async()=>{storedKeys++;}},now:()=>clock.t});
   const provider={request:async({method})=>{if(method==='eth_signTypedData_v4'){signatures++;if(!approve)throw Object.assign(Error('cancelled'),{code:4001});return '0xsynthetic';}return null;}};
@@ -142,4 +142,9 @@ test('a chain read failing while signing leaves a registered order that the same
   await assert.rejects(h.adapter.register({quote:q,owner,provider:h.provider}),/rpc unavailable/);
   assert.equal(h.store.get(owner).stage,'registered');assert.equal(h.counts().signatures,0);
   await h.adapter.resume('order',owner,h.provider);assert.equal(h.store.get(owner).stage,'ready');assert.deepEqual(h.counts(),{storedKeys:1,registered:1,signatures:1,starts:0});
+});
+test('a start whose response is lost is not an error once the order is running',async()=>{
+  const h=harness({lostStartResponse:true}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  const r=await h.adapter.register({quote:q,owner,provider:h.provider});
+  assert.equal((await h.adapter.start(r.id,owner)).currentPhase,'swapping');assert.equal(h.counts().starts,1);
 });
