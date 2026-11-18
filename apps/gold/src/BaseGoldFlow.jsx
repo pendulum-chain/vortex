@@ -5,7 +5,7 @@ import { BASE_USDC, GOLD_ASSETS } from "./lib/gold-config.js";
 import { amountRaw } from "./lib/base-gold.js";
 import { fundingDrafts } from "./lib/gold-funding.js";
 import { gramsToPaxg } from "./lib/paxg.js";
-import { getActiveRamp, clearActiveRamp } from "./lib/pilot-store.js";
+import { getActiveRamp, clearActiveRamp, failActiveRamp } from "./lib/pilot-store.js";
 import { classifyRamp, getBrazilBuyReadiness, hasVortexSession, requestVortexOtp, verifyVortexOtp } from "./lib/vortex.js";
 
 const money = (value, currency) => currency === "USDC" ? `${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 6 })} USDC` : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
@@ -56,7 +56,9 @@ export function BaseGoldFlow({ ui: { Modal, OtpStep, KycStep, PixStep }, adapter
   }
   async function recover() {
     const saved = getActiveRamp(owner), id = ramp?.id || resumeRamp?.rampId || saved?.rampId;
-    const current = await adapter.resume(id, owner, await auth.getEthereumProvider());
+    let current;
+    try { current = await adapter.resume(id, owner, await auth.getEthereumProvider()); }
+    catch (e) { if (["RAMP_NEEDS_ATTENTION", "START_WINDOW_CLOSED"].includes(e.code) && alive.current) setStep("issue"); throw e; }
     if (!alive.current) return;
     setRamp(current);
     if (classifyRamp(current) === "success") { complete(current); return; }
@@ -82,7 +84,7 @@ export function BaseGoldFlow({ ui: { Modal, OtpStep, KycStep, PixStep }, adapter
         if (!current) return;
         setRamp(next);
         if (classifyRamp(next) === "success") complete(next);
-        else if (classifyRamp(next) === "failure") { setStep("issue"); setError("A operação precisa de atenção. Guarde o código para o suporte."); }
+        else if (classifyRamp(next) === "failure") { failActiveRamp(next.id); setStep("issue"); setError("A operação não foi concluída. Guarde o código para o suporte."); }
         else if (next.currentPhase !== "initial") setStep("processing");
       } catch (e) { if (current) { setPixReady(false); setError(e.message); } }
       finally { polling = false; }

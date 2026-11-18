@@ -95,6 +95,11 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
     const request = baseGoldRequest(options);
     return validateBaseGoldQuote(await (await client()).createQuote(request), request, now());
   }
+  // The order can never run again. It leaves the active slot and stays in the history with its code, as on Ethereum.
+  const abandon = ({ rampId, walletAddress, inputAmount, outputAmount, rampType, network, paymentMethod }) => {
+    store.addHistory({ rampId, walletAddress, inputAmount, outputAmount, rampType, status: "failed", network, paymentMethod });
+    store.clear(rampId);
+  };
   const owned = (id, owner) => {
     const record = store.get(owner);
     if (record?.rampId !== id || record.network !== "base") fail("RECOVERY_UNAVAILABLE", "Retome a operação no aparelho em que ela foi iniciada.");
@@ -102,7 +107,7 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
   };
   function deadline(ramp, record) {
     const end = Math.min(Date.parse(ramp.createdAt || "") + RAMP_START_WINDOW_MS || Infinity, record.createdAt + RAMP_START_WINDOW_MS);
-    if (now() >= end - 60_000) fail("START_WINDOW_CLOSED", "O prazo desta autorização terminou. Guarde o código da operação e consulte o suporte.");
+    if (now() >= end - 60_000) fail("START_WINDOW_CLOSED", "O prazo desta autorização terminou e nada foi movimentado. Você já pode iniciar uma nova operação.");
   }
   async function sign(ramp, transactions, owner, provider) {
     let record = owned(ramp.id, owner);
@@ -154,11 +159,15 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
   async function resume(id, owner, provider) {
     const record = owned(id, owner);
     const ramp = await publicApi(`/v1/ramp/${encodeURIComponent(id)}?showUnsignedTxs=true`, { method: "GET" }, { token: await getFreshAccessToken() });
-    if (classifyRamp(ramp) === "failure") fail("RAMP_NEEDS_ATTENTION", "Esta operação precisa de atenção. Guarde o código e consulte o suporte.");
-    if (classifyRamp(ramp) === "success" || ramp.currentPhase !== "initial") return ramp;
+    if (classifyRamp(ramp, now()) === "failure") { abandon(record); fail("RAMP_NEEDS_ATTENTION", "Esta operação não foi concluída. Guarde o código para o suporte. Você já pode iniciar uma nova."); }
+    if (classifyRamp(ramp, now()) === "success" || ramp.currentPhase !== "initial") return ramp;
     if (record.rampType === "BUY" || record.paymentMethod === "usdc") assertBaseDelivery(ramp, record, owner);
     if (record.stage === "registering") fail("RECOVERY_UNAVAILABLE", "O registro precisa ser conferido. Guarde o código da operação.");
-    if (!(record.rampType === "BUY" && record.paymentMethod === "pix") && record.stage !== "ready") await sign(ramp, ramp.unsignedTxs, owner, provider);
+    if (!(record.rampType === "BUY" && record.paymentMethod === "pix") && record.stage !== "ready") {
+      // Still unstarted with its start window closed: the API will never run it, and nothing has moved.
+      try { await sign(ramp, ramp.unsignedTxs, owner, provider); }
+      catch (e) { if (e.code === "START_WINDOW_CLOSED") abandon(record); throw e; }
+    }
     return ramp;
   }
   async function start(id, owner) {
