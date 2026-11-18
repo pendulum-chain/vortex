@@ -9,6 +9,8 @@ import { getFreshAccessToken, VORTEX_API_BASE, classifyRamp, startRampSafely } f
 
 export const BASE_PAXG = GOLD_ASSETS.base;
 export const GOLD_SOURCE_PHASE = "goldPermitTransfer";
+// A Pix buy released on this device may still be started by the API once its payment arrives.
+export const PIX_PAID_LATE_NOTE = "Se o Pix desta compra já foi pago, ela ainda será concluída: não pague novamente.";
 const ABI = parseAbi(["function balanceOf(address owner) view returns (uint256)", "function nonces(address owner) view returns (uint256)", "function transfer(address to, uint256 amount)"]);
 const same = (a, b) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
 const fail = (code, message) => { throw Object.assign(new Error(message), { code }); };
@@ -127,6 +129,12 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
     });
     store.save({ ...owned(ramp.id, owner), stage: "ready" });
   }
+  // A permit order whose start window closed before it was signed will never run, and nothing has moved: it leaves
+  // the slot. A signed order is kept, because the API holds its permit until the hour rule releases it.
+  async function signOrAbandon(ramp, transactions, owner, provider) {
+    try { await sign(ramp, transactions, owner, provider); }
+    catch (e) { if (e.code === "START_WINDOW_CLOSED") abandon(owned(ramp.id, owner)); throw e; }
+  }
   async function register({ quote: q, owner, provider, pixDestination, onRegistered }) {
     requireEnabled(q.paymentMethod);
     const request = baseGoldRequest({ direction: q.direction, paymentMethod: q.paymentMethod, amount: q.inputAmount, owner });
@@ -141,7 +149,7 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
       const source = buy ? BASE_USDC : BASE_PAXG;
       if ((!buy || crypto) && await balance(owner, source) < amountRaw(q.inputAmount, source.decimals)) fail("INSUFFICIENT_BALANCE", "O saldo confirmado não é suficiente. Aguarde o depósito ou escolha um valor menor.");
       if (!buy && !crypto && !String(pixDestination || "").trim()) fail("INVALID_PIX", "Informe sua chave Pix.");
-      pending = { walletAddress: owner, inputAmount: q.inputAmount, outputAmount: q.outputAmount, inputDecimals: buy ? (crypto ? 6 : 2) : 18, rampType: q.direction, paymentMethod: q.paymentMethod, network: "base", tokenAddress: BASE_PAXG.address, quoteId: q.id, createdAt: now() };
+      pending = { walletAddress: owner, inputAmount: q.inputAmount, outputAmount: q.outputAmount, rampType: q.direction, paymentMethod: q.paymentMethod, network: "base", tokenAddress: BASE_PAXG.address, quoteId: q.id, createdAt: now() };
       try {
         const sdk = await client();
         const extra = buy && !crypto ? { destinationAddress: owner } : { walletAddress: owner, destinationAddress: owner, ...(!crypto ? { pixDestination: String(pixDestination).trim() } : {}) };
@@ -152,7 +160,7 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
         if (buy && !crypto && !result.rampProcess.depositQrCode) fail("PIX_UNAVAILABLE", "O Pix não foi disponibilizado. Guarde o código da operação.");
         // Registered before signing: a failure inside sign() (a chain read, a cancelled prompt) must stay resumable.
         store.save({ ...record, stage: "registered" });
-        if (!(buy && !crypto)) await sign(result.rampProcess, result.unsignedTransactions, owner, provider);
+        if (!(buy && !crypto)) await signOrAbandon(result.rampProcess, result.unsignedTransactions, owner, provider);
         return result.rampProcess;
       } finally { pending = null; }
     });
@@ -160,22 +168,27 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
   async function resume(id, owner, provider) {
     const record = owned(id, owner);
     const ramp = await publicApi(`/v1/ramp/${encodeURIComponent(id)}?showUnsignedTxs=true`, { method: "GET" }, { token: await getFreshAccessToken() });
-    if (classifyRamp(ramp, now()) === "failure") { abandon(record); fail("RAMP_NEEDS_ATTENTION", "Esta operação não foi concluída. Guarde o código para o suporte. Você já pode iniciar uma nova."); }
+    if (classifyRamp(ramp, now()) === "failure") {
+      abandon(record);
+      const unpaidPix = record.rampType === "BUY" && record.paymentMethod === "pix" && String(ramp.currentPhase || "initial") === "initial";
+      fail("RAMP_NEEDS_ATTENTION", `Esta operação não foi concluída. Guarde o código para o suporte. ${unpaidPix ? PIX_PAID_LATE_NOTE : "Você já pode iniciar uma nova."}`);
+    }
     if (classifyRamp(ramp, now()) === "success" || ramp.currentPhase !== "initial") return ramp;
     if (record.rampType === "BUY" || record.paymentMethod === "usdc") assertBaseDelivery(ramp, record, owner);
     if (record.stage === "registering") fail("RECOVERY_UNAVAILABLE", "O registro precisa ser conferido. Guarde o código da operação.");
-    if (!(record.rampType === "BUY" && record.paymentMethod === "pix") && record.stage !== "ready") {
-      // Still unstarted with its start window closed: the API will never run it, and nothing has moved.
-      try { await sign(ramp, ramp.unsignedTxs, owner, provider); }
-      catch (e) { if (e.code === "START_WINDOW_CLOSED") abandon(record); throw e; }
-    }
+    if (!(record.rampType === "BUY" && record.paymentMethod === "pix") && record.stage !== "ready") await signOrAbandon(ramp, ramp.unsignedTxs, owner, provider);
     return ramp;
   }
   async function start(id, owner) {
     const record = owned(id, owner);
     await maintenance();
     if (record.stage !== "ready" && !(record.rampType === "BUY" && record.paymentMethod === "pix" && record.stage === "registered")) fail("NOT_AUTHORIZED", "Conclua a confirmação desta mesma operação antes de continuar.");
-    return startRampSafely(await client(), id);
+    try { return await startRampSafely(await client(), id); }
+    catch (e) {
+      // The API refuses a start after its window and never runs the order later. The record stays until the hour rule.
+      if (record.stage === "ready" && /time window to start/i.test(String(e?.message))) fail("START_REFUSED", "O prazo para iniciar esta operação terminou e nada foi movimentado. Ela será liberada em até uma hora. Guarde o código.");
+      throw e;
+    }
   }
   return { isEnabled: method => enabled && (method !== "usdc" || usdcEnabled), availability, balance, quote, register, resume, start, canPay: async () => { try { await maintenance(); return (await availability("pix")).buy; } catch { return false; } }, getRamp: async id => (await client()).getRampStatus(id) };
 }

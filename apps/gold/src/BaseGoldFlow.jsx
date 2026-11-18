@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { formatUnits } from "viem";
 import { BASE_USDC, GOLD_ASSETS } from "./lib/gold-config.js";
-import { amountRaw } from "./lib/base-gold.js";
+import { amountRaw, PIX_PAID_LATE_NOTE } from "./lib/base-gold.js";
 import { fundingDrafts } from "./lib/gold-funding.js";
 import { gramsToPaxg } from "./lib/paxg.js";
 import { getActiveRamp, clearActiveRamp, failActiveRamp } from "./lib/pilot-store.js";
@@ -83,7 +83,7 @@ export function BaseGoldFlow({ ui: { Modal, OtpStep, KycStep, PixStep }, adapter
         if (!current) return;
         setRamp(next);
         if (classifyRamp(next) === "success") complete(next);
-        else if (classifyRamp(next) === "failure") { failActiveRamp(next.id); setStep("issue"); setError("A operação não foi concluída. Guarde o código para o suporte."); }
+        else if (classifyRamp(next) === "failure") { failActiveRamp(next.id); setStep("issue"); setError(`A operação não foi concluída. Guarde o código para o suporte.${buy && !crypto && next.currentPhase === "initial" ? ` ${PIX_PAID_LATE_NOTE}` : ""}`); }
         else if (next.currentPhase !== "initial") setStep("processing");
       } catch (e) { if (current) { setPixReady(false); setError(e.message); } }
       finally { polling = false; }
@@ -107,7 +107,7 @@ export function BaseGoldFlow({ ui: { Modal, OtpStep, KycStep, PixStep }, adapter
       setRamp(current);
       if (buy && !crypto) setStep("pix");
       else { setRamp(await adapter.start(current.id, owner)); setStep("processing"); }
-    } catch (e) { if (getActiveRamp(owner)) setStep("resume"); throw e; }
+    } catch (e) { if (getActiveRamp(owner)) setStep("resume"); else if (e.code === "START_WINDOW_CLOSED") setStep("issue"); throw e; }
   }
   const valid = buy ? Number(amount.replace(",", ".")) >= (crypto ? 10 : 50) : Number(amount.replace(",", ".")) > 0 && (crypto || pix.trim().length >= 5);
   const remaining = quote && balance != null ? amountRaw(quote.inputAmount, 6) - balance : null;

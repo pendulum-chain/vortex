@@ -13,7 +13,7 @@ const transfer=parseAbi(['function transfer(address to, uint256 amount)']);
 const dec18=v=>{const [i,f='']=String(v).split('.');return `${i}.${f.padEnd(18,'0')}`;};
 const request=(direction='BUY',paymentMethod='usdc')=>baseGoldRequest({direction,paymentMethod,amount:direction==='BUY'?'50':'0.01',owner});
 const raw=(req=request())=>({...req,id:'quote',outputAmount:req.rampType==='BUY'?'0.01':'40',expiresAt:new Date(Date.now()+600000).toISOString(),feeCurrency:req.paymentMethod==='usdc'?'USDC':'BRL',anchorFeeFiat:req.paymentMethod==='usdc'?'0':'0.50',networkFeeFiat:'0.10',processingFeeFiat:'0.20',partnerFeeFiat:'0',totalFeeFiat:'0.30',gasless:true});
-function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=false,head=100n,failNonceReads=0,lostStartResponse=false }={}) {
+function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=false,head=100n,failNonceReads=0,lostStartResponse=false,refuseStart=false }={}) {
   let data={},storedKeys=0,registered=0,signatures=0,starts=0,ramp;const clock={t:Date.now()};
   const store=createActiveRampStore({activeKey:'active',historyKey:'history',storage:{get:(k,f)=>data[k]??f,set:(k,v)=>(data[k]=v,true),remove:k=>delete data[k]}});
   const reader={getBlockNumber:async()=>head,readContract:async ({functionName,blockNumber})=>{if(functionName==='balanceOf') { assert.equal(blockNumber,head-2n);return 100n*10n**18n;}if(functionName==='nonces'&&failNonceReads-->0)throw new Error('rpc unavailable');return 0n;}};
@@ -24,7 +24,7 @@ function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=
     ramp={id:'order',quoteId:q.id,type:q.rampType,currentPhase:'initial',createdAt:new Date().toISOString(),inputAmount:dec18(q.inputAmount),outputAmount:q.outputAmount,depositQrCode:'synthetic-not-payable',unsignedTxs:[{phase:'destinationTransfer',network:'base',signer:ephemeral,txData:{to:destination.address,data:encodeFunctionData({abi:transfer,functionName:'transfer',args:[owner,parseUnits(q.outputAmount,destination.decimals)]}),value:'0'}}]};
     const permit={phase:GOLD_SOURCE_PHASE,network:'base',signer:owner,txData:{primaryType:'Permit',domain:{name:'Synthetic',version:'1',chainId:8453,verifyingContract:source.address},types:{Permit:[{name:'owner',type:'address'},{name:'spender',type:'address'},{name:'value',type:'uint256'},{name:'nonce',type:'uint256'},{name:'deadline',type:'uint256'}]},message:{owner,spender:ephemeral,value:parseUnits(q.inputAmount,source.decimals).toString(),nonce:'0',deadline:String(Math.floor(Date.now()/1000)+3600)}}};
     if (!(buy&&q.paymentMethod==='pix')) ramp.unsignedTxs.push(permit); mutateRamp?.(ramp); return {rampProcess:ramp,unsignedTransactions:buy&&q.paymentMethod==='pix'?[]:[permit]};
-  },submitUserTransactions:async(id,txs,handlers)=>{const payload=txs[0].txData;await handlers.signTypedData(payload,{payloadCount:1,unsignedTransaction:txs[0]});},startRamp:async()=>{starts++;ramp={...ramp,currentPhase:'swapping'};if(lostStartResponse)throw new Error('network');return ramp;},getRampStatus:async()=>ramp};
+  },submitUserTransactions:async(id,txs,handlers)=>{const payload=txs[0].txData;await handlers.signTypedData(payload,{payloadCount:1,unsignedTransaction:txs[0]});},startRamp:async()=>{starts++;if(refuseStart)throw new Error('Maximum time window to start process exceeded. Ramp invalidated.');ramp={...ramp,currentPhase:'swapping'};if(lostStartResponse)throw new Error('network');return ramp;},getRampStatus:async()=>ramp};
   const api=async path=>path.includes('maintenance')?{is_maintenance_active:paused}:path.includes('supported-cryptocurrencies')?{cryptocurrencies:[{assetSymbol:'PAXG',assetNetwork:'base',assetDecimals:18,assetContractAddress:BASE_PAXG.address,rampTypes:['BUY','SELL']}]}:ramp;
   const adapter=createBaseGoldAdapter({enabled,usdcEnabled,store,reader,api,createClient:c=>(cfg=c,sdk),ephemeralStore:{put:async()=>{storedKeys++;}},now:()=>clock.t});
   const provider={request:async({method})=>{if(method==='eth_signTypedData_v4'){signatures++;if(!approve)throw Object.assign(Error('cancelled'),{code:4001});return '0xsynthetic';}return null;}};
@@ -131,6 +131,36 @@ test('a declined permit order past its start window is given up without another 
   h.clock.t+=16*60_000;
   await assert.rejects(h.adapter.resume('order',owner,h.provider),{code:'START_WINDOW_CLOSED'});
   assert.equal(h.counts().signatures,1);assert.equal(h.store.get(owner)??null,null);assert.deepEqual(failedRows(h),[['order','failed','base','usdc']]);
+});
+test('a signed permit order past its start window is kept: the API holds its permit',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await h.adapter.register({quote:q,owner,provider:h.provider});assert.equal(h.store.get(owner).stage,'ready');h.clock.t+=16*60_000;
+  assert.equal((await h.adapter.resume('order',owner,h.provider)).id,'order');
+  assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);assert.equal(h.counts().signatures,1);
+});
+test('a running order is never given up, however long ago it was registered',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'SELL',paymentMethod:'usdc',amount:'0.01',owner});
+  const r=await h.adapter.register({quote:q,owner,provider:h.provider});
+  assert.equal((await h.adapter.start(r.id,owner)).currentPhase,'swapping');h.clock.t+=61*60_000;
+  assert.equal((await h.adapter.resume('order',owner,h.provider)).currentPhase,'swapping');
+  assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);
+});
+test('a start window that closes before the first signature gives the order up at registration',async()=>{
+  // The device clock runs ahead, so signing is refused right after the order is registered. Nothing was signed.
+  const h=harness({mutateRamp:r=>r.createdAt=new Date(Date.now()-14.5*60_000).toISOString()}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await assert.rejects(h.adapter.register({quote:q,owner,provider:h.provider}),{code:'START_WINDOW_CLOSED'});
+  assert.equal(h.counts().signatures,0);assert.equal(h.store.get(owner)??null,null);assert.deepEqual(failedRows(h),[['order','failed','base','usdc']]);
+});
+test('a start the API refuses after its window says so in Portuguese and keeps the signed order',async()=>{
+  const h=harness({refuseStart:true}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  const r=await h.adapter.register({quote:q,owner,provider:h.provider});
+  await assert.rejects(h.adapter.start(r.id,owner),{code:'START_REFUSED',message:/nada foi movimentado/});
+  assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);
+});
+test('a Pix buy given up by age warns that a payment already made still completes it',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'BUY',paymentMethod:'pix',amount:'50',owner});
+  await h.adapter.register({quote:q,owner,provider:h.provider});h.clock.t+=61*60_000;
+  await assert.rejects(h.adapter.resume('order',owner,h.provider),{code:'RAMP_NEEDS_ATTENTION',message:/não pague novamente/});
 });
 test('a Pix buy past the start window keeps its order: a paid QR can still be started by the API',async()=>{
   const h=harness(),q=await h.adapter.quote({direction:'BUY',paymentMethod:'pix',amount:'50',owner});
