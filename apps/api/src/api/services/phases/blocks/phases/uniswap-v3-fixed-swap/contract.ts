@@ -33,6 +33,11 @@ export const UNISWAP_SWAP_GAS_LIMIT = 500_000n;
  */
 export const STOCK_SWAP_GAS_LIMIT = 1_200_000n;
 export const STOCK_SWAP_MAX_QUOTED_GAS = 900_000n;
+/**
+ * A Gold swap is one hop through a deep pool: QuoterV2 estimated about 115k gas for 50 USDC on 2026-11-18. It is signed
+ * at `UNISWAP_SWAP_GAS_LIMIT`, so a quote above this bound is refused, which leaves room for the router's own gas.
+ */
+export const GOLD_SWAP_MAX_QUOTED_GAS = 300_000n;
 
 export const uniswapV3PoolAbi = parseAbi([
   "function factory() view returns (address)",
@@ -114,7 +119,7 @@ export interface UniswapSwapTarget {
   inputToken: `0x${string}`;
   kind: UniswapRouterKind;
   label: string;
-  network: Networks.Polygon | Networks.Robinhood;
+  network: Networks.Polygon | Networks.Robinhood | Networks.Base;
   path: `0x${string}`;
   router: `0x${string}`;
 }

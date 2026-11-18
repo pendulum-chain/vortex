@@ -261,6 +261,9 @@ interface Config {
   };
   gold: {
     enabledDirections: RampDirection[];
+    /** What topping a buy up to its promised PAXG may cost: this share of the swap input, capped at the USD amount. */
+    settlementSubsidyMaxBps: number;
+    settlementSubsidyMaxUsd: string;
     usdcEnabledDirections: RampDirection[];
   };
   stocks: {
@@ -439,6 +442,8 @@ export const config: Config = {
   // PAXG on Base, read like the stock switches. Empty keeps the routes off.
   gold: {
     enabledDirections: readStocksEnabledDirections("GOLD_ENABLED_DIRECTIONS"),
+    settlementSubsidyMaxBps: readPositiveIntegerEnv("GOLD_SETTLEMENT_SUBSIDY_MAX_BPS", "100"),
+    settlementSubsidyMaxUsd: readPositiveDecimalEnv("GOLD_SETTLEMENT_SUBSIDY_MAX_USD", "1"),
     usdcEnabledDirections: readStocksEnabledDirections("GOLD_USDC_ENABLED_DIRECTIONS")
   },
   impersonationEnabled: process.env.IMPERSONATION_ENABLED === "true",

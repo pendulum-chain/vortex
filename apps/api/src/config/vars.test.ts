@@ -394,19 +394,27 @@ describe("vars gold on Base", () => {
   it("keeps both rails off by default", async () => {
     const result = await importVarsWithEnv({}, print);
 
-    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: '{"enabledDirections":[],"usdcEnabledDirections":[]}\n' });
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({
+      enabledDirections: [],
+      settlementSubsidyMaxBps: 100,
+      settlementSubsidyMaxUsd: "1",
+      usdcEnabledDirections: []
+    });
   });
 
   it("enables each rail and direction on its own", async () => {
     const result = await importVarsWithEnv({ GOLD_ENABLED_DIRECTIONS: " buy ,SELL", GOLD_USDC_ENABLED_DIRECTIONS: "sell" }, print);
 
     expect(result.exitCode).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual({ enabledDirections: ["BUY", "SELL"], usdcEnabledDirections: ["SELL"] });
+    expect(JSON.parse(result.stdout)).toMatchObject({ enabledDirections: ["BUY", "SELL"], usdcEnabledDirections: ["SELL"] });
   });
 
   it.each([
     [{ GOLD_ENABLED_DIRECTIONS: "BUY,HOLD" }, "GOLD_ENABLED_DIRECTIONS contains unknown directions: HOLD"],
-    [{ GOLD_USDC_ENABLED_DIRECTIONS: "on" }, "GOLD_USDC_ENABLED_DIRECTIONS contains unknown directions: ON"]
+    [{ GOLD_USDC_ENABLED_DIRECTIONS: "on" }, "GOLD_USDC_ENABLED_DIRECTIONS contains unknown directions: ON"],
+    [{ GOLD_SETTLEMENT_SUBSIDY_MAX_BPS: "0" }, "GOLD_SETTLEMENT_SUBSIDY_MAX_BPS must be a positive integer"],
+    [{ GOLD_SETTLEMENT_SUBSIDY_MAX_USD: "free" }, "GOLD_SETTLEMENT_SUBSIDY_MAX_USD must be a positive number"]
   ])("refuses to start on %p", async (env, message) => {
     const result = await importVarsWithEnv(env);
 

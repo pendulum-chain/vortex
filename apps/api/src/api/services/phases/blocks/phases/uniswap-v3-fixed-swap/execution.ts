@@ -10,7 +10,7 @@ import { throwIfAborted } from "../../core/cancellation";
 import { resendPresignedTransaction } from "../../core/evm-transactions";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { readStockFlags } from "../../core/robinhood-stocks";
-import { classifyStockRouteFailure, resolveUniswapRoute, type UniswapRoute } from "./route";
+import { classifyStockRouteFailure, holdsOnFailure, resolveUniswapRoute, type UniswapRoute } from "./route";
 import { validateUniswapApproval, validateUniswapSwap } from "./validation";
 
 interface Receipt {
@@ -101,7 +101,7 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
     try {
       return await this.executeRoute(state, route, dependencies, signal);
     } catch (error) {
-      throw route.stock ? classifyStockRouteFailure(error) : error;
+      throw holdsOnFailure(route) ? classifyStockRouteFailure(error) : error;
     }
   }
 
@@ -142,7 +142,7 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
     return transaction;
   }
 
-  /** No retry can change a presigned transaction, so on a stock route a bad one pauses for an operator. */
+  /** No retry can change a presigned transaction, so on a stock or Gold route a bad one pauses for an operator. */
   protected async validatedTransaction(
     state: RampState,
     route: UniswapRoute,
@@ -155,7 +155,7 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
       await validatePresignedEvmTransactionAgainstUnsigned(signed, unsigned);
       return await validate(signed, route);
     } catch (error) {
-      if (!route.stock) throw error;
+      if (!holdsOnFailure(route)) throw error;
       throw this.createReconciliationRequiredError(error instanceof Error ? error.message : String(error));
     }
   }
@@ -197,13 +197,13 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
         return { hash };
       },
       provider: route.network,
-      // Only a stock route sends again: the Polygon route fails the ramp on a mined revert, so it keeps pausing.
+      // Only a stock or Gold route sends again: the Polygon route fails the ramp on a mined revert, so it keeps pausing.
       // Only a claimed row may have been sent; an unclaimed one goes through the claim first.
       reconcile: async operation =>
         settle(
           settledReceipt ??
             (await dependencies.getReceipt(deterministicHash)) ??
-            (route.stock && operation.status !== "not_started"
+            (holdsOnFailure(route) && operation.status !== "not_started"
               ? await resendPresignedTransaction(transaction, dependencies)
               : null)
         ),
@@ -228,7 +228,7 @@ export class UniswapApproveExecutor extends UniswapV3Executor {
     const transaction = await this.validatedTransaction(state, route, "approval", validateUniswapApproval);
     this.pauseAfterDeadline(route);
     await this.holdWhileStockPaused(state, route, dependencies);
-    if (route.stock) {
+    if (holdsOnFailure(route)) {
       // A mined approval burns the first main nonce and with it the backup approval, so hold while that exit is still open.
       this.holdBelowSoftMinimum(state, route, await dependencies.quote(BigInt(route.amountInRaw)));
     }
