@@ -241,9 +241,12 @@ describe("Gold on Base with Pix: real executors, simulated chain and provider", 
     90_000
   );
 
-  it(
-    "sells PAXG for Pix: one permit, the pinned pool, Nabla, and the quoted BRL paid out",
-    async () => {
+  it.each([
+    ["at its quote", 10_000n],
+    ["0.2% below its quote, which the funding wallet tops up", 9_980n]
+  ])(
+    "sells PAXG for Pix when the pool fills %s: one permit, the pinned pool, Nabla, and the quoted BRL paid out",
+    async (_label, fillBps) => {
       const owner = privateKeyToAccount(generatePrivateKey());
       const secret = generatePrivateKey();
       const ephemeral = privateKeyToAccount(secret);
@@ -279,12 +282,13 @@ describe("Gold on Base with Pix: real executors, simulated chain and provider", 
       const nabla = getBlockMetadata(metadata, NablaSwapContext);
       const payout = getBlockMetadata(metadata, AveniaOfframpPayoutContext);
       const ledger = newLedger(ephemeral.address);
-      scriptChain(ledger, ephemeral.address, presignedTxs.find(tx => tx.phase === "nablaSwap")?.txData as string, {
-        inputRaw: BigInt(nabla.inputAmountForSwapRaw),
-        inputToken: USDC,
-        outputRaw: BigInt(nabla.outputAmountRaw),
-        outputToken: BRLA
-      });
+      scriptChain(
+        ledger,
+        ephemeral.address,
+        presignedTxs.find(tx => tx.phase === "nablaSwap")?.txData as string,
+        { inputRaw: BigInt(nabla.inputAmountForSwapRaw), inputToken: USDC, outputRaw: BigInt(nabla.outputAmountRaw), outputToken: BRLA },
+        fillBps
+      );
 
       const released = await post<{ unsignedTxs: UnsignedTx[] }>("/v1/ramp/update", { presignedTxs, rampId: registered.id }, user.id);
       const permit = released.unsignedTxs.find(tx => tx.signer.toLowerCase() === owner.address.toLowerCase()) as UnsignedTx;
@@ -311,6 +315,8 @@ describe("Gold on Base with Pix: real executors, simulated chain and provider", 
       expect(world.brla.pixOutputTickets).toHaveLength(pixOutBefore + 1);
       expect(world.brla.payoutQuoteAmounts.at(-1)).toBe(new Big(quote.outputAmount).round(2, 0).toString());
       expect(final.state.payOutTicketId).toBeTruthy();
+      const topUps = await Subsidy.count({ where: { phase: "subsidizePreSwap", rampId: registered.id } });
+      expect(topUps).toBe(fillBps === 10_000n ? 0 : 1);
     },
     90_000
   );
