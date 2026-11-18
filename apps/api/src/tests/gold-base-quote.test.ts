@@ -160,6 +160,40 @@ describe("PAXG on Base quotes", () => {
   });
 
   it.each([
+    [
+      "a USDC sale for BRL",
+      { ...usdcSell, inputAmount: "100", inputCurrency: EvmToken.USDC, outputCurrency: FiatToken.BRL },
+      "offramping from base to base is not supported."
+    ],
+    [
+      "an ARS purchase of USDC",
+      { ...usdcBuy, inputAmount: "100000", inputCurrency: FiatToken.ARS, outputCurrency: EvmToken.USDC },
+      "onramping from base to base is not supported."
+    ]
+  ])("refuses %s with both ends on Base, whatever the Gold switches say", async (_label, body, message) => {
+    // The generic flows do not check both ends of a request, so only Gold against USDC may pass chain support here.
+    for (const directions of [[RampDirection.BUY, RampDirection.SELL], []]) {
+      config.gold.enabledDirections = directions;
+      config.gold.usdcEnabledDirections = directions;
+      const r = await post(body);
+      expect(r.status, await r.clone().text()).toBe(400);
+      expect(await r.text()).toContain(message);
+    }
+    expect(await QuoteTicket.count()).toBe(0);
+  });
+
+  it.each([
+    // 0.002 PAXG at 4000 is 8 USDC, below the 10 USDC a sale must pay out.
+    ["0.002"],
+    // 300 PAXG at 4000 is 1,200,000 USDC, above the limit.
+    ["300"]
+  ])("refuses a USDC sale of %s PAXG, whose proceeds are outside 10 to 1,000,000 USDC", async inputAmount => {
+    const r = await post({ ...usdcSell, inputAmount });
+    expect(r.status, await r.clone().text()).toBe(400);
+    expect(await r.text()).toContain("USDC amount must be between 10 and 1000000");
+  });
+
+  it.each([
     [pixBuy, "BrlOnrampBaseGold", "BRL"],
     [pixSell, "BrlOfframpBaseGold", "BRL"]
   ] as const)("quotes the Pix route of a $rampType through the BRL corridor", async (body, flow, feeCurrency) => {

@@ -227,7 +227,7 @@ export class QuoteService extends BaseRampService {
     },
     skipPersistence = false
   ): Promise<QuoteResponse> {
-    validateChainSupport(request.rampType, request.from, request.to);
+    validateChainSupport(request.rampType, request.from, request.to, isBaseUsdcGoldRoute(request));
 
     if (isRetiredAssetHubCorridor(request)) {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.BAD_REQUEST });

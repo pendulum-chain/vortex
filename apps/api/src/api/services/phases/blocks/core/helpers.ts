@@ -86,14 +86,21 @@ export function getTargetFiatCurrency(
  * @param rampType - The type of ramp operation
  * @param from - The source destination type
  * @param to - The target destination type
+ * @param isBaseUsdcGoldRoute - Whether the request is Gold against native USDC, the one route with both ends on Base
  * @throws APIError if the chain combination is not supported
  */
-export function validateChainSupport(rampType: RampDirection, from: DestinationType, to: DestinationType): void {
+export function validateChainSupport(
+  rampType: RampDirection,
+  from: DestinationType,
+  to: DestinationType,
+  isBaseUsdcGoldRoute = false
+): void {
   if (
     (rampType === RampDirection.BUY && from === Networks.Base && to === Networks.Robinhood) ||
     (rampType === RampDirection.SELL && from === Networks.Robinhood && to === Networks.Base) ||
-    // Gold against native USDC, both ends on Base. The quote gate and the catalog admit PAXG alone.
-    (from === Networks.Base && to === Networks.Base)
+    // Decided by the caller from the whole request: the generic matchers do not check both ends, so any other
+    // Base-to-Base request would otherwise reach a flow built for another rail.
+    (isBaseUsdcGoldRoute && from === Networks.Base && to === Networks.Base)
   )
     return;
   if (!SUPPORTED_CHAINS[rampType].from.includes(from) || !SUPPORTED_CHAINS[rampType].to.includes(to)) {
