@@ -148,3 +148,9 @@ test('a start whose response is lost is not an error once the order is running',
   const r=await h.adapter.register({quote:q,owner,provider:h.provider});
   assert.equal((await h.adapter.start(r.id,owner)).currentPhase,'swapping');assert.equal(h.counts().starts,1);
 });
+test('the Base adapter reads the chain through Privy\'s app RPC, never viem\'s default public RPC',async()=>{
+  const old=globalThis.fetch,urls=[];
+  globalThis.fetch=async(url,init)=>{urls.push(String(url));const {id,method}=JSON.parse(init.body);return new Response(JSON.stringify({jsonrpc:'2.0',id,result:method==='eth_blockNumber'?'0x64':'0x'+(7n).toString(16).padStart(64,'0')}),{headers:{'Content-Type':'application/json'}});};
+  try { assert.equal(await createBaseGoldAdapter({enabled:true,api:async()=>({})}).balance(owner),7n); } finally { globalThis.fetch=old; }
+  assert.ok(urls.length>=2);for(const url of urls)assert.match(url,/^https:\/\/base-mainnet\.rpc\.privy\.systems\/?\?privyAppId=/);
+});

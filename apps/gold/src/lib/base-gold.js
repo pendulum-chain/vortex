@@ -1,7 +1,8 @@
 import { createApi, createVortexClient, submitWalletTransactions, withConsumerLock, RAMP_START_WINDOW_MS } from "@vortexfi/consumer-kit";
-import { createPublicClient, decodeFunctionData, formatUnits, http, parseAbi, parseUnits } from "viem";
+import { decodeFunctionData, formatUnits, parseAbi, parseUnits } from "viem";
 import { base } from "viem/chains";
 import { BASE_USDC, GOLD_ASSETS } from "./gold-config.js";
+import { goldPublicClient } from "./gold-balances.js";
 import { goldRampStore } from "./pilot-store.js";
 import { storeEphemeralRampKeys } from "./ephemeral-store.js";
 import { getFreshAccessToken, VORTEX_API_BASE, classifyRamp, startRampSafely } from "./vortex.js";
@@ -64,7 +65,7 @@ export function assertBaseDelivery(ramp, record, owner) {
 // Gold reuses Stocks' SDK presigning, consumer lock and bounded source-permit policy. The Base
 // corridor is independently disabled until the API exposes the pinned token and matching quotes.
 export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, apiBase = VORTEX_API_BASE, reader, api, createClient = createVortexClient, store = goldRampStore, ephemeralStore = { put: storeEphemeralRampKeys }, now = Date.now } = {}) {
-  const chain = reader || createPublicClient({ chain: base, transport: http() });
+  const chain = reader || goldPublicClient("base");
   const publicApi = api || createApi({ apiBase });
   let sdkPromise, pending;
   const requireEnabled = method => { if (!enabled || (method === "usdc" && !usdcEnabled)) fail("ROUTE_NOT_ENABLED", "Esta forma de pagamento estará disponível em breve."); };
