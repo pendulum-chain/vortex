@@ -94,18 +94,27 @@ describe("Base native USDC stock contract", () => {
   it.each([buy, sell])("returns $rampType fees at USDC precision that add up to the total", async body => {
     const fakeConvertCurrency = priceFeedService.convertCurrency;
     priceFeedService.convertCurrency = realConvertCurrency;
+    // At the fixture's round ETH price the 8-decimal components happen to add up as well. This price gives the gas
+    // reserve a tail beyond six decimals, so the sum only holds when each component is rounded to USDC precision.
+    const { ethereum } = world.prices.cryptoUsd;
+    const { eth } = world.prices.perUsd;
+    world.prices.cryptoUsd.ethereum = 3123.4567;
+    world.prices.perUsd.eth = 1 / 3123.4567;
     try {
       const r = await post(body);
       expect(r.status, await r.clone().text()).toBe(201);
       const q = await r.json();
       const parts = [q.networkFeeFiat, q.processingFeeFiat, q.partnerFeeFiat];
+      expect(Number(q.networkFeeFiat)).toBeGreaterThan(0);
+      // Compared exactly, as the Gold app does: a component with more than six decimals breaks the sum.
+      expect(parts.reduce((sum, fee) => sum.plus(fee), new Big(0)).toString()).toBe(new Big(q.totalFeeFiat).toString());
       for (const fee of [...parts, q.anchorFeeFiat, q.vortexFeeFiat, q.totalFeeFiat]) {
         expect(fee).toMatch(/^\d+(\.\d{1,6})?$/);
       }
-      expect(Number(q.networkFeeFiat)).toBeGreaterThan(0);
-      expect(parts.reduce((sum, fee) => sum.plus(fee), new Big(0)).toFixed(6)).toBe(new Big(q.totalFeeFiat).toFixed(6));
     } finally {
       priceFeedService.convertCurrency = fakeConvertCurrency;
+      world.prices.cryptoUsd.ethereum = ethereum;
+      world.prices.perUsd.eth = eth;
     }
   });
   it("retains the 5 bps Vortex fee down to fractional USDC", async () => {
