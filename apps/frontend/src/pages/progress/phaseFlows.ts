@@ -20,6 +20,7 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   finalSettlementSubsidy: 30,
   fundEphemeral: 20,
   gasReserveTopUp: 12,
+  goldPermitTransfer: 30,
   goldSettlementTopUp: 30,
   hydrationSwap: 30,
   hydrationToAssethubXcm: 30,

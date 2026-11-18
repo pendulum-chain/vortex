@@ -247,6 +247,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "relayBridge":
     case "stockPermitTransfer":
     case "stockSettlementTopUp":
+    case "goldPermitTransfer":
     case "goldSettlementTopUp":
     case "gasReserveTopUp":
     case "stockBackupApprove":

@@ -21,6 +21,7 @@ export type RampPhase =
   | "relayBridge"
   | "stockPermitTransfer"
   | "stockSettlementTopUp"
+  | "goldPermitTransfer"
   | "goldSettlementTopUp"
   | "gasReserveTopUp"
   | "stockBackupApprove"

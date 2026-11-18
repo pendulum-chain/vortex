@@ -97,6 +97,12 @@ function toCents(amount: Big): string {
  * Chainlink reference.
  */
 async function assignStockQuoteFields(metadata: FlowMetadata, ctx: QuoteContext): Promise<void> {
+  // A Gold route has a permit source and no stock route, so this is set before the stock fields.
+  const permitSource = (metadata.blocks.stockPermitSource ?? metadata.blocks.goldPermitSource) as
+    | StockPermitSourceMetadata
+    | undefined;
+  if (permitSource) metadata.globals.gasless = permitSource.gasless;
+
   const route = metadata.blocks.stockRoute as StockRouteMetadata | undefined;
   const fiatFees = metadata.globals.fees.displayFiat;
   if (!route || !fiatFees) return;
@@ -148,9 +154,6 @@ async function assignStockQuoteFields(metadata: FlowMetadata, ctx: QuoteContext)
       effectiveFeeBps: new Big(fee.targetFeeRaw).div(fee.grossOutputRaw).mul(10000).toFixed(4)
     };
   }
-
-  const permitSource = metadata.blocks.stockPermitSource as StockPermitSourceMetadata | undefined;
-  if (permitSource) metadata.globals.gasless = permitSource.gasless;
 }
 
 function buildTemporaryResponse(ctx: QuoteContext, metadata: FlowMetadata, outputAmount: string, expiresAt: Date) {

@@ -51,7 +51,12 @@ import { type EvmDestinationGasQuote, getBlockMetadata, getBlockState, getFlowMe
 import { getNativePrefunding } from "../../core/prepare";
 import { AssethubOfframpSourceContext, type AssethubOfframpSourceRegistrationFacts } from "../assethub-offramp-source";
 import { EvmOfframpSourceContext, EvmOfframpSourceMetadata } from "../evm-offramp-source/simulation";
-import { StockPermitSourceContext } from "../stock-permit-source/simulation";
+import {
+  GoldPermitSourceContext,
+  type PermitSourceContext,
+  permitSourcePhase,
+  StockPermitSourceContext
+} from "../stock-permit-source/simulation";
 import { stockSourcePin } from "../stock-permit-source/source";
 import type { StockPermitSourceState } from "../stock-permit-source/transactions";
 import { FundEphemeralContext } from "./simulation";
@@ -259,8 +264,9 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     signal?: AbortSignal
   ): Promise<void> {
     const blocks = getFlowMetadata(quote.metadata).blocks;
-    if (blocks[StockPermitSourceContext.key]) {
-      await this.assertStockSellerCanCover(state, signal);
+    const permitSource = [StockPermitSourceContext, GoldPermitSourceContext].find(context => blocks[context.key]);
+    if (permitSource) {
+      await this.assertStockSellerCanCover(state, permitSource, signal);
       return;
     }
     if (
@@ -313,11 +319,8 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
    * happen. A short balance waits, since the seller can bring the tokens back while the permit lives. Past its deadline the
    * permit can never be used, so the ramp ends here, with no funds moved and no funding gas spent.
    */
-  private async assertStockSellerCanCover(state: RampState, signal?: AbortSignal): Promise<void> {
-    const { amountRaw, isNoPermitFallback, owner, token } = getBlockState<StockPermitSourceState>(
-      state.state,
-      StockPermitSourceContext
-    );
+  private async assertStockSellerCanCover(state: RampState, context: PermitSourceContext, signal?: AbortSignal): Promise<void> {
+    const { amountRaw, isNoPermitFallback, owner, token } = getBlockState<StockPermitSourceState>(state.state, context);
     const { address, network } = stockSourcePin(token);
     try {
       if (isNoPermitFallback) {
@@ -331,7 +334,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         });
         return;
       }
-      const permit = state.unsignedTxs.find(tx => tx.phase === "stockPermitTransfer" && isSignedTypedData(tx.txData));
+      const permit = state.unsignedTxs.find(tx => tx.phase === permitSourcePhase(context) && isSignedTypedData(tx.txData));
       if (!permit) throw this.createUnrecoverableError("StockPermitSource: the permit blueprint is missing");
       if (BigInt(String((permit.txData as SignedTypedData).message.deadline)) <= BigInt(Math.floor(Date.now() / 1000))) {
         throw this.createUnrecoverableError(
