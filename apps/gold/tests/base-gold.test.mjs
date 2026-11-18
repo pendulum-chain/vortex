@@ -9,6 +9,8 @@ import { fundingDrafts } from '../src/lib/gold-funding.js';
 
 const owner='0x0000000000000000000000000000000000000001', ephemeral='0x0000000000000000000000000000000000000002';
 const transfer=parseAbi(['function transfer(address to, uint256 amount)']);
+// The API stores a ramp's input amount as DECIMAL(38,18) and echoes every place.
+const dec18=v=>{const [i,f='']=String(v).split('.');return `${i}.${f.padEnd(18,'0')}`;};
 const request=(direction='BUY',paymentMethod='usdc')=>baseGoldRequest({direction,paymentMethod,amount:direction==='BUY'?'50':'0.01',owner});
 const raw=(req=request())=>({...req,id:'quote',outputAmount:req.rampType==='BUY'?'0.01':'40',expiresAt:new Date(Date.now()+600000).toISOString(),feeCurrency:req.paymentMethod==='usdc'?'USDC':'BRL',anchorFeeFiat:req.paymentMethod==='usdc'?'0':'0.50',networkFeeFiat:'0.10',processingFeeFiat:'0.20',partnerFeeFiat:'0',totalFeeFiat:'0.30',gasless:true});
 function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=false,head=100n }={}) {
@@ -19,7 +21,7 @@ function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=
   const sdk={createQuote:async req=>raw(req),registerRamp:async(q)=>{
     registered++; cfg.onBeforeEphemeralsStored('order',ephemeral); await cfg.ephemeralStore.put([], 'order');
     const buy=q.rampType==='BUY',destination=buy?BASE_PAXG:BASE_USDC,source=buy?BASE_USDC:BASE_PAXG;
-    ramp={id:'order',quoteId:q.id,type:q.rampType,currentPhase:'initial',createdAt:new Date().toISOString(),inputAmount:q.inputAmount,outputAmount:q.outputAmount,depositQrCode:'synthetic-not-payable',unsignedTxs:[{phase:'destinationTransfer',network:'base',signer:ephemeral,txData:{to:destination.address,data:encodeFunctionData({abi:transfer,functionName:'transfer',args:[owner,parseUnits(q.outputAmount,destination.decimals)]}),value:'0'}}]};
+    ramp={id:'order',quoteId:q.id,type:q.rampType,currentPhase:'initial',createdAt:new Date().toISOString(),inputAmount:dec18(q.inputAmount),outputAmount:q.outputAmount,depositQrCode:'synthetic-not-payable',unsignedTxs:[{phase:'destinationTransfer',network:'base',signer:ephemeral,txData:{to:destination.address,data:encodeFunctionData({abi:transfer,functionName:'transfer',args:[owner,parseUnits(q.outputAmount,destination.decimals)]}),value:'0'}}]};
     const permit={phase:GOLD_SOURCE_PHASE,network:'base',signer:owner,txData:{primaryType:'Permit',domain:{name:'Synthetic',version:'1',chainId:8453,verifyingContract:source.address},types:{Permit:[{name:'owner',type:'address'},{name:'spender',type:'address'},{name:'value',type:'uint256'},{name:'nonce',type:'uint256'},{name:'deadline',type:'uint256'}]},message:{owner,spender:ephemeral,value:parseUnits(q.inputAmount,source.decimals).toString(),nonce:'0',deadline:String(Math.floor(Date.now()/1000)+3600)}}};
     if (!(buy&&q.paymentMethod==='pix')) ramp.unsignedTxs.push(permit); mutateRamp?.(ramp); return {rampProcess:ramp,unsignedTransactions:buy&&q.paymentMethod==='pix'?[]:[permit]};
   },submitUserTransactions:async(id,txs,handlers)=>{const payload=txs[0].txData;await handlers.signTypedData(payload,{payloadCount:1,unsignedTransaction:txs[0]});},startRamp:async()=>{starts++;return {...ramp,currentPhase:'swapping'};},getRampStatus:async()=>ramp};
@@ -101,4 +103,11 @@ test('disabling new orders preserves owned recovery, while a different wallet ca
 test('funding drafts persist only the owner-bound amount; expiry and storage failure stay safe',()=>{
   const mem=new Map(),storage=createJsonStorage(()=>({getItem:k=>mem.get(k),setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)}));let now=100;
   const drafts=fundingDrafts(storage,()=>now);drafts.save(owner,'25.123456');assert.deepEqual(drafts.get(owner),{amount:'25.123456'});assert.equal(drafts.get(ephemeral),null);now+=31*60000;assert.equal(drafts.get(owner),null);assert.throws(()=>fundingDrafts({get:()=>({}),set:()=>false}).save(owner,'25'));
+});
+
+test('the 18-decimal echo of the input amount is the same order; any other amount is refused',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await h.adapter.register({quote:q,owner,provider:h.provider});assert.equal(h.getRamp().inputAmount,'50.000000000000000000');assert.equal(h.store.get(owner).stage,'ready');
+  const bad=harness({mutateRamp:r=>r.inputAmount='50.000000000000000001'}),bq=await bad.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await assert.rejects(bad.adapter.register({quote:bq,owner,provider:bad.provider}),{code:'WRONG_DELIVERY'});assert.equal(bad.counts().signatures,0);
 });

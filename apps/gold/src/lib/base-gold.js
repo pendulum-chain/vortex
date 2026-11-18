@@ -49,13 +49,15 @@ export function validateBaseGoldQuote(raw, request, now = Date.now()) {
   return { ...raw, rawQuote: raw, grams: Number(buy ? raw.outputAmount : raw.inputAmount) * 31.1034768, expiresAt: Date.parse(raw.expiresAt), direction: request.rampType, paymentMethod: request.paymentMethod, currency };
 }
 
+// The API stores the input amount as DECIMAL(38,18) and echoes all 18 places ("50.000000000000000000"), whatever the
+// source token's precision, so both sides are compared at 18.
 export function assertBaseDelivery(ramp, record, owner) {
   const destination = record.rampType === "BUY" ? BASE_PAXG : BASE_USDC;
   const deliveries = (ramp?.unsignedTxs || []).filter(t => t.phase === "destinationTransfer");
   try {
     const tx = deliveries[0];
     const decoded = decodeFunctionData({ abi: ABI, data: tx.txData.data });
-    if (deliveries.length !== 1 || tx.network !== "base" || !same(tx.txData.to, destination.address) || BigInt(tx.txData.value || 0) !== 0n || tx.txData.data.length !== 138 || decoded.functionName !== "transfer" || !same(decoded.args[0], owner) || decoded.args[1] !== amountRaw(record.outputAmount, destination.decimals) || ramp.quoteId !== record.quoteId || String(ramp.type) !== record.rampType || amountRaw(ramp.inputAmount, record.inputDecimals) !== amountRaw(record.inputAmount, record.inputDecimals)) throw new Error();
+    if (deliveries.length !== 1 || tx.network !== "base" || !same(tx.txData.to, destination.address) || BigInt(tx.txData.value || 0) !== 0n || tx.txData.data.length !== 138 || decoded.functionName !== "transfer" || !same(decoded.args[0], owner) || decoded.args[1] !== amountRaw(record.outputAmount, destination.decimals) || ramp.quoteId !== record.quoteId || String(ramp.type) !== record.rampType || amountRaw(ramp.inputAmount, 18) !== amountRaw(record.inputAmount, 18)) throw new Error();
   } catch { fail("WRONG_DELIVERY", "A entrega não corresponde a esta operação. Não confirme nada e guarde o código para o suporte."); }
 }
 
