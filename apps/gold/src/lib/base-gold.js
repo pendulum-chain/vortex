@@ -148,10 +148,10 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
         const record = owned(result.rampProcess.id, owner);
         onRegistered?.(result.rampProcess);
         if (buy || crypto) assertBaseDelivery(result.rampProcess, record, owner);
-        if (buy && !crypto) {
-          if (!result.rampProcess.depositQrCode) fail("PIX_UNAVAILABLE", "O Pix não foi disponibilizado. Guarde o código da operação.");
-          store.save({ ...record, stage: "registered" });
-        } else await sign(result.rampProcess, result.unsignedTransactions, owner, provider);
+        if (buy && !crypto && !result.rampProcess.depositQrCode) fail("PIX_UNAVAILABLE", "O Pix não foi disponibilizado. Guarde o código da operação.");
+        // Registered before signing: a failure inside sign() (a chain read, a cancelled prompt) must stay resumable.
+        store.save({ ...record, stage: "registered" });
+        if (!(buy && !crypto)) await sign(result.rampProcess, result.unsignedTransactions, owner, provider);
         return result.rampProcess;
       } finally { pending = null; }
     });

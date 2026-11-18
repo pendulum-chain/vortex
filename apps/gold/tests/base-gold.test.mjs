@@ -13,10 +13,10 @@ const transfer=parseAbi(['function transfer(address to, uint256 amount)']);
 const dec18=v=>{const [i,f='']=String(v).split('.');return `${i}.${f.padEnd(18,'0')}`;};
 const request=(direction='BUY',paymentMethod='usdc')=>baseGoldRequest({direction,paymentMethod,amount:direction==='BUY'?'50':'0.01',owner});
 const raw=(req=request())=>({...req,id:'quote',outputAmount:req.rampType==='BUY'?'0.01':'40',expiresAt:new Date(Date.now()+600000).toISOString(),feeCurrency:req.paymentMethod==='usdc'?'USDC':'BRL',anchorFeeFiat:req.paymentMethod==='usdc'?'0':'0.50',networkFeeFiat:'0.10',processingFeeFiat:'0.20',partnerFeeFiat:'0',totalFeeFiat:'0.30',gasless:true});
-function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=false,head=100n }={}) {
+function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=false,head=100n,failNonceReads=0 }={}) {
   let data={},storedKeys=0,registered=0,signatures=0,starts=0,ramp;const clock={t:Date.now()};
   const store=createActiveRampStore({activeKey:'active',historyKey:'history',storage:{get:(k,f)=>data[k]??f,set:(k,v)=>(data[k]=v,true),remove:k=>delete data[k]}});
-  const reader={getBlockNumber:async()=>head,readContract:async ({functionName,blockNumber})=>{if(functionName==='balanceOf') { assert.equal(blockNumber,head-2n);return 100n*10n**18n;}return 0n;}};
+  const reader={getBlockNumber:async()=>head,readContract:async ({functionName,blockNumber})=>{if(functionName==='balanceOf') { assert.equal(blockNumber,head-2n);return 100n*10n**18n;}if(functionName==='nonces'&&failNonceReads-->0)throw new Error('rpc unavailable');return 0n;}};
   let cfg;
   const sdk={createQuote:async req=>raw(req),registerRamp:async(q)=>{
     registered++; cfg.onBeforeEphemeralsStored('order',ephemeral); await cfg.ephemeralStore.put([], 'order');
@@ -136,4 +136,10 @@ test('a Pix buy past the start window keeps its order: a paid QR can still be st
   const h=harness(),q=await h.adapter.quote({direction:'BUY',paymentMethod:'pix',amount:'50',owner});
   await h.adapter.register({quote:q,owner,provider:h.provider});h.clock.t+=16*60_000;
   assert.equal((await h.adapter.resume('order',owner,h.provider)).id,'order');assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);
+});
+test('a chain read failing while signing leaves a registered order that the same wallet resumes',async()=>{
+  const h=harness({failNonceReads:1}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await assert.rejects(h.adapter.register({quote:q,owner,provider:h.provider}),/rpc unavailable/);
+  assert.equal(h.store.get(owner).stage,'registered');assert.equal(h.counts().signatures,0);
+  await h.adapter.resume('order',owner,h.provider);assert.equal(h.store.get(owner).stage,'ready');assert.deepEqual(h.counts(),{storedKeys:1,registered:1,signatures:1,starts:0});
 });
