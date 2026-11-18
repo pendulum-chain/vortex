@@ -49,7 +49,8 @@ specified in `03-ramp-engine/ramp-phase-flows.md` and `05-integrations/relay.md`
 
 Gold's Ethereum checkout remains the default. The opt-in Base client requires its own build
 gates, a canonical-contract listing for the requested rail/direction and a validated quote.
-This client/SDK preparation adds no server executor or permission to enable a corridor.
+The server routes exist behind their own default-empty switches (`03-ramp-engine/ramp-phase-flows.md`,
+"PAXG on Base (Gold) flows"); neither the client gates nor the server switches enable the other.
 Pix retains fiat verification; native Base USDC must never call a fiat identity provider.
 Both rails require the Vortex user session. USDC funding goes to the user's own wallet,
 waits for two confirmations, and grants no execution authority. A new quote and explicit
