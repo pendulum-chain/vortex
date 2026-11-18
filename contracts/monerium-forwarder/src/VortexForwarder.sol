@@ -176,6 +176,14 @@ contract VortexForwarder {
     uint256 public arrivedThisWindow;
     uint256 public arrivedLastWindow;
 
+    /// @dev When the guardian or a keeper last swapped on this clone. Its swaps leave USDC
+    ///      here until it forwards the whole payment, and the batch marker cannot tell
+    ///      that USDC from a balance nobody is coming for: the marker may be days old
+    ///      (see `arrivalWindow`). The permissionless `forwardAll` therefore also waits
+    ///      TRIGGER_DELAY after this moment. Only a privileged swap writes it, so nobody
+    ///      else can hold that path shut.
+    uint64 public keeperSwappedAt;
+
     uint256 private _reentrancyGuard;
 
     // ----------------------------------------------------------------- events
@@ -378,9 +386,10 @@ contract VortexForwarder {
 
     /// @dev Armed against the IMMUTABLE swap floor, not the guardian-tunable minSwapAmount,
     ///      so no guardian action can keep a funded batch from being timed (review r1 F1).
-    ///      `reset` re-times the marker for whatever remains after a forward or a
-    ///      recovery closed the previous batch; otherwise an armed marker is left alone so
-    ///      a partial swap can never restart the recovery clock.
+    ///      `reset` re-times the marker for whatever remains after the keeper's forward or
+    ///      a recovery closed the previous batch; otherwise the marker of a funded clone
+    ///      is left alone, so a partial swap can never restart the recovery clock and no
+    ///      permissionless call can re-time what is waiting.
     function _syncBatch(bool reset) internal {
         bool funded = EURE.balanceOf(address(this)) >= FACTORY.MIN_SWAP_FLOOR() || USDC.balanceOf(address(this)) > 0;
         uint64 next = 0;
@@ -448,6 +457,7 @@ contract VortexForwarder {
         // undoes the swap and any subsidy transfer alike.
         if (usdcReceived - fee + subsidy < oracleFloor) revert InsufficientOutput();
 
+        if (privileged) keeperSwappedAt = uint64(block.timestamp);
         _syncBatch(false);
         emit SwapExecuted(msg.sender, routeIndex, amountIn, usdcReceived, referenceUsed, fee, subsidy);
     }
@@ -568,14 +578,23 @@ contract VortexForwarder {
 
     /// @notice Pushes the whole USDC balance to `destination`. Keeper any time (also the
     ///         home for unsolicited USDC, R09); anyone once the batch marker is older than
-    ///         TRIGGER_DELAY, so a Vortex outage can never trap converted funds on chain.
-    ///         Batches may merge on that path — the per-payment mapping is the keeper's.
+    ///         TRIGGER_DELAY and the keeper has not swapped here for that long. A Vortex
+    ///         outage can therefore never trap converted funds on chain, and nobody else
+    ///         can forward the chunks of a payment the keeper is converting, unless the
+    ///         keeper then stays silent for TRIGGER_DELAY. Batches may merge on that
+    ///         path — the per-payment mapping is the keeper's. A permissionless forward
+    ///         never re-times the marker for what stays behind (it closes the batch only
+    ///         when the clone is left unfunded), so it cannot postpone the permissionless
+    ///         swap.
     function forwardAll() external nonReentrant whenNotPaused {
-        if (!_privileged() && !_batchOlderThan(TRIGGER_DELAY)) revert NotAuthorizedYet();
+        bool privileged = _privileged();
+        if (!privileged && (!_batchOlderThan(TRIGGER_DELAY) || block.timestamp - keeperSwappedAt < TRIGGER_DELAY)) {
+            revert NotAuthorizedYet();
+        }
         uint256 amount = USDC.balanceOf(address(this));
         if (amount == 0) revert InvalidAmount();
         _transfer(USDC, destination, amount);
-        _syncBatch(true);
+        _syncBatch(privileged);
         emit Forwarded(msg.sender, amount);
     }
 

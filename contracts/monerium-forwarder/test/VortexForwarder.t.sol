@@ -570,6 +570,90 @@ contract VortexForwarderTest is Test {
         fwd.forwardAll(); // the emptied clone closed its batch: the public path is armed again only by new funds
     }
 
+    function _expectRandoForwardAllNotAuthorized() internal {
+        vm.prank(rando);
+        vm.expectRevert(VortexForwarder.NotAuthorizedYet.selector);
+        fwd.forwardAll();
+    }
+
+    /// A marker aged by a stray unit must not let anyone forward the chunks of a payment
+    /// the keeper is still converting: the client is promised one transfer per pay-in, and
+    /// the keeper forwards by the exact amount it converted.
+    function test_forwardAll_public_cannotSplitAPaymentTheKeeperIsConverting() public {
+        _armWithDust();
+        skip(TRIGGER_DELAY + 1);
+        oracle.set(1.14e8, block.timestamp);
+        _fund(20_000e18);
+        router.setNextOut(TARGET_10K);
+        _keeperSwap(10_000e18); // first chunk; the second follows in the keeper's next cycle
+
+        _expectRandoForwardAllNotAuthorized();
+
+        _keeperSwap(10_000e18);
+        vm.prank(keeper);
+        fwd.forward(2 * TARGET_10K);
+        assertEq(usdc.balanceOf(destination), 2 * TARGET_10K, "the payment arrives in one transfer");
+    }
+
+    /// The fallback itself stays: USDC the keeper has left unforwarded for TRIGGER_DELAY
+    /// after its last swap is anyone's to forward, and not a second earlier.
+    function test_forwardAll_public_opensTriggerDelayAfterTheKeepersLastSwap() public {
+        _fund(20_000e18);
+        fwd.poke();
+        skip(TRIGGER_DELAY);
+        oracle.set(1.14e8, block.timestamp);
+        router.setNextOut(TARGET_10K);
+        _keeperSwap(10_000e18); // the marker is a day old; then the keeper goes silent
+
+        skip(TRIGGER_DELAY - 1);
+        _expectRandoForwardAllNotAuthorized();
+        skip(1);
+        vm.prank(rando);
+        fwd.forwardAll();
+        assertEq(usdc.balanceOf(destination), TARGET_10K);
+    }
+
+    /// The guardian may swap like a keeper, and its swap holds the permissionless forward
+    /// back just the same.
+    function test_forwardAll_public_waitsForAGuardianSwapToo() public {
+        _fund(10_000e18);
+        fwd.poke();
+        skip(TRIGGER_DELAY + 1);
+        oracle.set(1.14e8, block.timestamp);
+        router.setNextOut(TARGET_10K);
+        fwd.swap(REF, 0, 10_000e18, NO_CAP); // the test contract is the factory guardian
+        _expectRandoForwardAllNotAuthorized();
+    }
+
+    /// An outage: anyone converts and forwards the waiting EURe chunk by chunk. A
+    /// permissionless forward must not restart the clock for what is still waiting, or one
+    /// unit of USDC a day would keep the permissionless swap shut for good. Only the
+    /// keeper's forward closes a batch and times the remainder anew.
+    function test_forwardAll_public_neverRestartsTheClock() public {
+        _fund(30_000e18);
+        fwd.poke();
+        uint64 opened = fwd.batchOpenedAt();
+        skip(TRIGGER_DELAY + 1);
+        oracle.set(1.14e8, block.timestamp);
+        router.setNextOut(TARGET_10K);
+
+        usdc.mint(address(fwd), 1); // vandal: one unit to forward, right as the path opens
+        vm.prank(rando);
+        fwd.forwardAll();
+        assertEq(fwd.batchOpenedAt(), opened, "a permissionless forward re-timed the marker");
+
+        _randoSwap(10_000e18);
+        vm.prank(rando);
+        fwd.forwardAll(); // what the permissionless swap converted can leave at once
+        assertEq(fwd.batchOpenedAt(), opened);
+        _randoSwap(10_000e18);
+
+        vm.prank(keeper);
+        fwd.forwardAll();
+        assertEq(fwd.batchOpenedAt(), block.timestamp, "the keeper's forward times the remainder anew");
+        assertEq(usdc.balanceOf(destination), 2 * TARGET_10K + 1);
+    }
+
     function test_reentrantRouter_blockedByGuard() public {
         MockReentrantRouter evil = new MockReentrantRouter();
         VortexForwarderFactory f2 = new VortexForwarderFactory(

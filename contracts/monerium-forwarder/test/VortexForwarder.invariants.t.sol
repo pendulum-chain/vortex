@@ -46,6 +46,19 @@ contract ForwarderHandler is Test {
     /// Permissionless swaps that left less EURe on the clone than arrived within the last
     /// TRIGGER_DELAY, i.e. that took EURe younger than that. Must stay zero.
     uint256 public youngPublicSwaps;
+    /// Permissionless forwards that ran before the batch marker was TRIGGER_DELAY old, or
+    /// less than TRIGGER_DELAY after a keeper swap, i.e. that could have taken a chunk of a
+    /// payment the keeper was converting. Must stay zero.
+    uint256 public earlyPublicForwards;
+    /// Permissionless pokes and forwards that moved an armed batch marker other than by
+    /// closing the batch of a clone left with less than MIN_SWAP_FLOOR EURe and no USDC.
+    /// Must stay zero.
+    uint256 public publicMarkerMoves;
+    /// Permissionless forwards that reverted although the marker was older than
+    /// TRIGGER_DELAY, the keeper had not swapped for that long, USDC was waiting and
+    /// nothing was paused. Must stay zero.
+    uint256 public blockedPublicForwards;
+    uint256 public lastKeeperSwapAt;
     uint256[] internal fundTimes;
     uint256[] internal fundAmounts;
     uint32 public immutable INITIAL_TARGET_PPM = 1_250;
@@ -119,7 +132,16 @@ contract ForwarderHandler is Test {
     }
 
     function doPoke() external {
+        uint64 marker = fwd.batchOpenedAt();
         fwd.poke();
+        _recordPublicMarkerMove(marker);
+    }
+
+    function _recordPublicMarkerMove(uint64 marker) internal {
+        uint64 current = fwd.batchOpenedAt();
+        if (marker == 0 || current == marker) return;
+        bool unfunded = eure.balanceOf(address(fwd)) < 1e18 && usdc.balanceOf(address(fwd)) == 0;
+        if (current != 0 || !unfunded) publicMarkerMoves++;
     }
 
     /// Mostly steps of hours, so that arrivals, swaps and forwards meet inside the one or
@@ -191,6 +213,7 @@ contract ForwarderHandler is Test {
         if (usdc.balanceOf(feeRecipient) - before.fee > paid / 100) pricingViolations++; // MAX_FEE_PPM
         if (before.marker != 0 && fwd.batchOpenedAt() != before.marker) markerRetimes++;
         if (caller == rando && eure.balanceOf(address(fwd)) < _arrivedWithinTriggerDelay()) youngPublicSwaps++;
+        if (caller != rando) lastKeeperSwapAt = block.timestamp;
     }
 
     function keeperForward(uint96 raw) external {
@@ -200,8 +223,18 @@ contract ForwarderHandler is Test {
     }
 
     function forwardAllAs(bool asKeeper) external {
+        uint64 marker = fwd.batchOpenedAt();
+        bool aged = marker != 0 && block.timestamp - marker >= TRIGGER_DELAY
+            && (lastKeeperSwapAt == 0 || block.timestamp - lastKeeperSwapAt >= TRIGGER_DELAY);
+        bool due = aged && usdc.balanceOf(address(fwd)) > 0 && !fwd.guardianPaused();
         vm.prank(asKeeper ? keeper : rando);
-        try fwd.forwardAll() {} catch {}
+        try fwd.forwardAll() {
+            if (asKeeper) return;
+            if (!aged) earlyPublicForwards++;
+            _recordPublicMarkerMove(marker);
+        } catch {
+            if (!asKeeper && due) blockedPublicForwards++;
+        }
     }
 
     function keeperRecover(uint96 rawEure, uint96 rawUsdc) external {
@@ -319,6 +352,16 @@ contract VortexForwarderInvariantTest is Test {
     /// long to convert or refund a payment first.
     function invariant_publicSwapNeverTakesYoungEure() public view {
         assertEq(handler.youngPublicSwaps(), 0, "a permissionless swap took EURe younger than TRIGGER_DELAY");
+    }
+
+    /// The permissionless forward never runs before the batch marker is TRIGGER_DELAY old
+    /// nor within TRIGGER_DELAY of a keeper swap, so it cannot split a payment the keeper
+    /// is converting; it never restarts the clock for what stays behind; and nobody can
+    /// keep it shut once the marker and the keeper's last swap are both that old.
+    function invariant_publicForwardWaitsForTheKeeperAndNeverRestartsTheClock() public view {
+        assertEq(handler.earlyPublicForwards(), 0, "a permissionless forward ran before it was due");
+        assertEq(handler.publicMarkerMoves(), 0, "a permissionless call moved the marker of a funded clone");
+        assertEq(handler.blockedPublicForwards(), 0, "a due permissionless forward was refused");
     }
 
     /// The arrival ledger never claims more EURe than the clone holds, and holds nothing
