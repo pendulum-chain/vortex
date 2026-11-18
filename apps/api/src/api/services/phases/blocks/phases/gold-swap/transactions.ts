@@ -17,8 +17,9 @@ import type { GoldSwapMetadata } from "./simulation";
 
 /**
  * The ephemeral's exact approval and swap through the pinned pool, with the output staying on the ephemeral. The backup
- * approval is operator recovery only: pinned to the first main nonce, it lets the funding account take the swap's input
- * back however far the main lane got.
+ * approval is operator recovery only: pinned to the first main nonce and signed for the four after it, it lets the
+ * funding account take the swap's input back while the ephemeral has sent at most four transactions. A Pix buy with a
+ * partner markup has sent five once its swap approval is mined, so there it only helps before that approval.
  */
 export async function prepareGoldSwapTxs(
   ctx: PrepareCtx<GoldSwapMetadata>,
