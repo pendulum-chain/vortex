@@ -9,24 +9,26 @@ import { fundingDrafts } from '../src/lib/gold-funding.js';
 
 const owner='0x0000000000000000000000000000000000000001', ephemeral='0x0000000000000000000000000000000000000002';
 const transfer=parseAbi(['function transfer(address to, uint256 amount)']);
+// The API stores a ramp's input amount as DECIMAL(38,18) and echoes every place.
+const dec18=v=>{const [i,f='']=String(v).split('.');return `${i}.${f.padEnd(18,'0')}`;};
 const request=(direction='BUY',paymentMethod='usdc')=>baseGoldRequest({direction,paymentMethod,amount:direction==='BUY'?'50':'0.01',owner});
 const raw=(req=request())=>({...req,id:'quote',outputAmount:req.rampType==='BUY'?'0.01':'40',expiresAt:new Date(Date.now()+600000).toISOString(),feeCurrency:req.paymentMethod==='usdc'?'USDC':'BRL',anchorFeeFiat:req.paymentMethod==='usdc'?'0':'0.50',networkFeeFiat:'0.10',processingFeeFiat:'0.20',partnerFeeFiat:'0',totalFeeFiat:'0.30',gasless:true});
-function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=false,head=100n }={}) {
-  let data={},storedKeys=0,registered=0,signatures=0,starts=0,ramp;
+function harness({ enabled=true,usdcEnabled=true,mutateRamp,approve=true,paused=false,head=100n,failNonceReads=0,lostStartResponse=false,refuseStart=false }={}) {
+  let data={},storedKeys=0,registered=0,signatures=0,starts=0,ramp;const clock={t:Date.now()};
   const store=createActiveRampStore({activeKey:'active',historyKey:'history',storage:{get:(k,f)=>data[k]??f,set:(k,v)=>(data[k]=v,true),remove:k=>delete data[k]}});
-  const reader={getBlockNumber:async()=>head,readContract:async ({functionName,blockNumber})=>{if(functionName==='balanceOf') { assert.equal(blockNumber,head-2n);return 100n*10n**18n;}return 0n;}};
+  const reader={getBlockNumber:async()=>head,readContract:async ({functionName,blockNumber})=>{if(functionName==='balanceOf') { assert.equal(blockNumber,head-2n);return 100n*10n**18n;}if(functionName==='nonces'&&failNonceReads-->0)throw new Error('rpc unavailable');return 0n;}};
   let cfg;
   const sdk={createQuote:async req=>raw(req),registerRamp:async(q)=>{
     registered++; cfg.onBeforeEphemeralsStored('order',ephemeral); await cfg.ephemeralStore.put([], 'order');
     const buy=q.rampType==='BUY',destination=buy?BASE_PAXG:BASE_USDC,source=buy?BASE_USDC:BASE_PAXG;
-    ramp={id:'order',quoteId:q.id,type:q.rampType,currentPhase:'initial',createdAt:new Date().toISOString(),inputAmount:q.inputAmount,outputAmount:q.outputAmount,depositQrCode:'synthetic-not-payable',unsignedTxs:[{phase:'destinationTransfer',network:'base',signer:ephemeral,txData:{to:destination.address,data:encodeFunctionData({abi:transfer,functionName:'transfer',args:[owner,parseUnits(q.outputAmount,destination.decimals)]}),value:'0'}}]};
+    ramp={id:'order',quoteId:q.id,type:q.rampType,currentPhase:'initial',createdAt:new Date().toISOString(),inputAmount:dec18(q.inputAmount),outputAmount:q.outputAmount,depositQrCode:'synthetic-not-payable',unsignedTxs:[{phase:'destinationTransfer',network:'base',signer:ephemeral,txData:{to:destination.address,data:encodeFunctionData({abi:transfer,functionName:'transfer',args:[owner,parseUnits(q.outputAmount,destination.decimals)]}),value:'0'}}]};
     const permit={phase:GOLD_SOURCE_PHASE,network:'base',signer:owner,txData:{primaryType:'Permit',domain:{name:'Synthetic',version:'1',chainId:8453,verifyingContract:source.address},types:{Permit:[{name:'owner',type:'address'},{name:'spender',type:'address'},{name:'value',type:'uint256'},{name:'nonce',type:'uint256'},{name:'deadline',type:'uint256'}]},message:{owner,spender:ephemeral,value:parseUnits(q.inputAmount,source.decimals).toString(),nonce:'0',deadline:String(Math.floor(Date.now()/1000)+3600)}}};
     if (!(buy&&q.paymentMethod==='pix')) ramp.unsignedTxs.push(permit); mutateRamp?.(ramp); return {rampProcess:ramp,unsignedTransactions:buy&&q.paymentMethod==='pix'?[]:[permit]};
-  },submitUserTransactions:async(id,txs,handlers)=>{const payload=txs[0].txData;await handlers.signTypedData(payload,{payloadCount:1,unsignedTransaction:txs[0]});},startRamp:async()=>{starts++;return {...ramp,currentPhase:'swapping'};},getRampStatus:async()=>ramp};
+  },submitUserTransactions:async(id,txs,handlers)=>{const payload=txs[0].txData;await handlers.signTypedData(payload,{payloadCount:1,unsignedTransaction:txs[0]});},startRamp:async()=>{starts++;if(refuseStart)throw new Error('Maximum time window to start process exceeded. Ramp invalidated.');ramp={...ramp,currentPhase:'swapping'};if(lostStartResponse)throw new Error('network');return ramp;},getRampStatus:async()=>ramp};
   const api=async path=>path.includes('maintenance')?{is_maintenance_active:paused}:path.includes('supported-cryptocurrencies')?{cryptocurrencies:[{assetSymbol:'PAXG',assetNetwork:'base',assetDecimals:18,assetContractAddress:BASE_PAXG.address,rampTypes:['BUY','SELL']}]}:ramp;
-  const adapter=createBaseGoldAdapter({enabled,usdcEnabled,store,reader,api,createClient:c=>(cfg=c,sdk),ephemeralStore:{put:async()=>{storedKeys++;}}});
+  const adapter=createBaseGoldAdapter({enabled,usdcEnabled,store,reader,api,createClient:c=>(cfg=c,sdk),ephemeralStore:{put:async()=>{storedKeys++;}},now:()=>clock.t});
   const provider={request:async({method})=>{if(method==='eth_signTypedData_v4'){signatures++;if(!approve)throw Object.assign(Error('cancelled'),{code:4001});return '0xsynthetic';}return null;}};
-  return {adapter,store,provider,counts:()=>({storedKeys,registered,signatures,starts}),getRamp:()=>ramp};
+  return {adapter,store,provider,clock,counts:()=>({storedKeys,registered,signatures,starts}),getRamp:()=>ramp};
 }
 
 test('build defaults retain Ethereum; Base and USDC require independent explicit gates',()=>{
@@ -101,4 +103,91 @@ test('disabling new orders preserves owned recovery, while a different wallet ca
 test('funding drafts persist only the owner-bound amount; expiry and storage failure stay safe',()=>{
   const mem=new Map(),storage=createJsonStorage(()=>({getItem:k=>mem.get(k),setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)}));let now=100;
   const drafts=fundingDrafts(storage,()=>now);drafts.save(owner,'25.123456');assert.deepEqual(drafts.get(owner),{amount:'25.123456'});assert.equal(drafts.get(ephemeral),null);now+=31*60000;assert.equal(drafts.get(owner),null);assert.throws(()=>fundingDrafts({get:()=>({}),set:()=>false}).save(owner,'25'));
+});
+
+const failedRows=h=>h.store.history(owner).map(i=>[i.rampId,i.status,i.network,i.paymentMethod]);
+test('the 18-decimal echo of the input amount is the same order; any other amount is refused',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await h.adapter.register({quote:q,owner,provider:h.provider});assert.equal(h.getRamp().inputAmount,'50.000000000000000000');assert.equal(h.store.get(owner).stage,'ready');
+  const bad=harness({mutateRamp:r=>r.inputAmount='50.000000000000000001'}),bq=await bad.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await assert.rejects(bad.adapter.register({quote:bq,owner,provider:bad.provider}),{code:'WRONG_DELIVERY'});assert.equal(bad.counts().signatures,0);
+});
+test('a failed order leaves the active slot, keeps its code in the history, and the wallet can order again',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'SELL',paymentMethod:'usdc',amount:'0.01',owner});
+  await h.adapter.register({quote:q,owner,provider:h.provider});h.getRamp().status='failed';
+  // Only a Pix buy still waiting for its payment gets the late-payment note.
+  await assert.rejects(h.adapter.resume('order',owner,h.provider),e=>e.code==='RAMP_NEEDS_ATTENTION'&&/Você já pode iniciar uma nova/.test(e.message)&&!/não pague novamente/.test(e.message));
+  assert.equal(h.store.get(owner)??null,null);assert.deepEqual(failedRows(h),[['order','failed','base','usdc']]);
+  await h.adapter.register({quote:await h.adapter.quote({direction:'SELL',paymentMethod:'usdc',amount:'0.01',owner}),owner,provider:h.provider});assert.equal(h.counts().registered,2);
+});
+test('an order still unstarted an hour after registration is given up the same way',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'BUY',paymentMethod:'pix',amount:'50',owner});
+  await h.adapter.register({quote:q,owner,provider:h.provider});h.clock.t+=61*60_000;
+  await assert.rejects(h.adapter.resume('order',owner,h.provider),{code:'RAMP_NEEDS_ATTENTION'});
+  assert.equal(h.store.get(owner)??null,null);assert.deepEqual(failedRows(h),[['order','failed','base','pix']]);
+});
+test('a declined permit order past its start window is given up without another wallet prompt',async()=>{
+  const h=harness({approve:false}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await assert.rejects(h.adapter.register({quote:q,owner,provider:h.provider}),{code:4001});assert.equal(h.counts().signatures,1);
+  h.clock.t+=16*60_000;
+  await assert.rejects(h.adapter.resume('order',owner,h.provider),{code:'START_WINDOW_CLOSED'});
+  assert.equal(h.counts().signatures,1);assert.equal(h.store.get(owner)??null,null);assert.deepEqual(failedRows(h),[['order','failed','base','usdc']]);
+});
+test('a signed permit order past its start window is kept: the API holds its permit',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await h.adapter.register({quote:q,owner,provider:h.provider});assert.equal(h.store.get(owner).stage,'ready');h.clock.t+=16*60_000;
+  assert.equal((await h.adapter.resume('order',owner,h.provider)).id,'order');
+  assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);assert.equal(h.counts().signatures,1);
+});
+test('a running order is never given up, however long ago it was registered',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'SELL',paymentMethod:'usdc',amount:'0.01',owner});
+  const r=await h.adapter.register({quote:q,owner,provider:h.provider});
+  assert.equal((await h.adapter.start(r.id,owner)).currentPhase,'swapping');h.clock.t+=61*60_000;
+  assert.equal((await h.adapter.resume('order',owner,h.provider)).currentPhase,'swapping');
+  assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);
+});
+test('a start window that closes before the first signature gives the order up at registration',async()=>{
+  // The device clock runs ahead, so signing is refused right after the order is registered. Nothing was signed.
+  const h=harness({mutateRamp:r=>r.createdAt=new Date(Date.now()-14.5*60_000).toISOString()}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await assert.rejects(h.adapter.register({quote:q,owner,provider:h.provider}),{code:'START_WINDOW_CLOSED'});
+  assert.equal(h.counts().signatures,0);assert.equal(h.store.get(owner)??null,null);assert.deepEqual(failedRows(h),[['order','failed','base','usdc']]);
+});
+test('a start the API refuses after its window says so in Portuguese and keeps the signed order',async()=>{
+  const h=harness({refuseStart:true}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  const r=await h.adapter.register({quote:q,owner,provider:h.provider});
+  await assert.rejects(h.adapter.start(r.id,owner),{code:'START_REFUSED',message:/nada foi movimentado/});
+  assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);
+});
+test('a late "Já paguei" on a Pix buy never says that nothing moved: the API still completes a paid order',async()=>{
+  const h=harness({refuseStart:true}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'pix',amount:'50',owner});
+  const r=await h.adapter.register({quote:q,owner,provider:h.provider});
+  await assert.rejects(h.adapter.start(r.id,owner),e=>e.code==='START_REFUSED'&&/não pague novamente/.test(e.message)&&!/nada foi movimentado|Ramp invalidated/.test(e.message));
+  assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);
+});
+test('a Pix buy given up by age warns that a payment already made still completes it',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'BUY',paymentMethod:'pix',amount:'50',owner});
+  await h.adapter.register({quote:q,owner,provider:h.provider});h.clock.t+=61*60_000;
+  await assert.rejects(h.adapter.resume('order',owner,h.provider),{code:'RAMP_NEEDS_ATTENTION',message:/não pague novamente/});
+});
+test('a Pix buy past the start window keeps its order: a paid QR can still be started by the API',async()=>{
+  const h=harness(),q=await h.adapter.quote({direction:'BUY',paymentMethod:'pix',amount:'50',owner});
+  await h.adapter.register({quote:q,owner,provider:h.provider});h.clock.t+=16*60_000;
+  assert.equal((await h.adapter.resume('order',owner,h.provider)).id,'order');assert.equal(h.store.get(owner).rampId,'order');assert.deepEqual(failedRows(h),[]);
+});
+test('a chain read failing while signing leaves a registered order that the same wallet resumes',async()=>{
+  const h=harness({failNonceReads:1}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  await assert.rejects(h.adapter.register({quote:q,owner,provider:h.provider}),/rpc unavailable/);
+  assert.equal(h.store.get(owner).stage,'registered');assert.equal(h.counts().signatures,0);
+  await h.adapter.resume('order',owner,h.provider);assert.equal(h.store.get(owner).stage,'ready');assert.deepEqual(h.counts(),{storedKeys:1,registered:1,signatures:1,starts:0});
+});
+test('a start whose response is lost is not an error once the order is running',async()=>{
+  const h=harness({lostStartResponse:true}),q=await h.adapter.quote({direction:'BUY',paymentMethod:'usdc',amount:'50',owner});
+  const r=await h.adapter.register({quote:q,owner,provider:h.provider});
+  assert.equal((await h.adapter.start(r.id,owner)).currentPhase,'swapping');assert.equal(h.counts().starts,1);
+});
+test('the Base adapter reads the chain through Privy\'s app RPC, never viem\'s default public RPC',async()=>{
+  const old=globalThis.fetch,urls=[];
+  globalThis.fetch=async(url,init)=>{urls.push(String(url));const {id,method}=JSON.parse(init.body);return new Response(JSON.stringify({jsonrpc:'2.0',id,result:method==='eth_blockNumber'?'0x64':'0x'+(7n).toString(16).padStart(64,'0')}),{headers:{'Content-Type':'application/json'}});};
+  try { assert.equal(await createBaseGoldAdapter({enabled:true,api:async()=>({})}).balance(owner),7n); } finally { globalThis.fetch=old; }
+  assert.ok(urls.length>=2);for(const url of urls)assert.match(url,/^https:\/\/base-mainnet\.rpc\.privy\.systems\/?\?privyAppId=/);
 });

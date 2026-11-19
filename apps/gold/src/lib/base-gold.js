@@ -1,13 +1,16 @@
 import { createApi, createVortexClient, submitWalletTransactions, withConsumerLock, RAMP_START_WINDOW_MS } from "@vortexfi/consumer-kit";
-import { createPublicClient, decodeFunctionData, formatUnits, http, parseAbi, parseUnits } from "viem";
+import { decodeFunctionData, formatUnits, parseAbi, parseUnits } from "viem";
 import { base } from "viem/chains";
 import { BASE_USDC, GOLD_ASSETS } from "./gold-config.js";
+import { goldPublicClient } from "./gold-balances.js";
 import { goldRampStore } from "./pilot-store.js";
 import { storeEphemeralRampKeys } from "./ephemeral-store.js";
-import { getFreshAccessToken, VORTEX_API_BASE, classifyRamp } from "./vortex.js";
+import { getFreshAccessToken, VORTEX_API_BASE, classifyRamp, startRampSafely } from "./vortex.js";
 
 export const BASE_PAXG = GOLD_ASSETS.base;
 export const GOLD_SOURCE_PHASE = "goldPermitTransfer";
+// A Pix buy released on this device may still be started by the API once its payment arrives.
+export const PIX_PAID_LATE_NOTE = "Se o Pix desta compra já foi pago, ela ainda será concluída: não pague novamente.";
 const ABI = parseAbi(["function balanceOf(address owner) view returns (uint256)", "function nonces(address owner) view returns (uint256)", "function transfer(address to, uint256 amount)"]);
 const same = (a, b) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
 const fail = (code, message) => { throw Object.assign(new Error(message), { code }); };
@@ -49,20 +52,22 @@ export function validateBaseGoldQuote(raw, request, now = Date.now()) {
   return { ...raw, rawQuote: raw, grams: Number(buy ? raw.outputAmount : raw.inputAmount) * 31.1034768, expiresAt: Date.parse(raw.expiresAt), direction: request.rampType, paymentMethod: request.paymentMethod, currency };
 }
 
+// The API stores the input amount as DECIMAL(38,18) and echoes all 18 places ("50.000000000000000000"), whatever the
+// source token's precision, so both sides are compared at 18.
 export function assertBaseDelivery(ramp, record, owner) {
   const destination = record.rampType === "BUY" ? BASE_PAXG : BASE_USDC;
   const deliveries = (ramp?.unsignedTxs || []).filter(t => t.phase === "destinationTransfer");
   try {
     const tx = deliveries[0];
     const decoded = decodeFunctionData({ abi: ABI, data: tx.txData.data });
-    if (deliveries.length !== 1 || tx.network !== "base" || !same(tx.txData.to, destination.address) || BigInt(tx.txData.value || 0) !== 0n || tx.txData.data.length !== 138 || decoded.functionName !== "transfer" || !same(decoded.args[0], owner) || decoded.args[1] !== amountRaw(record.outputAmount, destination.decimals) || ramp.quoteId !== record.quoteId || String(ramp.type) !== record.rampType || amountRaw(ramp.inputAmount, record.inputDecimals) !== amountRaw(record.inputAmount, record.inputDecimals)) throw new Error();
+    if (deliveries.length !== 1 || tx.network !== "base" || !same(tx.txData.to, destination.address) || BigInt(tx.txData.value || 0) !== 0n || tx.txData.data.length !== 138 || decoded.functionName !== "transfer" || !same(decoded.args[0], owner) || decoded.args[1] !== amountRaw(record.outputAmount, destination.decimals) || ramp.quoteId !== record.quoteId || String(ramp.type) !== record.rampType || amountRaw(ramp.inputAmount, 18) !== amountRaw(record.inputAmount, 18)) throw new Error();
   } catch { fail("WRONG_DELIVERY", "A entrega não corresponde a esta operação. Não confirme nada e guarde o código para o suporte."); }
 }
 
 // Gold reuses Stocks' SDK presigning, consumer lock and bounded source-permit policy. The Base
 // corridor is independently disabled until the API exposes the pinned token and matching quotes.
 export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, apiBase = VORTEX_API_BASE, reader, api, createClient = createVortexClient, store = goldRampStore, ephemeralStore = { put: storeEphemeralRampKeys }, now = Date.now } = {}) {
-  const chain = reader || createPublicClient({ chain: base, transport: http() });
+  const chain = reader || goldPublicClient("base");
   const publicApi = api || createApi({ apiBase });
   let sdkPromise, pending;
   const requireEnabled = method => { if (!enabled || (method === "usdc" && !usdcEnabled)) fail("ROUTE_NOT_ENABLED", "Esta forma de pagamento estará disponível em breve."); };
@@ -93,6 +98,11 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
     const request = baseGoldRequest(options);
     return validateBaseGoldQuote(await (await client()).createQuote(request), request, now());
   }
+  // The order can never run again. It leaves the active slot and stays in the history with its code, as on Ethereum.
+  const abandon = ({ rampId, walletAddress, inputAmount, outputAmount, rampType, network, paymentMethod }) => {
+    store.addHistory({ rampId, walletAddress, inputAmount, outputAmount, rampType, status: "failed", network, paymentMethod });
+    store.clear(rampId);
+  };
   const owned = (id, owner) => {
     const record = store.get(owner);
     if (record?.rampId !== id || record.network !== "base") fail("RECOVERY_UNAVAILABLE", "Retome a operação no aparelho em que ela foi iniciada.");
@@ -100,7 +110,7 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
   };
   function deadline(ramp, record) {
     const end = Math.min(Date.parse(ramp.createdAt || "") + RAMP_START_WINDOW_MS || Infinity, record.createdAt + RAMP_START_WINDOW_MS);
-    if (now() >= end - 60_000) fail("START_WINDOW_CLOSED", "O prazo desta autorização terminou. Guarde o código da operação e consulte o suporte.");
+    if (now() >= end - 60_000) fail("START_WINDOW_CLOSED", "O prazo desta autorização terminou e nada foi movimentado. Você já pode iniciar uma nova operação.");
   }
   async function sign(ramp, transactions, owner, provider) {
     let record = owned(ramp.id, owner);
@@ -119,6 +129,12 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
     });
     store.save({ ...owned(ramp.id, owner), stage: "ready" });
   }
+  // A permit order whose start window closed before it was signed will never run, and nothing has moved: it leaves
+  // the slot. A signed order is kept, because the API holds its permit until the hour rule releases it.
+  async function signOrAbandon(ramp, transactions, owner, provider) {
+    try { await sign(ramp, transactions, owner, provider); }
+    catch (e) { if (e.code === "START_WINDOW_CLOSED") abandon(owned(ramp.id, owner)); throw e; }
+  }
   async function register({ quote: q, owner, provider, pixDestination, onRegistered }) {
     requireEnabled(q.paymentMethod);
     const request = baseGoldRequest({ direction: q.direction, paymentMethod: q.paymentMethod, amount: q.inputAmount, owner });
@@ -133,7 +149,7 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
       const source = buy ? BASE_USDC : BASE_PAXG;
       if ((!buy || crypto) && await balance(owner, source) < amountRaw(q.inputAmount, source.decimals)) fail("INSUFFICIENT_BALANCE", "O saldo confirmado não é suficiente. Aguarde o depósito ou escolha um valor menor.");
       if (!buy && !crypto && !String(pixDestination || "").trim()) fail("INVALID_PIX", "Informe sua chave Pix.");
-      pending = { walletAddress: owner, inputAmount: q.inputAmount, outputAmount: q.outputAmount, inputDecimals: buy ? (crypto ? 6 : 2) : 18, rampType: q.direction, paymentMethod: q.paymentMethod, network: "base", tokenAddress: BASE_PAXG.address, quoteId: q.id, createdAt: now() };
+      pending = { walletAddress: owner, inputAmount: q.inputAmount, outputAmount: q.outputAmount, rampType: q.direction, paymentMethod: q.paymentMethod, network: "base", tokenAddress: BASE_PAXG.address, quoteId: q.id, createdAt: now() };
       try {
         const sdk = await client();
         const extra = buy && !crypto ? { destinationAddress: owner } : { walletAddress: owner, destinationAddress: owner, ...(!crypto ? { pixDestination: String(pixDestination).trim() } : {}) };
@@ -141,10 +157,10 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
         const record = owned(result.rampProcess.id, owner);
         onRegistered?.(result.rampProcess);
         if (buy || crypto) assertBaseDelivery(result.rampProcess, record, owner);
-        if (buy && !crypto) {
-          if (!result.rampProcess.depositQrCode) fail("PIX_UNAVAILABLE", "O Pix não foi disponibilizado. Guarde o código da operação.");
-          store.save({ ...record, stage: "registered" });
-        } else await sign(result.rampProcess, result.unsignedTransactions, owner, provider);
+        if (buy && !crypto && !result.rampProcess.depositQrCode) fail("PIX_UNAVAILABLE", "O Pix não foi disponibilizado. Guarde o código da operação.");
+        // Registered before signing: a failure inside sign() (a chain read, a cancelled prompt) must stay resumable.
+        store.save({ ...record, stage: "registered" });
+        if (!(buy && !crypto)) await signOrAbandon(result.rampProcess, result.unsignedTransactions, owner, provider);
         return result.rampProcess;
       } finally { pending = null; }
     });
@@ -152,18 +168,31 @@ export function createBaseGoldAdapter({ enabled = false, usdcEnabled = false, ap
   async function resume(id, owner, provider) {
     const record = owned(id, owner);
     const ramp = await publicApi(`/v1/ramp/${encodeURIComponent(id)}?showUnsignedTxs=true`, { method: "GET" }, { token: await getFreshAccessToken() });
-    if (classifyRamp(ramp) === "failure") fail("RAMP_NEEDS_ATTENTION", "Esta operação precisa de atenção. Guarde o código e consulte o suporte.");
-    if (classifyRamp(ramp) === "success" || ramp.currentPhase !== "initial") return ramp;
+    if (classifyRamp(ramp, now()) === "failure") {
+      abandon(record);
+      const unpaidPix = record.rampType === "BUY" && record.paymentMethod === "pix" && String(ramp.currentPhase || "initial") === "initial";
+      fail("RAMP_NEEDS_ATTENTION", `Esta operação não foi concluída. Guarde o código para o suporte. ${unpaidPix ? PIX_PAID_LATE_NOTE : "Você já pode iniciar uma nova."}`);
+    }
+    if (classifyRamp(ramp, now()) === "success" || ramp.currentPhase !== "initial") return ramp;
     if (record.rampType === "BUY" || record.paymentMethod === "usdc") assertBaseDelivery(ramp, record, owner);
     if (record.stage === "registering") fail("RECOVERY_UNAVAILABLE", "O registro precisa ser conferido. Guarde o código da operação.");
-    if (!(record.rampType === "BUY" && record.paymentMethod === "pix") && record.stage !== "ready") await sign(ramp, ramp.unsignedTxs, owner, provider);
+    if (!(record.rampType === "BUY" && record.paymentMethod === "pix") && record.stage !== "ready") await signOrAbandon(ramp, ramp.unsignedTxs, owner, provider);
     return ramp;
   }
   async function start(id, owner) {
     const record = owned(id, owner);
     await maintenance();
     if (record.stage !== "ready" && !(record.rampType === "BUY" && record.paymentMethod === "pix" && record.stage === "registered")) fail("NOT_AUTHORIZED", "Conclua a confirmação desta mesma operação antes de continuar.");
-    return (await client()).startRamp(id);
+    try { return await startRampSafely(await client(), id); }
+    catch (e) {
+      if (/time window to start/i.test(String(e?.message))) {
+        // The API refuses a start after its window. It never runs a signed permit order later, so nothing has moved; the record stays until the hour rule.
+        if (record.stage === "ready") fail("START_REFUSED", "O prazo para iniciar esta operação terminou e nada foi movimentado. Ela será liberada em até uma hora. Guarde o código.");
+        // A Pix buy is different: the buyer may have just paid, and the API still starts a paid order by itself.
+        if (record.rampType === "BUY" && record.paymentMethod === "pix") fail("START_REFUSED", `O prazo para confirmar esta compra por aqui terminou. ${PIX_PAID_LATE_NOTE} Guarde o código.`);
+      }
+      throw e;
+    }
   }
   return { isEnabled: method => enabled && (method !== "usdc" || usdcEnabled), availability, balance, quote, register, resume, start, canPay: async () => { try { await maintenance(); return (await availability("pix")).buy; } catch { return false; } }, getRamp: async id => (await client()).getRampStatus(id) };
 }
