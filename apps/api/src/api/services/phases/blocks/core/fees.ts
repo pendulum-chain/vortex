@@ -10,22 +10,33 @@ interface FeeOverride {
   network?: { amount: string; currency: RampCurrency };
 }
 
+/**
+ * USDC carries 6 decimals, and a USDC total is rounded to them. Converting each display fee at that precision, instead
+ * of the 8 the price feed gives a non-fiat currency, makes the components add up exactly to the total.
+ */
+function displayDecimals(currency: RampCurrency): number | null {
+  return currency === EvmToken.USDC ? 6 : null;
+}
+
 export async function overrideFees(ctx: PhaseCtx, override: FeeOverride): Promise<NonNullable<PhaseCtx["fees"]>> {
   if (!ctx.fees?.displayFiat || !ctx.fees.usd) {
     throw new Error("Cannot override an incomplete fee snapshot");
   }
   const displayCurrency = ctx.fees.displayFiat.currency;
+  const decimals = displayDecimals(displayCurrency);
   const destinationExecutionFeeUsd = await getEvmDestinationExecutionFeeUsd(ctx);
   const [anchorUsd, anchorDisplay, baseNetworkUsd, baseNetworkDisplay, destinationExecutionFeeDisplay] = await Promise.all([
     priceFeedService.convertCurrency(override.anchor.amount, override.anchor.currency, EvmToken.USDC),
-    priceFeedService.convertCurrency(override.anchor.amount, override.anchor.currency, displayCurrency),
+    priceFeedService.convertCurrency(override.anchor.amount, override.anchor.currency, displayCurrency, decimals),
     override.network
       ? priceFeedService.convertCurrency(override.network.amount, override.network.currency, EvmToken.USDC)
       : ctx.fees.usd.network,
     override.network
-      ? priceFeedService.convertCurrency(override.network.amount, override.network.currency, displayCurrency)
+      ? priceFeedService.convertCurrency(override.network.amount, override.network.currency, displayCurrency, decimals)
       : ctx.fees.displayFiat.network,
-    override.network ? priceFeedService.convertCurrency(destinationExecutionFeeUsd, EvmToken.USDC, displayCurrency) : "0"
+    override.network
+      ? priceFeedService.convertCurrency(destinationExecutionFeeUsd, EvmToken.USDC, displayCurrency, decimals)
+      : "0"
   ]);
   const networkUsd = new Big(baseNetworkUsd).plus(override.network ? destinationExecutionFeeUsd : "0").toString();
   const networkDisplay = new Big(baseNetworkDisplay).plus(destinationExecutionFeeDisplay).toString();
@@ -63,6 +74,7 @@ export async function calculateFees(ctx: PhaseCtx, override?: FeeOverride): Prom
 
   const USD = EvmToken.USDC as RampCurrency;
   const displayCurrency = ctx.targetFeeFiatCurrency ?? feeCurrency;
+  const decimals = displayDecimals(displayCurrency);
   const anchor = override?.anchor ?? { amount: anchorFee, currency: feeCurrency };
   const network = override?.network ?? { amount: "0", currency: USD };
   const destinationExecutionFeeUsd = await getEvmDestinationExecutionFeeUsd(ctx);
@@ -81,11 +93,11 @@ export async function calculateFees(ctx: PhaseCtx, override?: FeeOverride): Prom
     priceFeedService.convertCurrency(anchor.amount, anchor.currency, USD),
     priceFeedService.convertCurrency(partnerMarkupFee, feeCurrency, USD),
     priceFeedService.convertCurrency(network.amount, network.currency, USD),
-    priceFeedService.convertCurrency(vortexFee, feeCurrency, displayCurrency),
-    priceFeedService.convertCurrency(anchor.amount, anchor.currency, displayCurrency),
-    priceFeedService.convertCurrency(partnerMarkupFee, feeCurrency, displayCurrency),
-    priceFeedService.convertCurrency(network.amount, network.currency, displayCurrency),
-    priceFeedService.convertCurrency(destinationExecutionFeeUsd, USD, displayCurrency)
+    priceFeedService.convertCurrency(vortexFee, feeCurrency, displayCurrency, decimals),
+    priceFeedService.convertCurrency(anchor.amount, anchor.currency, displayCurrency, decimals),
+    priceFeedService.convertCurrency(partnerMarkupFee, feeCurrency, displayCurrency, decimals),
+    priceFeedService.convertCurrency(network.amount, network.currency, displayCurrency, decimals),
+    priceFeedService.convertCurrency(destinationExecutionFeeUsd, USD, displayCurrency, decimals)
   ]);
   const networkUsd = new Big(baseNetworkUsd).plus(destinationExecutionFeeUsd).toString();
   const networkDisplay = new Big(baseNetworkDisplay).plus(destinationExecutionFeeDisplay).toString();
