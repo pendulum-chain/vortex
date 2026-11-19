@@ -660,7 +660,9 @@ Unmapped cases fail at quote resolution; there is no alternate engine:
     `SubsidizePost` reads the receipt of the presigned swap on its network
     (`nablaSwap`, else `uniswapSwap`), `SubsidizePre` that of an offramp deposit
     made on its network, and both those of the presigned `distributeFees`
-    transfers. The ephemeral must still hold what those receipts left on it. A flow
+    transfers. After an Avenia or Alfredpay mint, `SubsidizePre` measures against
+    the amount the mint phase waited for. The ephemeral must still hold what those
+    receipts, or that mint, left on it. A flow
     that moves the subsidy token off the ephemeral between that step and the top-up
     in any other transaction must add it to the measured set in the executor, or
     the top-up pauses for reconciliation.
