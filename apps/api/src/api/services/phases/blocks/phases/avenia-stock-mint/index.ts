@@ -1,12 +1,12 @@
 import type { EvmToken, FiatToken, Networks } from "@vortexfi/shared";
 import type { Phase, PhaseIO } from "../../core/types";
-import { prepareAveniaDirectMintTxs } from "../avenia-direct-mint/transactions";
 import { BrlaOnrampMintExecutor } from "../avenia-mint/execution";
 import {
   type AveniaMintRegistrationFacts,
   type AveniaMintRegistrationInput,
   registerAveniaMint
 } from "../avenia-mint/registration";
+import { prepareAveniaMintTxs } from "../avenia-mint/transactions";
 import { AveniaMintContext, simulateAveniaStockMint } from "./simulation";
 
 export const AveniaStockMint: Phase<
@@ -21,7 +21,8 @@ export const AveniaStockMint: Phase<
   externalOperations: { register: { provider: "avenia" } },
   name: "AveniaStockMint",
   phases: ["brlaOnrampMint"],
-  prepareTxs: prepareAveniaDirectMintTxs,
+  // The BRLA is minted onto the ephemeral, so the order signs the BRL onramp's BRLA cleanup approval.
+  prepareTxs: prepareAveniaMintTxs,
   register: registerAveniaMint,
   simulate: (input, ctx) => simulateAveniaStockMint(input, ctx)
 };

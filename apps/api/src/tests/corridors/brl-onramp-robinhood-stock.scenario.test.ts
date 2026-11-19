@@ -340,6 +340,9 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
     expect(final.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
     expect(final.processingLock).toEqual({ locked: false, lockedAt: null });
     for (const phase of BROADCAST_PHASES) expect(submissionsOf(setup.signed[phase]), `${phase} broadcasts`).toBe(1);
+    // Each token the Base ephemeral holds on the way has a presigned approval to the funding account.
+    expect(setup.signed.baseCleanupBrla, "minted BRLA cleanup approval").toBeDefined();
+    expect(setup.signed.baseCleanupUsdc, "USDC cleanup approval").toBeDefined();
     expect(world.evm.revertedReceiptHashes.size).toBe(0);
     expect(stockOf(setup.destination, setup.stock)).toBe(setup.amountRaw);
     expect(usdgOf(setup.ephemeral.address)).toBe(0n);
