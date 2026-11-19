@@ -309,6 +309,103 @@ the promised window. Decisions:
   is redeemed and closed (in `alert` or `off` the operator closes it once the manual
   redeem went out).
 
+## Amendment 2026-11-17: a late arrival waits for its own trigger delay
+
+- **Problem.** The batch marker timed everything on a clone, so EURe that arrived into
+  an already-open batch inherited the marker's age. A marker can stay open for days: one
+  unit of unsolicited USDC (or EURe from €1) arms it, and the keeper's exact-amount
+  `forward` re-times it while that unit remains. Past `TRIGGER_DELAY` the client's next
+  payment was then open to the permissionless swap in the block it was minted, at the
+  plain Chainlink floor, before the keeper (which reads mints 12 blocks deep) could
+  convert it. Found by the unsolicited-funds test on the sandbox (2026-10-21).
+- **Decision.** The forwarder books EURe that arrives into an open batch into
+  `TRIGGER_DELAY`-long windows (`poke`, `swap` and `recover` book before any EURe leaves
+  in the same call), and the permissionless `swap` may take only the balance less what
+  was booked in the current and the previous window. An arrival seen while no batch is
+  open is not booked: the marker it arms is set no earlier than that moment and times
+  it, so a payment that opens a batch is open after exactly `TRIGGER_DELAY`, as before.
+  A late arrival stays closed for at least `TRIGGER_DELAY`. With no keeper activity,
+  the outage the path exists for, it opens no later than twice that after it was booked,
+  whatever else arrives. The booked sums are never reduced by a swap or a recovery,
+  because the contract cannot tell which EURe the keeper took, so they bound the young
+  part of the balance from above. They start over whenever the batch marker moves (armed,
+  re-timed by the keeper's forward or a recovery, or closed): a marker set at that moment
+  keeps everything on the clone closed for `TRIGGER_DELAY` by itself, so a closed batch
+  leaves nothing booked against the next one. The rule only removes permission from the
+  permissionless swap; the keeper and `recover` are untouched (for `forwardAll` see the
+  next amendment).
+- **Rejected.** Restarting a single clock on every arrival: a client paid once a day,
+  or anyone sending one unit, would keep the liveness path shut for good. Half-length
+  windows (closed for 12 to 24 h): every payment would still open after 24 h, but the
+  protected time would be halved exactly on a clone someone tampers with. A keeper
+  heartbeat that closes the permissionless path while Vortex is alive: a new job whose
+  silence opens every clone at once. Clearing unsolicited balances by hand alone: a
+  manual step inside every 24 h, per clone, against a re-arm that costs one transfer.
+- **Accepted.** A late arrival may wait up to 48 h for the permissionless path instead
+  of 24 h. A late arrival the keeper has converted keeps counting against older EURe
+  left on the clone until its own two windows have passed or the keeper's `forward` or a
+  recovery closes the batch, whichever comes first (that forward re-times the marker, so
+  the remainder then opens `TRIGGER_DELAY` later, as it did before). The ledger sees
+  only the net change between two bookings: EURe the issuer removes from a clone and a
+  mint that replaces it before the next booking are not told apart, which no third
+  party can cause. A `TRIGGER_DELAY` of zero is rejected at deployment (the windows
+  divide by it). Gas, measured against mock tokens with every call as its own
+  transaction: the swap that converts a whole payment costs about 22k more (the ledger's
+  balance slot is set and cleared in the same transaction and the refund cap is already
+  used up; on a real route, whose swap costs more, the refund should fit and the extra
+  fall to a few thousand), the first chunk of a larger payment about 11k, each further
+  chunk about 4k, and a `forward` about 3.5k. Deployed forwarders are immutable, so the
+  rule needs a new implementation and factory, the Sepolia sandbox included.
+
+## Amendment 2026-11-18: the permissionless forward waits for the keeper and never restarts the clock
+
+- **Problem.** The permissionless `forwardAll` opened on the batch marker alone and, like
+  the keeper's forward, re-timed the marker for whatever stayed behind. Both rest on the
+  marker's age being the age of what is on the clone, which the amendment above shows it
+  is not. First: on a clone whose marker is past `TRIGGER_DELAY` (the stray unit again, or
+  an older payment waiting for its refund), anyone could forward the chunks of a payment
+  the keeper was still converting, because the keeper swaps one chunk per cycle and
+  forwards the exact total afterwards. The client received the same USDC, but in pieces;
+  the keeper's `forward` of the exact total then reverted and the deposit waited for an
+  operator to reconcile it. Second: a permissionless forward of any USDC, one unit sent
+  for the purpose is enough, restarted the marker while EURe was still waiting. Repeated
+  once a day it kept the permissionless `swap` shut for as long as someone cared to,
+  during the very outage the path exists for, and the stranded-balance monitor, which
+  reads the marker, saw a young batch each time.
+- **Decision.** The forwarder records when the guardian or a keeper last swapped on it
+  (`keeperSwappedAt`). The permissionless `forwardAll` needs the batch marker older than
+  `TRIGGER_DELAY`, as before, and that swap at least `TRIGGER_DELAY` back, so it only
+  ever moves USDC the keeper has left unforwarded for that long. Only a privileged swap
+  writes the timestamp, so nobody else can hold the path shut. A permissionless
+  `forwardAll` no longer re-times the marker: it leaves the marker of a funded clone as
+  it is and closes the batch only when the clone is left with less than `MIN_SWAP_FLOOR`
+  EURe and no USDC. The keeper's `forward` and `forwardAll` and a recovery restart the
+  clock as before, and no permissionless call (`poke`, `swap`, `forwardAll`) can re-time
+  what is waiting on a clone. What such a forward leaves behind needs no fresh clock:
+  EURe that arrived late is held back by its booked windows (amendment above), USDC from
+  a keeper swap by the rule here.
+- **Rejected.** Ageing USDC amount by amount, as for EURe: a second ledger and a partial
+  forward on the permissionless path, for a case (a keeper that keeps swapping on a clone
+  and never forwards) that is Vortex's to fix while it is alive. Closing the path while
+  the arrival ledger holds anything booked as late: one unit of EURe a day would keep it
+  shut. Letting a privileged swap re-time a stale marker: it would restart the recovery
+  clock too, which a chunk swap must never do. This is not the heartbeat rejected above:
+  there is no job to keep alive, the swap that leaves USDC on a clone is itself the
+  signal, and a clone the keeper does not touch opens exactly as before.
+- **Accepted.** While the keeper keeps swapping on a clone, the permissionless forward
+  stays shut there, also for USDC of an older payment. This gives the keeper no new
+  power: every `forward` already re-timed the marker, so it could always hold the
+  fallback shut, and once it is silent the path opens `TRIGGER_DELAY` after its last
+  swap. That also holds mid-payment: a keeper that converts a chunk and then stalls for
+  `TRIGGER_DELAY` (a later chunk that keeps failing) leaves the converted chunks to the
+  permissionless forward, which is the outage case. What a permissionless swap converts
+  can be forwarded at once, unless the keeper swapped on that clone within
+  `TRIGGER_DELAY`. After a permissionless forward the marker keeps its age, so a younger
+  payment sharing the clone gets no fresh `RECOVERY_DELAY` from it; with `TRIGGER_DELAY`
+  above `RECOVERY_DELAY` the keeper could recover it a block earlier just the same. A
+  keeper swap costs about 5k gas more (about 25k on a clone's first swap). Ships in the
+  same implementation and factory as the amendment above.
+
 ## Final parameters (decided 2026-08-26 unless noted)
 
 | ID | Parameter | Value |
@@ -322,7 +419,7 @@ the promised window. Decisions:
 | P1 | `SLIPPAGE_BPS` | **60 bps on the client's net after fee and subsidy** (amended 2026-09-17; 40 from 2026-09-15, 100 on the raw fill before) |
 | P2 | `MAX_FEE_PPM` | 10000 ppm (1%), immutable; caps both the fee and the floor policy (amended 2026-09-15; was `MAX_FEE_BPS` 100) |
 | P3 | `RECOVERY_DELAY` | **2 hours** (amended 2026-09-17): the promised conversion window, enforced on chain as the earliest a payment may move to the recovery wallet. Replaces the dead-man sweep delay (7 days on 2026-09-15, 60 before), which had no target left once the fallback role was removed |
-| P4 | Permissionless trigger delay | 24 h |
+| P4 | Permissionless trigger delay | 24 h from the batch marker; EURe that arrives into an open batch stays closed to the permissionless swap for 24 to 48 h of its own (amended 2026-11-17); the permissionless forward also waits 24 h after the keeper's last swap on the clone (amended 2026-11-18) |
 | P5 | Dormancy window | 60 days |
 | P6 | `minSwapAmount` | floor **€1** (immutable) / operational **€1**: no practical minimum (amended 2026-09-29; €25 / €250 before) |
 | P7 | `perSwapCap` | operational **€10k** / ceiling €50k (amended 2026-09-29; €25k before; re-measure liquidity at the deploy block before raising) |

@@ -483,7 +483,41 @@ permissionless `poke` and `applyFeePolicy`):
   (`minted_at`); the on-chain `RECOVERY_DELAY` is its floor.
 - **Liveness without Vortex.** Past `TRIGGER_DELAY` (24 h) anyone may `swap` (Chainlink
   reference, no subsidy) and `forwardAll` the clone's USDC to the destination; payments
-  may merge on that path, and the keeper reconciles what it did not send by hand.
+  may merge on that path, and the keeper reconciles what it did not send by hand. Both
+  wait for more than the marker: the swap for late arrivals, the forward for the keeper
+  (next two points).
+- **A late arrival waits for its own delay.** The batch marker times the funds that
+  opened the batch. EURe that arrives while the batch is already open would inherit that
+  older clock, and a marker can stay open for days: one unit of unsolicited USDC arms
+  it, and every exact-amount `forward` re-times it while that unit remains. The
+  forwarder therefore books such an arrival (in `poke`, `swap` and `recover`, before any
+  EURe leaves in the same call) into `TRIGGER_DELAY`-long windows, and the permissionless
+  `swap` may take only the balance less what was booked in the current and the previous
+  window. A payment that opens a batch is open to anyone after exactly `TRIGGER_DELAY`,
+  as before; a payment that lands in an open batch stays closed for at least
+  `TRIGGER_DELAY` and, with no keeper activity, opens no later than twice that after it
+  was booked. Sending EURe to a clone cannot postpone the path for EURe that has already
+  aged, because each arrival is booked by its own amount. The booked amounts are never
+  reduced by a swap or a recovery (the contract cannot tell which EURe the keeper took),
+  so a late arrival the keeper has converted keeps counting against older EURe left on
+  the clone until its own two windows have passed or the batch is closed. They start
+  over whenever the marker moves (armed, re-timed by the keeper's forward or a recovery,
+  or closed), because a marker set then keeps everything on the clone closed for
+  `TRIGGER_DELAY` by itself; a closed batch leaves nothing booked against the next one.
+  The keeper is never held back by the ledger.
+- **The permissionless forward waits for the keeper.** The keeper converts a payment one
+  chunk per cycle and forwards the exact total afterwards, so between two chunks its USDC
+  sits on the clone. The forwarder records the guardian's or a keeper's last swap
+  (`keeperSwappedAt`), and the permissionless `forwardAll` needs both the marker and that
+  swap to be `TRIGGER_DELAY` old: on a clone whose marker has aged, nobody else can
+  forward the chunks of a payment the keeper is converting, and USDC the keeper has left
+  for `TRIGGER_DELAY` after its last swap (a stalled payment included) is anyone's to
+  forward. Only a privileged swap writes the timestamp. A permissionless `forwardAll`
+  never re-times the marker (it closes the batch only when the clone is left with less
+  than `MIN_SWAP_FLOOR` EURe and no USDC), so it cannot postpone the permissionless swap
+  for EURe that is still waiting; the keeper's `forward` and `forwardAll` and a recovery
+  restart the clock as before. While the keeper keeps swapping on a clone, the
+  permissionless forward stays shut there.
 
 ## Fees, reference rate and subsidy
 
@@ -600,7 +634,11 @@ read-only — no keys, no transactions:
 3. **Stranded-balance monitor.** Forwarders holding EURe or USDC whose batch marker has
    been open longer than `RECOVERY_DELAY` warn (the promised window was missed: forward
    or recover) and longer than `TRIGGER_DELAY` error (the permissionless path is live —
-   a keeper-outage signal; funds are never at risk). Each clone is judged by its own
+   a keeper-outage signal; funds are never at risk). A marker that old does not open a
+   payment that arrived later: the forwarder keeps EURe that arrived into the open batch
+   closed to the permissionless swap for its own `TRIGGER_DELAY` (late arrivals, above)
+   and the permissionless forward shut for `TRIGGER_DELAY` after the keeper's last swap,
+   so the line reports the marker's age, not what anyone may swap or forward. Each clone is judged by its own
    delays and its factory's floor; a clone off the configured trusted factory, which the
    keeper refuses, is skipped with an error line. An unswapped deposit marked
    `recovering` without a pending or confirmed `recover`, on a clone below
