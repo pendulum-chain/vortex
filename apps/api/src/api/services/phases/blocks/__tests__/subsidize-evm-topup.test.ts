@@ -954,8 +954,40 @@ describe("SubsidizePreSwapExecutor EVM top-up specifics", () => {
         provider: "avenia",
         scopeId: "ramp-1",
         scopeType: "ramp",
-        status: "confirmed"
+        status: ["submitted", "unknown", "confirmed"]
       }
+    });
+  });
+
+  // The mint phase lets such a ramp pass once the ephemeral holds 95% of the quoted transfer, here 95 of 100.
+  describe("after an Avenia mint whose ticket outcome was not recorded", () => {
+    const arrangeUnrecorded = () => {
+      const executor = mints[1].arrange("0");
+      findMintTicket.mockResolvedValue({ response: null });
+      return executor;
+    };
+
+    it("tops up from the amount the mint phase accepted", async () => {
+      balances("95000000");
+      const executor = arrangeUnrecorded();
+
+      await executor.executePhase(makeState(preCase));
+
+      const transaction = sendTransaction.mock.calls[0][2] as { data: `0x${string}` };
+      expect(decodeFunctionData({ abi: erc20Abi, data: transaction.data }).args?.[1]).toBe(5_000_000n);
+    });
+
+    it("pays nothing when the ephemeral holds less than the mint phase accepted", async () => {
+      balances("94999999");
+      const executor = arrangeUnrecorded();
+
+      await expect(executor.executePhase(makeState(preCase))).rejects.toMatchObject({
+        message:
+          "SubsidizePreSwapExecutor: The ephemeral holds 94999999, below the 95000000 the preceding step left on it, so a top-up would cover more than that step fell short by.",
+        name: "ReconciliationRequiredPhaseError"
+      });
+
+      expect(sendTransaction).not.toHaveBeenCalled();
     });
   });
 

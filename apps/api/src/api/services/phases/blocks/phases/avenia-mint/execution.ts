@@ -56,23 +56,34 @@ const RECEIVED_PAYIN_STATUSES = new Set<string>([
   AveniaTicketStatus.PAID
 ]);
 
-/**
- * The raw amount the mint phase waited for on the ephemeral: the provider's own figure for the transfer, recorded with
- * the ramp's mint ticket. Null while no ticket is recorded.
- */
-export async function readAveniaMintedAmountRaw(rampId: string, metadata: AveniaMintMetadata): Promise<string | null> {
-  if (isAnchorMockingEnabled()) return metadata.transfer.outputAmountRaw;
-  const mintTicket = await FinancialOperation.findOne({
+/** The ramp's mint ticket in the journal, once the ticket's creation has at least been claimed. */
+const findMintTicket = (rampId: string) =>
+  FinancialOperation.findOne({
     where: {
       attemptClass: MINT_TICKET_ATTEMPT_CLASS,
       phase: "brlaOnrampMint",
       provider: "avenia",
       scopeId: rampId,
       scopeType: "ramp",
-      status: "confirmed"
+      status: ["submitted", "unknown", "confirmed"]
     }
   });
-  return (mintTicket?.response as { expectedAmountReceived?: string } | null)?.expectedAmountReceived ?? null;
+
+/** The balance at which the mint phase accepts an ephemeral as funded when it re-enters with a ticket on record. */
+const recoveryThresholdRaw = (metadata: AveniaMintMetadata): string =>
+  new Big(metadata.transfer.outputAmountRaw).times(EPHEMERAL_FUNDED_TOLERANCE_FACTOR).toFixed(0, 0);
+
+/**
+ * The raw amount the mint phase waited for on the ephemeral: the provider's own figure for the transfer, recorded with
+ * the ramp's mint ticket. A ticket whose outcome was not recorded let the mint phase pass on its recovery threshold,
+ * so that threshold is the amount then. Null while no ticket is on record.
+ */
+export async function readAveniaMintedAmountRaw(rampId: string, metadata: AveniaMintMetadata): Promise<string | null> {
+  if (isAnchorMockingEnabled()) return metadata.transfer.outputAmountRaw;
+  const mintTicket = await findMintTicket(rampId);
+  if (!mintTicket) return null;
+  const recorded = (mintTicket.response as { expectedAmountReceived?: string } | null)?.expectedAmountReceived;
+  return recorded ?? recoveryThresholdRaw(metadata);
 }
 
 export class BrlaOnrampMintExecutor extends BasePhaseHandler {
@@ -158,24 +169,15 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     // Recovery shortcut: a previous run may have already minted on Avenia and transferred to the
     // ephemeral. It applies only once this ramp has its own mint ticket, so a balance alone never
     // stands in for the Pix. Accept a balance of at least 95% of the pre-computed expected amount.
-    const recoveryThresholdRaw = new Big(preComputedExpectedAmountRaw).times(EPHEMERAL_FUNDED_TOLERANCE_FACTOR).toFixed(0, 0);
-    const mintTicket = await FinancialOperation.findOne({
-      where: {
-        attemptClass: MINT_TICKET_ATTEMPT_CLASS,
-        phase: this.getPhaseName(),
-        provider: "avenia",
-        scopeId: state.id,
-        scopeType: "ramp",
-        status: ["submitted", "unknown", "confirmed"]
-      }
-    });
+    const recoveryThreshold = recoveryThresholdRaw(metadata);
+    const mintTicket = await findMintTicket(state.id);
 
     if (
       mintTicket &&
-      (await this.ephemeralAlreadyFunded(tokenAddress, evmEphemeralAddress, recoveryThresholdRaw, network, signal))
+      (await this.ephemeralAlreadyFunded(tokenAddress, evmEphemeralAddress, recoveryThreshold, network, signal))
     ) {
       logger.info(
-        `BrlaOnrampMintExecutor: Ephemeral ${evmEphemeralAddress} already holds at least 95% of the expected ${preComputedExpectedAmountRaw} BRLA (threshold: ${recoveryThresholdRaw}). Skipping mint flow.`
+        `BrlaOnrampMintExecutor: Ephemeral ${evmEphemeralAddress} already holds at least 95% of the expected ${preComputedExpectedAmountRaw} BRLA (threshold: ${recoveryThreshold}). Skipping mint flow.`
       );
       return state;
     }
