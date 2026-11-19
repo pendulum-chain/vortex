@@ -656,16 +656,18 @@ Unmapped cases fail at quote resolution; there is no alternate engine:
     `matches`, which also runs on persisted quotes. The stock definitions come last
     in the catalog, because `getBlockFlowHandlers` keeps the first executor instance
     per phase, and they are not `legacyCompatible`.
-11. **EVM pre/post-swap top-ups are measured against earlier transactions.**
+11. **Some EVM top-ups are measured against the step before them.**
     `SubsidizePost` reads the receipt of the presigned swap on its network
-    (`nablaSwap`, else `uniswapSwap`), `SubsidizePre` that of an offramp deposit
-    made on its network, and both those of the presigned `distributeFees`
-    transfers. After an Avenia or Alfredpay mint, `SubsidizePre` measures against
-    the amount the mint phase waited for. The ephemeral must still hold what those
-    receipts, or that mint, left on it. A flow
-    that moves the subsidy token off the ephemeral between that step and the top-up
-    in any other transaction must add it to the measured set in the executor, or
-    the top-up pauses for reconciliation.
+    (`nablaSwap`, else `uniswapSwap`) and does not top up a `uniswapSwap` the API
+    did not send. `SubsidizePre` reads the receipt of an offramp deposit made on
+    its network (the one `fundEphemeral` verified, selected by `userDepositPhase`)
+    or the amount an Avenia or Alfredpay mint phase waited for. Both also read the
+    presigned `distributeFees` transfers. The ephemeral must still hold what that
+    step left on it. `SubsidizePre` after any other step (a bridged arrival, a
+    Relay fill, a Mykobo mint) is bounded by its caps alone. A flow that moves the
+    subsidy token off the ephemeral between a measured step and the top-up in any
+    other transaction must add it to the measured set in the executor, or the
+    top-up pauses for reconciliation.
 
 ### Runtime ownership
 
