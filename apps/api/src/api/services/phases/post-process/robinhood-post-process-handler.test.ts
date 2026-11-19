@@ -2,11 +2,13 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { type CleanupPhase, EvmClientManager, Networks, type PresignedTx } from "@vortexfi/shared";
 import { encodeFunctionData, erc20Abi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { config } from "../../../../config/vars";
 import type RampState from "../../../../models/rampState.model";
 import { getEvmFundingAccount } from "../blocks/core/evm-funding";
 import { ROBINHOOD_STOCKS } from "../blocks/core/robinhood-stocks";
 import { BaseChainPostProcessHandler } from "./base-chain-post-process-handler";
 import { postProcessHandlers } from "./index";
+import { PolygonPostProcessHandler } from "./polygon-post-process-handler";
 import { RobinhoodPostProcessHandler } from "./robinhood-post-process-handler";
 
 const ephemeral = privateKeyToAccount("0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd");
@@ -17,11 +19,14 @@ const HASH = `0x${"ab".repeat(32)}`;
 
 afterEach(() => mock.restore());
 
-async function presigned(phase: CleanupPhase, network: Networks, chainId: number): Promise<PresignedTx> {
+const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const BRLA = "0xfCB34c47f850f452C15EA1B84d51231C38A61783";
+
+async function presigned(phase: CleanupPhase, network: Networks, chainId: number, nonce = 3, token = STOCK): Promise<PresignedTx> {
   return {
     meta: {},
     network,
-    nonce: 3,
+    nonce,
     phase,
     signer: ephemeral.address,
     txData: await ephemeral.signTransaction({
@@ -30,23 +35,30 @@ async function presigned(phase: CleanupPhase, network: Networks, chainId: number
       gas: 100_000n,
       maxFeePerGas: 30_000_000n,
       maxPriorityFeePerGas: 0n,
-      nonce: 3,
-      to: STOCK,
+      nonce,
+      to: token as `0x${string}`,
       type: "eip1559"
     })
   };
 }
 
-function ramp(presignedTxs: PresignedTx[], currentPhase = "complete") {
+function ramp(presignedTxs: PresignedTx[], currentPhase = "complete", type = "BUY") {
   return {
     currentPhase,
     id: "ramp-1",
     presignedTxs,
-    state: { evmEphemeralAddress: ephemeral.address }
+    state: { evmEphemeralAddress: ephemeral.address },
+    type
   } as unknown as RampState;
 }
 
-function installChain(balance: bigint, receiptStatus: "success" | "reverted" = "success") {
+/** `balance` is every token's balance, or one per token address. The ephemeral's nonce advances with each approval sent. */
+function installChain(
+  balance: bigint | Record<string, bigint>,
+  receiptStatus: "success" | "reverted" = "success",
+  ephemeralNonce = 3
+) {
+  let liveNonce = ephemeralNonce;
   const calls = {
     getClient: [] as string[],
     readContract: [] as unknown[],
@@ -58,9 +70,10 @@ function installChain(balance: bigint, receiptStatus: "success" | "reverted" = "
     getClient: (network: string) => {
       calls.getClient.push(network);
       return {
-        readContract: async (params: unknown) => {
+        getTransactionCount: async () => liveNonce,
+        readContract: async (params: { address: string }) => {
           calls.readContract.push(params);
-          return balance;
+          return typeof balance === "bigint" ? balance : (balance[params.address] ?? 0n);
         },
         waitForTransactionReceipt: async () => ({ status: receiptStatus })
       };
@@ -76,6 +89,7 @@ function installChain(balance: bigint, receiptStatus: "success" | "reverted" = "
     },
     sendRawTransactionWithRetry: async (network: string, raw: string) => {
       calls.sendRaw.push([network, raw]);
+      liveNonce += 1;
       return HASH;
     }
   } as never);
@@ -146,5 +160,110 @@ describe("BaseChainPostProcessHandler after the generalization", () => {
     expect(new Set(calls.getClient)).toEqual(new Set([Networks.Base]));
     expect(calls.sendRaw).toEqual([[Networks.Base, approval.txData as string]]);
     expect(calls.wallet).toEqual([Networks.Base]);
+  });
+});
+
+describe("BaseChainPostProcessHandler with several presigned approvals", () => {
+  const handler = new BaseChainPostProcessHandler();
+  const pulled = (calls: ReturnType<typeof installChain>) =>
+    calls.writeContract.map(call => [(call as unknown as { address: string }).address, call.args[2]]);
+
+  it("sends the approval of an empty token, so the token signed after it can still be swept", async () => {
+    // The approvals occupy consecutive nonces. Skipping the first would leave the second unminable for good.
+    const brla = await presigned("baseCleanupBrla", Networks.Base, 8453, 5, BRLA);
+    const usdc = await presigned("baseCleanupUsdc", Networks.Base, 8453, 6, USDC);
+    const calls = installChain({ [USDC]: SURPLUS }, "success", 5);
+
+    expect(await handler.process(ramp([brla, usdc]))).toEqual([true, null]);
+
+    expect(calls.sendRaw).toEqual([
+      [Networks.Base, brla.txData as string],
+      [Networks.Base, usdc.txData as string]
+    ]);
+    expect(pulled(calls)).toEqual([[USDC, SURPLUS]]);
+  });
+
+  it("sends nothing for the empty tokens signed after the last one with a balance", async () => {
+    const usdc = await presigned("baseCleanupUsdc", Networks.Base, 8453, 5, USDC);
+    const brla = await presigned("baseCleanupBrla", Networks.Base, 8453, 6, BRLA);
+    const calls = installChain({ [USDC]: SURPLUS }, "success", 5);
+
+    expect(await handler.process(ramp([usdc, brla]))).toEqual([true, null]);
+
+    expect(calls.sendRaw).toEqual([[Networks.Base, usdc.txData as string]]);
+    expect(pulled(calls)).toEqual([[USDC, SURPLUS]]);
+  });
+
+  it("follows the signed nonces, not the order of its own phase list", async () => {
+    const usdc = await presigned("baseCleanupUsdc", Networks.Base, 8453, 5, USDC);
+    const brla = await presigned("baseCleanupBrla", Networks.Base, 8453, 6, BRLA);
+    const calls = installChain(SURPLUS, "success", 5);
+
+    expect(await handler.process(ramp([brla, usdc]))).toEqual([true, null]);
+
+    expect(calls.sendRaw.map(([, raw]) => raw)).toEqual([usdc.txData as string, brla.txData as string]);
+    expect(pulled(calls)).toEqual([
+      [USDC, SURPLUS],
+      [BRLA, SURPLUS]
+    ]);
+  });
+
+  it("pulls without sending the approval again when an earlier run already mined it", async () => {
+    const usdc = await presigned("baseCleanupUsdc", Networks.Base, 8453, 5, USDC);
+    const calls = installChain(SURPLUS, "success", 6);
+
+    expect(await handler.process(ramp([usdc]))).toEqual([true, null]);
+
+    expect(calls.sendRaw).toEqual([]);
+    expect(pulled(calls)).toEqual([[USDC, SURPLUS]]);
+  });
+
+  it("reports an approval signed ahead of the ephemeral's nonce instead of sending it", async () => {
+    const usdc = await presigned("baseCleanupUsdc", Networks.Base, 8453, 5, USDC);
+    const calls = installChain(SURPLUS, "success", 4);
+
+    const [ok, error] = await handler.process(ramp([usdc]));
+
+    expect(ok).toBe(false);
+    expect(error?.message).toContain("signed for nonce 5, but the ephemeral is at 4");
+    expect(calls.sendRaw).toEqual([]);
+    expect(calls.writeContract).toEqual([]);
+  });
+});
+
+describe("PolygonPostProcessHandler", () => {
+  const handler = new PolygonPostProcessHandler();
+  const polygon = config.sandboxEnabled ? Networks.PolygonAmoy : Networks.Polygon;
+  const approval = () => presigned("polygonCleanup", polygon, config.sandboxEnabled ? 80002 : 137, 5, USDC);
+
+  it("approves and pulls the residual on a first run", async () => {
+    const calls = installChain(SURPLUS, "success", 5);
+    const signed = await approval();
+
+    expect(await handler.process(ramp([signed]))).toEqual([true, null]);
+
+    expect(calls.sendRaw).toEqual([[polygon, signed.txData as string]]);
+    expect(calls.writeContract).toEqual([
+      expect.objectContaining({ address: USDC, args: [ephemeral.address, funding, SURPLUS], functionName: "transferFrom" })
+    ]);
+  });
+
+  it("pulls without sending the approval again when an earlier run already mined it", async () => {
+    // The earlier run's pull failed after its approval was mined. Resending the approval would be rejected on every cycle.
+    const calls = installChain(SURPLUS, "success", 6);
+
+    expect(await handler.process(ramp([await approval()]))).toEqual([true, null]);
+
+    expect(calls.sendRaw).toEqual([]);
+    expect(calls.writeContract).toHaveLength(1);
+  });
+
+  it("still sends nothing without a balance", async () => {
+    const calls = installChain(0n, "success", 5);
+
+    expect(await handler.process(ramp([await approval()]))).toEqual([true, null]);
+
+    expect(calls.sendRaw).toEqual([]);
+    expect(calls.writeContract).toEqual([]);
   });
 });

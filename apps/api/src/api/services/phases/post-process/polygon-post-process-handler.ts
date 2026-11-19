@@ -80,10 +80,15 @@ export class PolygonPostProcessHandler extends BasePostProcessHandler {
         return [true, null];
       }
 
-      const txHash = await evmClientManager.sendRawTransactionWithRetry(polygonNetwork, signedApproveTx as `0x${string}`);
-      const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
-      if (!approveReceipt || approveReceipt.status !== "success") {
-        return [false, this.createErrorObject(`Approve tx ${txHash} for ${phase} failed`)];
+      // An approval whose nonce is already used was sent by an earlier run of this cleanup, whose pull then failed.
+      // Sending it again can only be rejected, so the pull is retried on its own.
+      const liveNonce = await publicClient.getTransactionCount({ address: ephemeralAddress });
+      if (parsedTx.nonce >= liveNonce) {
+        const txHash = await evmClientManager.sendRawTransactionWithRetry(polygonNetwork, signedApproveTx as `0x${string}`);
+        const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+        if (!approveReceipt || approveReceipt.status !== "success") {
+          return [false, this.createErrorObject(`Approve tx ${txHash} for ${phase} failed`)];
+        }
       }
 
       const fundingAccount = getEvmFundingAccount(polygonNetwork);
