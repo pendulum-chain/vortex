@@ -925,6 +925,38 @@ describe("BRL offramp from a Robinhood Chain stock", () => {
   }, 60000);
 
   it(
+    "pauses instead of topping up a sale whose swap was mined without the API sending it",
+    async () => {
+      const usdcBefore = parseUnits("1000", 6);
+      world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, FUNDING, usdcBefore);
+      const setup = await setUpRegisteredRamp({ fillBps: 9_970n });
+      // The presigned swap reaches the chain from outside the API, once the approval phase has checked its allowance.
+      const reads = world.evm.onReadContract;
+      let sent = false;
+      world.evm.onReadContract = (network, params) => {
+        const result = reads?.(network, params);
+        const approved = world.evm.sentTransactions.some(tx => tx.serialized === setup.signed.uniswapApprove);
+        if (!sent && approved && network === Networks.Robinhood && params.functionName === "allowance") {
+          sent = true;
+          queueMicrotask(
+            () => void world.evm.sendRawTransactionWithRetry(Networks.Robinhood, setup.signed.uniswapSwap as `0x${string}`)
+          );
+        }
+        return result;
+      };
+
+      const paused = await startAndSettle(setup);
+
+      expect(paused.currentPhase).toBe("subsidizePreSwap");
+      expect(paused.errorLogs.at(-1)?.error).toContain("The stock swap was not broadcast by the API");
+      expect(submissionsOf(setup.signed.uniswapSwap)).toBe(1);
+      expect(await Subsidy.count()).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Base, USDC_ON_BASE, FUNDING)).toBe(usdcBefore);
+    },
+    60000
+  );
+
+  it(
     "pauses instead of topping up a fill whose shortfall exceeds the stock sale's USD ceiling",
     async () => {
       const usdcBefore = parseUnits("1000", 6);

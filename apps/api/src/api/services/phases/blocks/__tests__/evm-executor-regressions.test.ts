@@ -155,6 +155,8 @@ mock.module("@vortexfi/shared", () => ({
         getBalance: getEphemeralNativeBalance,
         getTransaction,
         getTransactionCount,
+        // The swap a post-swap top-up is measured against: its receipt, without transfers.
+        getTransactionReceipt: async () => ({ logs: [], status: "success" }),
         readContract: async () => 10000n,
         waitForTransactionReceipt
       }),
@@ -462,6 +464,7 @@ describe("EVM block executor regressions", () => {
     try {
       await executor.executePhase({
         quoteId: "quote-1",
+        presignedTxs: [{ network: Networks.Polygon, phase: "uniswapSwap", txData: "0x02aa" }],
         state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" },
         type: RampDirection.BUY
       } as RampState);
@@ -501,6 +504,7 @@ describe("EVM block executor regressions", () => {
     try {
       await executor.executePhase({
         quoteId: "quote-1",
+        presignedTxs: [{ network: Networks.Base, phase: "nablaSwap", txData: "0x02aa" }],
         state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" },
         type: RampDirection.BUY
       } as RampState);
@@ -625,6 +629,7 @@ describe("EVM block executor regressions", () => {
       await expect(
         executor.executePhase({
           quoteId: "quote-1",
+          presignedTxs: [{ network: Networks.Base, phase: "nablaSwap", txData: "0x02aa" }],
           state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" },
           type: RampDirection.BUY
         } as RampState)
@@ -682,6 +687,7 @@ describe("EVM block executor regressions", () => {
       await expect(
         executor.executePhase({
           quoteId: "quote-1",
+          presignedTxs: [{ network: Networks.Base, phase: "nablaSwap", txData: "0x02aa" }],
           state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" },
           type: RampDirection.BUY
         } as RampState)
@@ -722,6 +728,7 @@ describe("EVM block executor regressions", () => {
     try {
       await executor.executePhase({
         quoteId: "quote-1",
+        presignedTxs: [{ network: Networks.Base, phase: "nablaSwap", txData: "0x02aa" }],
         state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" },
         type: RampDirection.BUY
       } as RampState);

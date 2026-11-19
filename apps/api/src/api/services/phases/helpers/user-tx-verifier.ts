@@ -17,6 +17,19 @@ function getUserBlueprint(state: RampState, phase: RampPhase): UnsignedTx {
   return blueprint;
 }
 
+/**
+ * The phase of the deposit the user broadcasts on an EVM offramp, whose reported hash `fundEphemeral` verifies against
+ * the blueprint: the direct transfer where the ramp has that blueprint, else the user's own Squid swap. The reported
+ * hash sits in the ramp state under `<phase>Hash`. Undefined where the ramp has neither blueprint.
+ */
+export function userDepositPhase(state: RampState): "squidRouterNoPermitTransfer" | "squidRouterSwap" | undefined {
+  if (state.unsignedTxs.some(tx => tx.phase === "squidRouterNoPermitTransfer")) return "squidRouterNoPermitTransfer";
+  const ephemeral = (state.state.evmEphemeralAddress ?? "").toLowerCase();
+  return state.unsignedTxs.some(tx => tx.phase === "squidRouterSwap" && tx.signer.toLowerCase() !== ephemeral)
+    ? "squidRouterSwap"
+    : undefined;
+}
+
 interface VerifyUserSubmittedTxOptions {
   state: RampState;
   hash: `0x${string}` | undefined;

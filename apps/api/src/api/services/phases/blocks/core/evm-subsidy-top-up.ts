@@ -12,7 +12,7 @@ import {
   sleep
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeFunctionData, erc20Abi } from "viem";
+import { encodeFunctionData, erc20Abi, isAddressEqual, keccak256, parseEventLogs } from "viem";
 import logger from "../../../../../config/logger";
 import RampState from "../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../models/subsidy.model";
@@ -24,13 +24,52 @@ import { reconcileLegacyEvmSubsidy } from "./legacy-evm-subsidy";
 
 const EVM_SETTLEMENT_DELAY_MS = parseInt(process.env.SUBSIDY_SETTLEMENT_DELAY_MS || "15000", 10);
 
+/**
+ * What the given transactions left on `holder` in `token`: the transfers to it less the transfers from it, read from
+ * their receipts. Null when one of them has no successful receipt.
+ */
+export async function readAccountedBalance(
+  network: EvmNetworks,
+  token: `0x${string}`,
+  holder: `0x${string}`,
+  transactions: readonly `0x${string}`[]
+): Promise<bigint | null> {
+  const client = EvmClientManager.getInstance().getClient(network);
+  let accounted = 0n;
+  for (const hash of transactions) {
+    // The phase that sent the transaction has seen this receipt, but this read may reach a node that lags behind it.
+    const receipt = await client.getTransactionReceipt({ hash }).catch(error => {
+      if (error instanceof Error && error.name === "TransactionReceiptNotFoundError") return null;
+      throw error;
+    });
+    if (receipt?.status !== "success") return null;
+    for (const log of parseEventLogs({ abi: erc20Abi, eventName: "Transfer", logs: receipt.logs })) {
+      if (!isAddressEqual(log.address, token)) continue;
+      if (isAddressEqual(log.args.to, holder)) accounted += log.args.value;
+      if (isAddressEqual(log.args.from, holder)) accounted -= log.args.value;
+    }
+  }
+  return accounted;
+}
+
 interface EvmSubsidyTopUp {
+  /**
+   * Hashes of the transactions that account for the ephemeral's balance of this token: the one that delivered it and
+   * the ephemeral's own transfers since. With them, a top-up covers only what the preceding step fell short by.
+   * Omitted where no delivering transaction is recorded.
+   */
+  accountedBy?: readonly `0x${string}`[];
   /**
    * Called once the ephemeral's current balance is known. Returns the raw shortfall to the target and
    * the executor-specific cap check, which runs only when a positive transfer is needed.
    */
   assess(currentBalance: Big): { enforceCaps(maximumTransferAmount: Big): Promise<void>; requiredAmountRaw: Big };
   decimals: number;
+  /**
+   * Where the preceding step records the amount it delivered rather than a transaction: that raw amount, which the
+   * ephemeral must still hold for a top-up to be paid.
+   */
+  deliveredRaw?: string;
   ephemeralAddress: string;
   /** Class name used as the prefix of every error message, e.g. "SubsidizePreSwapExecutor". */
   executorName: string;
@@ -49,9 +88,21 @@ interface EvmSubsidyTopUp {
  * the target from the treasury funding wallet in one reconciled financial operation.
  */
 export abstract class EvmSubsidyTopUpExecutor extends BasePhaseHandler {
+  /**
+   * Hashes of the fee transfers the ephemeral presigned on `network`. Wherever a top-up follows the fee distribution,
+   * these are mined before it runs.
+   */
+  protected presignedFeeTransferHashes(state: RampState, network: string): `0x${string}`[] {
+    return (state.presignedTxs ?? [])
+      .filter(tx => tx.phase === "distributeFees" && tx.network === network && typeof tx.txData === "string")
+      .map(tx => keccak256(tx.txData as `0x${string}`));
+  }
+
   protected async topUpEvmEphemeral({
+    accountedBy,
     assess,
     decimals,
+    deliveredRaw,
     ephemeralAddress,
     executorName,
     label,
@@ -102,6 +153,29 @@ export abstract class EvmSubsidyTopUpExecutor extends BasePhaseHandler {
             logger.debug(`${executorName}: requiredAmount ${requiredAmountRaw.toString()}`);
             maximumTransferAmount = requiredAmountRaw.gt(0) ? requiredAmountRaw : Big(0);
             if (maximumTransferAmount.gt(0)) {
+              const accounted = accountedBy
+                ? await readAccountedBalance(destinationNetwork, tokenAddress, ephemeralAddress as `0x${string}`, accountedBy)
+                : deliveredRaw === undefined
+                  ? undefined
+                  : BigInt(deliveredRaw);
+              if (accounted === null) {
+                throw this.createRecoverableError(
+                  `${executorName}: A transaction the top-up is measured against has no successful receipt yet.`
+                );
+              }
+              // The funding wallet makes up what the preceding step fell short by, measured from what it delivered.
+              if (accounted !== undefined && currentBalance.lt(accounted.toString())) {
+                logger.warn("EVM_TOP_UP_REFUSED", {
+                  accountedRaw: accounted.toString(),
+                  balanceRaw: currentBalance.toFixed(0),
+                  phase: this.getPhaseName(),
+                  rampId: state.id,
+                  token: tokenAddress
+                });
+                throw this.createReconciliationRequiredError(
+                  `${executorName}: The ephemeral holds ${currentBalance.toFixed(0)}, below the ${accounted} the preceding step left on it, so a top-up would cover more than that step fell short by.`
+                );
+              }
               await enforceCaps(maximumTransferAmount);
               logger.info(
                 `Subsidizing ${label} EVM with ${maximumTransferAmount.toFixed()} to reach target value of ${targetBalanceRaw}`
