@@ -24,6 +24,9 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { EvmSubsidyTopUpExecutor } from "../../core/evm-subsidy-top-up";
 import { getBlockMetadata } from "../../core/metadata";
+import { AlfredpayMintContext, type AlfredpayMintMetadata } from "../alfredpay-mint/simulation";
+import { readAveniaMintedAmountRaw } from "../avenia-mint/execution";
+import { AveniaMintContext, type AveniaMintMetadata } from "../avenia-mint/simulation";
 import { EvmOfframpSourceContext, type EvmOfframpSourceMetadata } from "../evm-offramp-source/simulation";
 import { STOCK_ROUTE_CONTEXT_KEY } from "../uniswap-v3-fixed-swap/route";
 import { SubsidizePreContext } from "./simulation";
@@ -134,6 +137,12 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
         offrampSource?.fromNetwork === inputNetwork
           ? (state.state.squidRouterNoPermitTransferHash ?? state.state.squidRouterSwapHash)
           : undefined;
+      // A provider mint records the amount it delivered instead of a transaction.
+      const blocks = (quote.metadata as { blocks?: Record<string, unknown> }).blocks ?? {};
+      const aveniaMint = blocks[AveniaMintContext.key] as AveniaMintMetadata | undefined;
+      const mintedRaw =
+        (blocks[AlfredpayMintContext.key] as AlfredpayMintMetadata | undefined)?.outputAmountRaw ??
+        (aveniaMint ? await readAveniaMintedAmountRaw(state.id, aveniaMint) : undefined);
       // The swap consumes targetInputAmountRaw; feeReserveRaw (Alfredpay corridors)
       // additionally keeps the later distributeFees transfers funded on the ephemeral.
       const targetRaw = Big(
@@ -146,6 +155,11 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
         accountedBy: deposit ? [deposit as `0x${string}`, ...this.presignedFeeTransferHashes(state, inputNetwork)] : undefined,
         assess: currentBalance => ({
           enforceCaps: async maximumTransferAmount => {
+            if (mintedRaw === null) {
+              throw this.createReconciliationRequiredError(
+                "SubsidizePreSwapExecutor: No recorded mint amount to measure the top-up against."
+              );
+            }
             const subsidyDecimal = nativeToDecimal(maximumTransferAmount, metadata.inputDecimals).toString();
             const subsidyUsd = await priceFeedService.convertCurrency(
               subsidyDecimal,
@@ -179,6 +193,7 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
           requiredAmountRaw: targetRaw.sub(currentBalance)
         }),
         decimals: metadata.inputDecimals,
+        deliveredRaw: mintedRaw ?? undefined,
         ephemeralAddress: evmEphemeralAddress,
         executorName: "SubsidizePreSwapExecutor",
         label: "pre-swap",

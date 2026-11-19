@@ -65,6 +65,11 @@ interface EvmSubsidyTopUp {
    */
   assess(currentBalance: Big): { enforceCaps(maximumTransferAmount: Big): Promise<void>; requiredAmountRaw: Big };
   decimals: number;
+  /**
+   * Where the preceding step records the amount it delivered rather than a transaction: that raw amount, which the
+   * ephemeral must still hold for a top-up to be paid.
+   */
+  deliveredRaw?: string;
   ephemeralAddress: string;
   /** Class name used as the prefix of every error message, e.g. "SubsidizePreSwapExecutor". */
   executorName: string;
@@ -97,6 +102,7 @@ export abstract class EvmSubsidyTopUpExecutor extends BasePhaseHandler {
     accountedBy,
     assess,
     decimals,
+    deliveredRaw,
     ephemeralAddress,
     executorName,
     label,
@@ -147,31 +153,28 @@ export abstract class EvmSubsidyTopUpExecutor extends BasePhaseHandler {
             logger.debug(`${executorName}: requiredAmount ${requiredAmountRaw.toString()}`);
             maximumTransferAmount = requiredAmountRaw.gt(0) ? requiredAmountRaw : Big(0);
             if (maximumTransferAmount.gt(0)) {
-              if (accountedBy) {
-                const accounted = await readAccountedBalance(
-                  destinationNetwork,
-                  tokenAddress,
-                  ephemeralAddress as `0x${string}`,
-                  accountedBy
+              const accounted = accountedBy
+                ? await readAccountedBalance(destinationNetwork, tokenAddress, ephemeralAddress as `0x${string}`, accountedBy)
+                : deliveredRaw === undefined
+                  ? undefined
+                  : BigInt(deliveredRaw);
+              if (accounted === null) {
+                throw this.createRecoverableError(
+                  `${executorName}: A transaction the top-up is measured against has no successful receipt yet.`
                 );
-                if (accounted === null) {
-                  throw this.createRecoverableError(
-                    `${executorName}: A transaction the top-up is measured against has no successful receipt yet.`
-                  );
-                }
-                // The funding wallet makes up what the preceding step fell short by, measured from its receipt.
-                if (currentBalance.lt(accounted.toString())) {
-                  logger.warn("EVM_TOP_UP_REFUSED", {
-                    accountedRaw: accounted.toString(),
-                    balanceRaw: currentBalance.toFixed(0),
-                    phase: this.getPhaseName(),
-                    rampId: state.id,
-                    token: tokenAddress
-                  });
-                  throw this.createReconciliationRequiredError(
-                    `${executorName}: The ephemeral holds ${currentBalance.toFixed(0)}, below the ${accounted} its recorded transactions left on it, so a top-up would cover more than the preceding step fell short by.`
-                  );
-                }
+              }
+              // The funding wallet makes up what the preceding step fell short by, measured from what it delivered.
+              if (accounted !== undefined && currentBalance.lt(accounted.toString())) {
+                logger.warn("EVM_TOP_UP_REFUSED", {
+                  accountedRaw: accounted.toString(),
+                  balanceRaw: currentBalance.toFixed(0),
+                  phase: this.getPhaseName(),
+                  rampId: state.id,
+                  token: tokenAddress
+                });
+                throw this.createReconciliationRequiredError(
+                  `${executorName}: The ephemeral holds ${currentBalance.toFixed(0)}, below the ${accounted} the preceding step left on it, so a top-up would cover more than that step fell short by.`
+                );
               }
               await enforceCaps(maximumTransferAmount);
               logger.info(

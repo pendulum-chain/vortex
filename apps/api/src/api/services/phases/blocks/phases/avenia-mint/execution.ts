@@ -35,7 +35,7 @@ import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { isAnchorMockingEnabled } from "../anchor-test-mode";
 import { syncAveniaOnHoldState } from "./on-hold";
-import { AveniaMintContext } from "./simulation";
+import { AveniaMintContext, type AveniaMintMetadata } from "./simulation";
 import type { AveniaMintPreparation } from "./transactions";
 
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -55,6 +55,25 @@ const RECEIVED_PAYIN_STATUSES = new Set<string>([
   AveniaTicketStatus.ON_HOLD,
   AveniaTicketStatus.PAID
 ]);
+
+/**
+ * The raw amount the mint phase waited for on the ephemeral: the provider's own figure for the transfer, recorded with
+ * the ramp's mint ticket. Null while no ticket is recorded.
+ */
+export async function readAveniaMintedAmountRaw(rampId: string, metadata: AveniaMintMetadata): Promise<string | null> {
+  if (isAnchorMockingEnabled()) return metadata.transfer.outputAmountRaw;
+  const mintTicket = await FinancialOperation.findOne({
+    where: {
+      attemptClass: MINT_TICKET_ATTEMPT_CLASS,
+      phase: "brlaOnrampMint",
+      provider: "avenia",
+      scopeId: rampId,
+      scopeType: "ramp",
+      status: "confirmed"
+    }
+  });
+  return (mintTicket?.response as { expectedAmountReceived?: string } | null)?.expectedAmountReceived ?? null;
+}
 
 export class BrlaOnrampMintExecutor extends BasePhaseHandler {
   /** One instance, so its cooldown repeats an identical alert at most every six hours. */

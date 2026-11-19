@@ -19,10 +19,13 @@ import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import { config } from "../../config/vars";
 import { getBlockMetadata, getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
+import { AveniaMintContext } from "../../api/services/phases/blocks/phases/avenia-mint/simulation";
 import { FinalSettlementSubsidyContext } from "../../api/services/phases/blocks/phases/final-settlement-subsidy/simulation";
 import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-swap/simulation";
 import { SquidRouterSwapContext } from "../../api/services/phases/blocks/phases/squid-router-swap/simulation";
 import { SubsidizePostContext } from "../../api/services/phases/blocks/phases/subsidize-post/simulation";
+import { SubsidizePreContext } from "../../api/services/phases/blocks/phases/subsidize-pre/simulation";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
@@ -135,6 +138,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     world.evm.setNativeBalance(Networks.Arbitrum, getEvmFundingAccount(Networks.Arbitrum).address, parseUnits("10", 18));
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;
+    world.brla.payInRate = 1;
     world.brla.accountBalances = { BRLA: 1_000_000, USDC: 0, USDM: 0, USDT: 0 };
     world.squidRouter.bridgeStatus = "success";
     // The bridge leg swaps 6-decimal Base USDC into 6-decimal Arbitrum USDC;
@@ -448,6 +452,81 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     return { feesRaw, topUps };
   }
 
+  /**
+   * On top of the happy world, the mint delivers what the provider quotes for the transfer at `payInRate`, and once
+   * the ephemeral's destination gas is funded it holds `leftRaw` less. Returns the minted amount and what the funding
+   * wallet sent the ephemeral in Base BRLA.
+   */
+  async function scriptMint(setup: CorridorSetup, payInRate: number, leftRaw = 0n) {
+    const funding = getEvmFundingAccount(Networks.Base);
+    world.evm.setNativeBalance(Networks.Base, funding.address, parseUnits("2", 18));
+    world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, funding.address, parseUnits("1000000", 18));
+    const quote = await QuoteTicket.findByPk(setup.quoteId);
+    const transferredBrl = new Big(getBlockMetadata(quote?.metadata, AveniaMintContext).mint.outputAmountDecimal).toFixed(2, 0);
+    world.brla.payInRate = payInRate;
+    const mintedRaw = parseUnits((Number(transferredBrl) * payInRate).toString(), 18);
+    world.brla.onPixOutputTicket = ({ walletAddress }) => {
+      if (walletAddress) world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, walletAddress, mintedRaw);
+    };
+    const applyHappyWorld = world.evm.onTransaction;
+    world.evm.onTransaction = tx => {
+      applyHappyWorld?.(tx);
+      if (leftRaw > 0n && !tx.serialized && tx.network === Networks.Arbitrum && tx.value !== undefined) {
+        world.evm.setErc20Balance(Networks.Base, BRLA_ON_BASE, setup.ephemeral.address, mintedRaw - leftRaw);
+      }
+    };
+    const targetRaw = BigInt(getBlockMetadata(quote?.metadata, SubsidizePreContext).targetInputAmountRaw);
+    const topUps = () =>
+      world.evm.sentTransactions
+        .filter(tx => tx.from === funding.address && tx.network === Networks.Base && tx.to?.toLowerCase() === BRLA_ON_BASE.toLowerCase())
+        .map(tx => decodeFunctionData({ abi: erc20Abi, data: tx.data as `0x${string}` }).args as [`0x${string}`, bigint])
+        .filter(([recipient]) => recipient.toLowerCase() === setup.ephemeral.address.toLowerCase())
+        .map(([, amount]) => amount);
+    return { mintedRaw, targetRaw, topUps };
+  }
+
+  it(
+    "pre-swap top-up: a mint below the swap input is topped up by exactly its shortfall",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      const { mintedRaw, targetRaw, topUps } = await scriptMint(setup, 0.99);
+      expect(mintedRaw).toBeLessThan(targetRaw);
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      const mintTicket = await FinancialOperation.findOne({ where: { phase: "brlaOnrampMint", scopeId: setup.rampId } });
+      expect(mintTicket?.response).toMatchObject({ expectedAmountReceived: mintedRaw.toString() });
+      expect(topUps()).toEqual([targetRaw - mintedRaw]);
+      expect((await Subsidy.findAll()).map(subsidy => subsidy.phase)).toContain("subsidizePreSwap");
+    },
+    30000
+  );
+
+  it(
+    "pre-swap top-up: a balance below what the mint delivered pauses the ramp before the swap, with nothing paid",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      // The mint delivered its quoted amount and the ephemeral holds 2% less than that.
+      const { mintedRaw, targetRaw, topUps } = await scriptMint(setup, 1, parseUnits("10", 18));
+      expect(mintedRaw - parseUnits("10", 18)).toBeLessThan(targetRaw);
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const paused = await RampState.findByPk(setup.rampId);
+      expect(paused?.currentPhase).toBe("subsidizePreSwap");
+      expect(paused?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(paused?.errorLogs.at(-1)?.error).toContain("a top-up would cover more than that step fell short by");
+      expect(topUps()).toEqual([]);
+      expect(await Subsidy.count()).toBe(0);
+      expect(submissionsOf(setup.signedNablaSwap)).toBe(0);
+    },
+    30000
+  );
+
   it(
     "post-swap top-up: a swap that fills below its quote is topped up by exactly its shortfall",
     async () => {
@@ -485,7 +564,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
       const paused = await RampState.findByPk(setup.rampId);
       expect(paused?.currentPhase).toBe("subsidizePostSwap");
       expect(paused?.processingLock).toEqual({ locked: false, lockedAt: null });
-      expect(paused?.errorLogs.at(-1)?.error).toContain("a top-up would cover more than the preceding step fell short by");
+      expect(paused?.errorLogs.at(-1)?.error).toContain("a top-up would cover more than that step fell short by");
       expect(topUps()).toEqual([]);
       expect(await Subsidy.count()).toBe(0);
       expect(submissionsOf(setup.signedSquidSwap)).toBe(0);

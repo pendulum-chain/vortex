@@ -361,6 +361,16 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     return world.evm.sentTransactions.filter(tx => tx.serialized === signedTransfer).length;
   }
 
+  /** What the funding wallet sent the ramp's ephemeral in the minted token. */
+  function topUpsOf(setup: CorridorSetup): bigint[] {
+    const funding = getEvmFundingAccount(Networks.Polygon);
+    return world.evm.sentTransactions
+      .filter(tx => tx.from === funding.address && tx.to?.toLowerCase() === ALFREDPAY_ERC20_TOKEN.toLowerCase())
+      .map(tx => decodeFunctionData({ abi: erc20Abi, data: tx.data as `0x${string}` }).args as [`0x${string}`, bigint])
+      .filter(([recipient]) => recipient.toLowerCase() === setup.ephemeral.address.toLowerCase())
+      .map(([, amount]) => amount);
+  }
+
   it(
     "happy path: processes the full Alfredpay onramp phase sequence to complete",
     async () => {
@@ -411,7 +421,11 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       expect(Number(quote?.outputAmount)).toBe(101);
       expect(networkFeeUsd.gt(0)).toBe(true);
       expect(Number(metadata.globals.fees?.usd?.vortex)).toBe(1);
-      const preSwap = metadata.blocks.subsidizePreSwap as { subsidyAmountInOutputTokenDecimal: string; feeReserveRaw: string };
+      const preSwap = metadata.blocks.subsidizePreSwap as {
+        feeReserveRaw: string;
+        subsidyAmountInOutputTokenDecimal: string;
+        targetInputAmountRaw: string;
+      };
       expect(new Big(preSwap.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe(networkFeeUsd.plus(2).toFixed(6));
       expect(preSwap.feeReserveRaw).toBe(parseUnits(networkFeeUsd.plus(1).toFixed(6), 6).toString());
 
@@ -433,6 +447,43 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
         parseUnits(networkFeeUsd.plus(1).toFixed(6), 6)
       );
       expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
+      // The mint delivered its quoted amount, so the one top-up is exactly what the target adds to it.
+      expect(topUpsOf(setup)).toEqual([
+        BigInt(preSwap.targetInputAmountRaw) + BigInt(preSwap.feeReserveRaw) - setup.mintAmountRaw
+      ]);
+    },
+    30000
+  );
+
+  it(
+    "pre-swap top-up: a balance below what the mint delivered pauses the ramp, with nothing paid",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      // The ephemeral's gas is funded between the mint and the top-up; from then on it holds 1% less than was minted.
+      world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, 0n);
+      const applyHappyWorld = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        applyHappyWorld?.(tx);
+        if (!tx.serialized && tx.value !== undefined && tx.to?.toLowerCase() === setup.ephemeral.address.toLowerCase()) {
+          world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, tx.value);
+          world.evm.setErc20Balance(
+            Networks.Polygon,
+            ALFREDPAY_ERC20_TOKEN,
+            setup.ephemeral.address,
+            setup.mintAmountRaw - setup.mintAmountRaw / 100n
+          );
+        }
+      };
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const paused = await RampState.findByPk(setup.rampId);
+      expect(paused?.currentPhase).toBe("subsidizePreSwap");
+      expect(paused?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(paused?.errorLogs.at(-1)?.error).toContain("a top-up would cover more than that step fell short by");
+      expect(topUpsOf(setup)).toEqual([]);
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
     },
     30000
   );

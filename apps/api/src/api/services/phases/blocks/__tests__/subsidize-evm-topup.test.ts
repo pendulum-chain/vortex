@@ -13,6 +13,7 @@ import {
   keccak256
 } from "viem";
 import logger from "../../../../../config/logger";
+import * as financialOperationModelNamespace from "../../../../../models/financialOperation.model";
 import * as quoteTicketNamespace from "../../../../../models/quoteTicket.model";
 import { priceFeedService } from "../../../priceFeed.service";
 import * as evmFundingNamespace from "../core/evm-funding";
@@ -24,6 +25,7 @@ import * as financialOperationNamespace from "../core/financial-operation";
 
 const sharedReal = { ...sharedNamespace };
 const quoteTicketReal = { ...quoteTicketNamespace };
+const financialOperationModelReal = { ...financialOperationModelNamespace };
 const evmFundingReal = { ...evmFundingNamespace };
 const financialOperationReal = { ...financialOperationNamespace };
 
@@ -34,6 +36,8 @@ const usdcAddress = (sharedReal.getOnChainTokenDetails(Networks.Base, EvmToken.U
   .erc20AddressSourceChain as `0x${string}`;
 
 const findQuote = mock(async () => undefined as unknown);
+// The confirmed mint ticket of the ramp, as the pre-swap top-up after a provider mint reads it.
+const findMintTicket = mock(async (_query?: unknown) => null as { response: unknown } | null);
 const checkBalance = mock(async () => new Big(0));
 // Faithful to the real poller: resolves only at or above the desired amount and throws a Timeout otherwise.
 const checkEvmBalanceImpl = async ({ amountDesiredRaw }: { amountDesiredRaw: string }) => {
@@ -138,6 +142,10 @@ mock.module("../../../../../models/quoteTicket.model", () => ({
   ...quoteTicketReal,
   default: { findByPk: findQuote }
 }));
+mock.module("../../../../../models/financialOperation.model", () => ({
+  ...financialOperationModelReal,
+  default: { findOne: findMintTicket }
+}));
 mock.module("../core/evm-funding", () => ({
   ...evmFundingReal,
   getEvmFundingAccount: () => fundingAccount,
@@ -154,6 +162,7 @@ const { SubsidizePostSwapExecutor } = await import("../phases/subsidize-post/exe
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
   mock.module("../../../../../models/quoteTicket.model", () => ({ ...quoteTicketReal }));
+  mock.module("../../../../../models/financialOperation.model", () => ({ ...financialOperationModelReal }));
   mock.module("../core/evm-funding", () => ({ ...evmFundingReal }));
   mock.module("../core/financial-operation", () => ({ ...financialOperationReal }));
 });
@@ -166,6 +175,7 @@ beforeEach(() => {
   // mockReset (not mockClear) so unconsumed mockResolvedValueOnce entries cannot leak into the next test.
   for (const fn of [
     findQuote,
+    findMintTicket,
     checkBalance,
     checkEvmBalanceForToken,
     getFundingBalance,
@@ -186,6 +196,7 @@ beforeEach(() => {
   runFinancialOperation.mockClear();
   checkEvmBalanceForToken.mockImplementation(checkEvmBalanceImpl);
   checkBalance.mockResolvedValue(new Big(0));
+  findMintTicket.mockResolvedValue(null);
   getFundingBalance.mockResolvedValue(new Big("1000000000"));
   getDestinationBalance.mockImplementation(async () => checkBalance());
   getNativeFundingBalance.mockResolvedValue(new Big("1000000000"));
@@ -795,7 +806,7 @@ describe("SubsidizePreSwapExecutor EVM top-up specifics", () => {
 
     await expect(executor.executePhase(makeState(preCase, depositState))).rejects.toMatchObject({
       message:
-        "SubsidizePreSwapExecutor: The ephemeral holds 95000000, below the 100000000 its recorded transactions left on it, so a top-up would cover more than the preceding step fell short by.",
+        "SubsidizePreSwapExecutor: The ephemeral holds 95000000, below the 100000000 the preceding step left on it, so a top-up would cover more than that step fell short by.",
       name: "ReconciliationRequiredPhaseError"
     });
 
@@ -813,7 +824,93 @@ describe("SubsidizePreSwapExecutor EVM top-up specifics", () => {
     expect(sendTransaction).toHaveBeenCalledTimes(1);
   });
 
-  it("tops up after a provider mint within the cap", async () => {
+  // A mint that delivered `mintedRaw`, as each provider's phase records it.
+  const mints = [
+    {
+      arrange: (mintedRaw: string) =>
+        arrange(preCase, { blocks: { ...preMetadata().blocks, alfredpayMint: { outputAmountRaw: mintedRaw } } }),
+      name: "an Alfredpay mint"
+    },
+    {
+      arrange: (mintedRaw: string) => {
+        findMintTicket.mockResolvedValue({ response: { expectedAmountReceived: mintedRaw } });
+        return arrange(preCase, {
+          blocks: { ...preMetadata().blocks, aveniaMint: { transfer: { outputAmountRaw: "100000000" } } }
+        });
+      },
+      name: "an Avenia mint"
+    }
+  ];
+
+  describe.each(mints)("after $name", mint => {
+    it("tops up a mint below the target by exactly the difference", async () => {
+      balances("95000000");
+      const executor = mint.arrange("95000000");
+
+      await executor.executePhase(makeState(preCase));
+
+      const transaction = sendTransaction.mock.calls[0][2] as { data: `0x${string}` };
+      expect(decodeFunctionData({ abi: erc20Abi, data: transaction.data }).args?.[1]).toBe(5_000_000n);
+      expect(getTransactionReceipt).not.toHaveBeenCalled();
+    });
+
+    it("pays nothing when the ephemeral holds less than the mint delivered", async () => {
+      balances("95000000");
+      const executor = mint.arrange("99000000");
+
+      await expect(executor.executePhase(makeState(preCase))).rejects.toMatchObject({
+        message:
+          "SubsidizePreSwapExecutor: The ephemeral holds 95000000, below the 99000000 the preceding step left on it, so a top-up would cover more than that step fell short by.",
+        name: "ReconciliationRequiredPhaseError"
+      });
+
+      expect(sendTransaction).not.toHaveBeenCalled();
+      expect(executor.createSubsidy).not.toHaveBeenCalled();
+    });
+  });
+
+  it("reads the mint ticket of the ramp", async () => {
+    balances("95000000");
+    const executor = mints[1].arrange("95000000");
+
+    await executor.executePhase(makeState(preCase));
+
+    expect(findMintTicket).toHaveBeenCalledWith({
+      where: {
+        attemptClass: "provider-mint-ticket",
+        phase: "brlaOnrampMint",
+        provider: "avenia",
+        scopeId: "ramp-1",
+        scopeType: "ramp",
+        status: "confirmed"
+      }
+    });
+  });
+
+  it("pauses a top-up after a mint whose delivered amount is not recorded", async () => {
+    balances("95000000");
+    const executor = mints[1].arrange("95000000");
+    findMintTicket.mockResolvedValue(null);
+
+    await expect(executor.executePhase(makeState(preCase))).rejects.toMatchObject({
+      message: "SubsidizePreSwapExecutor: No recorded mint amount to measure the top-up against.",
+      name: "ReconciliationRequiredPhaseError"
+    });
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("needs no recorded mint amount when the ephemeral already holds the target", async () => {
+    balances("100000000");
+    const executor = mints[1].arrange("95000000");
+    findMintTicket.mockResolvedValue(null);
+
+    await executor.executePhase(makeState(preCase));
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("tops up within the cap where the preceding step records neither a transaction nor an amount", async () => {
     balances("95000000");
     const executor = arrange(preCase, preMetadata());
 
@@ -882,7 +979,7 @@ describe("SubsidizePostSwapExecutor EVM top-up specifics", () => {
 
     await expect(executor.executePhase(makeState(postCase))).rejects.toMatchObject({
       message:
-        "SubsidizePostSwapExecutor: The ephemeral holds 95000000, below the 98000000 its recorded transactions left on it, so a top-up would cover more than the preceding step fell short by.",
+        "SubsidizePostSwapExecutor: The ephemeral holds 95000000, below the 98000000 the preceding step left on it, so a top-up would cover more than that step fell short by.",
       name: "ReconciliationRequiredPhaseError"
     });
 

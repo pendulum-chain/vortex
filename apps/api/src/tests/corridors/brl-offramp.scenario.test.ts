@@ -688,7 +688,7 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       const paused = await RampState.findByPk(setup.rampId);
       expect(paused?.currentPhase).toBe("subsidizePreSwap");
       expect(paused?.processingLock).toEqual({ locked: false, lockedAt: null });
-      expect(paused?.errorLogs.at(-1)?.error).toContain("a top-up would cover more than the preceding step fell short by");
+      expect(paused?.errorLogs.at(-1)?.error).toContain("a top-up would cover more than that step fell short by");
 
       // Nothing was subsidized, swapped, or paid out.
       expect(topUpsOf(setup, USDC_ON_BASE)).toEqual([]);
@@ -730,7 +730,7 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       const paused = await RampState.findByPk(setup.rampId);
       expect(paused?.currentPhase).toBe("subsidizePostSwap");
       expect(paused?.processingLock).toEqual({ locked: false, lockedAt: null });
-      expect(paused?.errorLogs.at(-1)?.error).toContain("a top-up would cover more than the preceding step fell short by");
+      expect(paused?.errorLogs.at(-1)?.error).toContain("a top-up would cover more than that step fell short by");
 
       expect(topUpsOf(setup, BRLA_ON_BASE)).toEqual([]);
       expect(await Subsidy.count()).toBe(0);
