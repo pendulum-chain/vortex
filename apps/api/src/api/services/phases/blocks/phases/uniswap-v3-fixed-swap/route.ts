@@ -50,6 +50,13 @@ export interface StockRouteSwapMetadata {
 export interface StockRouteSwapState {
   relayDepositAddress?: string;
   swapDeadline: string;
+  /** Set when the swap was mined without the API having sent it, so it filled at a price the API did not accept. */
+  swapSentOutsideApi?: true;
+}
+
+/** Whether the stock swap of this ramp was mined without the API having sent it. Its shortfall is not topped up. */
+export function stockSwapSentOutsideApi(state: { blockState?: Record<string, unknown> }): boolean {
+  return (state.blockState?.[STOCK_ROUTE_CONTEXT_KEY] as StockRouteSwapState | undefined)?.swapSentOutsideApi === true;
 }
 
 export interface UniswapRoute extends UniswapSwapTarget {

@@ -10,7 +10,7 @@ import { throwIfAborted } from "../../core/cancellation";
 import { resendPresignedTransaction } from "../../core/evm-transactions";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { readStockFlags } from "../../core/robinhood-stocks";
-import { classifyStockRouteFailure, resolveUniswapRoute, type UniswapRoute } from "./route";
+import { classifyStockRouteFailure, resolveUniswapRoute, STOCK_ROUTE_CONTEXT_KEY, type UniswapRoute } from "./route";
 import { validateUniswapApproval, validateUniswapSwap } from "./validation";
 
 interface Receipt {
@@ -69,6 +69,23 @@ function defaultDependencies(route: UniswapRoute): UniswapV3ExecutionDependencie
     verifyDeployment: route.verifyDeployment,
     waitForReceipt: hash => client.waitForTransactionReceipt({ hash })
   };
+}
+
+/** The soft minimum holds the API's own send. A fill the API did not choose is marked, and no later top-up makes it whole. */
+async function noteStockSwapSentOutsideApi(state: RampState): Promise<void> {
+  logger.warn(`STOCK_SWAP_SENT_OUTSIDE_API: the swap was mined without the API sending it. ramp=${state.id}`);
+  await state.update({
+    state: {
+      ...state.state,
+      blockState: {
+        ...state.state.blockState,
+        [STOCK_ROUTE_CONTEXT_KEY]: {
+          ...(state.state.blockState?.[STOCK_ROUTE_CONTEXT_KEY] as object),
+          swapSentOutsideApi: true
+        }
+      }
+    }
+  });
 }
 
 /** How long a swap may wait for its price or the issuer before an operator is alerted. */
@@ -171,7 +188,8 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
     transaction: `0x${string}`,
     dependencies: UniswapV3ExecutionDependencies,
     signal?: AbortSignal,
-    settledReceipt?: Receipt
+    settledReceipt?: Receipt,
+    onSentOutsideApi?: () => Promise<void>
   ): Promise<`0x${string}`> {
     const deterministicHash = keccak256(transaction);
     const settle = (receipt: Receipt | null): { hash: `0x${string}` } | null => {
@@ -186,7 +204,11 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
       externalId: value => value.hash,
       perform: async () => {
         const known = settledReceipt ? settle(settledReceipt) : null;
-        if (known) return known;
+        if (known) {
+          // The journal claims a send before it goes out, so a mined transaction with no claim was sent by someone else.
+          await onSentOutsideApi?.();
+          return known;
+        }
         throwIfAborted(signal);
         const hash = await dependencies.sendRawTransaction(transaction);
         if (hash.toLowerCase() !== deterministicHash.toLowerCase()) {
@@ -199,14 +221,16 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
       provider: route.network,
       // Only a stock route sends again: the Polygon route fails the ramp on a mined revert, so it keeps pausing.
       // Only a claimed row may have been sent; an unclaimed one goes through the claim first.
-      reconcile: async operation =>
-        settle(
-          settledReceipt ??
-            (await dependencies.getReceipt(deterministicHash)) ??
+      reconcile: async operation => {
+        const mined = settledReceipt ?? (await dependencies.getReceipt(deterministicHash));
+        if (mined?.status === "success" && operation.status === "not_started") await onSentOutsideApi?.();
+        return settle(
+          mined ??
             (route.stock && operation.status !== "not_started"
               ? await resendPresignedTransaction(transaction, dependencies)
               : null)
-        ),
+        );
+      },
       request: { network: route.network, signedTransaction: transaction },
       signal
     });
@@ -289,7 +313,15 @@ export class UniswapSwapExecutor extends UniswapV3Executor {
         );
       });
     }
-    await this.broadcast(state, route, transaction, dependencies, signal, settledReceipt);
+    await this.broadcast(
+      state,
+      route,
+      transaction,
+      dependencies,
+      signal,
+      settledReceipt,
+      route.stock ? () => noteStockSwapSentOutsideApi(state) : undefined
+    );
     const remainingAllowance = await dependencies.getAllowance(route.signer);
     if (remainingAllowance !== 0n) {
       throw this.createReconciliationRequiredError(`Uniswap fixed swap left unexpected allowance ${remainingAllowance}`);

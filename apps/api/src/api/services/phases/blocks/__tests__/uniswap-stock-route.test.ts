@@ -716,6 +716,49 @@ describe("stock route execution", () => {
     expect(deps.simulateTransaction).not.toHaveBeenCalled();
   });
 
+  describe("a swap that settled before this run", () => {
+    const settled = (route: UniswapRoute) =>
+      dependencies(route, {
+        getAllowance: async () => 0n,
+        getBalance: async () => BigInt(route.hardMinimumOutputRaw),
+        getReceipt: async () => ({ status: "success" as const })
+      });
+    const routeState = (state: { state: unknown }) =>
+      (state.state as { blockState: { stockRoute: Record<string, unknown> } }).blockState.stockRoute;
+
+    it("is marked when the journal holds no claim for its send, keeping the route's other state", async () => {
+      const { route, state } = await rampState(RampDirection.BUY, "uniswapSwap");
+      const { deps, sendRawTransaction } = settled(route);
+
+      expect(await run(UniswapSwapExecutor, state, deps)).toBeNull();
+
+      expect(sendRawTransaction).not.toHaveBeenCalled();
+      expect(routeState(state)).toMatchObject({ relayRequestId: "0xrelay", swapSentOutsideApi: true });
+    });
+
+    it("is not marked when the journal had claimed its send", async () => {
+      const { route, state } = await rampState(RampDirection.BUY, "uniswapSwap");
+      const { deps } = settled(route);
+      operationRows.clear();
+      operationRows.set("uniswap-presigned-broadcast", "submitted");
+
+      await new UniswapSwapExecutor(deps).execute(state as never);
+
+      operationRows.clear();
+      expect(routeState(state)).not.toHaveProperty("swapSentOutsideApi");
+    });
+  });
+
+  it("does not mark a swap the API sends", async () => {
+    const { route, state } = await rampState(RampDirection.BUY, "uniswapSwap");
+    const { deps, sendRawTransaction } = dependencies(route);
+
+    expect(await run(UniswapSwapExecutor, state, deps)).toBeNull();
+
+    expect(sendRawTransaction).toHaveBeenCalledTimes(1);
+    expect(state.state.blockState.stockRoute).not.toHaveProperty("swapSentOutsideApi");
+  });
+
   it.each([
     ["uniswapSwap", UniswapSwapExecutor],
     ["uniswapApprove", UniswapApproveExecutor]

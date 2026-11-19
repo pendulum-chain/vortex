@@ -28,7 +28,7 @@ import { AlfredpayMintContext, type AlfredpayMintMetadata } from "../alfredpay-m
 import { readAveniaMintedAmountRaw } from "../avenia-mint/execution";
 import { AveniaMintContext, type AveniaMintMetadata } from "../avenia-mint/simulation";
 import { EvmOfframpSourceContext, type EvmOfframpSourceMetadata } from "../evm-offramp-source/simulation";
-import { STOCK_ROUTE_CONTEXT_KEY } from "../uniswap-v3-fixed-swap/route";
+import { STOCK_ROUTE_CONTEXT_KEY, stockSwapSentOutsideApi } from "../uniswap-v3-fixed-swap/route";
 import { SubsidizePreContext } from "./simulation";
 
 export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
@@ -173,6 +173,11 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
               null,
               quote.network
             );
+            if (isStockSale && stockSwapSentOutsideApi(state.state)) {
+              throw this.createReconciliationRequiredError(
+                "SubsidizePreSwapExecutor: The stock swap was not broadcast by the API, so its shortfall is not topped up."
+              );
+            }
             // The stock is already sold, so a top-up above the absolute ceiling waits for an operator.
             const { saleSubsidyMaxUsd } = config.stocks;
             if (isStockSale && Big(subsidyUsd).gt(saleSubsidyMaxUsd)) {
