@@ -312,7 +312,9 @@ describe("PAXG on Base quotes", () => {
       "distributeFees@3",
       "destinationTransfer@4",
       "backupApprove@0",
-      "baseCleanupUsdc@5"
+      "baseCleanupUsdc@5",
+      // The sale's own PAXG has an exit after the main lane too, not only the pinned approval.
+      "baseCleanupPaxg@6"
     ]);
     const delivery = txs.find(tx => tx.phase === "destinationTransfer") as UnsignedTx;
     expect((delivery.txData as EvmTransactionData).to.toLowerCase()).toBe(BASE_USDC_ADDRESS.toLowerCase());
@@ -338,7 +340,13 @@ describe("PAXG on Base quotes", () => {
     const txs = await allUnsignedTxs(ramp.id);
     expect(txs.every(tx => tx.signer.toLowerCase() === ephemeral.toLowerCase())).toBe(true);
     expect(txs.map(tx => tx.phase)).not.toContain("goldPermitTransfer");
-    expect(txs.map(tx => tx.phase)).toEqual(expect.arrayContaining(["uniswapApprove", "uniswapSwap", "backupApprove", "baseCleanupPaxg"]));
+    // Every token the ephemeral holds on the way has a cleanup approval: the minted BRLA, the USDC and the PAXG.
+    expect(txs.filter(tx => tx.phase.startsWith("baseCleanup")).map(tx => tx.phase)).toEqual([
+      "baseCleanupBrla",
+      "baseCleanupUsdc",
+      "baseCleanupPaxg"
+    ]);
+    expect(txs.map(tx => tx.phase)).toEqual(expect.arrayContaining(["uniswapApprove", "uniswapSwap", "backupApprove"]));
     const delivery = txs.find(tx => tx.phase === "destinationTransfer") as UnsignedTx;
     expect((delivery.txData as EvmTransactionData).to.toLowerCase()).toBe(BASE_PAXG_ADDRESS.toLowerCase());
     expect(callOf(delivery)).toMatchObject({ args: [owner, parseUnits(quote.outputAmount, 18)], functionName: "transfer" });
@@ -359,6 +367,13 @@ describe("PAXG on Base quotes", () => {
     const ephemeralPhases = txs.filter(tx => tx.signer.toLowerCase() === ephemeral.toLowerCase()).map(tx => tx.phase);
     expect(ephemeralPhases.slice(0, 3)).toEqual(["goldPermitTransfer", "uniswapApprove", "uniswapSwap"]);
     expect(ephemeralPhases).toEqual(expect.arrayContaining(["nablaApprove", "nablaSwap", "backupApprove"]));
+    // The PAXG, the USDC and the BRLA each have a cleanup approval.
+    expect(ephemeralPhases.filter(phase => phase.startsWith("baseCleanup")).sort()).toEqual([
+      "baseCleanupAxlUsdc",
+      "baseCleanupBrla",
+      "baseCleanupPaxg",
+      "baseCleanupUsdc"
+    ]);
     expect(ephemeralPhases).not.toContain("destinationTransfer");
   });
 

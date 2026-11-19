@@ -5,10 +5,11 @@ import {
   Networks,
   PRESIGNED_EVM_FEE_MULTIPLIER
 } from "@vortexfi/shared";
-import { encodeFunctionData, erc20Abi } from "viem";
+import { encodeFunctionData, erc20Abi, maxUint256 } from "viem";
 import { config } from "../../../../../../config/vars";
 import { requireAccount } from "../../core/accounts";
 import { getEvmFundingAccount } from "../../core/evm-funding";
+import { BASE_PAXG_ADDRESS } from "../../core/gold-base";
 import type { PrepareCtx, PreparedPhaseTxs } from "../../core/types";
 import { encodeUniswapSwap, UNISWAP_APPROVE_GAS_LIMIT, UNISWAP_SWAP_GAS_LIMIT } from "../uniswap-v3-fixed-swap/contract";
 import type { GoldSwapState } from "../uniswap-v3-fixed-swap/route";
@@ -20,6 +21,10 @@ import type { GoldSwapMetadata } from "./simulation";
  * approval is operator recovery only: pinned to the first main nonce and signed for the four after it, it lets the
  * funding account take the swap's input back while the ephemeral has sent at most four transactions. A Pix buy with a
  * partner markup has sent five once its swap approval is mined, so there it only helps before that approval.
+ *
+ * The cleanup approval covers PAXG in every state after that: once the main lane's nonces are used, the funding account
+ * can take whatever PAXG the ephemeral holds. That is a buy's surplus after completion, or a sale's PAXG that the swap
+ * never took.
  */
 export async function prepareGoldSwapTxs(
   ctx: PrepareCtx<GoldSwapMetadata>,
@@ -37,11 +42,12 @@ export async function prepareGoldSwapTxs(
   const prefund = (gas: bigint) => (gas * probe.maxFeePerGas * PRESIGNED_EVM_FEE_MULTIPLIER).toString();
   const deadline = BigInt(Math.floor((dependencies.now?.() ?? Date.now()) / 1000) + config.swap.deadlineMinutes * 60);
   const amountIn = BigInt(swap.inputAmountRaw);
-  const approve = (spender: string): EvmTransactionData => ({
-    data: encodeFunctionData({ abi: erc20Abi, args: [spender as `0x${string}`, amountIn], functionName: "approve" }),
+  const funding = getEvmFundingAccount(Networks.Base).address;
+  const approve = (token: string, spender: string, amount: bigint): EvmTransactionData => ({
+    data: encodeFunctionData({ abi: erc20Abi, args: [spender as `0x${string}`, amount], functionName: "approve" }),
     ...fees,
     gas: UNISWAP_APPROVE_GAS_LIMIT.toString(),
-    to: swap.inputToken as `0x${string}`,
+    to: token as `0x${string}`,
     value: "0"
   });
 
@@ -53,7 +59,7 @@ export async function prepareGoldSwapTxs(
         phase: "uniswapApprove",
         prefundNativeValueRaw: prefund(UNISWAP_APPROVE_GAS_LIMIT),
         signer,
-        txData: approve(swap.router)
+        txData: approve(swap.inputToken, swap.router, amountIn)
       },
       {
         lane: "main",
@@ -81,7 +87,15 @@ export async function prepareGoldSwapTxs(
         phase: "backupApprove",
         reuseFirstMainNonce: true,
         signer,
-        txData: approve(getEvmFundingAccount(Networks.Base).address)
+        txData: approve(swap.inputToken, funding, amountIn)
+      },
+      {
+        lane: "cleanup",
+        network: Networks.Base,
+        phase: "baseCleanupPaxg",
+        prefundNativeValueRaw: prefund(UNISWAP_APPROVE_GAS_LIMIT),
+        signer,
+        txData: approve(BASE_PAXG_ADDRESS, funding, maxUint256)
       }
     ],
     state: { swapDeadline: deadline.toString() } satisfies GoldSwapState

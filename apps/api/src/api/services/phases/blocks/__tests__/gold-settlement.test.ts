@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { EphemeralAccountType, type EvmTransactionData, Networks, PRESIGNED_EVM_FEE_MULTIPLIER } from "@vortexfi/shared";
+import { Networks } from "@vortexfi/shared";
 import Big from "big.js";
 import { decodeFunctionData, erc20Abi, getAddress, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -10,14 +10,13 @@ import { installFakeFinancialJournal } from "../../../../../test-utils/fake-fina
 import { ReconciliationRequiredPhaseError, RecoverablePhaseError } from "../../../../errors/phase-error";
 import { getEvmFundingAccount } from "../core/evm-funding";
 import { BASE_PANCAKE_V3_ROUTER, BASE_PAXG_ADDRESS, BASE_USDC_ADDRESS, GOLD_TOKEN } from "../core/gold-base";
-import type { PhaseCtx, PrepareCtx } from "../core/types";
+import type { PhaseCtx } from "../core/types";
 import {
   GoldSettlementContext,
   type GoldSettlementMetadata,
   goldSettlementSubsidyCapUsd,
   simulateGoldSettlement
 } from "../phases/gold-settlement/simulation";
-import { prepareGoldSettlementTxs } from "../phases/gold-settlement/transactions";
 import { UNISWAP_APPROVE_GAS_LIMIT, UNISWAP_SWAP_GAS_LIMIT } from "../phases/uniswap-v3-fixed-swap/contract";
 
 const journal = installFakeFinancialJournal();
@@ -161,41 +160,6 @@ describe("Gold settlement simulation", () => {
     ["on another chain", { ...paxg("100"), chain: Networks.Ethereum }]
   ])("refuses to run %s", async (_label, input) => {
     await expect(simulateGoldSettlement(input as never, ctx)).rejects.toThrow("GoldSettlement requires");
-  });
-});
-
-describe("Gold settlement transactions", () => {
-  it("presigns one cleanup approval that lets the funding account sweep a surplus", async () => {
-    const txData: EvmTransactionData = {
-      data: "0x",
-      gas: "100000",
-      maxFeePerGas: "20000000",
-      maxPriorityFeePerGas: "1",
-      to: BASE_PAXG_ADDRESS,
-      value: "0"
-    };
-    const calls: unknown[][] = [];
-    const { intents } = await prepareGoldSettlementTxs(
-      {
-        accounts: { [EphemeralAccountType.EVM]: { address: ephemeral, type: EphemeralAccountType.EVM } },
-        ownMetadata: metadata
-      } as unknown as PrepareCtx<GoldSettlementMetadata>,
-      (async (...args: unknown[]) => {
-        calls.push(args);
-        return txData;
-      }) as never
-    );
-    expect(calls).toEqual([[BASE_PAXG_ADDRESS, funding, Networks.Base]]);
-    expect(intents).toEqual([
-      {
-        lane: "cleanup",
-        network: Networks.Base,
-        phase: "baseCleanupPaxg",
-        prefundNativeValueRaw: (100_000n * 20_000_000n * PRESIGNED_EVM_FEE_MULTIPLIER).toString(),
-        signer: ephemeral,
-        txData
-      }
-    ]);
   });
 });
 

@@ -389,7 +389,8 @@ describe("Gold swap transactions", () => {
     expect(intents.map(intent => [intent.phase, intent.lane, intent.network, intent.signer])).toEqual([
       ["uniswapApprove", "main", Networks.Base, ephemeral.address],
       ["uniswapSwap", "main", Networks.Base, ephemeral.address],
-      ["backupApprove", "backup", Networks.Base, ephemeral.address]
+      ["backupApprove", "backup", Networks.Base, ephemeral.address],
+      ["baseCleanupPaxg", "cleanup", Networks.Base, ephemeral.address]
     ]);
     const route = resolveUniswapRoute(
       { blocks: { goldSwap: goldMetadata(direction) } },
@@ -423,6 +424,23 @@ describe("Gold swap transactions", () => {
     expect(intents[0].prefundNativeValueRaw).toBe((100_000n * 20_000_000n * 3n).toString());
     expect(intents[1].prefundNativeValueRaw).toBe((500_000n * 20_000_000n * 3n).toString());
   });
+
+  it.each([RampDirection.BUY, RampDirection.SELL])(
+    "lets the funding account take any PAXG from the ephemeral of a %s, after the main lane",
+    async direction => {
+      // A sale holds the owner's PAXG until the swap takes it. Without this approval only the pinned one could return it.
+      const cleanup = (await prepare(direction)).intents[3];
+      expect(cleanup.reuseFirstMainNonce).toBeUndefined();
+      expect(cleanup.prefundNativeValueRaw).toBe((100_000n * 20_000_000n * 3n).toString());
+      const txData = cleanup.txData as EvmTransactionData;
+      expect(txData.to).toBe(BASE_PAXG_ADDRESS);
+      expect(txData.value).toBe("0");
+      expect(decodeFunctionData({ abi: erc20Abi, data: txData.data as `0x${string}` })).toMatchObject({
+        args: [getEvmFundingAccount(Networks.Base).address, 2n ** 256n - 1n],
+        functionName: "approve"
+      });
+    }
+  );
 
   it("adds an operator-only recovery approval of the input, pinned to the first main nonce", async () => {
     for (const [direction, token, amount] of [
