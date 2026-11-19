@@ -46,7 +46,7 @@ registration to the permit path: if the token no longer answers as having one, r
 503. A failed RPC read is not an answer, so it never selects the transfer: it fails the quote, and a `gasless`
 registration returns the same 503. `relayApprove` and `relayBridge` are strict ephemeral-signed Base
 transactions whose blueprints come from a validated Relay order (`05-integrations/relay.md`).
-`stockBackupApprove`, `relayBackupApprove`, `robinhoodCleanupStock` and, on the Base-USDC routes, the Base
+`stockBackupApprove`, `relayBackupApprove`, `robinhoodCleanupStock`, on the Pix buy the Base `baseCleanupBrla` and, on the Base-USDC routes, the Base
 `baseCleanupUsdc` are strict ephemeral-signed approvals to the funding account, for operator recovery and cleanup only. The funding wallet sends
 `stockSettlementTopUp` and `gasReserveTopUp`, so neither has a presigned transaction. The Gold flows follow the same rules: `goldPermitTransfer` is validated like `stockPermitTransfer`, the swap's `backupApprove` and the cleanup approvals `baseCleanupUsdc`, `baseCleanupPaxg` and, on the Pix routes, `baseCleanupBrla` are strict ephemeral-signed approvals to the funding account, and the funding wallet sends `goldSettlementTopUp`.
 

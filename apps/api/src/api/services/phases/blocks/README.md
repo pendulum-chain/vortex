@@ -364,7 +364,7 @@ route.
 | `backupSquidRouterApprove`, `backupSquidRouterSwap`, `backupApprove` | backup | `SquidRouterSwap` | contingency for *its* bridge falling short |
 | `stockBackupApprove` | backup | `StockRouteBuy`, `StockRouteSell` | operator recovery of the swap input, with `reuseFirstMainNonce` |
 | `relayBackupApprove` | backup | `StockRouteSell` | operator recovery of a Relay refund, with `reuseFirstMainNonce` |
-| `baseCleanupBrla` | cleanup | `AveniaMint` | sweeps dust of the token *it* minted |
+| `baseCleanupBrla` | cleanup | `AveniaMint`, `AveniaStockMint`, `AveniaGoldMint` | sweeps dust of the token *it* minted |
 | `baseCleanupUsdc` | cleanup | `NablaSwap` | sweeps dust of *its* swap output |
 | `polygonCleanup`, `alfredOnrampMintFallback` | cleanup | `AlfredpayMint` | cleanup and contingency transfer for its minted token |
 | `robinhoodCleanupStock` | cleanup | `StockSettlement` | sweeps a stock surplus after completion |
