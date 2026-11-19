@@ -461,6 +461,15 @@ describe("vars stocks corridor", () => {
     expect(stocks.nablaMaxSubsidyBps).toBe(20);
   });
 
+  it("treats blank rebate settings as unset instead of aborting boot", async () => {
+    const result = await importVarsWithEnv({ STOCKS_NABLA_MAX_SUBSIDY_BPS: " ", STOCKS_NABLA_USER_FEE_BPS: "" }, print);
+
+    expect(result.exitCode).toBe(0);
+    const stocks = JSON.parse(result.stdout);
+    expect(stocks.nablaUserFeeBps).toBeUndefined();
+    expect(stocks.nablaMaxSubsidyBps).toBe(20);
+  });
+
   it("parses a mixed-case, padded direction list", async () => {
     const result = await importVarsWithEnv(
       { RELAY_API_KEY: "test-relay-api-key", STOCKS_ENABLED_DIRECTIONS: " buy, SELL ,," },

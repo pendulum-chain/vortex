@@ -30,7 +30,6 @@ import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
-import type { SubsidyToken } from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestQuote, createTestRampState, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
@@ -322,19 +321,17 @@ describe("legacy Mykobo EUR offramp recovery", () => {
 
   /**
    * Scripts the fake world for the happy path:
-   * - the ephemeral has Base gas and the user's USDC already arrived, short by
-   *   `usdcShortfallRaw` so subsidizePreSwap tops it up from the funding wallet,
+   * - the ephemeral has Base gas and the user's USDC deposit has arrived,
    * - raw ERC-20 transfers are applied to the in-memory ledger,
    * - the broadcast Nabla swap credits the ephemeral's EURC at the quoted output,
    * - Mykobo reports the withdraw transaction as COMPLETED once polled.
    */
-  function scriptHappyWorld(setup: CorridorSetup, options: { usdcShortfallRaw?: bigint } = {}): void {
-    const shortfall = options.usdcShortfallRaw ?? 0n;
+  function scriptHappyWorld(setup: CorridorSetup): void {
     const fundingAccount = getEvmFundingAccount(Networks.Base);
     world.evm.setNativeBalance(Networks.Base, setup.ephemeral.address, parseUnits("2", 18));
     world.evm.setNativeBalance(Networks.Base, fundingAccount.address, parseUnits("2", 18));
     world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, fundingAccount.address, parseUnits("1000000", 6));
-    world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, setup.swapInputRaw - shortfall);
+    world.evm.setErc20Balance(Networks.Base, USDC_ON_BASE, setup.ephemeral.address, setup.swapInputRaw);
     world.mykobo.setTransactionStatus(setup.mykoboTransactionId, MykoboTransactionStatus.COMPLETED);
     world.evm.onTransaction = tx => {
       if (tx.serialized === setup.signedNablaSwap) {
@@ -369,12 +366,10 @@ describe("legacy Mykobo EUR offramp recovery", () => {
   }
 
   it(
-    "happy path: swap corridor completes with a capped pre-swap subsidy and pays Mykobo's receivables in full",
+    "happy path: swap corridor completes on the deposit alone and pays Mykobo's receivables in full",
     async () => {
       const setup = await setUpRegisteredRamp();
-      // 1 USDC short of the swap input: well below the 5% subsidy cap.
-      const shortfall = parseUnits("1", 6);
-      scriptHappyWorld(setup, { usdcShortfallRaw: shortfall });
+      scriptHappyWorld(setup);
 
       await phaseProcessor.processRamp(setup.rampId);
 
@@ -383,16 +378,10 @@ describe("legacy Mykobo EUR offramp recovery", () => {
       expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
-      // Quote stays consumed and the pre-swap shortfall was subsidized once.
+      // Quote stays consumed; a deposit made in full needs no pre-swap subsidy.
       const quote = await QuoteTicket.findByPk(setup.quoteId);
       expect(quote?.status).toBe("consumed");
-      const subsidies = await Subsidy.findAll();
-      expect(subsidies.length).toBe(1);
-      expect(subsidies.map(subsidy => subsidy.phase)).toEqual(["subsidizePreSwap"]);
-      expect(subsidies.find(subsidy => subsidy.phase === "subsidizePreSwap")?.token).toBe(
-        EvmToken.USDC as unknown as SubsidyToken
-      );
-      expect(Number(subsidies.find(subsidy => subsidy.phase === "subsidizePreSwap")?.amount)).toBeCloseTo(1);
+      expect(await Subsidy.count()).toBe(0);
 
       // The swap and payout were each broadcast exactly once; Mykobo's
       // receivables wallet received exactly the intent value in EURC.

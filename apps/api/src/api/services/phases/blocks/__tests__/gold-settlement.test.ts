@@ -242,7 +242,7 @@ describe("GoldSettlementExecutor", () => {
   it("pauses, sending nothing, when the swap was not broadcast by the API, however small the shortfall", async () => {
     // Whoever holds the presigned swap can send it at a price of their choosing. That fill is not made whole.
     const { chain, executor } = fakeChain();
-    const state = rampState({ goldSwap: { sentOutsideApi: true, swapDeadline: "1800000000" } });
+    const state = rampState({ goldSwap: { swapSentOutsideApi: true, swapDeadline: "1800000000" } });
     const error = await executor.execute(state).catch(caught => caught);
     expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
     expect((error as Error).message).toContain("not broadcast by the API");

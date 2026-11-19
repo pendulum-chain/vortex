@@ -1,5 +1,14 @@
 import { EvmClientManager, type EvmNetworks, robinhoodChain } from "@vortexfi/shared";
-import { keccak256, toHex } from "viem";
+import {
+  decodeFunctionData,
+  encodeAbiParameters,
+  encodeEventTopics,
+  erc20Abi,
+  keccak256,
+  parseTransaction,
+  recoverTransactionAddress,
+  toHex
+} from "viem";
 import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, polygon, polygonAmoy } from "viem/chains";
 
 export interface RecordedEvmTx {
@@ -36,6 +45,19 @@ const CHAIN_IDS: Record<string, number> = {
 };
 
 const MAX_UINT256 = 2n ** 256n - 1n;
+
+/** An ERC-20 Transfer event as a receipt carries it, for scripting `receiptLogs`. */
+export function erc20TransferLog(token: string, from: string, to: string, value: bigint) {
+  return {
+    address: token,
+    data: encodeAbiParameters([{ type: "uint256" }], [value]),
+    topics: encodeEventTopics({
+      abi: erc20Abi,
+      args: { from: from as `0x${string}`, to: to as `0x${string}` },
+      eventName: "Transfer"
+    })
+  };
+}
 
 // viem's default public RPC (what a bare http() transport targets, URL-normalized like viem does) → chain id.
 const DEFAULT_RPC_CHAIN_IDS = new Map<string, number>(
@@ -84,7 +106,10 @@ export class FakeEvm {
   failNextReceiptReads = 0;
   /** Hashes whose receipts report a mined-but-reverted transaction. */
   readonly revertedReceiptHashes = new Set<string>();
-  /** Event logs a test attaches to a transaction's receipt, by hash. Receipts carry none otherwise. */
+  /**
+   * Event logs a test attaches to a transaction's receipt, by hash. Otherwise a receipt carries the Transfer log of a
+   * plain ERC-20 transfer and nothing else.
+   */
   readonly receiptLogs = new Map<string, unknown[]>();
   baseL1FeeRaw = 8_000_000_000_000n;
   baseL1FeeUpperBoundRaw = 10_000_000_000_000n;
@@ -150,6 +175,21 @@ export class FakeEvm {
     return recorded.hash;
   }
 
+  /** The log a token emits for a plain ERC-20 `transfer`, so code that reads a transfer from its receipt finds it. */
+  private async transferLogs(recorded: RecordedEvmTx): Promise<unknown[]> {
+    try {
+      const serialized = recorded.serialized as Parameters<typeof recoverTransactionAddress>[0]["serializedTransaction"];
+      const { data, to } = serialized ? parseTransaction(serialized) : recorded;
+      if (!to || !data) return [];
+      const { args, functionName } = decodeFunctionData({ abi: erc20Abi, data: data as `0x${string}` });
+      if (functionName !== "transfer") return [];
+      const from = recorded.from ?? (await recoverTransactionAddress({ serializedTransaction: serialized }));
+      return [erc20TransferLog(to, from, args[0], args[1])];
+    } catch {
+      return [];
+    }
+  }
+
   private readContract(network: string, params: ReadContractParams): unknown {
     const custom = this.onReadContract?.(network, params);
     if (custom !== undefined) {
@@ -203,7 +243,7 @@ export class FakeEvm {
     // (e.g. user-tx-verifier) can cross-check them; unknown hashes still
     // confirm generically for recovery paths that probe stored hashes. Hashes in
     // `revertedReceiptHashes` report a mined-but-reverted transaction instead.
-    const receipt = (hash: `0x${string}`) => {
+    const receipt = async (hash: `0x${string}`) => {
       if (this.failNextReceiptReads > 0) {
         this.failNextReceiptReads -= 1;
         throw new Error("FakeEvm: scripted receipt read failure");
@@ -212,11 +252,12 @@ export class FakeEvm {
       if (!recorded && this.strictReceipts) {
         throw new Error(`FakeEvm: transaction receipt with hash "${hash}" could not be found`);
       }
+      const reverted = this.revertedReceiptHashes.has(hash);
       return {
         blockNumber: 1n,
         from: recorded?.from,
-        logs: this.receiptLogs.get(hash) ?? [],
-        status: this.revertedReceiptHashes.has(hash) ? ("reverted" as const) : ("success" as const),
+        logs: this.receiptLogs.get(hash) ?? (recorded && !reverted ? await this.transferLogs(recorded) : []),
+        status: reverted ? ("reverted" as const) : ("success" as const),
         to: recorded?.to,
         transactionHash: hash
       };

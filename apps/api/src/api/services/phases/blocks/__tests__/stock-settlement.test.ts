@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, mock, spyOn } fr
 import { EphemeralAccountType, EvmToken, Networks, PRESIGNED_EVM_FEE_MULTIPLIER, QuoteError } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import { decodeFunctionData, erc20Abi, getAddress } from "viem";
+import { decodeFunctionData, erc20Abi, getAddress, keccak256 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../../config/logger";
 import { config } from "../../../../../config/vars";
@@ -38,6 +38,7 @@ const TARGET = 1_000_000_000_000_000_000n;
 const SHORTFALL = 10_000_000_000_000_000n;
 const PRICE_USD = new Big("180");
 const USDG_IN = 1_810_000n;
+const SWAP_TX = "0x02aa" as const;
 const MAX_FEE_PER_GAS = 30_000_000n;
 
 const metadata: StockSettlementMetadata = {
@@ -62,7 +63,10 @@ beforeEach(() => {
 
 afterEach(() => mock.restore());
 
-function rampState() {
+function rampState({
+  blockState,
+  presignedTxs = [{ phase: "uniswapSwap", txData: SWAP_TX }]
+}: { blockState?: Record<string, unknown>; presignedTxs?: unknown[] } = {}) {
   const state = {
     currentPhase: "stockSettlementTopUp",
     errorLogs: [],
@@ -71,8 +75,9 @@ function rampState() {
     },
     id: "ramp-1",
     phaseHistory: [],
+    presignedTxs,
     quoteId: "quote-1",
-    state: { evmEphemeralAddress: ephemeral, flow: { id: "test-flow", version: 1 } },
+    state: { blockState, evmEphemeralAddress: ephemeral, flow: { id: "test-flow", version: 1 } },
     async update(patch: Record<string, unknown>) {
       Object.assign(state, patch);
       return state;
@@ -95,13 +100,16 @@ function fakeChain({
   fundingEth = 10n ** 18n,
   fundingStock = 0n,
   fundingUsdg = 1_000_000_000n,
-  overrides = {}
+  overrides = {},
+  // By default the ephemeral holds exactly what its swap paid it.
+  swapFill = ephemeralStock
 }: {
   ephemeralStock?: bigint;
   fundingEth?: bigint;
   fundingStock?: bigint;
   fundingUsdg?: bigint;
   overrides?: Partial<Dependencies>;
+  swapFill?: bigint | null;
 } = {}) {
   const chain: FakeChain = {
     balances: new Map([
@@ -116,6 +124,7 @@ function fakeChain({
   const dependencies: Dependencies = {
     estimateMaxFeePerGas: async () => MAX_FEE_PER_GAS,
     getNativeBalance: async owner => (owner === funding ? chain.fundingEth : 0n),
+    getSwapFill: async () => swapFill,
     getTokenBalance: async (token, owner) => chain.balances.get(key(token, owner)) ?? 0n,
     quoteUsdgIn: async () => USDG_IN,
     readStockPriceUsd: async () => PRICE_USD,
@@ -169,6 +178,60 @@ describe("StockSettlementExecutor", () => {
       topUpAmountRaw: SHORTFALL.toString(),
       topUpTxHash: `0x${"1".padStart(64, "0")}`
     });
+  });
+
+  it("measures the top-up against the receipt of the ramp's presigned swap", async () => {
+    const getSwapFill = mock(async () => TARGET - SHORTFALL);
+    const { chain, executor } = fakeChain({ fundingStock: SHORTFALL, overrides: { getSwapFill } });
+
+    await executor.execute(rampState());
+
+    expect(getSwapFill).toHaveBeenCalledWith(STOCK, ephemeral, keccak256(SWAP_TX));
+    expect(decodeFunctionData({ abi: erc20Abi, data: chain.sends[0].data }).args).toEqual([ephemeral, SHORTFALL]);
+  });
+
+  it("pays nothing when the ephemeral holds less than its swap left on it", async () => {
+    const warn = spyOn(logger, "warn");
+    const { chain, executor } = fakeChain({ fundingStock: SHORTFALL, swapFill: TARGET });
+
+    await expect(executor.execute(rampState())).rejects.toMatchObject({
+      message: `StockSettlement: the ephemeral holds ${TARGET - SHORTFALL}, below the ${TARGET} its swap left on it, so a top-up would cover more than the swap fell short by`,
+      name: "ReconciliationRequiredPhaseError"
+    });
+
+    expect(chain.sends).toEqual([]);
+    expect(subsidyRows).toEqual([]);
+    expect(journal.rows.get("stock-settlement-top-up")).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith("STOCK_TOP_UP_REFUSED", expect.objectContaining({ rampId: "ramp-1", token: NVDA }));
+  });
+
+  it("pays nothing for a swap the API did not send", async () => {
+    const { chain, executor } = fakeChain({ fundingStock: SHORTFALL });
+
+    await expect(
+      executor.execute(rampState({ blockState: { stockRoute: { swapSentOutsideApi: true } } }))
+    ).rejects.toMatchObject({
+      message: "StockSettlement: the swap was not broadcast by the API, so its shortfall is not topped up",
+      name: "ReconciliationRequiredPhaseError"
+    });
+
+    expect(chain.sends).toEqual([]);
+  });
+
+  it("retries without sending while the swap's receipt is not available", async () => {
+    const { chain, executor } = fakeChain({ fundingStock: SHORTFALL, swapFill: null });
+
+    await expect(executor.execute(rampState())).rejects.toBeInstanceOf(RecoverablePhaseError);
+
+    expect(chain.sends).toEqual([]);
+  });
+
+  it("pauses a top-up that has no presigned swap to be measured against", async () => {
+    const { chain, executor } = fakeChain({ fundingStock: SHORTFALL });
+
+    await expect(executor.execute(rampState({ presignedTxs: [] }))).rejects.toBeInstanceOf(ReconciliationRequiredPhaseError);
+
+    expect(chain.sends).toEqual([]);
   });
 
   it("buys the shortfall with USDG otherwise: exact approve of quote plus 1%, then exact output to the ephemeral", async () => {

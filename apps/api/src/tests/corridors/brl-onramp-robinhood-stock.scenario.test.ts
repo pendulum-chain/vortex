@@ -304,6 +304,23 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
     };
   }
 
+  /** The presigned swap reaches the chain from outside the API, once the approval phase has checked its allowance. */
+  function sendSwapOutsideApi(signed: BuySetup["signed"]): void {
+    const reads = world.evm.onReadContract;
+    let sent = false;
+    world.evm.onReadContract = (network, params) => {
+      const result = reads?.(network, params);
+      const approved = world.evm.sentTransactions.some(tx => tx.serialized === signed.uniswapApprove);
+      if (!sent && approved && network === Networks.Robinhood && params.functionName === "allowance") {
+        sent = true;
+        queueMicrotask(
+          () => void world.evm.sendRawTransactionWithRetry(Networks.Robinhood, signed.uniswapSwap as `0x${string}`)
+        );
+      }
+      return result;
+    };
+  }
+
   async function startAndSettle(setup: BuySetup): Promise<RampState> {
     await post("/v1/ramp/start", { rampId: setup.rampId }, setup.userId);
     return settled(setup);
@@ -527,6 +544,56 @@ describe("BRL onramp to a Robinhood Chain stock", () => {
       expect(subsidy.token).toBe(EvmToken.NVDA);
       expect(Number(subsidy.amount)).toBeCloseTo(Number(formatUnits(shortfall, 18)), 10);
       expect(subsidy.payerAccount).toBe(FUNDING);
+    },
+    60000
+  );
+
+  it(
+    "pauses instead of topping up a balance below what the swap paid, with nothing sent",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptPaidWorld(setup);
+      world.evm.setErc20Balance(Networks.Robinhood, NVDA_ON_ROBINHOOD, FUNDING, setup.amountRaw);
+      // The swap fills at its quote, and the ephemeral then holds 1% less than it was paid.
+      const applyPaidWorld = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        applyPaidWorld?.(tx);
+        if (tx.serialized === setup.signed.uniswapSwap) {
+          world.evm.setErc20Balance(
+            Networks.Robinhood,
+            NVDA_ON_ROBINHOOD,
+            setup.ephemeral.address,
+            setup.amountRaw - setup.amountRaw / 100n
+          );
+        }
+      };
+
+      const paused = await startAndSettle(setup);
+
+      expect(paused.currentPhase).toBe("stockSettlementTopUp");
+      expect(paused.errorLogs.at(-1)?.error).toContain("a top-up would cover more than the swap fell short by");
+      expect(stockOf(FUNDING)).toBe(setup.amountRaw);
+      expect(await Subsidy.count({ where: { phase: "stockSettlementTopUp", rampId: setup.rampId } })).toBe(0);
+    },
+    60000
+  );
+
+  it(
+    "pauses instead of topping up a swap that was mined without the API sending it",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptPaidWorld(setup);
+      setup.ledger.swapFillBps = 9_900n;
+      world.evm.setErc20Balance(Networks.Robinhood, NVDA_ON_ROBINHOOD, FUNDING, setup.amountRaw);
+      sendSwapOutsideApi(setup.signed);
+
+      const paused = await startAndSettle(setup);
+
+      expect(paused.currentPhase).toBe("stockSettlementTopUp");
+      expect(paused.errorLogs.at(-1)?.error).toContain("the swap was not broadcast by the API");
+      expect(world.evm.sentTransactions.filter(tx => tx.serialized === setup.signed.uniswapSwap)).toHaveLength(1);
+      expect(stockOf(FUNDING)).toBe(setup.amountRaw);
+      expect(await Subsidy.count({ where: { phase: "stockSettlementTopUp", rampId: setup.rampId } })).toBe(0);
     },
     60000
   );

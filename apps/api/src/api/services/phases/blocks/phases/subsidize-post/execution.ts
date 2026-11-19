@@ -11,6 +11,7 @@ import {
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { keccak256 } from "viem";
 import logger from "../../../../../../config/logger";
 import { config } from "../../../../../../config/vars";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
@@ -24,6 +25,8 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { EvmSubsidyTopUpExecutor } from "../../core/evm-subsidy-top-up";
 import { getBlockMetadata } from "../../core/metadata";
+import { swapSentOutsideApi } from "../uniswap-v3-fixed-swap/route";
+import { UniswapV3FixedSwapContext } from "../uniswap-v3-fixed-swap/simulation";
 import { SubsidizePostContext } from "./simulation";
 
 // EVM slice of the production SubsidizePostSwapPhaseHandler: tops up the ephemeral's Nabla output
@@ -131,8 +134,16 @@ export class SubsidizePostSwapExecutor extends EvmSubsidyTopUpExecutor {
       // For BUY operations, top up to the simulated Squid bridge input; for SELL, to the
       // simulated Nabla output.
       const expectedSwapOutputAmountRaw = Big(metadata.targetOutputAmountRaw);
+      // The swap that produced this token: the Nabla swap, or on a route without one the fixed Uniswap swap.
+      const swap = (["nablaSwap", "uniswapSwap"] as const)
+        .map(phase => state.presignedTxs?.find(tx => tx.phase === phase && tx.network === outputNetwork))
+        .find(tx => typeof tx?.txData === "string");
+      const swapTransaction = swap?.txData;
 
       await this.topUpEvmEphemeral({
+        accountedBy: swapTransaction
+          ? [keccak256(swapTransaction as `0x${string}`), ...this.presignedFeeTransferHashes(state, outputNetwork)]
+          : undefined,
         assess: currentBalance => {
           const subsidyComponents = calculatePostSwapSubsidyComponents({
             currentBalanceRaw: currentBalance,
@@ -142,6 +153,16 @@ export class SubsidizePostSwapExecutor extends EvmSubsidyTopUpExecutor {
           });
           return {
             enforceCaps: async () => {
+              if (!swapTransaction) {
+                throw this.createReconciliationRequiredError(
+                  "SubsidizePostSwapExecutor: No presigned swap to measure the top-up against."
+                );
+              }
+              if (swap?.phase === "uniswapSwap" && swapSentOutsideApi(state.state, UniswapV3FixedSwapContext.key)) {
+                throw this.createReconciliationRequiredError(
+                  "SubsidizePostSwapExecutor: The swap was not broadcast by the API, so its shortfall is not topped up."
+                );
+              }
               const quoteOutputUsd = await priceFeedService.convertCurrency(
                 quote.outputAmount,
                 quote.outputCurrency as RampCurrency,

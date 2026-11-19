@@ -42,16 +42,20 @@ const financialOperationReal = { ...financialOperationNamespace };
 const operationAttempts: string[] = [];
 /** "unclaimed" is a row an earlier entry created without ever claiming a send. */
 const operationRows = new Map<string, "submitted" | "confirmed" | "unclaimed">();
+/** Makes the journal fail where it would claim the operation, as a process that stops there does. */
+let crashAtClaim = false;
 
 mock.module("../core/financial-operation", () => ({
   ...financialOperationReal,
   requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
   runFinancialOperation: async ({
     attemptClass,
+    beforePerform,
     perform,
     reconcile
   }: {
     attemptClass: string;
+    beforePerform?(): Promise<void>;
     perform(key: string): Promise<unknown>;
     reconcile?: (operation: unknown) => Promise<unknown>;
   }) => {
@@ -64,6 +68,12 @@ mock.module("../core/financial-operation", () => ({
       const reconciled = reconcile ? await reconcile({}) : null;
       if (reconciled === null) throw new Error(`operation ${attemptClass} has submitted outcome`);
       return reconciled;
+    }
+    // As in the journal: beforePerform runs once replay and reconciliation are exhausted, right before the claim.
+    await beforePerform?.();
+    if (crashAtClaim) {
+      operationRows.set(attemptClass, "submitted");
+      throw new Error("stopped at the claim");
     }
     return perform(`test-${attemptClass}`);
   }
@@ -728,6 +738,68 @@ describe("stock route execution", () => {
     expect(deps.simulateTransaction).not.toHaveBeenCalled();
   });
 
+  describe("a swap that settled before this run", () => {
+    const settled = (route: UniswapRoute) =>
+      dependencies(route, {
+        getAllowance: async () => 0n,
+        getBalance: async () => BigInt(route.hardMinimumOutputRaw),
+        getReceipt: async () => ({ status: "success" as const })
+      });
+    const routeState = (state: { state: unknown }) =>
+      (state.state as { blockState: { stockRoute: Record<string, unknown> } }).blockState.stockRoute;
+
+    it("is marked when the journal holds no claim for its send, keeping the route's other state", async () => {
+      const { route, state } = await rampState(RampDirection.BUY, "uniswapSwap");
+      const { deps, sendRawTransaction } = settled(route);
+
+      expect(await run(UniswapSwapExecutor, state, deps)).toBeNull();
+
+      expect(sendRawTransaction).not.toHaveBeenCalled();
+      expect(routeState(state)).toMatchObject({ relayRequestId: "0xrelay", swapSentOutsideApi: true });
+    });
+
+    it("keeps its mark when the process stops at the journal claim and the next run reconciles the row", async () => {
+      const { route, state } = await rampState(RampDirection.BUY, "uniswapSwap");
+      const { deps } = settled(route);
+      operationRows.clear();
+      crashAtClaim = true;
+      try {
+        await expect(new UniswapSwapExecutor(deps).execute(state as never)).rejects.toThrow();
+      } finally {
+        crashAtClaim = false;
+      }
+      expect(operationRows.get("uniswap-presigned-broadcast")).toBe("submitted");
+      expect(routeState(state)).toMatchObject({ swapSentOutsideApi: true });
+
+      await new UniswapSwapExecutor(deps).execute(state as never);
+
+      operationRows.clear();
+      expect(routeState(state)).toMatchObject({ relayRequestId: "0xrelay", swapSentOutsideApi: true });
+    });
+
+    it("is not marked when the journal had claimed its send", async () => {
+      const { route, state } = await rampState(RampDirection.BUY, "uniswapSwap");
+      const { deps } = settled(route);
+      operationRows.clear();
+      operationRows.set("uniswap-presigned-broadcast", "submitted");
+
+      await new UniswapSwapExecutor(deps).execute(state as never);
+
+      operationRows.clear();
+      expect(routeState(state)).not.toHaveProperty("swapSentOutsideApi");
+    });
+  });
+
+  it("does not mark a swap the API sends", async () => {
+    const { route, state } = await rampState(RampDirection.BUY, "uniswapSwap");
+    const { deps, sendRawTransaction } = dependencies(route);
+
+    expect(await run(UniswapSwapExecutor, state, deps)).toBeNull();
+
+    expect(sendRawTransaction).toHaveBeenCalledTimes(1);
+    expect(state.state.blockState.stockRoute).not.toHaveProperty("swapSentOutsideApi");
+  });
+
   it.each([
     ["uniswapSwap", UniswapSwapExecutor],
     ["uniswapApprove", UniswapApproveExecutor]
@@ -1001,7 +1073,7 @@ describe("stock route execution", () => {
     });
 
     const sentOutsideApi = (state: { state: { blockState: Record<string, unknown> } }) =>
-      (state.state.blockState.goldSwap as { sentOutsideApi?: true }).sentOutsideApi;
+      (state.state.blockState.goldSwap as { swapSentOutsideApi?: true }).swapSentOutsideApi;
 
     it.each([
       ["on its first entry", undefined],

@@ -60,6 +60,8 @@ export interface StockRouteSwapMetadata {
 export interface StockRouteSwapState {
   relayDepositAddress?: string;
   swapDeadline: string;
+  /** See `swapSentOutsideApi`. */
+  swapSentOutsideApi?: true;
 }
 
 export const GOLD_SWAP_CONTEXT_KEY = "goldSwap";
@@ -83,10 +85,24 @@ export interface GoldSwapRouteMetadata {
 
 /** The GoldSwap preparation state. */
 export interface GoldSwapState {
-  /** Set when the swap was mined without the API having sent it. See `noteGoldSwapSentOutsideApi`. */
-  sentOutsideApi?: true;
+  /** See `swapSentOutsideApi`. */
+  swapSentOutsideApi?: true;
   swapDeadline: string;
 }
+/** The block state key that holds the swap's own state: the stock route's, the Gold swap's, or the fixed Polygon swap's. */
+export const swapStateKey = (route: Pick<UniswapRoute, "neverFails" | "stock">): string =>
+  route.stock ? STOCK_ROUTE_CONTEXT_KEY : route.neverFails ? GOLD_SWAP_CONTEXT_KEY : UniswapV3FixedSwapContext.key;
+
+/**
+ * Whether the fixed swap whose state sits under `stateKey` was mined without the API having sent it, so it filled at a
+ * price the API did not accept. Its shortfall is not topped up.
+ */
+export function swapSentOutsideApi(state: { blockState?: Record<string, unknown> }, stateKey: string): boolean {
+  return (state.blockState?.[stateKey] as { swapSentOutsideApi?: true } | undefined)?.swapSentOutsideApi === true;
+}
+
+export const stockSwapSentOutsideApi = (state: { blockState?: Record<string, unknown> }): boolean =>
+  swapSentOutsideApi(state, STOCK_ROUTE_CONTEXT_KEY);
 
 export interface UniswapRoute extends UniswapSwapTarget {
   amountInRaw: string;

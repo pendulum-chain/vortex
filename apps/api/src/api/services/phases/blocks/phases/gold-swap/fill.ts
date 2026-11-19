@@ -1,7 +1,7 @@
 import { EvmClientManager, Networks } from "@vortexfi/shared";
 import { erc20Abi, isAddressEqual, keccak256, parseEventLogs } from "viem";
 import type RampState from "../../../../../../models/rampState.model";
-import { GOLD_SWAP_CONTEXT_KEY, type GoldSwapState } from "../uniswap-v3-fixed-swap/route";
+import { GOLD_SWAP_CONTEXT_KEY, swapSentOutsideApi } from "../uniswap-v3-fixed-swap/route";
 
 /** How often a receipt that is not visible yet is read again, a second apart, before the swap counts as unreadable. */
 const RECEIPT_READS = 4;
@@ -37,7 +37,7 @@ export async function readGoldSwapFill(
 
 /** Whether the Gold swap of this ramp was mined without the API having sent it. */
 export function goldSwapSentOutsideApi(state: RampState): boolean {
-  return (state.state.blockState?.[GOLD_SWAP_CONTEXT_KEY] as GoldSwapState | undefined)?.sentOutsideApi === true;
+  return swapSentOutsideApi(state.state, GOLD_SWAP_CONTEXT_KEY);
 }
 
 /**
