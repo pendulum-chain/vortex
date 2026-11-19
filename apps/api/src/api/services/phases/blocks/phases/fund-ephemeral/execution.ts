@@ -29,7 +29,7 @@ import { APIError } from "../../../../../errors/api-error";
 import { PhaseError } from "../../../../../errors/phase-error";
 import { fundEphemeralAccount } from "../../../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
-import { verifyUserSubmittedTxByHash } from "../../../../phases/helpers/user-tx-verifier";
+import { userDepositPhase, verifyUserSubmittedTxByHash } from "../../../../phases/helpers/user-tx-verifier";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { PresignedEvmTransactionRebindError } from "../../../../transactions/validation";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
@@ -271,7 +271,8 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       return;
     const metadata = blocks[EvmOfframpSourceContext.key] as EvmOfframpSourceMetadata | undefined;
     if (!metadata) return;
-    if (state.unsignedTxs.some(tx => tx.phase === "squidRouterNoPermitTransfer")) {
+    const depositPhase = userDepositPhase(state);
+    if (depositPhase === "squidRouterNoPermitTransfer") {
       await verifyUserSubmittedTxByHash({
         fromNetwork: metadata.fromNetwork,
         hash: state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
@@ -282,10 +283,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       });
       return;
     }
-    const hasUserSquidSwapBlueprint = state.unsignedTxs.some(
-      tx => tx.phase === "squidRouterSwap" && tx.signer.toLowerCase() !== (state.state.evmEphemeralAddress ?? "").toLowerCase()
-    );
-    if (!hasUserSquidSwapBlueprint) return;
+    if (!depositPhase) return;
 
     const approveHash = state.state.squidRouterApproveHash as `0x${string}` | undefined;
     if (approveHash) {

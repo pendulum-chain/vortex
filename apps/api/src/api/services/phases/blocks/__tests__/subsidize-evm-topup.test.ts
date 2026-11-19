@@ -318,9 +318,10 @@ const presignedTxs = [
 function makeState(
   testCase: Case,
   state: Record<string, unknown> = { evmEphemeralAddress: EPHEMERAL },
-  presigned: unknown[] = presignedTxs
+  presigned: unknown[] = presignedTxs,
+  unsignedTxs: unknown[] = []
 ) {
-  return { id: "ramp-1", presignedTxs: presigned, quoteId: "quote-1", state, type: testCase.direction };
+  return { id: "ramp-1", presignedTxs: presigned, quoteId: "quote-1", state, type: testCase.direction, unsignedTxs };
 }
 
 function arrange(testCase: Case, metadata: Record<string, unknown>, quoteOutput = "100") {
@@ -783,42 +784,113 @@ describe("SubsidizePreSwapExecutor EVM top-up specifics", () => {
   const depositOn = (fromNetwork: string) => ({
     blocks: { ...preMetadata().blocks, evmOfframpSource: { fromNetwork } }
   });
-  const depositState = { evmEphemeralAddress: EPHEMERAL, squidRouterNoPermitTransferHash: DEPOSIT_HASH };
+  // The deposit the user broadcast, with the blueprint fundEphemeral verified its reported hash against.
+  const deposits = [
+    {
+      blueprints: [{ phase: "squidRouterNoPermitTransfer", signer: OTHER }],
+      name: "a direct transfer",
+      state: { evmEphemeralAddress: EPHEMERAL, squidRouterNoPermitTransferHash: DEPOSIT_HASH }
+    },
+    {
+      blueprints: [{ phase: "squidRouterSwap", signer: OTHER }],
+      name: "the user's Squid swap",
+      state: { evmEphemeralAddress: EPHEMERAL, squidRouterSwapHash: DEPOSIT_HASH }
+    }
+  ];
+  const [transfer, squidSwap] = deposits;
+  const UNVERIFIED_HASH = "0x5555555555555555555555555555555555555555555555555555555555555555";
 
-  it("tops up a deposit that arrived short by exactly what it fell short", async () => {
-    // 97 arrived and 2 went out as fees, so the 95 held are all the deposit left
-    receipts.set(DEPOSIT_HASH, { logs: [usdcTransfer(OTHER, EPHEMERAL, 97_000_000n)], status: "success" });
-    receipts.set(keccak256(FEE_TX), { logs: [usdcTransfer(EPHEMERAL, OTHER, 2_000_000n)], status: "success" });
-    balances("95000000");
-    const executor = arrange(preCase, depositOn(Networks.Base));
+  describe.each(deposits)("after $name on the same network", deposit => {
+    it("tops up a deposit that arrived short by exactly what it fell short", async () => {
+      // 97 arrived and 2 went out as fees, so the 95 held are all the deposit left
+      receipts.set(DEPOSIT_HASH, { logs: [usdcTransfer(OTHER, EPHEMERAL, 97_000_000n)], status: "success" });
+      receipts.set(keccak256(FEE_TX), { logs: [usdcTransfer(EPHEMERAL, OTHER, 2_000_000n)], status: "success" });
+      balances("95000000");
+      const executor = arrange(preCase, depositOn(Networks.Base));
 
-    await executor.executePhase(makeState(preCase, depositState));
+      await executor.executePhase(makeState(preCase, deposit.state, presignedTxs, deposit.blueprints));
 
-    const transaction = sendTransaction.mock.calls[0][2] as { data: `0x${string}` };
-    expect(decodeFunctionData({ abi: erc20Abi, data: transaction.data }).args?.[1]).toBe(5_000_000n);
+      const transaction = sendTransaction.mock.calls[0][2] as { data: `0x${string}` };
+      expect(decodeFunctionData({ abi: erc20Abi, data: transaction.data }).args?.[1]).toBe(5_000_000n);
+    });
+
+    it("pays nothing when the ephemeral holds less than its deposit left on it", async () => {
+      receipts.set(DEPOSIT_HASH, { logs: [usdcTransfer(OTHER, EPHEMERAL, 102_000_000n)], status: "success" });
+      receipts.set(keccak256(FEE_TX), { logs: [usdcTransfer(EPHEMERAL, OTHER, 2_000_000n)], status: "success" });
+      balances("95000000");
+      const executor = arrange(preCase, depositOn(Networks.Base));
+
+      await expect(
+        executor.executePhase(makeState(preCase, deposit.state, presignedTxs, deposit.blueprints))
+      ).rejects.toMatchObject({
+        message:
+          "SubsidizePreSwapExecutor: The ephemeral holds 95000000, below the 100000000 the preceding step left on it, so a top-up would cover more than that step fell short by.",
+        name: "ReconciliationRequiredPhaseError"
+      });
+
+      expect(sendTransaction).not.toHaveBeenCalled();
+      expect(executor.createSubsidy).not.toHaveBeenCalled();
+    });
   });
 
-  it("pays nothing when the ephemeral holds less than its deposit left on it", async () => {
-    receipts.set(DEPOSIT_HASH, { logs: [usdcTransfer(OTHER, EPHEMERAL, 102_000_000n)], status: "success" });
-    receipts.set(keccak256(FEE_TX), { logs: [usdcTransfer(EPHEMERAL, OTHER, 2_000_000n)], status: "success" });
+  it.each([
+    ["the swap hash on a ramp whose deposit blueprint is the Squid swap", squidSwap.blueprints, "squidRouterNoPermitTransferHash"],
+    ["the transfer hash on a ramp whose deposit blueprint is the transfer", transfer.blueprints, "squidRouterSwapHash"]
+  ] as const)("measures against %s when both hashes are reported", async (_label, blueprints, otherField) => {
+    receipts.set(DEPOSIT_HASH, { logs: [usdcTransfer(OTHER, EPHEMERAL, 100_000_000n)], status: "success" });
     balances("95000000");
     const executor = arrange(preCase, depositOn(Networks.Base));
+    const state = {
+      evmEphemeralAddress: EPHEMERAL,
+      squidRouterNoPermitTransferHash: DEPOSIT_HASH,
+      squidRouterSwapHash: DEPOSIT_HASH,
+      [otherField]: UNVERIFIED_HASH
+    };
 
-    await expect(executor.executePhase(makeState(preCase, depositState))).rejects.toMatchObject({
-      message:
-        "SubsidizePreSwapExecutor: The ephemeral holds 95000000, below the 100000000 the preceding step left on it, so a top-up would cover more than that step fell short by.",
+    await expect(executor.executePhase(makeState(preCase, state, presignedTxs, [...blueprints]))).rejects.toMatchObject({
       name: "ReconciliationRequiredPhaseError"
     });
 
+    expect(getTransactionReceipt).toHaveBeenCalledWith({ hash: DEPOSIT_HASH });
+    expect(getTransactionReceipt).not.toHaveBeenCalledWith({ hash: UNVERIFIED_HASH });
     expect(sendTransaction).not.toHaveBeenCalled();
-    expect(executor.createSubsidy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no deposit blueprint", []],
+    ["only a Squid swap the ephemeral signs", [{ phase: "squidRouterSwap", signer: EPHEMERAL }]]
+  ])("reads no reported hash on a ramp with %s", async (_label, blueprints) => {
+    balances("95000000");
+    const executor = arrange(preCase, depositOn(Networks.Base));
+    const state = { ...transfer.state, squidRouterSwapHash: UNVERIFIED_HASH };
+
+    await executor.executePhase(makeState(preCase, state, presignedTxs, blueprints));
+
+    expect(getTransactionReceipt).not.toHaveBeenCalled();
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a fee transfer presigned for another network out of the measure", async () => {
+    // Were the other network's transfer counted, the deposit would account for 98 and the 99 held would pass.
+    receipts.set(DEPOSIT_HASH, { logs: [usdcTransfer(OTHER, EPHEMERAL, 100_000_000n)], status: "success" });
+    receipts.set(keccak256(FEE_TX), { logs: [usdcTransfer(EPHEMERAL, OTHER, 2_000_000n)], status: "success" });
+    balances("99000000");
+    const executor = arrange(preCase, depositOn(Networks.Base));
+    const presigned = [{ network: Networks.Polygon, phase: "distributeFees", txData: FEE_TX }];
+
+    await expect(
+      executor.executePhase(makeState(preCase, transfer.state, presigned, transfer.blueprints))
+    ).rejects.toMatchObject({ name: "ReconciliationRequiredPhaseError" });
+
+    expect(getTransactionReceipt).not.toHaveBeenCalledWith({ hash: keccak256(FEE_TX) });
+    expect(sendTransaction).not.toHaveBeenCalled();
   });
 
   it("tops up a deposit bridged from another network within the cap", async () => {
     balances("95000000");
     const executor = arrange(preCase, depositOn(Networks.Arbitrum));
 
-    await executor.executePhase(makeState(preCase, { ...depositState, squidRouterSwapHash: DEPOSIT_HASH }));
+    await executor.executePhase(makeState(preCase, squidSwap.state, presignedTxs, squidSwap.blueprints));
 
     expect(getTransactionReceipt).not.toHaveBeenCalled();
     expect(sendTransaction).toHaveBeenCalledTimes(1);

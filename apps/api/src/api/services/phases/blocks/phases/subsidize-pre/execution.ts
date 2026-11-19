@@ -19,6 +19,7 @@ import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { getFundingAccount } from "../../../../../controllers/subsidize.controller";
 import { PhaseError } from "../../../../../errors/phase-error";
+import { userDepositPhase } from "../../../../phases/helpers/user-tx-verifier";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
@@ -130,13 +131,11 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
       ];
       const isStockSale = stockRoute?.direction === RampDirection.SELL;
       // A deposit made on this network is the transaction that put the input on the ephemeral, so the top-up is
-      // measured against it.
+      // measured against it. Only the hash fundEphemeral verified against its blueprint is read.
       const offrampSource = (quote.metadata as { blocks?: Record<string, Partial<EvmOfframpSourceMetadata> | undefined> })
         .blocks?.[EvmOfframpSourceContext.key];
-      const deposit =
-        offrampSource?.fromNetwork === inputNetwork
-          ? (state.state.squidRouterNoPermitTransferHash ?? state.state.squidRouterSwapHash)
-          : undefined;
+      const depositPhase = offrampSource?.fromNetwork === inputNetwork ? userDepositPhase(state) : undefined;
+      const deposit = depositPhase && state.state[`${depositPhase}Hash`];
       // A provider mint records the amount it delivered instead of a transaction.
       const blocks = (quote.metadata as { blocks?: Record<string, unknown> }).blocks ?? {};
       const aveniaMint = blocks[AveniaMintContext.key] as AveniaMintMetadata | undefined;
