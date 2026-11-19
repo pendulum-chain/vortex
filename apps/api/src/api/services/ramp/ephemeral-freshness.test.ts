@@ -93,6 +93,23 @@ const USDC_STOCK_BUY = {
   to: Networks.Robinhood
 };
 
+const GOLD_PIX_SELL = { ...BRL_OFFRAMP_EVM, inputCurrency: "PAXG" };
+const GOLD_USDC_SELL = {
+  from: Networks.Base,
+  inputCurrency: "PAXG",
+  outputCurrency: "USDC",
+  rampType: RampDirection.SELL,
+  to: Networks.Base
+};
+const GOLD_USDC_BUY = {
+  from: Networks.Base,
+  inputCurrency: "USDC",
+  outputCurrency: "PAXG",
+  rampType: RampDirection.BUY,
+  to: Networks.Base
+};
+const GOLD_PIX_BUY = { from: "pix", inputCurrency: FiatToken.BRL, outputCurrency: "PAXG", rampType: RampDirection.BUY, to: Networks.Base };
+
 const BRL_OFFRAMP_ASSETHUB = { ...BRL_OFFRAMP_EVM, from: Networks.AssetHub };
 const ALFREDPAY_OFFRAMP = {
   from: Networks.Polygon,
@@ -153,6 +170,15 @@ describe("quoteToSigningNetworks", () => {
 
   it("BRL off-ramp of a stock from Robinhood Chain signs on Base and Robinhood Chain", () => {
     expect(quoteToSigningNetworks(BRL_OFFRAMP_ROBINHOOD)).toEqual({ evm: [Networks.Base, Networks.Robinhood], substrate: [] });
+  });
+
+  it.each([
+    ["sold for Pix", GOLD_PIX_SELL],
+    ["sold for native USDC", GOLD_USDC_SELL],
+    ["bought with native USDC", GOLD_USDC_BUY],
+    ["bought with Pix", GOLD_PIX_BUY]
+  ])("PAXG on Base %s signs on Base alone", (_label, quote) => {
+    expect(quoteToSigningNetworks(quote as never)).toEqual({ evm: [Networks.Base], substrate: [] });
   });
 
   it("stock sale for Base USDC signs on Robinhood Chain and Base", () => {

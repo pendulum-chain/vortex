@@ -29,7 +29,9 @@ import { AlfredpayMintContext, type AlfredpayMintMetadata } from "../alfredpay-m
 import { readAveniaMintedAmountRaw } from "../avenia-mint/execution";
 import { AveniaMintContext, type AveniaMintMetadata } from "../avenia-mint/simulation";
 import { EvmOfframpSourceContext, type EvmOfframpSourceMetadata } from "../evm-offramp-source/simulation";
-import { STOCK_ROUTE_CONTEXT_KEY, stockSwapSentOutsideApi } from "../uniswap-v3-fixed-swap/route";
+import { goldSwapSentOutsideApi, readGoldSwapFill, refuseGoldTopUp } from "../gold-swap/fill";
+import type { GoldSwapMetadata } from "../gold-swap/simulation";
+import { GOLD_SWAP_CONTEXT_KEY, STOCK_ROUTE_CONTEXT_KEY, stockSwapSentOutsideApi } from "../uniswap-v3-fixed-swap/route";
 import { SubsidizePreContext } from "./simulation";
 
 export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
@@ -130,6 +132,10 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
         STOCK_ROUTE_CONTEXT_KEY
       ];
       const isStockSale = stockRoute?.direction === RampDirection.SELL;
+      const goldSwap = (quote.metadata as { blocks?: Record<string, Partial<GoldSwapMetadata> | undefined> }).blocks?.[
+        GOLD_SWAP_CONTEXT_KEY
+      ];
+      const goldSale = goldSwap?.direction === RampDirection.SELL ? goldSwap : undefined;
       // A deposit made on this network is the transaction that put the input on the ephemeral, so the top-up is
       // measured against it. Only the hash fundEphemeral verified against its blueprint is read.
       const offrampSource = (quote.metadata as { blocks?: Record<string, Partial<EvmOfframpSourceMetadata> | undefined> })
@@ -160,6 +166,10 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
               );
             }
             const subsidyDecimal = nativeToDecimal(maximumTransferAmount, metadata.inputDecimals).toString();
+            if (goldSale) {
+              await this.enforceGoldSaleCaps(state, goldSale, maximumTransferAmount, subsidyDecimal, evmEphemeralAddress);
+              return;
+            }
             const subsidyUsd = await priceFeedService.convertCurrency(
               subsidyDecimal,
               inputToken as RampCurrency,
@@ -215,6 +225,45 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
         throw e;
       }
       throw this.createRecoverableError("SubsidizePreSwapExecutor: Failed to subsidize pre swap on EVM.");
+    }
+  }
+
+  /**
+   * The gold is already sold and its fill is final, so a top-up the Gold cap does not cover waits for an operator. The
+   * seller holds the ephemeral's key, so the funding wallet replaces only what the swap itself fell short by. USDC
+   * counts as a dollar, as it does when the cap is sized.
+   */
+  private async enforceGoldSaleCaps(
+    state: RampState,
+    goldSale: Partial<GoldSwapMetadata>,
+    topUp: Big,
+    topUpUsd: string,
+    ephemeral: string
+  ): Promise<void> {
+    const swapTransaction = this.getPresignedTransaction(state, "uniswapSwap")?.txData;
+    const refusal = refuseGoldTopUp(
+      BigInt(topUp.toFixed(0)),
+      BigInt(goldSale.swap?.outputAmountRaw ?? "0"),
+      typeof swapTransaction === "string" && goldSale.swap
+        ? await readGoldSwapFill(
+            swapTransaction as `0x${string}`,
+            goldSale.swap.outputToken as `0x${string}`,
+            ephemeral as `0x${string}`
+          )
+        : null,
+      goldSwapSentOutsideApi(state)
+    );
+    if (refusal) {
+      logger.warn("GOLD_TOP_UP_REFUSED", { rampId: state.id, reason: refusal, topUpRaw: topUp.toFixed(0) });
+      throw this.createReconciliationRequiredError(`SubsidizePreSwapExecutor: ${refusal}.`);
+    }
+    // A sale quoted without a cap gets no top-up.
+    const saleSubsidyMaxUsd = goldSale.saleSubsidyMaxUsd ?? "0";
+    if (Big(topUpUsd).gt(saleSubsidyMaxUsd)) {
+      logger.warn("GOLD_SALE_SUBSIDY_CAP_EXCEEDED", { rampId: state.id, saleSubsidyMaxUsd, subsidyUsd: topUpUsd });
+      throw this.createReconciliationRequiredError(
+        `SubsidizePreSwapExecutor: Required subsidy $${topUpUsd} exceeds the Gold sale cap $${saleSubsidyMaxUsd}.`
+      );
     }
   }
 }

@@ -20,6 +20,7 @@ import { resolveBlockFlow } from "../flows/catalog";
 import type { NablaSwapMetadata } from "../phases/nabla-swap/simulation";
 import type { StockPermitSourceMetadata } from "../phases/stock-permit-source/simulation";
 import type { StockRouteMetadata } from "../phases/stock-route/simulation";
+import { isBaseUsdcGoldRoute } from "./gold-base";
 import { trimTrailingZeros } from "./helpers";
 import type { FlowMetadata } from "./metadata";
 import { buildBlockQuoteResponse, stockQuoteResponseFields } from "./quote-response";
@@ -31,7 +32,7 @@ async function validateOutput(ctx: QuoteContext, output: PhaseIO): Promise<numbe
   if (output.amount.lte(0)) {
     throw new APIError({ message: "Input amount too low to cover calculated fees", status: httpStatus.BAD_REQUEST });
   }
-  if (isBaseUsdcRobinhoodRoute(ctx.request)) {
+  if (isBaseUsdcRobinhoodRoute(ctx.request) || isBaseUsdcGoldRoute(ctx.request)) {
     const amount = ctx.request.rampType === RampDirection.BUY ? new Big(ctx.request.inputAmount) : output.amount;
     if (amount.lt(10) || amount.gt(1_000_000))
       throw new APIError({ message: "USDC amount must be between 10 and 1000000", status: 400 });
@@ -97,6 +98,12 @@ function toCents(amount: Big): string {
  * Chainlink reference.
  */
 async function assignStockQuoteFields(metadata: FlowMetadata, ctx: QuoteContext): Promise<void> {
+  // A Gold route has a permit source and no stock route, so this is set before the stock fields.
+  const permitSource = (metadata.blocks.stockPermitSource ?? metadata.blocks.goldPermitSource) as
+    | StockPermitSourceMetadata
+    | undefined;
+  if (permitSource) metadata.globals.gasless = permitSource.gasless;
+
   const route = metadata.blocks.stockRoute as StockRouteMetadata | undefined;
   const fiatFees = metadata.globals.fees.displayFiat;
   if (!route || !fiatFees) return;
@@ -148,9 +155,6 @@ async function assignStockQuoteFields(metadata: FlowMetadata, ctx: QuoteContext)
       effectiveFeeBps: new Big(fee.targetFeeRaw).div(fee.grossOutputRaw).mul(10000).toFixed(4)
     };
   }
-
-  const permitSource = metadata.blocks.stockPermitSource as StockPermitSourceMetadata | undefined;
-  if (permitSource) metadata.globals.gasless = permitSource.gasless;
 }
 
 function buildTemporaryResponse(ctx: QuoteContext, metadata: FlowMetadata, outputAmount: string, expiresAt: Date) {

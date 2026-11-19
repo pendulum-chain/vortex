@@ -262,6 +262,10 @@ interface Config {
   };
   gold: {
     enabledDirections: RampDirection[];
+    /** What topping a buy up to its promised PAXG may cost: this share of the swap input, capped at the USD amount. */
+    settlementSubsidyMaxBps: number;
+    settlementSubsidyMaxUsd: string;
+    settlementSubsidyMinUsd: string;
     usdcEnabledDirections: RampDirection[];
   };
   stocks: {
@@ -440,6 +444,9 @@ export const config: Config = {
   // PAXG on Base, read like the stock switches. Empty keeps the routes off.
   gold: {
     enabledDirections: readStocksEnabledDirections("GOLD_ENABLED_DIRECTIONS"),
+    settlementSubsidyMaxBps: readNonNegativeBpsEnv("GOLD_SETTLEMENT_SUBSIDY_MAX_BPS", "5"),
+    settlementSubsidyMaxUsd: readPositiveDecimalEnv("GOLD_SETTLEMENT_SUBSIDY_MAX_USD", "50"),
+    settlementSubsidyMinUsd: readPositiveDecimalEnv("GOLD_SETTLEMENT_SUBSIDY_MIN_USD", "5"),
     usdcEnabledDirections: readStocksEnabledDirections("GOLD_USDC_ENABLED_DIRECTIONS")
   },
   impersonationEnabled: process.env.IMPERSONATION_ENABLED === "true",
@@ -602,6 +609,9 @@ export const config: Config = {
 
 export const EVM_FUNDING_PRIVATE_KEY = process.env.EVM_FUNDING_PRIVATE_KEY ?? config.secrets.moonbeamExecutorPrivateKey;
 
+if (Number(config.gold.settlementSubsidyMinUsd) > Number(config.gold.settlementSubsidyMaxUsd)) {
+  throw new Error("GOLD_SETTLEMENT_SUBSIDY_MIN_USD must not exceed GOLD_SETTLEMENT_SUBSIDY_MAX_USD");
+}
 if (config.stocks.gasReserveTargetWei > 0n && config.stocks.gasReserveThresholdWei > config.stocks.gasReserveTargetWei) {
   throw new Error("ROBINHOOD_GAS_RESERVE_THRESHOLD_WEI must not exceed ROBINHOOD_GAS_RESERVE_TARGET_WEI");
 }

@@ -8,10 +8,10 @@ import { fiatRequestIO } from "../core/io";
 import type { Phase, PhaseCtx, PhaseIO } from "../core/types";
 import { defineContext } from "../core/metadata";
 import { AveniaStockMint } from "../phases/avenia-stock-mint";
-import { prepareAveniaDirectMintTxs } from "../phases/avenia-direct-mint/transactions";
 import { BrlaOnrampMintExecutor } from "../phases/avenia-mint/execution";
 import { registerAveniaMint } from "../phases/avenia-mint/registration";
 import { AveniaMintContext } from "../phases/avenia-mint/simulation";
+import { prepareAveniaMintTxs } from "../phases/avenia-mint/transactions";
 import { simulateAveniaStockMint } from "../phases/avenia-stock-mint/simulation";
 
 const DESTINATION = "0x1111111111111111111111111111111111111111";
@@ -70,12 +70,12 @@ function simulate(context: PhaseCtx, balance = 0n) {
 }
 
 describe("AveniaStockMint", () => {
-  it("shares everything with AveniaDirectMint except its simulation", () => {
+  it("shares everything with the BRL onramp's AveniaMint except its simulation, including the BRLA cleanup approval", () => {
     expect(AveniaStockMint.context).toBe(AveniaMintContext);
     expect(AveniaStockMint.phases).toEqual(["brlaOnrampMint"]);
     expect(AveniaStockMint.executors?.[0]).toBeInstanceOf(BrlaOnrampMintExecutor);
     expect(AveniaStockMint.register).toBe(registerAveniaMint);
-    expect(AveniaStockMint.prepareTxs).toBe(prepareAveniaDirectMintTxs);
+    expect(AveniaStockMint.prepareTxs).toBe(prepareAveniaMintTxs);
     expect(AveniaStockMint.externalOperations).toEqual({ register: { provider: "avenia" } });
   });
 

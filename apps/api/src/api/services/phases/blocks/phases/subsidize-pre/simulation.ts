@@ -121,6 +121,7 @@ export async function computeExpectedOutput(ctx: PhaseCtx, decimals: number): Pr
   return { decimal: expectedOutputAmount, raw: expectedOutputAmountRaw };
 }
 
+import { isBaseUsdcGoldRoute } from "../../core/gold-base";
 import { isBaseUsdcRobinhoodRoute } from "../../core/robinhood-stocks";
 
 export async function simulateSubsidizePre<Token extends TokenBrand, Chain extends ChainBrand>(
@@ -131,9 +132,10 @@ export async function simulateSubsidizePre<Token extends TokenBrand, Chain exten
   if (!tokenDetails) {
     throw new Error(`SubsidizePre: Missing token details for ${input.token} on ${input.chain}`);
   }
-  const expected = isBaseUsdcRobinhoodRoute(ctx.request)
-    ? { decimal: input.amount, raw: input.amountRaw }
-    : await computeExpectedOutput(ctx, tokenDetails.decimals);
+  const expected =
+    isBaseUsdcRobinhoodRoute(ctx.request) || isBaseUsdcGoldRoute(ctx.request)
+      ? { decimal: input.amount, raw: input.amountRaw }
+      : await computeExpectedOutput(ctx, tokenDetails.decimals);
   ctx.addNote(`SubsidizePre: expected output ${expected.decimal.toFixed()} ${input.token}`);
   return {
     metadata: {

@@ -6,7 +6,13 @@ import RampState from "../../../../models/rampState.model";
 import { getEvmFundingAccount, runSerializedEvmFundingOperation } from "../blocks/core/evm-funding";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
-const BASE_CLEANUP_PHASES: CleanupPhase[] = ["baseCleanupBrla", "baseCleanupUsdc", "baseCleanupEurc", "baseCleanupAxlUsdc"];
+const BASE_CLEANUP_PHASES: CleanupPhase[] = [
+  "baseCleanupBrla",
+  "baseCleanupUsdc",
+  "baseCleanupEurc",
+  "baseCleanupAxlUsdc",
+  "baseCleanupPaxg"
+];
 
 interface Sweep {
   balance: bigint;

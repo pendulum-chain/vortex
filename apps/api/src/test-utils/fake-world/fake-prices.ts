@@ -1,5 +1,6 @@
 import { Networks, type RampCurrency } from "@vortexfi/shared";
 import Big from "big.js";
+import { GOLD_TOKEN, readGoldReferencePrice } from "../../api/services/phases/blocks/core/gold-base";
 import { isStockSymbol, readFreshStockPriceUsd } from "../../api/services/phases/blocks/core/robinhood-stocks";
 import { priceFeedService } from "../../api/services/priceFeed.service";
 
@@ -103,7 +104,9 @@ export function installFakePrices(): { fakePrices: FakePrices; restore: () => vo
     const usd =
       network === Networks.Robinhood && isStockSymbol(symbol)
         ? new Big(amount).mul(await readFreshStockPriceUsd(symbol))
-        : new Big(amount).div(fakePrices.getPerUsd(fromCurrency as string));
+        : network === Networks.Base && symbol === GOLD_TOKEN
+          ? new Big(amount).mul((await readGoldReferencePrice()).priceUsd)
+          : new Big(amount).div(fakePrices.getPerUsd(fromCurrency as string));
     const converted = usd.times(fakePrices.getPerUsd(toCurrency as string));
     return decimals != null ? converted.toFixed(decimals, 0) : converted.toString();
   };

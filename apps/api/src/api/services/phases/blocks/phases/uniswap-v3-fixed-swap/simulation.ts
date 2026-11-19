@@ -1,6 +1,16 @@
-import { EvmClientManager, type EvmNetworks, EvmToken, Networks } from "@vortexfi/shared";
+import { EvmClientManager, type EvmNetworks, EvmToken, Networks, type RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { getAddress } from "viem";
+import {
+  BASE_PANCAKE_V3_FACTORY,
+  BASE_PANCAKE_V3_QUOTER_V2,
+  BASE_PANCAKE_V3_ROUTER,
+  BASE_PAXG_ADDRESS,
+  BASE_PAXG_USDC_POOL,
+  BASE_PAXG_USDC_POOL_FEE,
+  BASE_USDC_ADDRESS,
+  goldSwapPath
+} from "../../core/gold-base";
 import { evmIO } from "../../core/io";
 import { defineContext, type SerializableBig } from "../../core/metadata";
 import {
@@ -125,6 +135,19 @@ export async function verifyStockSwapDeployment(symbol: StockSymbol): Promise<vo
   });
 }
 
+export async function verifyGoldSwapDeployment(): Promise<void> {
+  await verifyUniswapDeployment({
+    factory: BASE_PANCAKE_V3_FACTORY,
+    hops: [
+      { fee: BASE_PAXG_USDC_POOL_FEE, pool: BASE_PAXG_USDC_POOL, tokenIn: BASE_USDC_ADDRESS, tokenOut: BASE_PAXG_ADDRESS }
+    ],
+    label: "Base PAXG/USDC",
+    network: Networks.Base,
+    quoter: BASE_PANCAKE_V3_QUOTER_V2,
+    router: BASE_PANCAKE_V3_ROUTER
+  });
+}
+
 export async function quotePolygonEureToUsdc(amountIn: bigint): Promise<bigint> {
   const client = EvmClientManager.getInstance().getClient(Networks.Polygon);
   const { result } = await client.simulateContract({
@@ -145,6 +168,21 @@ export async function quoteStockSwap(path: `0x${string}`, amountIn: bigint, maxG
     abi: uniswapV3QuoterV2Abi,
     address: ROBINHOOD_UNISWAP_QUOTER_V2,
     args: [path, amountIn],
+    functionName: "quoteExactInput"
+  });
+  if (maxGasEstimate !== undefined && gasEstimate > maxGasEstimate) throw stockPriceUnavailableError();
+  return amountOut;
+}
+
+/** PancakeSwap's QuoterV2 answers like Uniswap's. With `maxGasEstimate`, a swap estimated above it is refused. */
+export async function quoteGoldSwap(direction: RampDirection, amountIn: bigint, maxGasEstimate?: bigint): Promise<bigint> {
+  const client = EvmClientManager.getInstance().getClient(Networks.Base);
+  const {
+    result: [amountOut, , , gasEstimate]
+  } = await client.simulateContract({
+    abi: uniswapV3QuoterV2Abi,
+    address: BASE_PANCAKE_V3_QUOTER_V2,
+    args: [goldSwapPath(direction), amountIn],
     functionName: "quoteExactInput"
   });
   if (maxGasEstimate !== undefined && gasEstimate > maxGasEstimate) throw stockPriceUnavailableError();

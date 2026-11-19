@@ -21,6 +21,8 @@ export type RampPhase =
   | "relayBridge"
   | "stockPermitTransfer"
   | "stockSettlementTopUp"
+  | "goldPermitTransfer"
+  | "goldSettlementTopUp"
   | "gasReserveTopUp"
   | "stockBackupApprove"
   | "relayBackupApprove"
@@ -76,6 +78,7 @@ export type CleanupPhase =
   | "baseCleanupBrla"
   | "baseCleanupEurc"
   | "baseCleanupAxlUsdc"
+  | "baseCleanupPaxg"
   | "ethereumCleanupUsdc"
   | "robinhoodCleanupStock";
 
