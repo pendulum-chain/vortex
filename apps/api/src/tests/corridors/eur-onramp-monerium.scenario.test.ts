@@ -13,7 +13,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { Signature as EvmSignature } from "ethers";
-import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
+import { decodeFunctionData, erc20Abi, keccak256, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { getOrCreateCustomerEntityForProfile, selectActiveCustomerEntity } from "../../api/services/customer-entity.service";
 import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
@@ -39,6 +39,7 @@ import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeChainIdRpc, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
+import { erc20TransferLog } from "../../test-utils/fake-world/fake-evm";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
 
 function requireToken(network: Networks.Arbitrum, token: EvmToken) {
@@ -497,6 +498,51 @@ describe("EUR onramp Monerium corridor (sepa → Polygon mint+swap → USDC on A
       const selfTransfer = final?.state.blockState?.moneriumSelfTransfer as { permitTxHash?: string; transferTxHash?: string };
       expect(selfTransfer.permitTxHash).toBeTruthy();
       expect(selfTransfer.transferTxHash).toBeTruthy();
+    },
+    30000
+  );
+
+  it(
+    "pauses instead of topping up a swap that was mined without the API sending it",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      const funding = getEvmFundingAccount(Networks.Polygon);
+      world.evm.setNativeBalance(Networks.Polygon, funding.address, parseUnits("2", 18));
+      world.evm.setErc20Balance(Networks.Polygon, POLYGON_USDC, funding.address, parseUnits("1000", 6));
+      // The swap fills 1% below its quote, and its receipt shows that payout.
+      const fillRaw = setup.swapOutputRaw - setup.swapOutputRaw / 100n;
+      world.evm.receiptLogs.set(keccak256(setup.signedUniswapSwap), [
+        erc20TransferLog(POLYGON_USDC, POLYGON_UNISWAP_V3_ROUTER, setup.ephemeral.address, fillRaw)
+      ]);
+      const applyHappyWorld = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        applyHappyWorld?.(tx);
+        if (tx.serialized === setup.signedUniswapSwap) {
+          world.evm.setErc20Balance(Networks.Polygon, POLYGON_USDC, setup.ephemeral.address, fillRaw);
+        }
+      };
+      // The presigned swap reaches the chain from outside the API, once the approval phase has checked its allowance.
+      const reads = world.evm.onReadContract;
+      let sent = false;
+      world.evm.onReadContract = (network, params) => {
+        const result = reads?.(network, params);
+        const approved = submissionsOf(setup.signedUniswapApprove) > 0;
+        if (!sent && approved && network === Networks.Polygon && params.functionName === "allowance") {
+          sent = true;
+          queueMicrotask(() => void world.evm.sendRawTransactionWithRetry(Networks.Polygon, setup.signedUniswapSwap));
+        }
+        return result;
+      };
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const paused = await RampState.findByPk(setup.rampId);
+      expect(paused?.currentPhase).toBe("subsidizePostSwap");
+      expect(paused?.errorLogs.at(-1)?.error).toContain("The swap was not broadcast by the API");
+      expect(submissionsOf(setup.signedUniswapSwap)).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Polygon, POLYGON_USDC, funding.address)).toBe(parseUnits("1000", 6));
+      expect(submissionsOf(setup.signedSquidSwap)).toBe(0);
     },
     30000
   );

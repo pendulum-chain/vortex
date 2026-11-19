@@ -1090,6 +1090,59 @@ describe("SubsidizePostSwapExecutor EVM top-up specifics", () => {
     expect(sendTransaction).not.toHaveBeenCalled();
   });
 
+  describe("a fixed swap that was mined without the API sending it", () => {
+    const marked = { blockState: { uniswapV3FixedSwap: { swapSentOutsideApi: true } }, evmEphemeralAddress: EPHEMERAL };
+    const uniswapSwap = [{ network: Networks.Base, phase: "uniswapSwap", txData: SWAP_TX }];
+    // The swap filled 2 short, and the ephemeral holds all of it.
+    const shortFill = () => {
+      receipts.set(keccak256(SWAP_TX), { logs: [usdcTransfer(OTHER, EPHEMERAL, 93_000_000n)], status: "success" });
+      balances("93000000");
+    };
+
+    it("is not topped up, though its receipt shows the shortfall", async () => {
+      shortFill();
+      const executor = arrange(postCase, postMetadata());
+
+      await expect(executor.executePhase(makeState(postCase, marked, uniswapSwap))).rejects.toMatchObject({
+        message: "SubsidizePostSwapExecutor: The swap was not broadcast by the API, so its shortfall is not topped up.",
+        name: "ReconciliationRequiredPhaseError"
+      });
+
+      expect(sendTransaction).not.toHaveBeenCalled();
+      expect(executor.createSubsidy).not.toHaveBeenCalled();
+    });
+
+    it("is topped up by its shortfall when the API sent it", async () => {
+      shortFill();
+      const executor = arrange(postCase, postMetadata());
+
+      await executor.executePhase(makeState(postCase, { evmEphemeralAddress: EPHEMERAL }, uniswapSwap));
+
+      const transaction = sendTransaction.mock.calls[0][2] as { data: `0x${string}` };
+      expect(decodeFunctionData({ abi: erc20Abi, data: transaction.data }).args?.[1]).toBe(7_000_000n);
+    });
+
+    it("passes without a top-up once the ephemeral holds the target", async () => {
+      balances("100000000");
+      const executor = arrange(postCase, postMetadata());
+
+      await executor.executePhase(makeState(postCase, marked, uniswapSwap));
+
+      expect(sendTransaction).not.toHaveBeenCalled();
+    });
+
+    it("does not hold back the top-up of a Nabla swap on the same ramp", async () => {
+      receipts.set(keccak256(SWAP_TX), { logs: [usdcTransfer(OTHER, EPHEMERAL, 95_000_000n)], status: "success" });
+      balances("95000000");
+      const executor = arrange(postCase, postMetadata());
+      const stockSaleMarked = { blockState: { stockRoute: { swapSentOutsideApi: true } }, evmEphemeralAddress: EPHEMERAL };
+
+      await executor.executePhase(makeState(postCase, stockSaleMarked));
+
+      expect(sendTransaction).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("retries without sending while a measured transaction has no successful receipt", async () => {
     receipts.set(keccak256(SWAP_TX), { logs: [], status: "reverted" });
     balances("95000000");

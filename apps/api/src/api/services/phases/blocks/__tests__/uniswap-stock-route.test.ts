@@ -34,16 +34,20 @@ import { validateUniswapApproval, validateUniswapSwap } from "../phases/uniswap-
 const financialOperationReal = { ...financialOperationNamespace };
 const operationAttempts: string[] = [];
 const operationRows = new Map<string, "submitted" | "confirmed">();
+/** Makes the journal fail where it would claim the operation, as a process that stops there does. */
+let crashAtClaim = false;
 
 mock.module("../core/financial-operation", () => ({
   ...financialOperationReal,
   requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
   runFinancialOperation: async ({
     attemptClass,
+    beforePerform,
     perform,
     reconcile
   }: {
     attemptClass: string;
+    beforePerform?(): Promise<void>;
     perform(key: string): Promise<unknown>;
     reconcile?: (operation: unknown) => Promise<unknown>;
   }) => {
@@ -52,6 +56,12 @@ mock.module("../core/financial-operation", () => ({
       const reconciled = reconcile ? await reconcile({}) : null;
       if (reconciled === null) throw new Error(`operation ${attemptClass} has submitted outcome`);
       return reconciled;
+    }
+    // As in the journal: beforePerform runs once replay and reconciliation are exhausted, right before the claim.
+    await beforePerform?.();
+    if (crashAtClaim) {
+      operationRows.set(attemptClass, "submitted");
+      throw new Error("stopped at the claim");
     }
     return perform(`test-${attemptClass}`);
   }
@@ -733,6 +743,25 @@ describe("stock route execution", () => {
       expect(await run(UniswapSwapExecutor, state, deps)).toBeNull();
 
       expect(sendRawTransaction).not.toHaveBeenCalled();
+      expect(routeState(state)).toMatchObject({ relayRequestId: "0xrelay", swapSentOutsideApi: true });
+    });
+
+    it("keeps its mark when the process stops at the journal claim and the next run reconciles the row", async () => {
+      const { route, state } = await rampState(RampDirection.BUY, "uniswapSwap");
+      const { deps } = settled(route);
+      operationRows.clear();
+      crashAtClaim = true;
+      try {
+        await expect(new UniswapSwapExecutor(deps).execute(state as never)).rejects.toThrow();
+      } finally {
+        crashAtClaim = false;
+      }
+      expect(operationRows.get("uniswap-presigned-broadcast")).toBe("submitted");
+      expect(routeState(state)).toMatchObject({ swapSentOutsideApi: true });
+
+      await new UniswapSwapExecutor(deps).execute(state as never);
+
+      operationRows.clear();
       expect(routeState(state)).toMatchObject({ relayRequestId: "0xrelay", swapSentOutsideApi: true });
     });
 

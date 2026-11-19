@@ -10,7 +10,7 @@ import { throwIfAborted } from "../../core/cancellation";
 import { resendPresignedTransaction } from "../../core/evm-transactions";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { readStockFlags } from "../../core/robinhood-stocks";
-import { classifyStockRouteFailure, resolveUniswapRoute, STOCK_ROUTE_CONTEXT_KEY, type UniswapRoute } from "./route";
+import { classifyStockRouteFailure, resolveUniswapRoute, swapStateKey, type UniswapRoute } from "./route";
 import { validateUniswapApproval, validateUniswapSwap } from "./validation";
 
 interface Receipt {
@@ -72,17 +72,17 @@ function defaultDependencies(route: UniswapRoute): UniswapV3ExecutionDependencie
 }
 
 /** The soft minimum holds the API's own send. A fill the API did not choose is marked, and no later top-up makes it whole. */
-async function noteStockSwapSentOutsideApi(state: RampState): Promise<void> {
-  logger.warn(`STOCK_SWAP_SENT_OUTSIDE_API: the swap was mined without the API sending it. ramp=${state.id}`);
+async function noteSwapSentOutsideApi(state: RampState, route: UniswapRoute): Promise<void> {
+  logger.warn(
+    `UNISWAP_SWAP_SENT_OUTSIDE_API: the swap was mined without the API sending it. ramp=${state.id} network=${route.network}`
+  );
+  const stateKey = swapStateKey(route);
   await state.update({
     state: {
       ...state.state,
       blockState: {
         ...state.state.blockState,
-        [STOCK_ROUTE_CONTEXT_KEY]: {
-          ...(state.state.blockState?.[STOCK_ROUTE_CONTEXT_KEY] as object),
-          swapSentOutsideApi: true
-        }
+        [stateKey]: { ...(state.state.blockState?.[stateKey] as object), swapSentOutsideApi: true }
       }
     }
   });
@@ -201,14 +201,15 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
     };
     const result = await this.runFinancialOperation(state, {
       attemptClass: "uniswap-presigned-broadcast",
+      // The journal claims a send before it goes out, so a mined transaction with no claim was sent by someone else.
+      // Noted before the claim, so the note is on record whenever the claim is.
+      beforePerform: async () => {
+        if (settledReceipt?.status === "success") await onSentOutsideApi?.();
+      },
       externalId: value => value.hash,
       perform: async () => {
         const known = settledReceipt ? settle(settledReceipt) : null;
-        if (known) {
-          // The journal claims a send before it goes out, so a mined transaction with no claim was sent by someone else.
-          await onSentOutsideApi?.();
-          return known;
-        }
+        if (known) return known;
         throwIfAborted(signal);
         const hash = await dependencies.sendRawTransaction(transaction);
         if (hash.toLowerCase() !== deterministicHash.toLowerCase()) {
@@ -313,14 +314,8 @@ export class UniswapSwapExecutor extends UniswapV3Executor {
         );
       });
     }
-    await this.broadcast(
-      state,
-      route,
-      transaction,
-      dependencies,
-      signal,
-      settledReceipt,
-      route.stock ? () => noteStockSwapSentOutsideApi(state) : undefined
+    await this.broadcast(state, route, transaction, dependencies, signal, settledReceipt, () =>
+      noteSwapSentOutsideApi(state, route)
     );
     const remainingAllowance = await dependencies.getAllowance(route.signer);
     if (remainingAllowance !== 0n) {
