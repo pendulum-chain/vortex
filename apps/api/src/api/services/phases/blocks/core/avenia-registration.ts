@@ -173,7 +173,8 @@ export async function validateAveniaOfframpRecipient(
   // These warnings name the failed check only; they must not include the Pix key or either tax ID.
   let pixKeyData;
   try {
-    pixKeyData = await dependencies.aveniaApi.validatePixKey(pixKey);
+    // Resolved under the user's sub-account, so the DICT lookup draws on its quota rather than the main account's.
+    pixKeyData = await dependencies.aveniaApi.validatePixKey(pixKey, subAccountId);
   } catch (error) {
     logger.warn(
       `validateAveniaOfframpRecipient: pix-info lookup failed: ${error instanceof Error ? error.message : String(error)}`

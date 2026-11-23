@@ -116,18 +116,24 @@ describe("Avenia block registration", () => {
   });
 
   it("accepts a matching masked recipient and returns only the provider-trusted wallet and code", async () => {
-    const result = await validateAveniaOfframpRecipient(
-      "12345678901",
-      "client-pix-key",
-      "123.456.789-00",
-      "499.25",
-      dependencies()
-    );
+    const lookups: unknown[][] = [];
+    const deps = dependencies();
+    deps.aveniaApi = {
+      ...deps.aveniaApi,
+      validatePixKey: async (...args: unknown[]) => {
+        lookups.push(args);
+        return { taxId: "***456789**" } as never;
+      }
+    } as AveniaRegistrationDependencies["aveniaApi"];
+
+    const result = await validateAveniaOfframpRecipient("12345678901", "client-pix-key", "123.456.789-00", "499.25", deps);
 
     expect(result).toEqual({
       brCode: "trusted-code",
       wallets: { evm: "0x1111111111111111111111111111111111111111" }
     });
+    // The DICT lookup runs under the user's own sub-account, not the main account.
+    expect(lookups).toEqual([["client-pix-key", "subaccount-1"]]);
   });
 
   it("returns one generic error when the masked PIX owner does not match", async () => {
