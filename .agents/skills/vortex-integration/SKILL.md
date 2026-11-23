@@ -244,7 +244,7 @@ await vortex.startRamp(rampProcess.id);
 Same three-step pattern: `POST /v1/ramp/register` → user signs → `POST /v1/ramp/update` with the collected hashes → `POST /v1/ramp/start`. See [`AI_AGENT_INTEGRATION` § D.3–D.5](https://api-docs.vortexfinance.co/ai-agent-integration) for the exact body shapes.
 
 ## Common failures
-- Missing `pixDestination` → `400 "pixDestination is required for offramp to BRL"`. Missing `walletAddress` → `400 "User address must be provided for offramping."` (The SDK's `MissingBrlOfframpParametersError` maps only the legacy `"receiverTaxId, pixDestination and taxId..."` message and will not fire for these; treat the raw 400 message as authoritative.)
+- Missing `pixDestination` → `400 "pixDestination is required for offramp to BRL"` (`MissingBrlOfframpParametersError`). Missing `walletAddress` → `400 "walletAddress is required for offramping"`, which the SDK throws as a plain `VortexSdkError`.
 - `InvalidPixKeyError` (`400 "Invalid pixKey or receiverTaxId."`) — registration could not resolve the PIX key, or its owner does not match `receiverTaxId` (or the user's tax ID). Ask the user to check the key, then register again with a fresh quote if it expired.
 - `InvalidPresignedTxsError` on `updateRamp` — hash format wrong, or the on-chain tx does not match the unsigned tx that was issued. Re-sign exactly what `getUserTransactions` returned.
 - `NoPresignedTransactionsError` on `startRamp` — `updateRamp` was not called or did not include the required hashes.
