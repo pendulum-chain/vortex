@@ -1,5 +1,5 @@
 import { RampDirection, RampProcess, UnsignedTx } from "@vortexfi/shared";
-import { AmountExceedsLimitError, BrlKycStatusError, InvalidPixKeyError, VortexSdkError } from "../errors.js";
+import { AmountExceedsLimitError, BrlKycStatusError, VortexSdkError } from "../errors.js";
 import type { BrlOfframpAdditionalData, BrlOfframpUpdateAdditionalData, BrlOnrampAdditionalData } from "../types.js";
 import { BaseRampHandler } from "./BaseRampHandler.js";
 
@@ -25,7 +25,7 @@ export class BrlHandler extends BaseRampHandler {
     const taxId = additionalData.taxId ?? "";
     const receiverTaxId = additionalData.receiverTaxId ?? taxId;
 
-    await this.assertValidPixKey(additionalData.pixDestination);
+    // Registration validates the Pix key and its owner; it rejects a bad key as InvalidPixKeyError.
     await this.assertWithinBrlLimit(taxId, quoteId, RampDirection.SELL);
 
     return this.registerAndPresign(quoteId, {
@@ -38,24 +38,6 @@ export class BrlHandler extends BaseRampHandler {
 
   async updateBrlOfframp(rampId: string, additionalData: BrlOfframpUpdateAdditionalData): Promise<RampProcess> {
     return this.updateOfframp(rampId, additionalData);
-  }
-
-  private async assertValidPixKey(pixKey: string): Promise<void> {
-    let result: { valid: boolean };
-    try {
-      result = await this.apiService.validateBrlPixKey(pixKey);
-    } catch (error) {
-      // Only treat client-side validation errors (4xx) as invalid PIX key.
-      // Network/server errors (5xx, connection failures) must propagate so the
-      // user retries instead of being told the key is invalid.
-      if (error instanceof VortexSdkError && error.status >= 400 && error.status < 500) {
-        throw new InvalidPixKeyError();
-      }
-      throw error;
-    }
-    if (!result.valid) {
-      throw new InvalidPixKeyError();
-    }
   }
 
   private async assertWithinBrlLimit(taxId: string, quoteId: string, direction: RampDirection): Promise<void> {

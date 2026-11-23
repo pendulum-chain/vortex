@@ -22,6 +22,7 @@ import {
   MissingDomesticOnrampParametersError,
   MissingEurOnrampParametersError,
   MissingMykoboOfframpParametersError,
+  parseAPIError,
   VortexSdkError
 } from "../src/errors";
 import { BrlHandler } from "../src/handlers/BrlHandler";
@@ -229,7 +230,7 @@ describe("BrlHandler", () => {
     await expect(handler.registerBrlOnramp("quote_1", { destinationAddress: DESTINATION, taxId: "123" })).rejects.toBe(failure);
   });
 
-  test("offramp validates the pix key and limit, then registers the full payload", async () => {
+  test("offramp checks the limit, then registers the full payload", async () => {
     const { calls, handler, updated } = setup(BrlHandler, { quote: { anchorFeeFiat: "5", inputAmount: "10", outputAmount: "95" } });
 
     const result = await handler.registerBrlOfframp("quote_1", {
@@ -241,7 +242,6 @@ describe("BrlHandler", () => {
 
     expect(result).toBe(updated);
     expect(methods(calls)).toEqual([
-      "validateBrlPixKey",
       "getQuote",
       "getBrlRemainingLimit",
       "generateEphemerals",
@@ -250,7 +250,6 @@ describe("BrlHandler", () => {
       "signTransactions",
       "updateRamp"
     ]);
-    expect(payload(calls, "validateBrlPixKey")).toBe("pix@example.com");
     expect(payload(calls, "getBrlRemainingLimit")).toStrictEqual(["123", RampDirection.SELL]);
     expect(payload(calls, "registerRamp")).toStrictEqual({
       additionalData: { pixDestination: "pix@example.com", receiverTaxId: "999", taxId: "123", walletAddress: WALLET },
@@ -285,32 +284,30 @@ describe("BrlHandler", () => {
     });
   });
 
-  test("offramp treats an invalid or 4xx-rejected pix key as invalid before anything else runs", async () => {
-    const invalid = setup(BrlHandler, { validatePixKey: async () => ({ valid: false }) });
-    await expect(
-      invalid.handler.registerBrlOfframp("quote_1", { pixDestination: "bad", taxId: "123", walletAddress: WALLET })
-    ).rejects.toBeInstanceOf(InvalidPixKeyError);
-    expect(methods(invalid.calls)).toEqual(["validateBrlPixKey"]);
-
-    const rejected = setup(BrlHandler, {
+  test("offramp leaves the pix key to registration and never calls the standalone check, even when it would fail", async () => {
+    const { calls, handler, updated } = setup(BrlHandler, {
       validatePixKey: async () => {
-        throw new VortexSdkError("bad key", 400, false);
+        throw new VortexSdkError("rate limited", 429, false);
       }
     });
+
     await expect(
-      rejected.handler.registerBrlOfframp("quote_1", { pixDestination: "bad", taxId: "123", walletAddress: WALLET })
-    ).rejects.toBeInstanceOf(InvalidPixKeyError);
+      handler.registerBrlOfframp("quote_1", { pixDestination: "pix@example.com", taxId: "123", walletAddress: WALLET })
+    ).resolves.toBe(updated);
+    expect(methods(calls)).not.toContain("validateBrlPixKey");
   });
 
-  test("offramp lets a 5xx pix key failure propagate", async () => {
-    const failure = new VortexSdkError("down", 503, false);
-    const { handler } = setup(BrlHandler, {
-      validatePixKey: async () => {
-        throw failure;
-      }
-    });
+  test("offramp surfaces registration's pix key rejection as InvalidPixKeyError and stores nothing", async () => {
+    const { apiService, calls, handler } = setup(BrlHandler);
+    apiService.registerRamp = async (request: RegisterRampRequest) => {
+      calls.push({ method: "registerRamp", payload: request });
+      throw parseAPIError({ code: 400, message: "Invalid pixKey or receiverTaxId." });
+    };
 
-    await expect(handler.registerBrlOfframp("quote_1", { pixDestination: "pix", walletAddress: WALLET })).rejects.toBe(failure);
+    await expect(
+      handler.registerBrlOfframp("quote_1", { pixDestination: "bad", taxId: "123", walletAddress: WALLET })
+    ).rejects.toBeInstanceOf(InvalidPixKeyError);
+    expect(methods(calls)).toEqual(["getQuote", "getBrlRemainingLimit", "generateEphemerals", "registerRamp"]);
   });
 
   test("offramp adds the anchor fee back to the net output when checking the limit", async () => {
