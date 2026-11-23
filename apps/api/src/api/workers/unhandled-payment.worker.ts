@@ -243,7 +243,8 @@ class UnhandledPaymentWorker {
           }
         }
       } catch (error) {
-        logger.error(`Error processing states for taxId ${taxId}:`, error);
+        const rampIds = statesByTaxId[taxId].map(state => state.id).join(", ");
+        logger.error(`Error processing unhandled-payment states ${rampIds}:`, error);
       }
     }
 

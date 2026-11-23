@@ -1,5 +1,6 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import { BrlaCurrency, type Limit, RampDirection } from "@vortexfi/shared";
+import logger from "../../../../../config/logger";
 import {
   type AveniaRegistrationDependencies,
   createAveniaOnrampTicket,
@@ -139,5 +140,35 @@ describe("Avenia block registration", () => {
         dependencies()
       )
     ).rejects.toThrow("Invalid pixKey or receiverTaxId.");
+  });
+
+  it("keeps the Pix key and both tax IDs out of the logs on every recipient rejection", async () => {
+    const pixKey = "client-pix-key";
+    const failingLookup = {
+      ...dependencies().aveniaApi,
+      validatePixKey: async () => {
+        throw new Error("Request failed with status '400'.");
+      }
+    } as AveniaRegistrationDependencies["aveniaApi"];
+    const warn = spyOn(logger, "warn");
+    try {
+      for (const [receiverTaxId, deps] of [
+        ["123.456.789-00", dependencies({ aveniaApi: failingLookup })], // lookup fails
+        ["12.345.678/0001-90", dependencies()], // CNPJ against a masked CPF: not comparable
+        ["123.456.780-00", dependencies()] // masked owner does not match
+      ] as const) {
+        await expect(validateAveniaOfframpRecipient("12345678901", pixKey, receiverTaxId, "499.25", deps)).rejects.toThrow(
+          "Invalid pixKey or receiverTaxId."
+        );
+      }
+
+      const logged = warn.mock.calls.map(call => call.map(String).join(" ")).join("\n");
+      expect(warn).toHaveBeenCalledTimes(3);
+      for (const secret of [pixKey, "456789", "12345678000190", "12345678000"]) {
+        expect(logged).not.toContain(secret);
+      }
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

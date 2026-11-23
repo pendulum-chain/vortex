@@ -170,14 +170,13 @@ export async function validateAveniaOfframpRecipient(
     throw new APIError({ message: "Failed to fetch subaccount limits", status: httpStatus.INTERNAL_SERVER_ERROR });
   }
 
+  // These warnings name the failed check only; they must not include the Pix key or either tax ID.
   let pixKeyData;
   try {
     pixKeyData = await dependencies.aveniaApi.validatePixKey(pixKey);
   } catch (error) {
     logger.warn(
-      `validateAveniaOfframpRecipient: pix-info lookup failed for pixKey=${pixKey}: ${
-        error instanceof Error ? error.message : String(error)
-      }`
+      `validateAveniaOfframpRecipient: pix-info lookup failed: ${error instanceof Error ? error.message : String(error)}`
     );
     throw new APIError({ message: "Invalid pixKey or receiverTaxId.", status: httpStatus.BAD_REQUEST });
   }
@@ -187,7 +186,7 @@ export async function validateAveniaOfframpRecipient(
     masksMatch = validateMaskedNumber(pixKeyData.taxId, normalizeTaxId(receiverTaxId));
   } catch (error) {
     logger.warn(
-      `validateAveniaOfframpRecipient: pix key owner taxId is not comparable to receiverTaxId. masked=${pixKeyData.taxId}, provided=${normalizeTaxId(receiverTaxId)}: ${
+      `validateAveniaOfframpRecipient: pix key owner taxId is not comparable to receiverTaxId: ${
         error instanceof Error ? error.message : String(error)
       }`
     );
@@ -195,9 +194,7 @@ export async function validateAveniaOfframpRecipient(
   }
 
   if (!masksMatch) {
-    logger.warn(
-      `validateAveniaOfframpRecipient: pix key owner taxId does not match receiverTaxId. masked=${pixKeyData.taxId}, provided=${normalizeTaxId(receiverTaxId)}`
-    );
+    logger.warn("validateAveniaOfframpRecipient: pix key owner taxId does not match receiverTaxId");
     throw new APIError({ message: "Invalid pixKey or receiverTaxId.", status: httpStatus.BAD_REQUEST });
   }
 
