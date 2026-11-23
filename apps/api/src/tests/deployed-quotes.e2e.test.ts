@@ -49,6 +49,30 @@ interface QuoteResponse {
   to: string;
 }
 
+// A drained BRL pool is an operational state, not a deployment regression. Only SELL runs into it, so any other
+// failure, including the same answer on BUY, must stay loud.
+function isInconclusive(direction: string, status: number, body: string): boolean {
+  if (direction !== "SELL" || status !== 500) return false;
+  try {
+    return JSON.parse(body).message === QuoteError.LowLiquidity;
+  } catch {
+    return false;
+  }
+}
+
+describe("inconclusive quote answers", () => {
+  const lowLiquidity = JSON.stringify({ code: 500, message: QuoteError.LowLiquidity });
+
+  test("tolerates only the low-liquidity answer to a SELL quote", () => {
+    expect(isInconclusive("SELL", 500, lowLiquidity)).toBe(true);
+    expect(isInconclusive("BUY", 500, lowLiquidity)).toBe(false);
+    expect(isInconclusive("SELL", 503, lowLiquidity)).toBe(false);
+    expect(isInconclusive("SELL", 500, JSON.stringify({ code: 500, message: "Internal server error" }))).toBe(false);
+    expect(isInconclusive("SELL", 500, JSON.stringify({ errors: [QuoteError.LowLiquidity], message: "" }))).toBe(false);
+    expect(isInconclusive("SELL", 500, `<html>${QuoteError.LowLiquidity}</html>`)).toBe(false);
+  });
+});
+
 describe.skipIf(apiBaseUrls.length === 0)("deployed quote API", () => {
   test("has at least one deployment configured", () => {
     expect(apiBaseUrls.length).toBeGreaterThan(0);
@@ -66,9 +90,11 @@ describe.skipIf(apiBaseUrls.length === 0)("deployed quote API", () => {
         const responseText = await response.text();
 
         if (response.status !== 201) {
-          // Pool liquidity is an operational state, not a deployment regression: report it without failing.
-          if (responseText.includes(QuoteError.LowLiquidity)) {
-            console.warn(`[quote-smoke] ${quoteCase.direction} on ${apiBaseUrl} inconclusive: ${responseText}`);
+          if (isInconclusive(quoteCase.direction, response.status, responseText)) {
+            // GitHub Actions turns this line into an annotation on the otherwise green run.
+            console.log(
+              `::warning title=Quote smoke test inconclusive::${quoteCase.direction} on ${apiBaseUrl}: ${QuoteError.LowLiquidity}`,
+            );
             return;
           }
           throw new Error(

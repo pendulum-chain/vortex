@@ -291,7 +291,9 @@ never PR-blocking.
 
 The e2e workflow sets `VORTEX_QUOTE_SMOKE_URLS` and `RUN_LIVE_TESTS=1` for
 `deployed-quotes.e2e.test.ts`, which requires successful cross-chain BUY and SELL quotes from both
-staging and production. `RUN_LIVE_TESTS=1` is required: without it the test preload installs the
+staging and production. One answer is tolerated: a SELL quote refused with exactly the low-liquidity
+message is inconclusive and becomes a warning annotation on the run, so a green run does not prove
+that SELL works. Any other failure fails the run. `RUN_LIVE_TESTS=1` is required: without it the test preload installs the
 fetch guard, which rejects the calls to the deployed APIs. Ordinary local and PR-blocking API runs
 leave `VORTEX_QUOTE_SMOKE_URLS` unset, so this deployment smoke test does not make them
 network-dependent.
