@@ -319,7 +319,7 @@ describe("lazy chain WebSocket initialization", () => {
     );
 
     expect(result.rampProcess.id).toBe("ramp_1");
-    expect(calls).toContain("GET /v1/brla/validatePixKey");
+    expect(calls).not.toContain("GET /v1/brla/validatePixKey");
     expect(calls).toContain("POST /v1/ramp/register");
     expect(calls).toContain("POST /v1/ramp/update");
   });
