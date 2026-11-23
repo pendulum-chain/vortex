@@ -207,6 +207,26 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
   });
 });
 
+describe("BrlaApiService.validatePixKey", () => {
+  test("sends phone and email keys to Avenia as typed", async () => {
+    const { sendRequest, service } = serviceWithMockedRequest();
+
+    await service.validatePixKey("+5511999990000");
+    await service.validatePixKey("pix+key@example.com");
+
+    expect(sendRequest.mock.calls[0]).toEqual([
+      Endpoint.PixInfo,
+      "GET",
+      "pixKey=%2B5511999990000&decodePixKey=true"
+    ]);
+    expect(sendRequest.mock.calls[1]).toEqual([
+      Endpoint.PixInfo,
+      "GET",
+      "pixKey=pix%2Bkey%40example.com&decodePixKey=true"
+    ]);
+  });
+});
+
 describe("BrlaApiService.getAveniaPublicKey", () => {
   it("bounds the public-key request with an abort signal", async () => {
     let signal: AbortSignal | null | undefined;

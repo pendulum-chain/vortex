@@ -260,7 +260,7 @@ export class BrlaApiService {
   }
 
   public async validatePixKey(pixKey: string): Promise<PixKeyData> {
-    const query = `pixKey=${pixKey}&decodePixKey=true`;
+    const query = `pixKey=${encodeURIComponent(pixKey)}&decodePixKey=true`;
     return await this.sendRequest(Endpoint.PixInfo, "GET", query);
   }
 
