@@ -22,8 +22,18 @@ interface StatusResponse {
   public: string;
 }
 
+// Shared across requests, so the notifier's cooldown spaces out the alerts that every /v1/status call repeats.
+let slackNotifier: SlackNotifier | undefined;
+
+/** Fire-and-forget: a refused Slack alert (e.g. a 429) is only logged, never an unhandled rejection. */
+const alertLowBalance = (text: string): void => {
+  slackNotifier ??= new SlackNotifier();
+  slackNotifier.sendMessage({ text }).catch(error => {
+    logger.warn(`Funding account balance alert failed: ${error instanceof Error ? error.message : String(error)}`);
+  });
+};
+
 export const sendStatusWithPk = async (): Promise<StatusResponse> => {
-  const slackNotifier = new SlackNotifier();
   const apiManager = ApiManager.getInstance();
   const networkName = "pendulum";
   const apiData = await apiManager.getApi(networkName);
@@ -63,12 +73,12 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
         logger.info(`Token ${token} balance is insufficient.`);
 
         const tokenDecimals = "decimals" in tokenConfig ? tokenConfig.decimals : ChainDecimals;
-        slackNotifier.sendMessage({
-          text: `Current balance of funding account is ${nativeToDecimal(
+        alertLowBalance(
+          `Current balance of funding account is ${nativeToDecimal(
             tokenBalance,
             tokenDecimals
           ).toString()} ${token} please charge the account ${fundingAccountKeypair.address}.`
-        });
+        );
       }
     })
   );
@@ -99,12 +109,12 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
     return { public: fundingAccountKeypair.address, status: true };
   }
   if (nativeBalance.lt(minimumBalanceFundingAccount) || glmrBalance.lt(minimumGlmrBalanceFundingAccount)) {
-    slackNotifier.sendMessage({
-      text: `Current balance of funding account is ${nativeToDecimal(nativeBalance).toString()} PEN and ${nativeToDecimal(
+    alertLowBalance(
+      `Current balance of funding account is ${nativeToDecimal(nativeBalance).toString()} PEN and ${nativeToDecimal(
         glmrBalance,
         TOKEN_CONFIG.GLMR.decimals
       ).toString()} GLMR, please charge the account ${fundingAccountKeypair.address}.`
-    });
+    );
   }
   return { public: fundingAccountKeypair.address, status: false };
 };
