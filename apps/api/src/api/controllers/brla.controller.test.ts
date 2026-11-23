@@ -2067,6 +2067,43 @@ describe("getUploadUrls", () => {
     expect(res.body as object).not.toHaveProperty("uploadURLFront");
   });
 
+  it("omits the liveness token from both responses when the provider does not send one", async () => {
+    const liveness = { id: "selfie-1", livenessUrl: "https://app.avenia.io/liveness/session-1" };
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getDocumentUploadUrls: async (documentType: BrDocumentType) =>
+            documentType === BrDocumentType.SELFIE_FROM_LIVENESS
+              ? liveness
+              : { id: "doc-1", uploadURLBack: "back-url", uploadURLFront: "front-url" }
+        }) as unknown as BrlaApiService
+    );
+    CustomerEntity.findAll = mock(async () => [
+      { id: "entity-user-1-individual" }
+    ]) as unknown as typeof CustomerEntity.findAll;
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1-individual",
+      customerType: "individual",
+      id: "customer-1",
+      provider: "avenia",
+      providerSubaccountId: "subaccount-1"
+    })) as unknown as typeof ProviderCustomer.findOne;
+    KycCase.findAll = mock(async () => [{ id: "case-1", verificationMethod: "standard" }]) as unknown as typeof KycCase.findAll;
+
+    const selfieRes = createResponse();
+    await getSelfieLivenessUrl({ query: { taxId: "11222333000181" }, userId: "user-1" } as any, selfieRes as any);
+    expect(selfieRes.statusCode).toBe(httpStatus.OK);
+    expect(JSON.parse(JSON.stringify(selfieRes.body))).toEqual(liveness);
+
+    const uploadRes = createResponse();
+    await getUploadUrls(
+      { body: { documentType: BrDocumentType.ID, taxId: "11222333000181" }, userId: "user-1" } as any,
+      uploadRes as any
+    );
+    expect(uploadRes.statusCode).toBe(httpStatus.OK);
+    expect(JSON.parse(JSON.stringify(uploadRes.body)).selfieUpload).toEqual(liveness);
+  });
+
   it("rejects a tax id owned by another profile", async () => {
     mockBrlaApi();
     uploadUrlsMock.mockClear();
@@ -2495,6 +2532,27 @@ describe("Avenia API KYB", () => {
       false,
       "subaccount-1"
     );
+  });
+
+  it("creates a liveness document when the provider sends no liveness token", async () => {
+    mockBusinessAccount();
+    const liveness = { id: "selfie-1", livenessUrl: "https://app.avenia.io/liveness/session-1" };
+    BrlaApiService.getInstance = mock(
+      () => ({ getDocumentUploadUrls: async () => liveness }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await createKybDocument(
+      {
+        body: { documentType: BrDocumentType.SELFIE_FROM_LIVENESS },
+        credential: { profileId: "user-1" },
+        query: { subAccountId: "subaccount-1" }
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.CREATED);
+    expect(JSON.parse(JSON.stringify(res.body))).toEqual(liveness);
   });
 
   it("does not expose another profile's subaccount to document creation", async () => {

@@ -193,7 +193,8 @@ export const aveniaDocumentUploadResponseSchema = z.looseObject({
 export const aveniaLivenessDocumentResponseSchema = z.looseObject({
   id: z.string().min(1),
   livenessUrl: z.string().startsWith("https://"),
-  validateLivenessToken: z.string().min(1)
+  // Avenia no longer always sends this token and no client reads it, so it is only passed through.
+  validateLivenessToken: z.string().optional()
 }) satisfies z.ZodType<LivenessDocumentResponse>;
 
 /** The identifier returned by UBO creation. */

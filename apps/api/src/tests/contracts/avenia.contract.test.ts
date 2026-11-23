@@ -252,7 +252,6 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
       if (liveness) {
         expect(liveness.id).toBeTruthy();
         expect(liveness.livenessUrl).toBeTruthy();
-        expect(liveness.validateLivenessToken).toBeTruthy();
       }
 
       // A hosted-liveness row carries no uploaded bytes, so the strict single-document
