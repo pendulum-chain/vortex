@@ -1,5 +1,6 @@
 import {
   AveniaPaymentMethod,
+  BrlaApiError,
   BrlaApiService,
   BrlaCurrency,
   FiatToken,
@@ -179,6 +180,18 @@ export async function validateAveniaOfframpRecipient(
     logger.warn(
       `validateAveniaOfframpRecipient: pix-info lookup failed: ${error instanceof Error ? error.message : String(error)}`
     );
+    // Avenia answers 400 for a malformed or unknown key; any other status says nothing about the key.
+    if (error instanceof BrlaApiError && error.status !== httpStatus.BAD_REQUEST) {
+      // mapProviderFailure reports a provider 4xx as an account problem, but a 429 only means the lookup quota is used up.
+      if (error.status === httpStatus.TOO_MANY_REQUESTS) {
+        throw new APIError({
+          isPublic: true,
+          message: "The payment provider is temporarily unavailable. Please try again shortly.",
+          status: httpStatus.BAD_GATEWAY
+        });
+      }
+      throw error;
+    }
     throw new APIError({ message: "Invalid pixKey or receiverTaxId.", status: httpStatus.BAD_REQUEST });
   }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { BrlaCurrency, type Limit, RampDirection } from "@vortexfi/shared";
+import { BrlaApiError, BrlaCurrency, type Limit, RampDirection } from "@vortexfi/shared";
 import logger from "../../../../../config/logger";
 import {
   type AveniaRegistrationDependencies,
@@ -146,6 +146,43 @@ describe("Avenia block registration", () => {
         dependencies()
       )
     ).rejects.toThrow("Invalid pixKey or receiverTaxId.");
+  });
+
+  it("reports only Avenia's 400 as a bad Pix key and lets other lookup failures through as provider failures", async () => {
+    const rejectionFor = async (status: number) => {
+      const failure = new BrlaApiError({ endpoint: "/pix-info", method: "GET", responseBody: "omitted", status });
+      const aveniaApi = {
+        ...dependencies().aveniaApi,
+        validatePixKey: async () => {
+          throw failure;
+        }
+      } as AveniaRegistrationDependencies["aveniaApi"];
+      const rejection = await validateAveniaOfframpRecipient(
+        "12345678901",
+        "client-pix-key",
+        "123.456.789-00",
+        "499.25",
+        dependencies({ aveniaApi })
+      ).catch(error => error);
+      return { failure, rejection };
+    };
+
+    const badKey = await rejectionFor(400);
+    expect(badKey.rejection).toMatchObject({ message: "Invalid pixKey or receiverTaxId.", status: 400 });
+
+    // Quota used up: temporary, and not a problem with the key or the account.
+    const quota = await rejectionFor(429);
+    expect(quota.rejection).toMatchObject({
+      isPublic: true,
+      message: "The payment provider is temporarily unavailable. Please try again shortly.",
+      status: 502
+    });
+
+    // Timeout, unknown sub-account and outage reach the register route's provider-failure mapping untouched.
+    for (const status of [0, 404, 503]) {
+      const { failure, rejection } = await rejectionFor(status);
+      expect(rejection).toBe(failure);
+    }
   });
 
   it("keeps the Pix key and both tax IDs out of the logs on every recipient rejection", async () => {
