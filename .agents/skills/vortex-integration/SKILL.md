@@ -209,7 +209,7 @@ The user holds crypto on an EVM chain and wants to receive BRL via PIX. Unlike o
 
 ## Prerequisites
 - Fresh quote with `rampType: SELL`, `to: "pix"`, `outputCurrency: FiatToken.BRL`.
-- `pixDestination` — recipient's PIX key (validate via `GET /v1/brla/validatePixKey` if uncertain).
+- `pixDestination` — recipient's PIX key. Registration validates it and checks that its owner matches the recipient's tax ID.
 - `walletAddress` — the user's source wallet address.
 - Optional: `receiverTaxId` — CPF/CNPJ of the PIX recipient when paying out to someone other than the user. `taxId` is **deprecated** (derived from the authenticated key).
 
@@ -245,7 +245,7 @@ Same three-step pattern: `POST /v1/ramp/register` → user signs → `POST /v1/r
 
 ## Common failures
 - Missing `pixDestination` → `400 "pixDestination is required for offramp to BRL"`. Missing `walletAddress` → `400 "User address must be provided for offramping."` (The SDK's `MissingBrlOfframpParametersError` maps only the legacy `"receiverTaxId, pixDestination and taxId..."` message and will not fire for these; treat the raw 400 message as authoritative.)
-- `InvalidPixKeyError` — PIX key format invalid or unreachable. Validate beforehand with `GET /v1/brla/validatePixKey`.
+- `InvalidPixKeyError` (`400 "Invalid pixKey or receiverTaxId."`) — registration could not resolve the PIX key, or its owner does not match `receiverTaxId` (or the user's tax ID). Ask the user to check the key, then register again with a fresh quote if it expired.
 - `InvalidPresignedTxsError` on `updateRamp` — hash format wrong, or the on-chain tx does not match the unsigned tx that was issued. Re-sign exactly what `getUserTransactions` returned.
 - `NoPresignedTransactionsError` on `startRamp` — `updateRamp` was not called or did not include the required hashes.
 - `RampNotUpdatableError` — ramp already started or terminal; restart from `createQuote`.
@@ -768,7 +768,7 @@ Include this payload (with secrets redacted) in any support ticket.
 | `AmountExceedsLimitError` | Above KYC tier | Lower amount or upgrade KYC |
 | `InsufficientBalanceError` | Default `"prefunded"` offramp pre-flight: source wallet balance below the quoted input | Top up the wallet or lower the amount, then re-register from a fresh quote. Register-then-fund integrations may configure `offrampFundingMode: "deferred"`, then fund before submitting user transactions and starting. |
 | `EphemeralNotFreshError` / `EphemeralFreshnessCheckError` | Generated ephemeral account was not fresh, or freshness could not be verified | Safe to retry `registerRamp` — the SDK generates new ephemerals each attempt |
-| `InvalidPixKeyError` | Bad recipient PIX key | Validate via `GET /v1/brla/validatePixKey`, then re-register |
+| `InvalidPixKeyError` | Registration could not resolve the recipient PIX key, or its owner does not match `receiverTaxId` | Ask the user to correct the key, then re-register |
 | `InvalidPresignedTxsError` | Submitted signed tx does not match the issued unsigned tx (chainId, nonce, gas, recipient, or value mismatch) | Re-sign exactly what `getUserTransactions` returned; do not reuse old signatures |
 | `NoPresignedTransactionsError` | `startRamp` called before `updateRamp` | Submit the required hashes via `updateRamp` first |
 | `TimeWindowExceededError` | Too long between `registerRamp` and `startRamp` | Restart the flow from `createQuote` |
