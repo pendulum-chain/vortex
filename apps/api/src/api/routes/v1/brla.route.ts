@@ -18,8 +18,9 @@ const router: Router = Router({ mergeParams: true });
 // for combining middleware with narrowly-typed handlers. Runtime query validation is in each controller.
 //
 // /getUser, /getUserRemainingLimit, and /validatePixKey use optionalPartnerOrUserAuth so that SDK
-// clients without API keys can drive a BRL ramp pre-flight against fully-anonymous quotes. The
-// controllers themselves apply ownership scoping using `getEffectiveUserId`;
+// clients without API keys can drive a BRL ramp pre-flight against fully-anonymous quotes. (Only older
+// SDK versions call /validatePixKey in that pre-flight.) The controllers themselves apply ownership
+// scoping using `getEffectiveUserId`;
 router.get(
   "/getUser",
   optionalPartnerOrUserAuth(),
