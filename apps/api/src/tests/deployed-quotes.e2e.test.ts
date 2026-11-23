@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { QuoteError } from "@vortexfi/shared";
 
 const apiBaseUrls = (process.env.VORTEX_QUOTE_SMOKE_URLS ?? "")
   .split(",")
@@ -65,6 +66,11 @@ describe.skipIf(apiBaseUrls.length === 0)("deployed quote API", () => {
         const responseText = await response.text();
 
         if (response.status !== 201) {
+          // Pool liquidity is an operational state, not a deployment regression: report it without failing.
+          if (responseText.includes(QuoteError.LowLiquidity)) {
+            console.warn(`[quote-smoke] ${quoteCase.direction} on ${apiBaseUrl} inconclusive: ${responseText}`);
+            return;
+          }
           throw new Error(
             `${quoteCase.direction} quote failed on ${apiBaseUrl}: HTTP ${response.status} ${responseText}`,
           );
