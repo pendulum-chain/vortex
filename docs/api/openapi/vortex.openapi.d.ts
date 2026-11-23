@@ -2206,6 +2206,7 @@ export interface components {
         BrGetSelfieLivenessUrlResponse: {
             id: string;
             livenessUrl: string;
+            /** @description Present only when the identity-verification provider returns one. Clients do not need it: open `livenessUrl` to run the liveness check. */
             validateLivenessToken?: string;
         };
         BrImportKycTokenErrorResponse: {
@@ -2847,6 +2848,7 @@ export interface components {
             id: string;
             /** Format: uri */
             livenessUrl: string;
+            /** @description Present only when the identity-verification provider returns one. Clients do not need it: open `livenessUrl` to run the liveness check. */
             validateLivenessToken?: string;
         };
         MalformedJsonErrorResponse: {

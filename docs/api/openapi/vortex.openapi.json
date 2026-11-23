@@ -344,6 +344,7 @@
             "type": "string"
           },
           "validateLivenessToken": {
+            "description": "Present only when the identity-verification provider returns one. Clients do not need it: open `livenessUrl` to run the liveness check.",
             "type": "string"
           }
         },
@@ -2328,6 +2329,7 @@
             "type": "string"
           },
           "validateLivenessToken": {
+            "description": "Present only when the identity-verification provider returns one. Clients do not need it: open `livenessUrl` to run the liveness check.",
             "type": "string"
           }
         },
