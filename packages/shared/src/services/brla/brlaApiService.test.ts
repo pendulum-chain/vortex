@@ -225,6 +225,18 @@ describe("BrlaApiService.validatePixKey", () => {
       "pixKey=pix%2Bkey%40example.com&decodePixKey=true"
     ]);
   });
+
+  test("charges the lookup to the given sub-account, which the key's text cannot override", async () => {
+    const { sendRequest, service } = serviceWithMockedRequest();
+
+    await service.validatePixKey("key&subAccountId=other#x", "sub account");
+
+    expect(sendRequest.mock.calls[0]).toEqual([
+      Endpoint.PixInfo,
+      "GET",
+      "pixKey=key%26subAccountId%3Dother%23x&decodePixKey=true&subAccountId=sub%20account"
+    ]);
+  });
 });
 
 describe("BrlaApiService.getAveniaPublicKey", () => {
