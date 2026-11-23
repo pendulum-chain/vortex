@@ -1,5 +1,6 @@
-import { describe, expect, it } from "bun:test";
-import { BrlaCurrency, type Limit, RampDirection } from "@vortexfi/shared";
+import { describe, expect, it, spyOn } from "bun:test";
+import { BrlaApiError, BrlaCurrency, type Limit, RampDirection } from "@vortexfi/shared";
+import logger from "../../../../../config/logger";
 import {
   type AveniaRegistrationDependencies,
   createAveniaOnrampTicket,
@@ -115,18 +116,24 @@ describe("Avenia block registration", () => {
   });
 
   it("accepts a matching masked recipient and returns only the provider-trusted wallet and code", async () => {
-    const result = await validateAveniaOfframpRecipient(
-      "12345678901",
-      "client-pix-key",
-      "123.456.789-00",
-      "499.25",
-      dependencies()
-    );
+    const lookups: unknown[][] = [];
+    const deps = dependencies();
+    deps.aveniaApi = {
+      ...deps.aveniaApi,
+      validatePixKey: async (...args: unknown[]) => {
+        lookups.push(args);
+        return { taxId: "***456789**" } as never;
+      }
+    } as AveniaRegistrationDependencies["aveniaApi"];
+
+    const result = await validateAveniaOfframpRecipient("12345678901", "client-pix-key", "123.456.789-00", "499.25", deps);
 
     expect(result).toEqual({
       brCode: "trusted-code",
       wallets: { evm: "0x1111111111111111111111111111111111111111" }
     });
+    // The DICT lookup runs under the user's own sub-account, not the main account.
+    expect(lookups).toEqual([["client-pix-key", "subaccount-1"]]);
   });
 
   it("returns one generic error when the masked PIX owner does not match", async () => {
@@ -139,5 +146,72 @@ describe("Avenia block registration", () => {
         dependencies()
       )
     ).rejects.toThrow("Invalid pixKey or receiverTaxId.");
+  });
+
+  it("reports only Avenia's 400 as a bad Pix key and lets other lookup failures through as provider failures", async () => {
+    const rejectionFor = async (status: number) => {
+      const failure = new BrlaApiError({ endpoint: "/pix-info", method: "GET", responseBody: "omitted", status });
+      const aveniaApi = {
+        ...dependencies().aveniaApi,
+        validatePixKey: async () => {
+          throw failure;
+        }
+      } as AveniaRegistrationDependencies["aveniaApi"];
+      const rejection = await validateAveniaOfframpRecipient(
+        "12345678901",
+        "client-pix-key",
+        "123.456.789-00",
+        "499.25",
+        dependencies({ aveniaApi })
+      ).catch(error => error);
+      return { failure, rejection };
+    };
+
+    const badKey = await rejectionFor(400);
+    expect(badKey.rejection).toMatchObject({ message: "Invalid pixKey or receiverTaxId.", status: 400 });
+
+    // Quota used up: temporary, and not a problem with the key or the account.
+    const quota = await rejectionFor(429);
+    expect(quota.rejection).toMatchObject({
+      isPublic: true,
+      message: "The payment provider is temporarily unavailable. Please try again shortly.",
+      status: 502
+    });
+
+    // Timeout, unknown sub-account and outage reach the register route's provider-failure mapping untouched.
+    for (const status of [0, 404, 503]) {
+      const { failure, rejection } = await rejectionFor(status);
+      expect(rejection).toBe(failure);
+    }
+  });
+
+  it("keeps the Pix key and both tax IDs out of the logs on every recipient rejection", async () => {
+    const pixKey = "client-pix-key";
+    const failingLookup = {
+      ...dependencies().aveniaApi,
+      validatePixKey: async () => {
+        throw new Error("Request failed with status '400'.");
+      }
+    } as AveniaRegistrationDependencies["aveniaApi"];
+    const warn = spyOn(logger, "warn");
+    try {
+      for (const [receiverTaxId, deps] of [
+        ["123.456.789-00", dependencies({ aveniaApi: failingLookup })], // lookup fails
+        ["12.345.678/0001-90", dependencies()], // CNPJ against a masked CPF: not comparable
+        ["123.456.780-00", dependencies()] // masked owner does not match
+      ] as const) {
+        await expect(validateAveniaOfframpRecipient("12345678901", pixKey, receiverTaxId, "499.25", deps)).rejects.toThrow(
+          "Invalid pixKey or receiverTaxId."
+        );
+      }
+
+      const logged = warn.mock.calls.map(call => call.map(String).join(" ")).join("\n");
+      expect(warn).toHaveBeenCalledTimes(3);
+      for (const secret of [pixKey, "456789", "12345678000190", "12345678000"]) {
+        expect(logged).not.toContain(secret);
+      }
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

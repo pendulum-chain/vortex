@@ -1,5 +1,6 @@
 import {
   AveniaPaymentMethod,
+  BrlaApiError,
   BrlaApiService,
   BrlaCurrency,
   FiatToken,
@@ -170,15 +171,27 @@ export async function validateAveniaOfframpRecipient(
     throw new APIError({ message: "Failed to fetch subaccount limits", status: httpStatus.INTERNAL_SERVER_ERROR });
   }
 
+  // These warnings name the failed check only; they must not include the Pix key or either tax ID.
   let pixKeyData;
   try {
-    pixKeyData = await dependencies.aveniaApi.validatePixKey(pixKey);
+    // Resolved under the user's sub-account, so the DICT lookup draws on its quota rather than the main account's.
+    pixKeyData = await dependencies.aveniaApi.validatePixKey(pixKey, subAccountId);
   } catch (error) {
     logger.warn(
-      `validateAveniaOfframpRecipient: pix-info lookup failed for pixKey=${pixKey}: ${
-        error instanceof Error ? error.message : String(error)
-      }`
+      `validateAveniaOfframpRecipient: pix-info lookup failed: ${error instanceof Error ? error.message : String(error)}`
     );
+    // Avenia answers 400 for a malformed or unknown key; any other status says nothing about the key.
+    if (error instanceof BrlaApiError && error.status !== httpStatus.BAD_REQUEST) {
+      // mapProviderFailure reports a provider 4xx as an account problem, but a 429 only means the lookup quota is used up.
+      if (error.status === httpStatus.TOO_MANY_REQUESTS) {
+        throw new APIError({
+          isPublic: true,
+          message: "The payment provider is temporarily unavailable. Please try again shortly.",
+          status: httpStatus.BAD_GATEWAY
+        });
+      }
+      throw error;
+    }
     throw new APIError({ message: "Invalid pixKey or receiverTaxId.", status: httpStatus.BAD_REQUEST });
   }
 
@@ -187,7 +200,7 @@ export async function validateAveniaOfframpRecipient(
     masksMatch = validateMaskedNumber(pixKeyData.taxId, normalizeTaxId(receiverTaxId));
   } catch (error) {
     logger.warn(
-      `validateAveniaOfframpRecipient: pix key owner taxId is not comparable to receiverTaxId. masked=${pixKeyData.taxId}, provided=${normalizeTaxId(receiverTaxId)}: ${
+      `validateAveniaOfframpRecipient: pix key owner taxId is not comparable to receiverTaxId: ${
         error instanceof Error ? error.message : String(error)
       }`
     );
@@ -195,9 +208,7 @@ export async function validateAveniaOfframpRecipient(
   }
 
   if (!masksMatch) {
-    logger.warn(
-      `validateAveniaOfframpRecipient: pix key owner taxId does not match receiverTaxId. masked=${pixKeyData.taxId}, provided=${normalizeTaxId(receiverTaxId)}`
-    );
+    logger.warn("validateAveniaOfframpRecipient: pix key owner taxId does not match receiverTaxId");
     throw new APIError({ message: "Invalid pixKey or receiverTaxId.", status: httpStatus.BAD_REQUEST });
   }
 

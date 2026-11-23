@@ -259,8 +259,13 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.GetSubaccount, "POST", undefined, payload);
   }
 
-  public async validatePixKey(pixKey: string): Promise<PixKeyData> {
-    const query = `pixKey=${pixKey}&decodePixKey=true`;
+  /**
+   * Resolves a Pix key through Avenia's DICT lookup. Avenia charges each lookup to the DICT quota of
+   * `subAccountId` when given, otherwise to the main account's quota.
+   */
+  public async validatePixKey(pixKey: string, subAccountId?: string): Promise<PixKeyData> {
+    const subAccount = subAccountId ? `&subAccountId=${encodeURIComponent(subAccountId)}` : "";
+    const query = `pixKey=${encodeURIComponent(pixKey)}&decodePixKey=true${subAccount}`;
     return await this.sendRequest(Endpoint.PixInfo, "GET", query);
   }
 
