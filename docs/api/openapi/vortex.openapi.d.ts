@@ -2206,7 +2206,7 @@ export interface components {
         BrGetSelfieLivenessUrlResponse: {
             id: string;
             livenessUrl: string;
-            validateLivenessToken: string;
+            validateLivenessToken?: string;
         };
         BrImportKycTokenErrorResponse: {
             /**
@@ -2847,7 +2847,7 @@ export interface components {
             id: string;
             /** Format: uri */
             livenessUrl: string;
-            validateLivenessToken: string;
+            validateLivenessToken?: string;
         };
         MalformedJsonErrorResponse: {
             /** @constant */

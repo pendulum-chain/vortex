@@ -347,7 +347,7 @@
             "type": "string"
           }
         },
-        "required": ["id", "livenessUrl", "validateLivenessToken"],
+        "required": ["id", "livenessUrl"],
         "type": "object"
       },
       "BrImportKycTokenErrorResponse": {
@@ -2331,7 +2331,7 @@
             "type": "string"
           }
         },
-        "required": ["id", "livenessUrl", "validateLivenessToken"],
+        "required": ["id", "livenessUrl"],
         "type": "object"
       },
       "MalformedJsonErrorResponse": {
