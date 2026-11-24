@@ -5,7 +5,7 @@
 The API server holds several private keys used for platform operations. These are distinct from ephemeral keys (which are client-side). Server keys are used for:
 
 1. **Pendulum funding** — `PENDULUM_FUNDING_SEED`: Seed phrase for the Pendulum account that funds ephemeral Substrate accounts with native PEN tokens for transaction fees.
-2. **Legacy-named EVM compatibility key** — `MOONBEAM_EXECUTOR_PRIVATE_KEY`: retained as a configuration fallback for general EVM account derivation and local status-address output. Moonbeam transaction execution, subsidization, and XCM are runtime-disabled.
+2. **Legacy-named EVM compatibility key** — `MOONBEAM_EXECUTOR_PRIVATE_KEY`: retained as a configuration fallback for general EVM account derivation. Moonbeam transaction execution, subsidization, and XCM are runtime-disabled.
 3. **Webhook signing** — `WEBHOOK_PRIVATE_KEY`: RSA private key (PEM format) used to sign webhook payloads with RSA-PSS + SHA-256. If missing, the `CryptoService` generates an ephemeral RSA keypair at startup (non-persistent).
 
 All keys are loaded from environment variables. There is no HSM, secrets manager, or rotation mechanism. The Stellar funding key (`FUNDING_SECRET`) no longer exists — Stellar/Spacewalk support was removed (migration 028).

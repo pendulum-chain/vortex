@@ -10921,7 +10921,6 @@ POST /v1/session/create
 GET /v1/siwe/check
 POST /v1/siwe/create
 POST /v1/siwe/validate
-GET /v1/status
 POST /v1/storage/create
 GET /v1/supported-countries
 GET /v1/supported-cryptocurrencies
