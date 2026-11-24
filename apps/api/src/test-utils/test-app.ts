@@ -2,7 +2,7 @@ import type { Server } from "node:http";
 
 export interface TestApp {
   baseUrl: string;
-  /** fetch against the in-process API, e.g. api.request("/v1/status") */
+  /** fetch against the in-process API, e.g. api.request("/v1/supported-countries") */
   request(path: string, init?: RequestInit): Promise<Response>;
   close(): Promise<void>;
 }

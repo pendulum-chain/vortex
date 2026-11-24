@@ -14,7 +14,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 |---|---|---|
 | `FUNDING_SECRET` | **Removed/obsolete** — was the Stellar funding account keypair; Stellar/Spacewalk support was removed (migration 028). Unset in deployments; no code reads it. | None (obsolete) |
 | `PENDULUM_FUNDING_SEED` | Pendulum funding account seed | Drain of Pendulum funding pool — affects all subsidization |
-| `MOONBEAM_EXECUTOR_PRIVATE_KEY` | Historical name retained as a compatibility fallback for general EVM funding/account derivation and local status-address output; runtime Moonbeam execution is disabled | Drain of the active EVM funding pool and exposure of any unreconciled balance at the derived historical Moonbeam address |
+| `MOONBEAM_EXECUTOR_PRIVATE_KEY` | Historical name retained as a compatibility fallback for general EVM funding/account derivation; runtime Moonbeam execution is disabled | Drain of the active EVM funding pool and exposure of any unreconciled balance at the derived historical Moonbeam address |
 | `MOONBEAM_FUNDING_PRIVATE_KEY` | Legacy-named compatibility fallback for EVM subsidization transfers on active EVM chains; BRLA payouts and fee distribution on Base | Drain of the EVM funding pool on active chains plus any unreconciled historical address balance |
 | `ADMIN_SECRET` | Admin endpoint bearer token | Full admin access — can modify ramps, trigger operations |
 | `METRICS_DASHBOARD_SECRET` | Read-only observability API bearer token | Read-only access to sanitized API client event data |
