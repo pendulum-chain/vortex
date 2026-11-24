@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import { Modal } from "../components/Modal.jsx";
 import { ReserveBalance } from "../components/FeeSummary.jsx";
 import { formatCostAmount } from "../lib/fee-summary.js";
@@ -8,8 +7,8 @@ import { Notice } from "../components/ui.jsx";
 import { errorMessage } from "./parts.jsx";
 import { formatTokensEn, formatUsdc } from "../lib/international.js";
 import { formatTokenAmount } from "../lib/token.js";
-import { BASE_USDC } from "../lib/vortex-stocks.js";
 import { decimalRaw, usdcPriceChanged } from "../lib/live-usdc.js";
+import { CheckoutRoute, UsdcFunding } from "./UsdcFunding.jsx";
 
 // Funding stays in the user's Base wallet. A fresh review and explicit confirmation precede every
 // new permit. Reopening an already registered operation reuses its durable checkpoints.
@@ -23,10 +22,16 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   const [step, setStep] = useState(resume ? "resume" : draft ? "funding" : "amount");
   const [quote, setQuote] = useState(draft?.quote ?? null), [ramp, setRamp] = useState(null);
   const [balance, setBalance] = useState(null), [accepted, setAccepted] = useState(false);
+  const [balanceUnavailable, setBalanceUnavailable] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const [sender, setSender] = useState(null), [connecting, setConnecting] = useState(false);
+  const [transfer, setTransfer] = useState(() => api.walletFunding?.pending(owner) || null);
+  const funding = api.walletFunding;
   const [email, setEmail] = useState(auth.user?.email ?? ""), [code, setCode] = useState(""), [sent, setSent] = useState(false);
   const [returnStep, setReturnStep] = useState(resume ? "resume" : "amount");
   const lock = useRef(false), finished = useRef(false), alive = useRef(true);
+  const currentOwner = useRef(owner);
+  currentOwner.current = owner;
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const sessionReady = () => runtime.verification.hasSession({ email, privyDid: auth.user?.privyDid });
   const errorText = e => {
@@ -55,8 +60,22 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   });
   useEffect(() => {
     if (!api.enabled || step !== "funding") return;
-    let current = true;
-    const update = () => api.refreshBalance(owner).then(v => { if (current) setBalance(v); }).catch(() => { if (current) { setBalance(null); setError(t("The Base balance is unavailable. Wait before sending more funds.", "Não foi possível consultar o saldo na Base. Aguarde antes de enviar mais fundos.")); } });
+    let current = true, polling = false;
+    const update = async () => {
+      if (polling || lock.current) return;
+      polling = true;
+      try {
+        const value = await api.refreshBalance(owner);
+        const status = await funding?.check(owner).catch(() => null);
+        if (!current || lock.current) return;
+        setBalance(value);
+        setBalanceUnavailable(false);
+        setTransfer(funding?.pending(owner) || null);
+        if (status === "reverted") setError(t("The transfer failed on Base. Check your wallet and try again.", "O envio falhou na rede Base. Confira sua carteira e tente novamente."));
+      } catch {
+        if (current && !lock.current) { setBalance(null); setBalanceUnavailable(true); }
+      } finally { polling = false; }
+    };
     update(); const timer = setInterval(update, 5000); return () => { current = false; clearInterval(timer); };
   }, [step, api, owner]);
   useEffect(() => {
@@ -85,12 +104,16 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
     setStep("processing");
   }
   const confirm = () => run(async () => {
-    if (!accepted || !quote) return;
+    if (!quote) return;
     if (!sessionReady()) { setReturnStep("review"); setStep("otp"); return; }
     const confirmed = await api.refreshBalance(owner); setBalance(confirmed);
     if (direction === "BUY" && confirmed < decimalRaw(quote.rawQuote.inputAmount)) {
       runtime.fundingIntents.save(owner, { symbol: token.symbol, direction, amount, quote, expiresAt: Date.now() + 30 * 60_000 });
       setStep("funding"); return;
+    }
+    if (!accepted) {
+      setNotice(t("Your balance is ready. Review and approve the purchase to continue.", "Seu saldo está disponível. Revise e aprove a compra para continuar."));
+      return;
     }
     if (quote.expiresAt - Date.now() < 15000) { await freshQuote(); setNotice(t("Quote refreshed. Review and confirm again.", "Cotação atualizada. Revise e confirme novamente.")); return; }
     const wallet = await runtime.walletSeam(auth, direction === "BUY" ? runtime.baseChain : undefined);
@@ -107,51 +130,74 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   });
   const required = quote && direction === "BUY" ? decimalRaw(quote.rawQuote.inputAmount) : 0n;
   const remaining = balance == null ? null : required > balance ? required - balance : 0n;
+  const needsFunds = direction === "BUY" && (remaining == null || remaining > 0n);
+  const connect = () => run(async () => {
+    setConnecting(true);
+    try { setSender(await auth.connectFundingWallet(t("Choose the wallet that holds your Base USDC.", "Escolha a carteira onde você tem USDC na Base."))); }
+    catch { setError(t("Wallet connection cancelled. Try again or use a manual transfer.", "Conexão cancelada. Tente de novo ou envie manualmente.")); }
+    finally { setConnecting(false); }
+  });
+  const send = () => run(async () => {
+    try {
+      await funding.send({ owner, wallet: sender, shortfall: remaining, required, isCurrent: () => alive.current && currentOwner.current === owner });
+    } catch (e) {
+      const message = {
+        4001: t("Transfer cancelled in your wallet. You can try again.", "Envio cancelado na carteira. Você pode tentar novamente."),
+        WRONG_ACCOUNT: t("Select a different sending wallet on Base.", "Selecione outra carteira de origem na rede Base."),
+        SENDER_BALANCE: t("This wallet doesn’t have enough USDC on Base.", "Esta carteira não tem USDC suficiente na rede Base."),
+        FUNDING_BALANCE_CHANGED: t("Your balance is updating. Check the amount before sending.", "Seu saldo está sendo atualizado. Confira o valor antes de enviar."),
+        TRANSFER_PENDING: t("A transfer is already being checked. Check your wallet activity.", "Já há um envio em verificação. Confira o histórico da sua carteira."),
+      }[e?.code];
+      setError(message || t("Check your wallet activity before retrying the transfer.", "Confira o histórico da sua carteira antes de tentar outro envio."));
+    } finally { setTransfer(funding.pending(owner)); }
+  });
   const out = q => q.direction === "BUY" ? `${(pt ? formatTokenAmount(q.tokenAmount) : formatTokensEn(q.tokenAmount))} ${token.symbol}` : money(q.usdcAmount, 6);
-  return <Modal title={`${direction === "BUY" ? t("Buy", "Comprar") : t("Sell", "Vender")} ${token.symbol} · USDC`} lang={pt ? "pt-BR" : "en"} closeLabel={t("Close", "Fechar")} onClose={onClose} closeDisabled={busy} wide stepKey={step}>
-    <div className="flow-section">
+  return <Modal title={`${direction === "BUY" ? t("Buy", "Comprar") : t("Sell", "Vender")} ${token.symbol} · USDC`} lang={pt ? "pt-BR" : "en"} closeLabel={t("Close", "Fechar")} onClose={onClose} closeDisabled={busy} variant="checkout" suspended={connecting} stepKey={step}>
+    <div className="flow-section checkout">
       {!api.enabled && !resume && !ramp ? <Notice title={t("USDC is coming soon", "USDC em breve")}>{t("Base USDC funding is being enabled. No payment or signature is requested.", "Estamos preparando o pagamento com USDC na Base. Nenhum pagamento ou assinatura será solicitado.")}</Notice> : <>
-        <p className="eyebrow">{t("Native USDC on Base · Direct Relay + Uniswap", "USDC nativo na Base · Relay + Uniswap direto")}</p>
-        {notice && <Notice tone="info">{notice}</Notice>}
+        {step === "amount" && <CheckoutRoute direction={direction} symbol={token.symbol} />}
+        {notice && step === "review" && <Notice tone="info">{notice}</Notice>}
         {step === "otp" && <>
           <h3>{t("Verify your email", "Confirme seu e-mail")}</h3><p>{t("Use the code sent by Vortex to link this order to your account.", "Use o código enviado pela Vortex para vincular esta operação à sua conta.")}</p>
-          <label className="field-label" htmlFor="usdc-email">E-mail</label><input className="input" id="usdc-email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
+          <label className="field-label" htmlFor="usdc-email">E-mail</label><input className="text-input" id="usdc-email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
           <button className="btn btn--secondary btn--full" disabled={busy} onClick={() => run(async () => { await runtime.verification.requestOtp(email); setSent(true); })}>{t("Send code", "Enviar código")}</button>
-          {sent && <><label className="field-label" htmlFor="usdc-code">{t("Email code", "Código do e-mail")}</label><input className="input" id="usdc-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value)} /><button className="btn btn--primary btn--full" disabled={busy} onClick={() => run(async () => { await runtime.verification.verifyOtp(email, code, { privyDid: auth.user?.privyDid }); setStep(returnStep); })}>{t("Verify", "Confirmar")}</button></>}
+          {sent && <><label className="field-label" htmlFor="usdc-code">{t("Email code", "Código do e-mail")}</label><input className="text-input" id="usdc-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value)} /><button className="btn btn--primary btn--full" disabled={busy} onClick={() => run(async () => { await runtime.verification.verifyOtp(email, code, { privyDid: auth.user?.privyDid }); setStep(returnStep); })}>{t("Verify", "Confirmar")}</button></>}
         </>}
         {step === "amount" && <>
           <label className="field-label" htmlFor="live-usdc-amount">{direction === "BUY" ? t("How much would you like to invest?", "Quanto você quer investir?") : t("How many tokens would you like to sell?", "Quantos tokens você quer vender?")}</label>
-          <div className="amount-input"><input id="live-usdc-amount" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value.replace(",", "."))} /><span>{direction === "BUY" ? "USDC" : token.symbol}</span></div>
-          {direction === "BUY" && <div className="quick-values">{[25,100,250,1000].map(n => <button key={n} onClick={() => setAmount(String(n))}>{n} USDC</button>)}</div>}
-          <button className="btn btn--primary btn--full btn--lg" disabled={busy} onClick={prepare}>{t("Get quote", "Ver cotação")}</button>
-          <p className="hint">{t("Minimum order: 10 USDC. You receive a Stock Token, not the underlying share. Bank payments are planned.", "Mínimo de 10 USDC. Você recebe um token de ação, não a ação. O Pix continua disponível como outra forma de pagamento.")}</p>
+          <div className="amount-input checkout-input"><input id="live-usdc-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={e => setAmount(e.target.value.replace(",", "."))} /><span>{direction === "BUY" ? "USDC" : token.symbol}</span></div>
+          {direction === "BUY" && <div className="quick-values checkout-presets">{[25,100,250].map(n => <button key={n} aria-pressed={amount === String(n)} onClick={() => setAmount(String(n))}>{n} USDC</button>)}</div>}
+          <button className="btn btn--primary btn--full btn--lg" disabled={busy} onClick={prepare}>{busy ? t("Getting quote…", "Buscando cotação…") : t("Get quote", "Ver cotação")}</button>
+          {direction === "BUY" && <p className="checkout-hint">{t("Minimum 10 USDC. You’ll receive a Stock Token that tracks the share price.", "Mínimo de 10 USDC. Você recebe um token que acompanha o preço da ação.")}</p>}
         </>}
         {step === "review" && quote && <>
           <div className="fee-card">
-            <dl className="breakdown"><div><dt>{direction === "BUY" ? t("You pay", "Você paga") : t("You sell", "Você vende")}</dt><dd>{direction === "BUY" ? formatCostAmount(quote.usdcAmount, "USDC", runtime.locale) : `${(pt ? formatTokenAmount(quote.tokenAmount) : formatTokensEn(quote.tokenAmount))} ${token.symbol}`}</dd></div></dl>
+            <dl className="checkout-quote-amounts">
+              <div><dt>{direction === "BUY" ? t("You pay", "Você paga") : t("You sell", "Você vende")}</dt>
+                <dd>{direction === "BUY" ? formatCostAmount(quote.usdcAmount, "USDC", runtime.locale) : `${(pt ? formatTokenAmount(quote.tokenAmount) : formatTokensEn(quote.tokenAmount))} ${token.symbol}`}
+                  <small>{direction === "BUY" ? "Base" : t("Stock Token", "Token de ação")}</small></dd></div>
+              <div><dt>{t("Estimated receipt", "Recebimento estimado")}</dt><dd>{out(quote)}
+                <small>{direction === "BUY" ? t("Stock Token", "Token de ação") : "Base"}</small></dd></div>
+            </dl>
             <LiveUsdcCosts quote={quote} locale={runtime.locale} />
-            <dl className="breakdown"><div className="is-total"><dt>{t("Estimated receipt", "Recebimento estimado")}</dt><dd>{out(quote)}</dd></div></dl>
           </div>
           <ReserveBalance amount={quote.gasReserve?.brl} currency="USDC" locale={runtime.locale} />
-          <p className="hint">{t("Your wallet signs one exact-amount authorization. Vortex pays execution gas. An exchange or sending wallet can charge separately.", "Sua carteira assina uma autorização do valor exato. A Vortex cobre o gas da execução. A corretora ou carteira de origem pode cobrar à parte.")}</p>
-          <label className="check"><input type="checkbox" checked={accepted} onChange={e => setAccepted(e.target.checked)} /><span>{t("I reviewed the amount, costs and estimated receipt.", "Revisei o valor, os custos e o recebimento estimado.")}</span></label>
-          <button className="btn btn--primary btn--full btn--lg" disabled={busy || !accepted} onClick={confirm}>{direction === "BUY" && balance != null && balance < required ? t("Continue to USDC payment", "Continuar para pagar com USDC") : t("Confirm and authorize", "Confirmar e autorizar")}</button>
-          <button className="back-button" disabled={busy} onClick={prepare}>{t("Refresh quote", "Atualizar cotação")}</button><button className="back-button" disabled={busy} onClick={() => { setQuote(null); setStep("amount"); }}>{t("Change amount", "Alterar valor")}</button>
+          {!needsFunds && <label className="check"><input type="checkbox" checked={accepted} onChange={e => setAccepted(e.target.checked)} /><span>{t("I reviewed the amount, costs and estimated receipt.", "Revisei o valor, os custos e o recebimento estimado.")}</span></label>}
+          <button className="btn btn--primary btn--full btn--lg" disabled={busy || (!needsFunds && !accepted)} onClick={confirm}>
+            {busy ? t("Checking balance…", "Conferindo saldo…") : needsFunds ? t("Add USDC", "Adicionar USDC") : t("Confirm and authorize", "Confirmar e autorizar")}
+          </button>
+          <p className="checkout-hint">{needsFunds
+            ? t("Add USDC first, then review a fresh quote to buy.", "Adicione USDC e depois revise uma nova cotação para comprar.")
+            : t("Your fatia. wallet asks you to authorize this exact amount. Vortex covers execution gas.", "Sua carteira fatia. pede autorização para este valor exato. A Vortex cobre a taxa de execução.")}</p>
+          <div className="checkout-actions"><button className="back-button" disabled={busy} onClick={prepare}>{t("Refresh quote", "Atualizar cotação")}</button><button className="back-button" disabled={busy} onClick={() => { setQuote(null); setAccepted(false); setNotice(""); setStep("amount"); }}>{t("Change amount", "Alterar valor")}</button></div>
         </>}
-        {step === "funding" && quote && <>
-          <h3>{t("Add Base USDC to your wallet", "Envie USDC na Base para sua carteira")}</h3>
-          <Notice tone="warning">{t("Send only native USDC on Base to the address below. Other tokens or networks cannot fund this order.", "Envie apenas USDC nativo na rede Base para o endereço abaixo. Outros tokens ou redes não servem para esta operação.")}</Notice>
-          <div className="qr"><QRCodeSVG value={owner} size={180} title={t("Your wallet address on Base", "Endereço da sua carteira na Base")} /></div>
-          <code className="wallet-address" style={{ overflowWrap: "anywhere" }}>{owner}</code>
-          <button className="btn btn--secondary btn--full" onClick={() => run(async () => { await navigator.clipboard.writeText(owner); setNotice(t("Address copied. Select USDC and the Base network in your sending app.", "Endereço copiado. Selecione USDC e a rede Base no aplicativo de origem.")); })}>{t("Copy wallet address", "Copiar endereço da carteira")}</button>
-          <dl className="breakdown"><div><dt>{t("Confirmed balance", "Saldo confirmado")}</dt><dd>{balance == null ? "—" : money(Number(balance) / 1e6, 6)}</dd></div><div><dt>{t("Still needed", "Falta enviar")}</dt><dd>{remaining == null ? "—" : money(Number(remaining) / 1e6, 6)}</dd></div></dl>
-          <p className="hint">{t("We wait for two Base confirmations. Partial, excess and late deposits stay in your wallet. Funding alone never starts a purchase. Review a fresh quote after funds arrive.", "Aguardamos duas confirmações na Base. Valores parciais, extras ou atrasados ficam na sua carteira. O depósito não inicia uma compra. Revise uma nova cotação após o recebimento.")}</p>
-          <small className="hint">USDC · Base · {BASE_USDC.address}</small>
-          <button className="btn btn--primary btn--full" disabled={busy || remaining !== 0n} onClick={prepare}>{t("Review fresh quote", "Revisar nova cotação")}</button>
-          <button className="back-button" onClick={() => { runtime.fundingIntents.clear(owner); onClose(); }}>{t("Cancel order · keep USDC", "Cancelar pedido · manter USDC")}</button>
-        </>}
+        {step === "funding" && quote && <UsdcFunding owner={owner} balance={balance} remaining={remaining} balanceUnavailable={balanceUnavailable} sender={sender} transfer={transfer}
+          canConnect={Boolean(funding?.supported && auth.connectFundingWallet)} busy={busy} locale={runtime.locale} t={t}
+          onConnect={connect} onSend={send} onReview={prepare} onClose={onClose}
+          onEdit={() => { runtime.fundingIntents.clear(owner); setQuote(null); setAccepted(false); setStep("amount"); }}
+          onAcknowledge={() => run(async () => { await funding.acknowledgeUnsent(owner); setTransfer(funding.pending(owner)); })} />}
         {step === "resume" && <><h3>{t("Continue this order", "Continuar esta operação")}</h3><p>{t("An unfinished order is saved on this device. We check its state before requesting any authorization.", "Esta operação está salva neste aparelho. Conferimos o status antes de solicitar uma autorização.")}</p><button className="btn btn--primary btn--full" disabled={busy} onClick={retry}>{busy ? t("Preparing…", "Preparando…") : t("Resume order", "Retomar operação")}</button></>}
-        {step === "processing" && <div className="result"><span className="spinner" /><h3>{t("Your order is executing", "Sua operação está em andamento")}</h3><p>{direction === "BUY" ? "Relay → Uniswap → Stock Token" : "Uniswap → Relay → Base USDC"}</p><p>{t("You can close this window and resume this same order.", "Você pode fechar esta janela e retomar a mesma operação.")}</p></div>}
+        {step === "processing" && <div className="result" role="status"><span className="spinner" aria-hidden="true" /><h3>{direction === "BUY" ? t("Buying your stock tokens", "Comprando seus tokens de ações") : t("Selling your stock tokens", "Vendendo seus tokens de ações")}</h3><p>{t("Track this order from your activity.", "Acompanhe esta operação no seu histórico.")}</p></div>}
         {step === "success" && <div className="result"><div className="result__seal">✓</div><h3>{direction === "BUY" ? t("Your Stock Tokens have arrived", "Seus tokens chegaram") : t("Your USDC is on Base", "Seu USDC está na Base")}</h3><p className="result__amount">{direction === "SELL" ? money(ramp?.usdcAmount, 6) : `${(pt ? formatTokenAmount(ramp?.tokenAmount ?? "0") : formatTokensEn(ramp?.tokenAmount))} ${token.symbol}`}</p><button className="btn btn--primary btn--full" onClick={onClose}>{t("Done", "Concluir")}</button></div>}
         {step === "issue" && <Notice tone="warning" title={t("This order needs attention", "Esta operação precisa de atenção")}>{t("Do not register another order to recover these funds. Keep the reference below for support.", "Não crie outra operação para recuperar estes fundos. Guarde o código abaixo para o suporte.")}</Notice>}
       </>}

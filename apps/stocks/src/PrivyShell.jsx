@@ -19,5 +19,5 @@ const privyConfig = createPrivyConfig({
 
 const englishConfig = { ...privyConfig, appearance: { ...privyConfig.appearance, landingHeader: "Sign in with Vortex", loginMessage: "Sign in with Google or email. If you use Gold, it is the same account and wallet." } };
 export default function PrivyShell({ appId, onAuthChange, locale = "pt-BR" }) {
-  return <ConsumerPrivyProvider appId={appId} config={locale === "en" ? englishConfig : privyConfig} session={getVortexSession()} onAuthChange={onAuthChange} />;
+  return <ConsumerPrivyProvider appId={appId} config={locale === "en" ? englishConfig : privyConfig} session={getVortexSession()} onAuthChange={onAuthChange} externalWalletFunding={config.usdcEnabled} />;
 }

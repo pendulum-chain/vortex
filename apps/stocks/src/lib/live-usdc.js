@@ -1,6 +1,7 @@
 // Native Base USDC uses the same recovery store, permit policy and SDK as Pix stocks.
 // Incoming transfers go to the user's wallet. Funding alone never authorizes an order.
 import { createVortexStocksAdapter } from "./vortex-stocks.js";
+import { createUsdcWalletFunding } from "./usdc-wallet-funding.js";
 
 export function createLiveUsdc({ config, session, stores, adapterOptions = {} }) {
   const balances = new Map();
@@ -8,7 +9,7 @@ export function createLiveUsdc({ config, session, stores, adapterOptions = {} })
     activeRampStore: stores.activeRamp, ephemeralStore: stores.ephemeral, rpcOverride: config.robinhoodRpcUrl,
     paymentMethod: "usdc", ...adapterOptions });
   return {
-    simulated: false, enabled: Boolean(config.usdcEnabled), adapter,
+    simulated: false, enabled: Boolean(config.usdcEnabled), adapter, walletFunding: createUsdcWalletFunding(adapter),
     balanceRaw: owner => balances.get(owner?.toLowerCase()) ?? 0n,
     async refreshBalance(owner) {
       const value = BigInt(await adapter.readBaseBalance(owner));

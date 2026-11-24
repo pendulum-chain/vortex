@@ -720,15 +720,61 @@ function liveUsdcFixtures(locale = "en") {
   return { props, calls, intents, fund: value => { balance = value; } };
 }
 
-test("live USDC shows the user's Base address, never simulated payments, and no fiat KYC", () => harness(async s => {
+test("live USDC offers a manual transfer fallback without fiat KYC or purchase authorization", () => harness(async s => {
   const f = liveUsdcFixtures();
   await s.render(createElement(LiveUsdcFlow, f.props));await s.click("Get quote");
-  assert.doesNotMatch(s.text(), KYC_FORM);await s.check();await s.click("Continue to USDC payment");
-  assert.match(s.text(), /Add Base USDC/);assert.match(s.text(), new RegExp(WALLET));
-  assert.ok(document.querySelector("svg"));assert.doesNotMatch(s.text(), /Simulate incoming|Simulate wallet|Simulation/);
+  assert.doesNotMatch(s.text(), KYC_FORM);await s.click("Add USDC");
+  assert.match(s.text(), /Amount to add to your fatia/);assert.match(s.text(), new RegExp(WALLET));
+  assert.equal(document.querySelector(".checkout-manual").open, true);
+  assert.equal(document.querySelector(".checkout-qr").open, false);
+  assert.doesNotMatch(s.text(), /Simulate incoming|Simulate wallet|Simulation/);
   assert.equal(f.calls.register,0);assert.equal(f.intents.size,1);
-  assert.equal([...document.querySelectorAll("button")].find(b=>b.textContent==="Review fresh quote").disabled,true);
-  await s.click("Cancel order · keep USDC");assert.equal(f.intents.size,0);assert.equal(f.calls.register,0);
+  assert.equal(s.has("Review fresh quote"), false);
+  await s.click("Change amount");assert.equal(f.intents.size,0);assert.equal(f.calls.register,0);
+}));
+
+test("USDC wallet connection does not send funds; explicit transfer still requires fresh review", () => harness(async s => {
+  const f = liveUsdcFixtures();
+  const sender = { address: "0x00000000000000000000000000000000000000d1" };
+  const transfers = [];
+  let pending = null;
+  f.fund(25_000_000n);
+  f.props.auth.connectFundingWallet = async () => sender;
+  f.props.runtime.usdc.walletFunding = {
+    supported: true,
+    pending: () => pending,
+    check: async () => null,
+    send: async details => {
+      transfers.push(details);
+      pending = { hash: `0x${"1".repeat(64)}` };
+    },
+  };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Get quote");
+  await s.click("Add USDC");
+  assert.equal(document.querySelector(".checkout-manual").open, false);
+  await s.click("Connect wallet");
+  assert.equal(transfers.length, 0);
+  assert.ok(s.has("Transfer USDC"));
+  await s.click("Transfer USDC");
+  assert.equal(transfers.length, 1);
+  assert.equal(transfers[0].owner, WALLET);
+  assert.equal(transfers[0].shortfall, 75_000_000n);
+  assert.equal(transfers[0].wallet.address, sender.address);
+  assert.match(s.text(), /Waiting for Base confirmations/);
+  assert.equal(s.has("Transfer USDC"), false);
+  assert.equal(f.calls.register, 0);
+}));
+
+test("incoming funds reenter the purchase review, with no permit until explicit approval", () => harness(async s => {
+  const f = liveUsdcFixtures();
+  f.fund(100_000_000n);
+  f.intents.set(WALLET, { symbol: "NVDA", direction: "BUY", amount: "100", quote: await f.props.runtime.usdc.adapter.quoteBuy() });
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await untilText(s, /Funding complete/);
+  await s.click("Review fresh quote");
+  assert.equal(f.calls.register, 0);
+  assert.equal([...document.querySelectorAll("button")].find(b => b.textContent === "Confirm and authorize")?.disabled, true);
 }));
 test("a cancelled USDC permit resumes the same registered order instead of registering twice", () => harness(async s => {
   const f = liveUsdcFixtures();f.fund(100000000n);

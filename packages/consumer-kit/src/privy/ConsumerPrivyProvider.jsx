@@ -1,6 +1,6 @@
 // The ONLY kit file that imports react / @privy-io/react-auth. Apps load it in a lazy chunk.
 import { memo, useEffect, useMemo, useRef } from "react";
-import { PrivyProvider, useIdentityToken, usePrivy, useWallets } from "@privy-io/react-auth";
+import { PrivyProvider, useConnectWallet, useIdentityToken, usePrivy, useWallets } from "@privy-io/react-auth";
 import { CONSUMER_LOGIN_METHODS, consumerProfile } from "./config.js";
 import { onLogoutSignal, signalLogout } from "../logout-signal.js";
 
@@ -14,15 +14,34 @@ const LOGIN_METHODS = [...CONSUMER_LOGIN_METHODS.primary, ...CONSUMER_LOGIN_METH
  *   logout:()=>Promise<void>,             // session.clear() + signalLogout() + privy.logout()  (logs out of Gold too)
  *   getEthereumProvider:()=>Promise<import("viem").EIP1193Provider|null>,
  *   switchChain:(chain:import("viem").Chain)=>Promise<void>,
+ *   connectFundingWallet?:(description?:string)=>Promise<import("@privy-io/react-auth").ConnectedWallet>,
  *   getIdentityToken:()=>string|null      // for the later Privy -> Vortex session exchange
  * }} ConsumerAuth
  */
 
-function AuthBridge({ session, onAuthChange }) {
+function AuthBridge({ session, onAuthChange, externalWalletFunding }) {
   const { ready, authenticated, user, login, logout, error } = usePrivy();
   const initError = error ? "AUTH_INITIALIZATION_FAILED" : null;
   const { wallets } = useWallets();
   const { identityToken } = useIdentityToken();
+  const connection = useRef(null);
+  const { connectWallet } = useConnectWallet({
+    onSuccess: ({ wallet }) => {
+      const pending = connection.current;
+      connection.current = null;
+      if (wallet.type === "ethereum" && wallet.walletClientType !== "privy") pending?.resolve(wallet);
+      else pending?.reject(new Error("External Ethereum wallet required"));
+    },
+    onError: () => {
+      const pending = connection.current;
+      connection.current = null;
+      pending?.reject(new Error("Wallet connection cancelled"));
+    },
+  });
+  useEffect(() => () => {
+    connection.current?.reject(new Error("Wallet connection closed"));
+    connection.current = null;
+  }, []);
   const embedded = wallets.find((wallet) => wallet.walletClientType === "privy") ?? null;
   const privyDid = authenticated ? user?.id ?? "" : "";
   const { name, firstName, email } = consumerProfile(user);
@@ -41,8 +60,8 @@ function AuthBridge({ session, onAuthChange }) {
   // only when what it exposes changes (primitives below); the callbacks read the latest Privy
   // values through this ref. Otherwise every parent render lifts a "new" auth through
   // onAuthChange, the parent re-renders, and React stops with "Maximum update depth exceeded".
-  const live = useRef({ authenticated, login, logout, embedded });
-  live.current = { authenticated, login, logout, embedded };
+  const live = useRef({ authenticated, login, logout, embedded, connectWallet });
+  live.current = { authenticated, login, logout, embedded, connectWallet };
 
   // A logout in another tab ends this tab's Vortex session and Privy state too.
   useEffect(() => onLogoutSignal(() => {
@@ -68,7 +87,13 @@ function AuthBridge({ session, onAuthChange }) {
       await live.current.embedded.switchChain(chain.id);
     },
     getIdentityToken: () => identityToken ?? null,
-  }), [ready, authenticated, signedIn, privyDid, name, firstName, email, address, identityToken, session, initError]);
+    ...(externalWalletFunding && { connectFundingWallet: description => new Promise((resolve, reject) => {
+      if (!live.current.authenticated || connection.current) { reject(new Error("Wallet connection unavailable")); return; }
+      connection.current = { resolve, reject };
+      try { live.current.connectWallet({ walletChainType: "ethereum-only", description, walletList: ["detected_ethereum_wallets", "metamask", "coinbase_wallet", "wallet_connect"] }); }
+      catch (error) { connection.current = null; reject(error); }
+    }) }),
+  }), [ready, authenticated, signedIn, privyDid, name, firstName, email, address, identityToken, session, initError, externalWalletFunding]);
 
   useEffect(() => { onAuthChange?.(auth); }, [auth, onAuthChange]);
   return null;
@@ -80,9 +105,9 @@ function AuthBridge({ session, onAuthChange }) {
  * useMemo), `session` and `onAuthChange` (e.g. a useState setter).
  * @param {{ appId:string, config:import("@privy-io/react-auth").PrivyClientConfig,
  *           session:ReturnType<typeof import("../vortex/session.js").createVortexSession>,
- *           onAuthChange:(auth:ConsumerAuth)=>void }} props
+ *           onAuthChange:(auth:ConsumerAuth)=>void, externalWalletFunding?:boolean }} props
  */
-export const ConsumerPrivyProvider = memo(function ConsumerPrivyProvider({ appId, config, session, onAuthChange }) {
+export const ConsumerPrivyProvider = memo(function ConsumerPrivyProvider({ appId, config, session, onAuthChange, externalWalletFunding = false }) {
   // memo: the app re-renders on every lifted auth; the Privy tree must not re-render with it.
-  return <PrivyProvider appId={appId} config={config}><AuthBridge session={session} onAuthChange={onAuthChange} /></PrivyProvider>;
+  return <PrivyProvider appId={appId} config={config}><AuthBridge session={session} onAuthChange={onAuthChange} externalWalletFunding={externalWalletFunding} /></PrivyProvider>;
 });

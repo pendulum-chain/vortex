@@ -7,12 +7,12 @@ import { X } from "./icons.js";
 
 const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex='-1'])";
 
-export function Modal({ title, description, onClose, children, wide = false, closeDisabled = false, headerExtra = null, stepKey = null, closeLabel = "Fechar", lang }) {
+export function Modal({ title, description, onClose, children, wide = false, closeDisabled = false, headerExtra = null, stepKey = null, closeLabel = "Fechar", lang, variant, suspended = false }) {
   const sheetRef = useRef(null);
   const titleId = useId();
   const descriptionId = useId();
-  const live = useRef({ onClose, closeDisabled });
-  live.current = { onClose, closeDisabled };
+  const live = useRef({ onClose, closeDisabled, suspended });
+  live.current = { onClose, closeDisabled, suspended };
 
   useEffect(() => {
     const previous = document.activeElement;
@@ -20,6 +20,7 @@ export function Modal({ title, description, onClose, children, wide = false, clo
     sheet?.focus({ preventScroll: true });
     document.body.classList.add("no-scroll");
     const onKey = (event) => {
+      if (live.current.suspended) return;
       if (event.key === "Escape" && !live.current.closeDisabled) {
         event.preventDefault();
         live.current.onClose();
@@ -41,6 +42,12 @@ export function Modal({ title, description, onClose, children, wide = false, clo
     };
   }, []);
 
+  const wasSuspended = useRef(false);
+  useEffect(() => {
+    if (wasSuspended.current && !suspended) sheetRef.current?.focus({ preventScroll: true });
+    wasSuspended.current = suspended;
+  }, [suspended]);
+
   const shownStep = useRef(stepKey);
   useEffect(() => {
     const sheet = sheetRef.current;
@@ -51,8 +58,8 @@ export function Modal({ title, description, onClose, children, wide = false, clo
   }, [stepKey]);
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !closeDisabled) onClose(); }}>
-      <section ref={sheetRef} lang={lang} className={`sheet${wide ? " sheet--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} tabIndex={-1}>
+    <div className="modal-backdrop" style={suspended ? { display: "none" } : undefined} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !closeDisabled) onClose(); }}>
+      <section ref={sheetRef} lang={lang} className={`sheet${wide ? " sheet--wide" : ""}${variant ? ` sheet--${variant}` : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} tabIndex={-1}>
         <div className="sheet__head">
           <div>
             <h2 className="sheet__title" id={titleId}>{title}</h2>
