@@ -65,8 +65,18 @@ are rechecked immediately before signing; router/native-value requests fail clos
 
 Gold retains its original storage keys and encrypted ephemeral database. Legacy untagged
 records are Ethereum. New records persist Base and their payment method; the per-wallet
-store and registration lock forbid replacement by another rail. Unknown signing outcomes
-retain recovery. Turning off new operations preserves owned Base recovery. Prior Ethereum
+store and registration lock forbid replacement by another rail. A Base order leaves that
+slot, and stays in the history with its code, in three cases only: the API reports it failed;
+it is still `initial` an hour after registration; or it is a permit order whose 15-minute
+start window closed before its permit was signed and accepted, including one whose signing
+outcome is unknown. The last case relies on the API never starting a permit order after its
+start window. A signed order is never released by the window, because the API holds its
+permit: it stays until the hour rule. A started order is never released. A Pix buy released
+by age may still be completed by the API once its payment arrives, so the client tells the
+user not to pay again. Reopening the app never resumes or signs a saved order: the user sees
+what it was and asks to continue. The dashboard shows Base USDC left in the wallet and
+offers Privy's wallet export for the embedded wallet; the client itself sends no USDC.
+Turning off new operations preserves owned Base recovery. Prior Ethereum
 holdings and orders remain separately accessible; no automatic bridge or token conversion
 is performed by this client.
 

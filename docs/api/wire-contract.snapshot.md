@@ -287,7 +287,7 @@ BrGetSelfieLivenessUrlRequest: {
 BrGetSelfieLivenessUrlResponse: {
   id: string;
   livenessUrl: string;
-  validateLivenessToken: string;
+  validateLivenessToken?: string;
 }
 
 BrGetUserRemainingLimitRequest: {
@@ -329,7 +329,7 @@ BrKYCDataUpload: {
   selfieUpload: {
     id: string;
     livenessUrl: string;
-    validateLivenessToken: string;
+    validateLivenessToken?: string;
   };
 }
 

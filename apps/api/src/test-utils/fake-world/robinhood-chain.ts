@@ -10,7 +10,7 @@ import {
 import { moneriumPermitAbi } from "../../api/services/phases/blocks/phases/monerium-self-transfer/contract";
 import { stockSettlementRouterAbi } from "../../api/services/phases/blocks/phases/stock-settlement/contract";
 import { swapRouter02Abi } from "../../api/services/phases/blocks/phases/uniswap-v3-fixed-swap/contract";
-import type { FakeEvm, RecordedEvmTx } from "./fake-evm";
+import { erc20TransferLog, type FakeEvm, type RecordedEvmTx } from "./fake-evm";
 
 type Address = `0x${string}`;
 
@@ -226,7 +226,10 @@ export class TokenLedger {
         return;
       }
       if (this.pull(tx, tokenIn, sender, ROBINHOOD_UNISWAP_SWAP_ROUTER_02, ROBINHOOD_UNISWAP_SWAP_ROUTER_02, amountIn)) {
-        this.credit(tx.network, `0x${path.slice(-40)}`, recipient, amountOut);
+        const tokenOut = `0x${path.slice(-40)}`;
+        this.credit(tx.network, tokenOut, recipient, amountOut);
+        // The pool's payout, as a top-up reads the swap's fill from its receipt.
+        this.evm.receiptLogs.set(tx.hash, [erc20TransferLog(tokenOut, ROBINHOOD_UNISWAP_SWAP_ROUTER_02, recipient, amountOut)]);
       }
       return;
     }

@@ -18,6 +18,7 @@ import {
 import httpStatus from "http-status";
 import { config } from "../../../../../config/vars";
 import { APIError } from "../../../../errors/api-error";
+import { isGoldBaseRoute } from "../core/gold-base";
 import type { FlowIdentity } from "../core/identity";
 import { assertFlowIdentity } from "../core/identity";
 import type { FlowMetadata } from "../core/metadata";
@@ -226,6 +227,8 @@ const flowDefinitions: FlowDefinition[] = [
         network !== undefined &&
         network !== Networks.Robinhood &&
         isNetworkEVM(network) &&
+        // PAXG on Base cannot be swapped through Squid, so only the Gold flows may take it.
+        !isGoldBaseRoute(request) &&
         // Structural only: the flow input resolver rejects symbols unknown to the merged token
         // catalog at quote time. Matching must not depend on live token discovery, because
         // persisted flows are re-resolved at startup, when discovery may have fallen back to
@@ -253,6 +256,7 @@ const flowDefinitions: FlowDefinition[] = [
         network !== undefined &&
         network !== Networks.Robinhood &&
         isNetworkEVM(network) &&
+        !isGoldBaseRoute(request) &&
         isOnChainToken(request.inputCurrency) &&
         !isDormantMoneriumEure(request.inputCurrency)
       );
@@ -414,7 +418,8 @@ const flowDefinitions: FlowDefinition[] = [
         network !== undefined &&
         network !== Networks.Polygon &&
         network !== Networks.Robinhood &&
-        isNetworkEVM(network)
+        isNetworkEVM(network) &&
+        !isGoldBaseRoute(request)
       );
     }
   },

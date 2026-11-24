@@ -19,12 +19,17 @@ import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { getFundingAccount } from "../../../../../controllers/subsidize.controller";
 import { PhaseError } from "../../../../../errors/phase-error";
+import { userDepositPhase } from "../../../../phases/helpers/user-tx-verifier";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { EvmSubsidyTopUpExecutor } from "../../core/evm-subsidy-top-up";
 import { getBlockMetadata } from "../../core/metadata";
-import { STOCK_ROUTE_CONTEXT_KEY } from "../uniswap-v3-fixed-swap/route";
+import { AlfredpayMintContext, type AlfredpayMintMetadata } from "../alfredpay-mint/simulation";
+import { readAveniaMintedAmountRaw } from "../avenia-mint/execution";
+import { AveniaMintContext, type AveniaMintMetadata } from "../avenia-mint/simulation";
+import { EvmOfframpSourceContext, type EvmOfframpSourceMetadata } from "../evm-offramp-source/simulation";
+import { STOCK_ROUTE_CONTEXT_KEY, stockSwapSentOutsideApi } from "../uniswap-v3-fixed-swap/route";
 import { SubsidizePreContext } from "./simulation";
 
 export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
@@ -125,6 +130,18 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
         STOCK_ROUTE_CONTEXT_KEY
       ];
       const isStockSale = stockRoute?.direction === RampDirection.SELL;
+      // A deposit made on this network is the transaction that put the input on the ephemeral, so the top-up is
+      // measured against it. Only the hash fundEphemeral verified against its blueprint is read.
+      const offrampSource = (quote.metadata as { blocks?: Record<string, Partial<EvmOfframpSourceMetadata> | undefined> })
+        .blocks?.[EvmOfframpSourceContext.key];
+      const depositPhase = offrampSource?.fromNetwork === inputNetwork ? userDepositPhase(state) : undefined;
+      const deposit = depositPhase && state.state[`${depositPhase}Hash`];
+      // A provider mint records the amount it delivered instead of a transaction.
+      const blocks = (quote.metadata as { blocks?: Record<string, unknown> }).blocks ?? {};
+      const aveniaMint = blocks[AveniaMintContext.key] as AveniaMintMetadata | undefined;
+      const mintedRaw =
+        (blocks[AlfredpayMintContext.key] as AlfredpayMintMetadata | undefined)?.outputAmountRaw ??
+        (aveniaMint ? await readAveniaMintedAmountRaw(state.id, aveniaMint) : undefined);
       // The swap consumes targetInputAmountRaw; feeReserveRaw (Alfredpay corridors)
       // additionally keeps the later distributeFees transfers funded on the ephemeral.
       const targetRaw = Big(
@@ -134,8 +151,14 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
       );
 
       await this.topUpEvmEphemeral({
+        accountedBy: deposit ? [deposit as `0x${string}`, ...this.presignedFeeTransferHashes(state, inputNetwork)] : undefined,
         assess: currentBalance => ({
           enforceCaps: async maximumTransferAmount => {
+            if (mintedRaw === null) {
+              throw this.createReconciliationRequiredError(
+                "SubsidizePreSwapExecutor: No recorded mint amount to measure the top-up against."
+              );
+            }
             const subsidyDecimal = nativeToDecimal(maximumTransferAmount, metadata.inputDecimals).toString();
             const subsidyUsd = await priceFeedService.convertCurrency(
               subsidyDecimal,
@@ -149,6 +172,11 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
               null,
               quote.network
             );
+            if (isStockSale && stockSwapSentOutsideApi(state.state)) {
+              throw this.createReconciliationRequiredError(
+                "SubsidizePreSwapExecutor: The stock swap was not broadcast by the API, so its shortfall is not topped up."
+              );
+            }
             // The stock is already sold, so a top-up above the absolute ceiling waits for an operator.
             const { saleSubsidyMaxUsd } = config.stocks;
             if (isStockSale && Big(subsidyUsd).gt(saleSubsidyMaxUsd)) {
@@ -169,6 +197,7 @@ export class SubsidizePreSwapExecutor extends EvmSubsidyTopUpExecutor {
           requiredAmountRaw: targetRaw.sub(currentBalance)
         }),
         decimals: metadata.inputDecimals,
+        deliveredRaw: mintedRaw ?? undefined,
         ephemeralAddress: evmEphemeralAddress,
         executorName: "SubsidizePreSwapExecutor",
         label: "pre-swap",

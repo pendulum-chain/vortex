@@ -122,3 +122,66 @@ describe("initializeEvmTokens", () => {
     }
   });
 });
+
+describe("registerEvmToken", () => {
+  const BASE_PAXG = "0xe904AEA5E1b110c9174728fA2efFc8aeD19E98Ef" as const;
+  const basePaxg = { ...staticUsdc, assetSymbol: "PAXG", decimals: 18, erc20AddressSourceChain: BASE_PAXG, network: Networks.Base };
+  const basePaxgAddress = () => tokens.getEvmTokenConfig()[Networks.Base].PAXG?.erc20AddressSourceChain;
+
+  test("a registered token resolves before the list loads, on the static fallback and after Squid loads", async () => {
+    tokens.registerEvmToken(basePaxg);
+    expect(basePaxgAddress()).toBe(BASE_PAXG);
+    expect(tokens.getEvmTokensForNetwork(Networks.Base).map(token => token.assetSymbol)).toContain("PAXG");
+
+    stubFetch(() => Promise.reject(new Error("network down")));
+    expect(await tokens.initializeEvmTokens()).toBe(false);
+    expect(basePaxgAddress()).toBe(BASE_PAXG);
+
+    stubFetch(async () => okResponse());
+    expect(await tokens.initializeEvmTokens()).toBe(true);
+    expect(basePaxgAddress()).toBe(BASE_PAXG);
+    // The Squid token of the same symbol on another network is untouched.
+    expect(tokens.getEvmTokenConfig()[Networks.Ethereum].PAXG?.erc20AddressSourceChain).toBe(PAXG_ADDRESS);
+  });
+
+  test("a token registered after the list loaded resolves at once", async () => {
+    stubFetch(async () => okResponse());
+    expect(await tokens.initializeEvmTokens()).toBe(true);
+    expect(basePaxgAddress()).toBeUndefined();
+
+    tokens.registerEvmToken(basePaxg);
+    expect(basePaxgAddress()).toBe(BASE_PAXG);
+  });
+
+  test("the static config and an unregistered process never list it", async () => {
+    expect(Object.keys(evmTokenConfig[Networks.Base])).not.toContain("PAXG");
+    stubFetch(async () => okResponse());
+    expect(await tokens.initializeEvmTokens()).toBe(true);
+    expect(basePaxgAddress()).toBeUndefined();
+  });
+
+  test("a registered address wins over a discovered token of the same symbol and does not take its price", async () => {
+    tokens.registerEvmToken({ ...basePaxg, network: Networks.Ethereum });
+    stubFetch(async () => okResponse());
+    expect(await tokens.initializeEvmTokens()).toBe(true);
+
+    const paxg = tokens.getEvmTokenConfig()[Networks.Ethereum].PAXG;
+    expect(paxg?.erc20AddressSourceChain).toBe(BASE_PAXG);
+    expect(paxg?.usdPrice).not.toBe(3300);
+  });
+
+  test("a registered token keeps the discovered price of its own contract", async () => {
+    const registered = PAXG_ADDRESS.toUpperCase().replace("0X", "0x") as `0x${string}`;
+    tokens.registerEvmToken({ ...basePaxg, erc20AddressSourceChain: registered, network: Networks.Ethereum });
+    stubFetch(async () => okResponse());
+    expect(await tokens.initializeEvmTokens()).toBe(true);
+
+    const paxg = tokens.getEvmTokenConfig()[Networks.Ethereum].PAXG;
+    expect(paxg?.erc20AddressSourceChain).toBe(registered);
+    expect(paxg?.usdPrice).toBe(3300);
+  });
+
+  test("a token on a non-EVM network is refused", () => {
+    expect(() => tokens.registerEvmToken({ ...basePaxg, network: Networks.AssetHub })).toThrow(/non-EVM/);
+  });
+});

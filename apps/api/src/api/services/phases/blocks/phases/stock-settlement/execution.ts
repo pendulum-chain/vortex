@@ -1,6 +1,6 @@
 import { EvmClientManager, Networks, type RampPhase } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from "viem";
+import { encodeFunctionData, erc20Abi, formatUnits, keccak256, parseUnits } from "viem";
 import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../../models/rampState.model";
@@ -12,6 +12,7 @@ import {
   runSerializedEvmFundingOperation,
   sendEvmFundingTransaction
 } from "../../core/evm-funding";
+import { readAccountedBalance } from "../../core/evm-subsidy-top-up";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata } from "../../core/metadata";
 import {
@@ -25,7 +26,7 @@ import {
   type StockSymbol
 } from "../../core/robinhood-stocks";
 import { UNISWAP_APPROVE_GAS_LIMIT, UNISWAP_SWAP_GAS_LIMIT } from "../uniswap-v3-fixed-swap/contract";
-import { classifyStockRouteFailure } from "../uniswap-v3-fixed-swap/route";
+import { classifyStockRouteFailure, stockSwapSentOutsideApi } from "../uniswap-v3-fixed-swap/route";
 import { stockSettlementQuoterAbi, stockSettlementRouterAbi } from "./contract";
 import { StockSettlementContext } from "./simulation";
 
@@ -55,6 +56,8 @@ interface TopUpPlan {
 export interface StockSettlementDependencies {
   estimateMaxFeePerGas(): Promise<bigint>;
   getNativeBalance(owner: `0x${string}`): Promise<bigint>;
+  /** What the swap left on `owner` in `token`, read from its receipt. Null when it has no successful receipt. */
+  getSwapFill(token: `0x${string}`, owner: `0x${string}`, swapHash: `0x${string}`): Promise<bigint | null>;
   getTokenBalance(token: `0x${string}`, owner: `0x${string}`): Promise<bigint>;
   quoteUsdgIn(symbol: StockSymbol, stockOut: bigint): Promise<bigint>;
   readStockPriceUsd(symbol: StockSymbol): Promise<Big>;
@@ -67,6 +70,7 @@ function defaultDependencies(): StockSettlementDependencies {
   return {
     estimateMaxFeePerGas: async () => (await client.estimateFeesPerGas()).maxFeePerGas,
     getNativeBalance: owner => client.getBalance({ address: owner }),
+    getSwapFill: (token, owner, swapHash) => readAccountedBalance(Networks.Robinhood, token, owner, [swapHash]),
     getTokenBalance: (token, owner) =>
       client.readContract({ abi: erc20Abi, address: token, args: [owner], functionName: "balanceOf" }),
     async quoteUsdgIn(symbol, stockOut) {
@@ -193,6 +197,25 @@ export class StockSettlementExecutor extends BasePhaseHandler {
     const balance = await dependencies.getTokenBalance(stock, ephemeral);
     if (balance >= target) return null;
     const shortfall = target - balance;
+
+    // The top-up covers what the swap itself fell short by, measured from its receipt.
+    const swapTransaction = state.presignedTxs?.find(tx => tx.phase === "uniswapSwap")?.txData;
+    const fill =
+      typeof swapTransaction === "string"
+        ? await dependencies.getSwapFill(stock, ephemeral, keccak256(swapTransaction as `0x${string}`))
+        : undefined;
+    if (fill === null) throw this.createRecoverableError("StockSettlement: the swap has no successful receipt yet");
+    const refusal = stockSwapSentOutsideApi(state.state)
+      ? "the swap was not broadcast by the API, so its shortfall is not topped up"
+      : fill === undefined
+        ? "there is no presigned swap to measure the top-up against"
+        : balance < fill
+          ? `the ephemeral holds ${balance}, below the ${fill} its swap left on it, so a top-up would cover more than the swap fell short by`
+          : null;
+    if (refusal) {
+      logger.warn("STOCK_TOP_UP_REFUSED", { rampId: state.id, reason: refusal, shortfallRaw: shortfall.toString(), token });
+      throw this.createReconciliationRequiredError(`StockSettlement: ${refusal}`);
+    }
 
     const assertWithinCap = (costUsd: Big): void => {
       if (costUsd.lte(maxSubsidyUsd)) return;

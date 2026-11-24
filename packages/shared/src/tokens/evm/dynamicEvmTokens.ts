@@ -63,6 +63,40 @@ export function getEvmTokensLoadedSnapshot(): boolean {
 }
 
 /**
+ * Tokens the running process owns on top of the static config. A backend registers the tokens only its own routes
+ * may use, so they resolve there without entering the token lists that browser apps build from this module.
+ */
+const registeredTokens: EvmTokenDetails[] = [];
+
+/**
+ * A registered token wins over a discovered one of the same symbol, like a static token. It keeps the discovered
+ * price and logo only when both are the same contract: a symbol alone does not identify a token.
+ */
+function addRegisteredTokens(
+  tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>
+): Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> {
+  for (const token of registeredTokens) {
+    const networkTokens = tokensByNetwork[token.network as EvmNetworks];
+    const key = token.assetSymbol.toUpperCase();
+    const discovered = networkTokens[key];
+    const sameContract = discovered?.erc20AddressSourceChain.toLowerCase() === token.erc20AddressSourceChain.toLowerCase();
+    networkTokens[key] = { ...(sameContract ? discovered : undefined), ...token, isFromStaticConfig: true };
+  }
+  return tokensByNetwork;
+}
+
+/** Call before the first lookup. Registering the same network and symbol again replaces the earlier entry. */
+export function registerEvmToken(token: EvmTokenDetails): void {
+  if (!isNetworkEVM(token.network)) throw new Error(`Cannot register ${token.assetSymbol} on non-EVM network ${token.network}`);
+  const index = registeredTokens.findIndex(
+    known => known.network === token.network && known.assetSymbol.toUpperCase() === token.assetSymbol.toUpperCase()
+  );
+  if (index === -1) registeredTokens.push(token);
+  else registeredTokens[index] = token;
+  if (state.isLoaded) addRegisteredTokens(state.tokensByNetwork);
+}
+
+/**
  * Iterates over all EVM networks and calls the callback for each.
  */
 function forEachEvmNetwork(callback: (network: EvmNetworks) => void): void {
@@ -230,7 +264,7 @@ function mergeWithStaticConfig(
     }
   });
 
-  return merged;
+  return addRegisteredTokens(merged);
 }
 
 function buildPriceLookup(tokensByNetwork: Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>): Map<string, number> {
@@ -268,7 +302,7 @@ function buildFallbackFromStaticConfig(): Record<EvmNetworks, Partial<Record<str
     }
   });
 
-  return tokensByNetwork;
+  return addRegisteredTokens(tokensByNetwork);
 }
 
 /**
@@ -335,7 +369,9 @@ export async function initializeEvmTokens(): Promise<boolean> {
  */
 export function getEvmTokenConfig(): Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>> {
   if (!state.isLoaded) {
-    return evmTokenConfig as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>;
+    return registeredTokens.length > 0
+      ? buildFallbackFromStaticConfig()
+      : (evmTokenConfig as Record<EvmNetworks, Partial<Record<string, EvmTokenDetails>>>);
   }
   return state.tokensByNetwork;
 }
@@ -345,7 +381,7 @@ export function getEvmTokenConfig(): Record<EvmNetworks, Partial<Record<string, 
  */
 export function getEvmTokensForNetwork(network: EvmNetworks): EvmTokenDetails[] {
   if (!state.isLoaded) {
-    return Object.values(evmTokenConfig[network] ?? {}).filter((token): token is EvmTokenDetails => token !== undefined);
+    return Object.values(getEvmTokenConfig()[network] ?? {}).filter((token): token is EvmTokenDetails => token !== undefined);
   }
   return Object.values(state.tokensByNetwork[network] ?? {}).filter((token): token is EvmTokenDetails => token !== undefined);
 }

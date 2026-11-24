@@ -535,7 +535,7 @@ export interface DocumentUploadResponse {
 export interface LivenessDocumentResponse {
   id: string;
   livenessUrl: string;
-  validateLivenessToken: string;
+  validateLivenessToken?: string;
 }
 
 export type AveniaDocumentUploadResponse = DocumentUploadResponse | LivenessDocumentResponse;

@@ -111,6 +111,16 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
     );
   });
 
+  test("accepts a hosted-liveness response without a validateLivenessToken", async () => {
+    const response = { id: "liveness-document-1", livenessUrl: "https://app.avenia.io/liveness/session-1" };
+    const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
+    Object.assign(service, { sendRequest: mock(async () => response) });
+
+    await expect(service.getDocumentUploadUrls(BrDocumentType.SELFIE_FROM_LIVENESS, false, "sub-1")).resolves.toEqual(
+      response
+    );
+  });
+
   test("rejects a hosted-liveness URL that is not https", async () => {
     for (const livenessUrl of ["javascript:alert(1)", "http://app.avenia.io/liveness/session-1", "data:text/html,x"]) {
       const service = Object.create(BrlaApiService.prototype) as BrlaApiService;
@@ -204,6 +214,38 @@ describe("BrlaApiService Avenia KYB Level 1 mappings", () => {
     Object.assign(service, { sendRequest: mock(async () => ({})) });
 
     await expect(service.submitKybLevel1(kyb, "sub-1")).rejects.toThrow();
+  });
+});
+
+describe("BrlaApiService.validatePixKey", () => {
+  test("sends phone and email keys to Avenia as typed", async () => {
+    const { sendRequest, service } = serviceWithMockedRequest();
+
+    await service.validatePixKey("+5511999990000");
+    await service.validatePixKey("pix+key@example.com");
+
+    expect(sendRequest.mock.calls[0]).toEqual([
+      Endpoint.PixInfo,
+      "GET",
+      "pixKey=%2B5511999990000&decodePixKey=true"
+    ]);
+    expect(sendRequest.mock.calls[1]).toEqual([
+      Endpoint.PixInfo,
+      "GET",
+      "pixKey=pix%2Bkey%40example.com&decodePixKey=true"
+    ]);
+  });
+
+  test("charges the lookup to the given sub-account, which the key's text cannot override", async () => {
+    const { sendRequest, service } = serviceWithMockedRequest();
+
+    await service.validatePixKey("key&subAccountId=other#x", "sub account");
+
+    expect(sendRequest.mock.calls[0]).toEqual([
+      Endpoint.PixInfo,
+      "GET",
+      "pixKey=key%26subAccountId%3Dother%23x&decodePixKey=true&subAccountId=sub%20account"
+    ]);
   });
 });
 

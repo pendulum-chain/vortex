@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { formatUnits } from "viem";
 import { BASE_USDC, GOLD_ASSETS } from "./lib/gold-config.js";
-import { amountRaw } from "./lib/base-gold.js";
+import { amountRaw, PIX_PAID_LATE_NOTE } from "./lib/base-gold.js";
 import { fundingDrafts } from "./lib/gold-funding.js";
 import { gramsToPaxg } from "./lib/paxg.js";
-import { getActiveRamp, clearActiveRamp } from "./lib/pilot-store.js";
+import { getActiveRamp, clearActiveRamp, failActiveRamp } from "./lib/pilot-store.js";
 import { classifyRamp, getBrazilBuyReadiness, hasVortexSession, requestVortexOtp, verifyVortexOtp } from "./lib/vortex.js";
 
 const money = (value, currency) => currency === "USDC" ? `${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 6 })} USDC` : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
@@ -56,7 +56,9 @@ export function BaseGoldFlow({ ui: { Modal, OtpStep, KycStep, PixStep }, adapter
   }
   async function recover() {
     const saved = getActiveRamp(owner), id = ramp?.id || resumeRamp?.rampId || saved?.rampId;
-    const current = await adapter.resume(id, owner, await auth.getEthereumProvider());
+    let current;
+    try { current = await adapter.resume(id, owner, await auth.getEthereumProvider()); }
+    catch (e) { if (["RAMP_NEEDS_ATTENTION", "START_WINDOW_CLOSED"].includes(e.code) && alive.current) setStep("issue"); throw e; }
     if (!alive.current) return;
     setRamp(current);
     if (classifyRamp(current) === "success") { complete(current); return; }
@@ -64,7 +66,6 @@ export function BaseGoldFlow({ ui: { Modal, OtpStep, KycStep, PixStep }, adapter
     if (buy && !crypto) { setQuote({ grams: Number(saved.outputAmount) * 31.1034768 }); setStep("pix"); return; }
     setRamp(await adapter.start(id, owner)); setStep("processing");
   }
-  useEffect(() => { if (resumeRamp) run(recover); }, []);
   useEffect(() => {
     if (step !== "funding") return;
     let current = true, polling = false;
@@ -82,7 +83,7 @@ export function BaseGoldFlow({ ui: { Modal, OtpStep, KycStep, PixStep }, adapter
         if (!current) return;
         setRamp(next);
         if (classifyRamp(next) === "success") complete(next);
-        else if (classifyRamp(next) === "failure") { setStep("issue"); setError("A operação precisa de atenção. Guarde o código para o suporte."); }
+        else if (classifyRamp(next) === "failure") { failActiveRamp(next.id); setStep("issue"); setError(`A operação não foi concluída. Guarde o código para o suporte.${buy && !crypto && next.currentPhase === "initial" ? ` ${PIX_PAID_LATE_NOTE}` : ""}`); }
         else if (next.currentPhase !== "initial") setStep("processing");
       } catch (e) { if (current) { setPixReady(false); setError(e.message); } }
       finally { polling = false; }
@@ -106,10 +107,11 @@ export function BaseGoldFlow({ ui: { Modal, OtpStep, KycStep, PixStep }, adapter
       setRamp(current);
       if (buy && !crypto) setStep("pix");
       else { setRamp(await adapter.start(current.id, owner)); setStep("processing"); }
-    } catch (e) { if (getActiveRamp(owner)) setStep("resume"); throw e; }
+    } catch (e) { if (getActiveRamp(owner)) setStep("resume"); else if (e.code === "START_WINDOW_CLOSED") setStep("issue"); throw e; }
   }
   const valid = buy ? Number(amount.replace(",", ".")) >= (crypto ? 10 : 50) : Number(amount.replace(",", ".")) > 0 && (crypto || pix.trim().length >= 5);
   const remaining = quote && balance != null ? amountRaw(quote.inputAmount, 6) - balance : null;
+  const saved = step === "resume" ? getActiveRamp(owner) : null;
   return <Modal title={buy ? "Comprar ouro" : "Vender ouro"} onClose={onClose} closeDisabled={busy} wide>
     <div className="flow-step">
       {notice && <p className="info-card" role="status">{notice}</p>}
@@ -119,7 +121,7 @@ export function BaseGoldFlow({ ui: { Modal, OtpStep, KycStep, PixStep }, adapter
       {step === "review" && quote && <><h3>{buy ? "Revise sua compra" : "Revise sua venda"}</h3><div className="quote-breakdown"><div><span>{buy ? "Você paga" : "Ouro a vender"}</span><b>{buy ? money(quote.inputAmount, currency) : `${grams(quote.grams)} g`}</b></div><div><span>Conversão e serviço</span><b>{money(Number(quote.processingFeeFiat) + Number(quote.partnerFeeFiat), currency)}</b></div><div><span>Rede</span><b>{money(quote.networkFeeFiat, currency)}</b></div><div className="quote-total"><span>Você recebe</span><b>{buy ? `${grams(quote.grams)} g` : money(quote.outputAmount, currency)}</b></div></div><p className="legal-note">Taxas acima já incluídas. {crypto || !buy ? "Você confirma uma autorização do valor exato. O custo da execução consta na cotação." : "O Pix será convertido em PAXG na Base."}</p>{!buy && !crypto && <p className="pix-recipient">Chave Pix: <strong>{pix}</strong></p>}<label className="confirm-check"><input type="checkbox" checked={accepted} onChange={e => setAccepted(e.target.checked)} /><span>Revisei os valores, as taxas e o destino.</span></label><button className="button button--dark button--full" disabled={!accepted || busy} onClick={() => run(confirm)}>{crypto && buy && balance != null && remaining > 0n ? "Continuar para enviar USDC" : "Confirmar operação"}</button><button className="back-button" disabled={busy} onClick={() => run(prepare)}>Atualizar cotação</button></>}
       {step === "funding" && <><h3>Envie USDC na Base para sua carteira</h3><p>Envie apenas USDC nativo na rede Base. Confirme a rede no aplicativo de origem.</p><div className="qr-frame"><QRCodeSVG value={owner} size={174} title="Sua carteira na Base" /></div><p className="wallet-address">{owner}</p><button className="button button--outline button--full" onClick={() => run(async () => { await navigator.clipboard.writeText(owner); setNotice("Endereço copiado."); })}>Copiar endereço</button><p>Saldo confirmado: {balance == null ? "—" : money(formatUnits(balance, 6), "USDC")}</p><p>Falta enviar: {remaining == null ? "—" : money(formatUnits(remaining > 0n ? remaining : 0n, 6), "USDC")}</p><p className="legal-note">Aguardamos duas confirmações. O depósito não inicia uma compra. Valores parciais, extras ou atrasados continuam na sua carteira. Você revisará uma nova cotação antes de autorizar.</p><small className="operation-reference">USDC · Base · {BASE_USDC.address}</small><button className="button button--dark button--full" disabled={busy || remaining == null || remaining > 0n} onClick={() => run(prepare)}>Revisar nova cotação</button></>}
       {step === "pix" && ramp && (pixReady ? <PixStep ramp={ramp} quote={quote} copied={false} onCopy={() => run(async () => { if (!await adapter.canPay()) throw new Error("Aguarde a disponibilidade do serviço."); await navigator.clipboard.writeText(ramp.depositQrCode); setNotice("Pix copiado."); })} onPaid={() => run(async () => { setRamp(await adapter.start(ramp.id, owner)); setStep("processing"); })} loading={busy} error="" /> : <p role="status">Conferindo a disponibilidade do Pix. Aguarde antes de pagar.</p>)}
-      {step === "resume" && <><h3>Continuar esta operação</h3><p>Conferimos o pedido existente antes de solicitar uma nova confirmação.</p><button className="button button--dark button--full" disabled={busy} onClick={() => run(recover)}>Retomar operação</button></>}
+      {step === "resume" && <><h3>Continuar esta operação</h3>{saved && <p className="info-card">{buy ? `Compra de ${grams(Number(saved.outputAmount) * 31.1034768)} g por ${money(saved.inputAmount, currency)}` : `Venda de ${grams(Number(saved.inputAmount) * 31.1034768)} g por ${money(saved.outputAmount, currency)}`}</p>}<p>Conferimos o pedido existente antes de solicitar uma nova confirmação.</p><button className="button button--dark button--full" disabled={busy} onClick={() => run(recover)}>Retomar operação</button></>}
       {step === "processing" && <><h3>Sua operação está em andamento</h3><p>Você pode fechar esta tela e acompanhar a mesma operação no painel.</p></>}
       {step === "success" && <><h3>{buy ? "Ouro recebido" : crypto ? "USDC recebido na Base" : "Venda concluída"}</h3><strong>{buy ? `${grams(Number(ramp.outputAmount) * 31.1034768)} g` : money(ramp.outputAmount, currency)}</strong><button className="button button--dark button--full" onClick={onClose}>Voltar ao painel</button></>}
       {step === "issue" && <h3>Guarde o código desta operação para o suporte</h3>}

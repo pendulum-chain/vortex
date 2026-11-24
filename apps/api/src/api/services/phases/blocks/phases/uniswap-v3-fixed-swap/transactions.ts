@@ -28,6 +28,8 @@ export interface UniswapV3FixedSwapPreparation {
   deadline: string;
   hardMinimumOutputRaw: string;
   softMinimumOutputRaw: string;
+  /** See `swapSentOutsideApi` in `route.ts`. */
+  swapSentOutsideApi?: true;
 }
 
 export interface UniswapV3TransactionDependencies {

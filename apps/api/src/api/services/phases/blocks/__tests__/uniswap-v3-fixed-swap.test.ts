@@ -36,10 +36,12 @@ mock.module("../core/financial-operation", () => ({
   requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
   runFinancialOperation: async ({
     attemptClass,
+    beforePerform,
     perform,
     reconcile
   }: {
     attemptClass: string;
+    beforePerform?(): Promise<void>;
     perform(key: string): Promise<unknown>;
     reconcile?: (operation: unknown) => Promise<unknown>;
   }) => {
@@ -50,6 +52,8 @@ mock.module("../core/financial-operation", () => ({
       operationRows.set(attemptClass, "confirmed");
       return reconciled;
     }
+    // As in the journal: beforePerform runs once replay and reconciliation are exhausted, right before the claim.
+    await beforePerform?.();
     const result = await perform(`test-${attemptClass}`);
     operationRows.set(attemptClass, "confirmed");
     return result;
@@ -426,6 +430,9 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
   }
 
   type Deps = ConstructorParameters<typeof UniswapSwapExecutor>[0];
+  /** The ramp of the last `runSwap`, to read what the executor persisted in its block state. */
+  let lastRamp: { state: { blockState: { uniswapV3FixedSwap: Record<string, unknown> } } };
+  const markedSentOutsideApi = () => lastRamp.state.blockState.uniswapV3FixedSwap.swapSentOutsideApi === true;
 
   function happyDependencies(overrides: Partial<NonNullable<Deps>> = {}): NonNullable<Deps> {
     let allowance = BigInt(inputAmountRaw);
@@ -456,9 +463,10 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
     QuoteTicket.findByPk = mock(async () => ({
       metadata: { blocks: { uniswapV3FixedSwap: simulated.metadata } }
     })) as typeof QuoteTicket.findByPk;
+    lastRamp = rampState(approval, swap, signedApproval, signedSwap, state);
     try {
       return await new UniswapSwapExecutor(happyDependencies(overrides))
-        .execute(rampState(approval, swap, signedApproval, signedSwap, state))
+        .execute(lastRamp as never)
         .then(() => null)
         .catch((error: unknown) => error);
     } finally {
@@ -528,6 +536,14 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
     expect(dependencies.simulateTransaction).not.toHaveBeenCalled();
     expect(operationAttempts).toEqual(["uniswap-presigned-broadcast"]);
     expect(operationRows.get("uniswap-presigned-broadcast")).toBe("confirmed");
+    // No claim preceded the mined swap, so the API did not send it.
+    expect(markedSentOutsideApi()).toBe(true);
+    expect(lastRamp.state.blockState.uniswapV3FixedSwap.deadline).toBeDefined();
+  });
+
+  it("does not mark a swap the API sends", async () => {
+    expect(await runSwap({})).toBeNull();
+    expect(markedSentOutsideApi()).toBe(false);
   });
 
   it("confirms a journal row left submitted by the crash from the receipt it already read", async () => {
@@ -543,6 +559,8 @@ describe("fixed Polygon Uniswap V3 execution failure branches", () => {
     expect(dependencies.sendRawTransaction).not.toHaveBeenCalled();
     expect(operationAttempts).toEqual(["uniswap-presigned-broadcast"]);
     expect(operationRows.get("uniswap-presigned-broadcast")).toBe("confirmed");
+    // The journal had claimed this send, so the mined swap is the API's own.
+    expect(markedSentOutsideApi()).toBe(false);
   });
 
   it("retries later when the live quote moved below the soft minimum", async () => {
