@@ -1,6 +1,6 @@
 // The ONLY kit file that imports react / @privy-io/react-auth. Apps load it in a lazy chunk.
 import { memo, useEffect, useMemo, useRef } from "react";
-import { PrivyProvider, useConnectWallet, useIdentityToken, usePrivy, useWallets } from "@privy-io/react-auth";
+import { PrivyProvider, useConnectWallet, useIdentityToken, useModalStatus, usePrivy, useWallets } from "@privy-io/react-auth";
 import { CONSUMER_LOGIN_METHODS, consumerProfile } from "./config.js";
 import { onLogoutSignal, signalLogout } from "../logout-signal.js";
 
@@ -25,23 +25,28 @@ function AuthBridge({ session, onAuthChange, fundingWallets }) {
   const { wallets } = useWallets();
   const { identityToken } = useIdentityToken();
   const connection = useRef(null);
+  const settle = (method, value) => {
+    const pending = connection.current;
+    connection.current = null;
+    pending?.[method](value);
+  };
+  // No onError here: Privy also reports an attempt its own Retry button can still complete. Closing the
+  // picker is what ends a connection.
   const { connectWallet } = useConnectWallet({
     onSuccess: ({ wallet }) => {
-      const pending = connection.current;
-      connection.current = null;
-      if (wallet.type === "ethereum" && wallet.walletClientType !== "privy") pending?.resolve(wallet);
-      else pending?.reject(new Error("External Ethereum wallet required"));
-    },
-    onError: () => {
-      const pending = connection.current;
-      connection.current = null;
-      pending?.reject(new Error("Wallet connection cancelled"));
+      if (wallet.type === "ethereum" && wallet.walletClientType !== "privy") settle("resolve", wallet);
+      else settle("reject", new Error("External Ethereum wallet required"));
     },
   });
-  useEffect(() => () => {
-    connection.current?.reject(new Error("Wallet connection closed"));
-    connection.current = null;
-  }, []);
+  const { isOpen } = useModalStatus();
+  useEffect(() => {
+    const pending = connection.current;
+    if (isOpen || !pending) return;
+    // It just closed. Escape and the backdrop do that without any event. A success reported with the close wins.
+    setTimeout(() => { if (connection.current === pending) settle("reject", new Error("Wallet connection cancelled")); }, 0);
+  }, [isOpen]);
+  useEffect(() => { if (!authenticated) settle("reject", new Error("Wallet connection closed")); }, [authenticated]);
+  useEffect(() => () => settle("reject", new Error("Wallet connection closed")), []);
   const embedded = wallets.find((wallet) => wallet.walletClientType === "privy") ?? null;
   const privyDid = authenticated ? user?.id ?? "" : "";
   const { name, firstName, email } = consumerProfile(user);
