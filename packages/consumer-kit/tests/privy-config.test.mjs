@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { ethereum, robinhoodChain } from "../src/chains.js";
-import { CONSUMER_LOGIN_METHODS, CONSUMER_SIGN_IN, LEGAL_URLS, consumerProfile, createPrivyConfig } from "../src/privy/config.js";
+import { CONSUMER_LOGIN_METHODS, CONSUMER_SIGN_IN, FUNDING_WALLETS, LEGAL_URLS, consumerProfile, createPrivyConfig } from "../src/privy/config.js";
 
 const stocks = () => createPrivyConfig({ brand: { accentColor: "#3B38D0" }, defaultChain: robinhoodChain, extraChains: [ethereum] });
 
@@ -14,6 +14,19 @@ test("login methods are identical to Gold's, so a Google user of ouro. finds Goo
   const goldShell = readFileSync(new URL("../../../apps/gold/src/PrivyShell.jsx", import.meta.url), "utf8");
   assert.match(goldShell, /loginMethodsAndOrder: \{ primary: \["google"\], overflow: \["email"\] \}/);
   assert.match(goldShell, /createOnLogin: "users-without-wallets"/);
+});
+
+// Privy ignores appearance.walletList next to loginMethodsAndOrder and then creates no WalletConnect or
+// Coinbase connector, whatever list connectWallet gets later.
+test("external funding declares its wallets to Privy without offering one as a login", () => {
+  const config = createPrivyConfig({ brand: { accentColor: "#3B38D0" }, defaultChain: robinhoodChain, externalWalletFunding: true });
+  assert.deepEqual(config.appearance.walletList, ["detected_ethereum_wallets", "metamask", "coinbase_wallet", "wallet_connect"]);
+  assert.deepEqual(config.appearance.walletList, [...FUNDING_WALLETS]);
+  assert.equal(config.appearance.walletChainType, "ethereum-only");
+  assert.equal("loginMethodsAndOrder" in config, false);
+  assert.deepEqual(config.loginMethods, ["google", "email"]);
+  assert.equal("walletList" in stocks().appearance, false, "only a funding app declares wallets");
+  assert.equal("loginMethods" in stocks(), false);
 });
 
 test("every user gets an embedded wallet on login", () => {
@@ -37,11 +50,11 @@ test("the sign-in is branded 'Entrar com Vortex', never as an account", () => {
 test("the default chain comes first, chains are unique and only the listed chain gets an RPC override", () => {
   const url = "https://rpc.example.test/fake-test-only";
   const config = createPrivyConfig({ brand: { accentColor: "#3B38D0" }, defaultChain: robinhoodChain, extraChains: [ethereum, robinhoodChain], rpcOverrides: { 4663: url } });
-  assert.equal(config.defaultChain.id, config.supportedChains[0].id);
   assert.deepEqual(config.supportedChains.map((chain) => chain.id), [4663, 1]);
-  assert.equal(config.defaultChain.rpcUrls.privyWalletOverride.http[0], url);
+  assert.equal(config.supportedChains[0].rpcUrls.privyWalletOverride.http[0], url);
   assert.equal(config.supportedChains[1].rpcUrls.privyWalletOverride, undefined);
-  assert.equal(stocks().defaultChain.rpcUrls.privyWalletOverride, undefined);
+  assert.equal(stocks().supportedChains[0].rpcUrls.privyWalletOverride, undefined);
+  assert.equal("defaultChain" in config, false, "an explicit default chain is forced on external wallets too");
 });
 
 test("the accent colour must be a #RRGGBB hex and a default chain is required", () => {

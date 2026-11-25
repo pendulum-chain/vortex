@@ -19,7 +19,7 @@ const LOGIN_METHODS = [...CONSUMER_LOGIN_METHODS.primary, ...CONSUMER_LOGIN_METH
  * }} ConsumerAuth
  */
 
-function AuthBridge({ session, onAuthChange, externalWalletFunding }) {
+function AuthBridge({ session, onAuthChange, fundingWallets }) {
   const { ready, authenticated, user, login, logout, error } = usePrivy();
   const initError = error ? "AUTH_INITIALIZATION_FAILED" : null;
   const { wallets } = useWallets();
@@ -87,13 +87,13 @@ function AuthBridge({ session, onAuthChange, externalWalletFunding }) {
       await live.current.embedded.switchChain(chain.id);
     },
     getIdentityToken: () => identityToken ?? null,
-    ...(externalWalletFunding && { connectFundingWallet: description => new Promise((resolve, reject) => {
+    ...(fundingWallets && { connectFundingWallet: description => new Promise((resolve, reject) => {
       if (!live.current.authenticated || connection.current) { reject(new Error("Wallet connection unavailable")); return; }
       connection.current = { resolve, reject };
-      try { live.current.connectWallet({ walletChainType: "ethereum-only", description, walletList: ["detected_ethereum_wallets", "metamask", "coinbase_wallet", "wallet_connect"] }); }
+      try { live.current.connectWallet({ walletChainType: "ethereum-only", description, walletList: fundingWallets }); }
       catch (error) { connection.current = null; reject(error); }
     }) }),
-  }), [ready, authenticated, signedIn, privyDid, name, firstName, email, address, identityToken, session, initError, externalWalletFunding]);
+  }), [ready, authenticated, signedIn, privyDid, name, firstName, email, address, identityToken, session, initError, fundingWallets]);
 
   useEffect(() => { onAuthChange?.(auth); }, [auth, onAuthChange]);
   return null;
@@ -105,9 +105,9 @@ function AuthBridge({ session, onAuthChange, externalWalletFunding }) {
  * useMemo), `session` and `onAuthChange` (e.g. a useState setter).
  * @param {{ appId:string, config:import("@privy-io/react-auth").PrivyClientConfig,
  *           session:ReturnType<typeof import("../vortex/session.js").createVortexSession>,
- *           onAuthChange:(auth:ConsumerAuth)=>void, externalWalletFunding?:boolean }} props
+ *           onAuthChange:(auth:ConsumerAuth)=>void }} props
  */
-export const ConsumerPrivyProvider = memo(function ConsumerPrivyProvider({ appId, config, session, onAuthChange, externalWalletFunding = false }) {
+export const ConsumerPrivyProvider = memo(function ConsumerPrivyProvider({ appId, config, session, onAuthChange }) {
   // memo: the app re-renders on every lifted auth; the Privy tree must not re-render with it.
-  return <PrivyProvider appId={appId} config={config}><AuthBridge session={session} onAuthChange={onAuthChange} externalWalletFunding={externalWalletFunding} /></PrivyProvider>;
+  return <PrivyProvider appId={appId} config={config}><AuthBridge session={session} onAuthChange={onAuthChange} fundingWallets={config.appearance.walletList} /></PrivyProvider>;
 });

@@ -15,9 +15,10 @@ const privyConfig = createPrivyConfig({
   defaultChain: robinhoodChain,
   extraChains: [ethereum, base],
   rpcOverrides: config.robinhoodRpcUrl ? { [robinhoodChain.id]: config.robinhoodRpcUrl } : {},
+  externalWalletFunding: config.usdcEnabled,
 });
 
-const englishConfig = { ...privyConfig, appearance: { ...privyConfig.appearance, landingHeader: "Sign in with Vortex", loginMessage: "Sign in with Google or email. If you use Gold, it is the same account and wallet." } };
+const englishConfig = { ...privyConfig, appearance: { ...privyConfig.appearance, landingHeader: "Sign in with Vortex", loginMessage: "If you use Gold, it is the same account and wallet." } };
 export default function PrivyShell({ appId, onAuthChange, locale = "pt-BR" }) {
-  return <ConsumerPrivyProvider appId={appId} config={locale === "en" ? englishConfig : privyConfig} session={getVortexSession()} onAuthChange={onAuthChange} externalWalletFunding={config.usdcEnabled} />;
+  return <ConsumerPrivyProvider appId={appId} config={locale === "en" ? englishConfig : privyConfig} session={getVortexSession()} onAuthChange={onAuthChange} />;
 }
