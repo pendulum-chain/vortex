@@ -1,3 +1,4 @@
+import { parseAmountInput } from "../lib/amount-input.js";
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "../components/Modal.jsx";
 import { ReserveBalance } from "../components/FeeSummary.jsx";
@@ -14,7 +15,8 @@ export default function SimulatedUsdcFlow({ token, auth, runtime, market, direct
   const api = runtime.usdc;
   const wallet = auth.address;
   const prefill = direction === "BUY" && !resume ? purchaseSelection({ symbol: token.symbol, method: "usdc", amount: initialAmount, locale: "en" }) : null;
-  const [amount, setAmount] = useState(prefill?.amount || (direction === "BUY" ? "100" : "0.1"));
+  const [input, setAmount] = useState(prefill?.amount || (direction === "BUY" ? "100" : "0.1"));
+  const amount = parseAmountInput(input, "en", direction === "BUY" ? 6 : 18);
   const [quote, setQuote] = useState(null);
   const [order, setOrder] = useState(null);
   const [accepted, setAccepted] = useState(false);
@@ -107,7 +109,7 @@ export default function SimulatedUsdcFlow({ token, auth, runtime, market, direct
       {status === "amount" && <>
         <div className="payment-choice"><b>USDC on Base</b><span>Direct routing · Relay + Uniswap</span></div>
         <label className="field-label" htmlFor="usdc-amount">{direction === "BUY" ? "How much would you like to invest?" : "How many tokens would you like to sell?"}</label>
-        <div className="amount-input"><input id="usdc-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} /><span>{direction === "BUY" ? "USDC" : token.symbol}</span></div>
+        <div className="amount-input"><input id="usdc-amount" inputMode="decimal" autoComplete="off" value={input} onChange={(e) => setAmount(e.target.value)} /><span>{direction === "BUY" ? "USDC" : token.symbol}</span></div>
         {direction === "BUY" ? <><div className="quick-values">{[25, 100, 250, 1000].map((n) => <button key={n} onClick={() => setAmount(String(n))} aria-pressed={amount === String(n)}>{n} USDC</button>)}</div><p className="hint">Available: {formatUsdc(usdcText(balance), 4)} · minimum order 10 USDC.</p></> : <button className="back-button" onClick={() => setAmount(tokens(api.tokenBalance(wallet, token.symbol)))}>Use all {formatTokensEn(tokens(api.tokenBalance(wallet, token.symbol)))} tokens</button>}
         <button className="btn btn--primary btn--full btn--lg" disabled={busy} onClick={prepare}>{busy ? "Getting quote…" : "Get quote"}</button>
         <p className="hint">You receive a Stock Token that tracks the underlying security, not the share itself. Bank transfers are planned.</p>

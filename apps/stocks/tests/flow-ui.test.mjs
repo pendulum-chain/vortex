@@ -709,7 +709,7 @@ function liveUsdcFixtures(locale = "en") {
     fees: { network: 0.15, service: 0.05, total: 0.20, currency: "USDC" },
     rawQuote: { inputAmount: "100", outputAmount: "0.5", totalFeeFiat: "0.20", anchorFeeFiat: "0", vortexFeeFiat: "0.05", networkFeeFiat: "0.15", routingStrategy: "direct" } };
   const ramp = { id: "live-usdc-order", direction: "BUY", symbol: "NVDA", currentPhase: "initial", classification: "processing" };
-  const adapter = { getAvailability: async () => open, quoteBuy: async () => ({ ...liveQuote, expiresAt: Date.now()+60000 }),
+  const adapter = { getAvailability: async () => open, getMaintenanceStatus: async () => ({ active: false }), quoteBuy: async () => ({ ...liveQuote, expiresAt: Date.now()+60000 }),
     registerBuy: async ({ onRegistered }) => { calls.register++; active = { rampId: ramp.id }; onRegistered(ramp); throw new Error("rejected"); },
     resumeSell: async () => { calls.resume++; return ramp; }, startRamp: async () => { calls.start++; }, getRamp: async () => ({...ramp,currentPhase:"relayBridge"}) };
   const props = fixtures(notReady("not_started"));
@@ -720,15 +720,98 @@ function liveUsdcFixtures(locale = "en") {
   return { props, calls, intents, fund: value => { balance = value; } };
 }
 
-test("live USDC shows the user's Base address, never simulated payments, and no fiat KYC", () => harness(async s => {
+for (const [locale, quoteLabel, sendLabel, resendLabel, verifyLabel, sentText] of [
+  ["pt-BR", "Ver cotação", "Enviar código por e-mail", "Reenviar código", "Confirmar código", /Código enviado para/],
+  ["en", "Get quote", "Send email code", "Resend code", "Verify code", /Code sent to/],
+]) test(`USDC ${locale} replaces the send action with code entry after delivery`, () => harness(async s => {
+  const f = liveUsdcFixtures(locale);
+  let requests = 0, attempts = 0;
+  f.props.runtime.verification = {
+    hasSession: () => false,
+    requestOtp: async () => { requests++; },
+    verifyOtp: async (_email, code) => {
+      attempts++;
+      assert.equal(code.length, 6);
+      if (attempts === 1) throw Object.assign(new Error("Invalid code"), { status: 401 });
+    },
+  };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click(quoteLabel);
+  assert.equal(requests, 0);
+  assert.equal(s.has(resendLabel), false);
+  await s.click(sendLabel);
+  assert.equal(requests, 1);
+  assert.match(document.querySelector(".flow-section [role=status]")?.textContent, sentText);
+  assert.equal(s.has(sendLabel), false);
+  assert.equal(document.activeElement, document.querySelector(".otp-input"));
+  await s.type(".otp-input", "111111");
+  await s.click(verifyLabel);
+  assert.equal(s.has(resendLabel), true);
+  await s.click(resendLabel);
+  assert.equal(requests, 2);
+  assert.equal(document.querySelector(".otp-input").value, "");
+  await s.type(".otp-input", "222222");
+  await s.click(verifyLabel);
+  assert.equal(attempts, 2);
+  assert.equal(s.has(quoteLabel), true);
+  assert.equal(f.calls.register, 0);
+}));
+
+test("live USDC offers a manual transfer fallback without fiat KYC or purchase authorization", () => harness(async s => {
   const f = liveUsdcFixtures();
   await s.render(createElement(LiveUsdcFlow, f.props));await s.click("Get quote");
-  assert.doesNotMatch(s.text(), KYC_FORM);await s.check();await s.click("Continue to USDC payment");
-  assert.match(s.text(), /Add Base USDC/);assert.match(s.text(), new RegExp(WALLET));
-  assert.ok(document.querySelector("svg"));assert.doesNotMatch(s.text(), /Simulate incoming|Simulate wallet|Simulation/);
+  assert.doesNotMatch(s.text(), KYC_FORM);await s.click("Add USDC");
+  assert.match(s.text(), /Amount to add to your fatia/);assert.match(s.text(), new RegExp(WALLET));
+  assert.equal(document.querySelector(".checkout-manual").open, true);
+  assert.equal(document.querySelector(".checkout-qr").open, false);
+  assert.doesNotMatch(s.text(), /Simulate incoming|Simulate wallet|Simulation/);
   assert.equal(f.calls.register,0);assert.equal(f.intents.size,1);
-  assert.equal([...document.querySelectorAll("button")].find(b=>b.textContent==="Review fresh quote").disabled,true);
-  await s.click("Cancel order · keep USDC");assert.equal(f.intents.size,0);assert.equal(f.calls.register,0);
+  assert.equal(s.has("Review fresh quote"), false);
+  await s.click("Change amount");assert.equal(f.intents.size,0);assert.equal(f.calls.register,0);
+}));
+
+test("USDC wallet connection does not send funds; explicit transfer still requires fresh review", () => harness(async s => {
+  const f = liveUsdcFixtures();
+  const sender = { address: "0x00000000000000000000000000000000000000d1" };
+  const transfers = [];
+  let pending = null;
+  f.fund(25_000_000n);
+  f.props.auth.connectFundingWallet = async () => sender;
+  f.props.runtime.usdc.walletFunding = {
+    supported: true,
+    pending: () => pending,
+    check: async () => null,
+    send: async details => {
+      transfers.push(details);
+      pending = { hash: `0x${"1".repeat(64)}` };
+    },
+  };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Get quote");
+  await s.click("Add USDC");
+  assert.equal(document.querySelector(".checkout-manual").open, false);
+  await s.click("Connect wallet");
+  assert.equal(transfers.length, 0);
+  assert.ok(s.has("Transfer USDC"));
+  await s.click("Transfer USDC");
+  assert.equal(transfers.length, 1);
+  assert.equal(transfers[0].owner, WALLET);
+  assert.equal(transfers[0].shortfall, 75_000_000n);
+  assert.equal(transfers[0].wallet.address, sender.address);
+  assert.match(s.text(), /Waiting for Base confirmations/);
+  assert.equal(s.has("Transfer USDC"), false);
+  assert.equal(f.calls.register, 0);
+}));
+
+test("incoming funds reenter the purchase review, with no permit until explicit approval", () => harness(async s => {
+  const f = liveUsdcFixtures();
+  f.fund(100_000_000n);
+  f.intents.set(WALLET, { symbol: "NVDA", direction: "BUY", amount: "100", quote: await f.props.runtime.usdc.adapter.quoteBuy() });
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await untilText(s, /Funding complete/);
+  await s.click("Review fresh quote");
+  assert.equal(f.calls.register, 0);
+  assert.equal([...document.querySelectorAll("button")].find(b => b.textContent === "Confirm and authorize")?.disabled, true);
 }));
 test("a cancelled USDC permit resumes the same registered order instead of registering twice", () => harness(async s => {
   const f = liveUsdcFixtures();f.fund(100000000n);
@@ -783,3 +866,412 @@ for (const reserve of [null, { brl: 0.71, ethAmount: "0.00005" }]) {
     assert.match(document.querySelector(".fee-summary > summary").textContent.replace(/\u00a0/g, " "), /R\$ 3,00/);
   }));
 }
+
+for (const useSaved of [true, false]) test("a different funding draft requires a choice, use saved = " + useSaved, () => harness(async s => {
+  const f = liveUsdcFixtures(), api = f.props.runtime.usdc;
+  const quote = await api.adapter.quoteBuy();
+  f.intents.set(WALLET, { amount: "100", symbol: "NVDA", direction: "BUY", quote });
+  const quoted = [];
+  api.adapter.quoteBuy = async ({ brlAmount }) => {
+    quoted.push(brlAmount);
+    return { ...quote, usdcAmount: brlAmount, rawQuote: { ...quote.rawQuote, inputAmount: brlAmount } };
+  };
+  api.walletFunding = { supported: true, pending: () => ({ hash: "0x" + "1".repeat(64) }), check: async () => null };
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, initialAmount: "25" }));
+  assert.ok(s.has("Use new amount · 25 USDC") && s.has("Continue saved amount · 100 USDC"));
+  assert.equal(s.has("Transfer USDC"), false);
+  if (useSaved) {
+    await s.click("Continue saved amount · 100 USDC");
+    assert.deepEqual(quoted, []);
+    assert.equal(f.intents.get(WALLET).amount, "100");
+  } else {
+    await s.click("Use new amount · 25 USDC");
+    assert.equal(document.querySelector("#live-usdc-amount").value, "25");
+    await s.click("Get quote"); await s.click("Add USDC");
+    assert.deepEqual(quoted, ["25"]);
+    assert.equal(f.intents.get(WALLET).amount, "25");
+  }
+  assert.match(s.text(), /Waiting for Base confirmations/);
+  assert.equal(s.has("Transfer USDC"), false);
+  assert.equal(f.calls.register, 0);
+}));
+
+test("an error before registration asks for a fresh quote and fresh consent", () => harness(async s => {
+  const f = liveUsdcFixtures(); f.fund(100_000_000n);
+  const api = f.props.runtime.usdc.adapter;
+  const original = api.quoteBuy;
+  let quoted = 0;
+  api.quoteBuy = async args => { quoted++; return original(args); };
+  api.registerBuy = async () => { f.calls.register++; throw new Error("provider offline"); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Get quote"); await s.check(); await s.click("Confirm and authorize");
+  assert.ok(s.has("Review a fresh quote"));
+  assert.doesNotMatch(s.text(), /unfinished order|Order reference|Resume order/i);
+  await s.click("Review a fresh quote");
+  assert.equal(quoted, 2);
+  assert.equal(document.querySelector(".check input").checked, false);
+  assert.equal(f.calls.register, 1);
+}));
+
+test("a durable registration checkpoint survives a failure before the UI callback", () => harness(async s => {
+  const f = liveUsdcFixtures(); f.fund(100_000_000n);
+  let record;
+  f.props.runtime.activeRampStore.get = () => record;
+  f.props.runtime.usdc.adapter.registerBuy = async ({ quote }) => {
+    f.calls.register++;
+    record = { quoteId: quote.id, paymentMethod: "usdc", symbol: "NVDA", rampType: "BUY", rampId: "durable-order" };
+    throw new Error("disconnected");
+  };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Get quote"); await s.check(); await s.click("Confirm and authorize");
+  assert.match(s.text(), /durable-order/);
+  await s.click("Resume order");
+  assert.equal(f.calls.register, 1);
+  assert.equal(f.calls.resume, 1);
+}));
+
+test("selling stock tokens works when the Base balance RPC is unavailable", () => harness(async s => {
+  const f = liveUsdcFixtures("pt-BR"), api = f.props.runtime.usdc;
+  const q = await api.adapter.quoteBuy();
+  let reads = 0, received;
+  api.refreshBalance = async () => { reads++; throw new Error("Base offline"); };
+  api.adapter.quoteSell = async ({ tokenAmount }) => { received = tokenAmount; return { ...q, direction: "SELL", tokenAmount }; };
+  api.adapter.registerSell = async () => { f.calls.register++; return { id: "stock-sale" }; };
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, direction: "SELL" }));
+  await s.type("#live-usdc-amount", "0,123456789012345678");
+  await s.click("Ver cotação"); await s.check(); await s.click("Confirmar e autorizar");
+  assert.equal(received, "0.123456789012345678");
+  assert.equal(reads, 0);
+  assert.equal(f.calls.register, 1);
+  assert.equal(f.calls.start, 1);
+}));
+
+test("Base balance distinguishes loading, offline, last confirmed, zero and a new wallet", () => harness(async s => {
+  const { BaseUsdcBalance } = await flow("../src/components/BaseUsdcBalance.jsx");
+  const reads = [], cache = new Map();
+  const api = { enabled: true, simulated: false, balanceRaw: owner => cache.get(owner) ?? null,
+    refreshBalance: owner => new Promise((resolve, reject) => reads.push({ reject, ok(raw) { cache.set(owner, raw); resolve(raw); } })) };
+  const render = (owner, version) => s.render(createElement(BaseUsdcBalance, { api, owner, refreshKey: version }));
+  await render(WALLET, 0); assert.match(s.text(), /Checking balance/);
+  await act(async () => reads[0].reject(new Error())); assert.match(s.text(), /Balance unavailable/);
+  await render(WALLET, 1);
+  await act(async () => reads[1].ok(25_000_000n)); assert.match(s.text(), /25.0000 USDC/);
+  await render(WALLET, 2);
+  await act(async () => reads[2].reject(new Error())); assert.match(s.text(), /25.0000 USDC \(last confirmed/);
+  await render("other", 0); assert.doesNotMatch(s.text(), /25.0000/);
+  await act(async () => reads[3].ok(0n)); assert.match(s.text(), /0.0000 USDC$/);
+  const disabled = { ...api, enabled: false };
+  await s.render(createElement(BaseUsdcBalance, { api: disabled, owner: WALLET }));
+  assert.equal(reads.length, 4);
+  assert.doesNotMatch(s.text(), /USDC: [0-9]/);
+}));
+
+test("a concurrent USDC order for a different quote never resumes under this purchase", () => harness(async s => {
+  const f = liveUsdcFixtures(); f.fund(100_000_000n);
+  let active;
+  f.props.runtime.activeRampStore.get = () => active;
+  f.props.runtime.usdc.adapter.registerBuy = async () => {
+    active = { rampId: "different-order", paymentMethod: "usdc", rampType: "BUY", symbol: "NVDA", quoteId: "other-quote" };
+    throw new Error("already open");
+  };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Get quote"); await s.check(); await s.click("Confirm and authorize");
+  assert.match(s.text(), /Another order is already open/);
+  assert.equal(s.has("Resume order"), false);
+  assert.equal(f.calls.start, 0);
+}));
+
+test("pasting whole reais with centavos preserves the Pix quote amount", () => harness(async s => {
+  const props = fixtures({ kycStatus: "approved", canBuy: true });
+  const requested = [];
+  props.runtime.adapter.quoteBuy = async ({ brlAmount }) => { requested.push(brlAmount); return quote; };
+  await s.render(createElement(BuyFlow, props));
+  await s.type("#buy-amount", "500,25"); await s.click("Continuar");
+  assert.deepEqual(requested, []);
+  await s.type("#buy-amount", "500,00"); await s.click("Continuar");
+  assert.deepEqual(requested, [500]);
+}));
+
+// Top-ups from an external wallet. The fake is the app's contract, not its storage: see usdc-wallet-funding.test.mjs.
+const SENDER = "0x00000000000000000000000000000000000000d1";
+async function fundingFixtures(locale = "en", pending = null) {
+  const f = liveUsdcFixtures(locale), api = f.props.runtime.usdc, sent = [];
+  f.fund(25_000_000n);
+  const state = { pending, sent, send: async () => {}, acknowledge: async () => { state.pending = null; }, status: null };
+  f.props.auth.connectFundingWallet = async () => ({ address: SENDER });
+  api.walletFunding = { supported: true, pending: () => state.pending, check: async () => state.status,
+    send: async details => { sent.push(details); await state.send(); }, acknowledgeUnsent: (owner, shown) => state.acknowledge(shown) };
+  f.intents.set(WALLET, { symbol: "NVDA", direction: "BUY", amount: "100", quote: await api.adapter.quoteBuy() });
+  return { ...f, api, state, sent };
+}
+const alertText = () => document.querySelector("[role=alert]")?.textContent ?? "";
+const unsent = (patch = {}) => ({ hash: null, requestedAt: Date.now() - 60_000, from: SENDER, amount: "75000000", ...patch });
+
+for (const [name, close, expected] of [
+  ["a closed direction", f => { f.api.adapter.getAvailability = async () => ({ NVDA: { buy: false, sell: true } }); }, /temporarily unavailable/],
+  ["maintenance", f => { f.api.adapter.getMaintenanceStatus = async () => ({ active: true }); }, /paused/],
+  ["an unreadable maintenance status", f => { f.api.adapter.getMaintenanceStatus = async () => null; }, /could not verify service/],
+  ["a refused quote", f => { f.api.adapter.quoteBuy = async () => { throw Object.assign(new Error("no"), { code: "INVALID_QUOTE" }); }; }, /Get a fresh quote/],
+]) test(`a saved top-up asks the wallet for nothing during ${name}`, () => harness(async s => {
+  const f = await fundingFixtures();
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  close(f);
+  await s.click("Transfer USDC");
+  assert.equal(f.sent.length, 0);
+  assert.match(alertText(), expected);
+}));
+
+test("an expired session asks for the code before a top-up and comes back to it", () => harness(async s => {
+  const f = await fundingFixtures();
+  let session = true;
+  f.props.runtime.verification = { hasSession: () => session, requestOtp: async () => {}, verifyOtp: async () => { session = true; } };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  session = false;
+  await s.click("Transfer USDC");
+  assert.equal(f.sent.length, 0);
+  await s.click("Send email code"); await s.type(".otp-input", "111111"); await s.click("Verify code");
+  await s.click("Transfer USDC");
+  assert.equal(f.sent.length, 1);
+}));
+
+test("the checks before a top-up leave the reviewed quote alone, so the next review compares with it", () => harness(async s => {
+  const f = await fundingFixtures();
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  const original = f.api.adapter.quoteBuy, worse = async () => ({ ...(await original()), tokenAmountWei: "400000000000000000" });
+  f.api.adapter.quoteBuy = worse;
+  f.state.send = async () => { throw Object.assign(new Error("no"), { code: 4001 }); };
+  await s.click("Transfer USDC"); await s.click("Change amount"); await s.click("Get quote");
+  assert.doesNotMatch(s.text(), /changed beyond your earlier limits/, "a new amount has no earlier limits");
+}));
+
+test("a price that moved between the review and the arrival is pointed out in the new review", () => harness(async s => {
+  const f = await fundingFixtures();
+  const original = f.api.adapter.quoteBuy;
+  f.api.adapter.quoteBuy = async () => ({ ...(await original()), tokenAmountWei: "400000000000000000" });
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  f.state.send = async () => { f.fund(100_000_000n); throw Object.assign(new Error("no"), { code: 4001 }); };
+  await s.click("Transfer USDC");
+  f.fund(100_000_000n);
+  await untilText(s, /Funding complete/);
+  await s.click("Review fresh quote");
+  assert.match(s.text(), /changed beyond your earlier limits/);
+}));
+
+test("a reverted transfer says so, and its receipt is read before the balance", () => harness(async s => {
+  const f = await fundingFixtures("en", unsent({ hash: "0x" + "1".repeat(64) })), order = [], refresh = f.api.refreshBalance;
+  f.api.walletFunding.check = async () => { order.push("receipt"); f.state.pending = null; return "reverted"; };
+  f.api.refreshBalance = async owner => { order.push("balance"); return refresh(owner); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await untilText(s, /The transfer failed on Base/);
+  assert.deepEqual(order, ["receipt", "balance"]);
+  assert.ok(s.has("Connect wallet"));
+}));
+
+test("a transfer is tied to the open checkout", () => harness(async s => {
+  const f = await fundingFixtures();
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet"); await s.click("Transfer USDC");
+  assert.equal(f.sent[0].isCurrent(), true);
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, auth: { ...f.props.auth, address: SENDER } }));
+  assert.equal(f.sent[0].isCurrent(), false, "another account");
+  await s.render(null);
+  assert.equal(f.sent[0].isCurrent(), false, "closed");
+}));
+
+test("a top-up asks for the shortfall of the fresh quote, and the balance check compares the two", () => harness(async s => {
+  const f = await fundingFixtures();
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  const original = f.api.adapter.quoteBuy;
+  f.api.adapter.quoteBuy = async () => { const q = await original(); return { ...q, rawQuote: { ...q.rawQuote, inputAmount: "101" } }; };
+  await s.click("Transfer USDC");
+  assert.equal(f.sent[0].shortfall, 75_000_000n, "the amount the buyer saw");
+  assert.equal(f.sent[0].required, 101_000_000n, "funding.send refuses the pair: FUNDING_BALANCE_CHANGED");
+}));
+
+for (const [name, error, after, expected] of [
+  ["cancelled in the wallet", { code: 4001 }, null, /cancelled in your wallet/],
+  ["cancelled over WalletConnect", { code: 5000 }, null, /cancelled in your wallet/],
+  ["stopped before the prompt", {}, null, /was not sent/],
+  ["without a checkpoint", { code: "MANUAL_FUNDING_REQUIRED" }, null, /Send the USDC manually/],
+  ["left open in the wallet", {}, unsent(), /Check your wallet activity/],
+]) test(`a transfer ${name} says what happened`, () => harness(async s => {
+  const f = await fundingFixtures();
+  f.state.send = async () => { f.state.pending = after; throw Object.assign(new Error("raw wallet error"), error); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet"); await s.click("Transfer USDC");
+  assert.match(alertText(), expected);
+  assert.doesNotMatch(s.text(), /raw wallet error/);
+  assert.equal(s.has("Transfer USDC"), after === null);
+}));
+
+test("after a reload an open request names its wallet and amount, and the manual address stays away", () => harness(async s => {
+  const f = await fundingFixtures("en", unsent({ requestedAt: Date.now() }));
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  assert.match(s.text(), /Check the sending wallet/);
+  assert.match(s.text(), /choose again in a minute/);
+  assert.equal(document.querySelector(".checkout-status code").title, SENDER);
+  assert.match(document.querySelector(".checkout-status").textContent, /75\.00.*USDC/);
+  assert.equal(s.has("Connect wallet"), false);
+  assert.doesNotMatch(s.text(), new RegExp(WALLET));
+  assert.doesNotMatch(s.text(), /Transfer help/, "too early: the wallet may still show the request");
+}));
+
+test("discarding an uncertain transfer takes a statement about that transfer", () => harness(async s => {
+  const f = await fundingFixtures("en", unsent());
+  let discarded = 0;
+  const shown = f.state.pending;
+  f.state.acknowledge = async about => { assert.equal(about, shown); discarded++; f.state.pending = null; };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  assert.match(s.text(), /No transfer request is open and no transfer is pending/);
+  await s.click("Choose payment again");
+  assert.equal(discarded, 0, "disabled until the box is ticked");
+  await s.check(); await s.click("Choose payment again");
+  assert.equal(discarded, 1);
+  // The next uncertain transfer starts unticked.
+  f.state.send = async () => { f.state.pending = unsent({ requestedAt: Date.now() - 61_000 }); throw new Error("lost"); };
+  await s.click("Connect wallet"); await s.click("Transfer USDC");
+  assert.equal(document.querySelector(".check input").checked, false);
+}));
+
+test("an uncertain transfer replaced while the box is ticked starts unticked", () => harness(async s => {
+  const { UsdcFunding } = await flow("../src/flows/UsdcFunding.jsx");
+  const props = { owner: WALLET, balance: 25_000_000n, remaining: 75_000_000n, canConnect: true, locale: "en", t: en => en };
+  await s.render(createElement(UsdcFunding, { ...props, transfer: unsent() }));
+  await s.check();
+  assert.equal(document.querySelector(".check input").checked, true);
+  await s.render(createElement(UsdcFunding, { ...props, transfer: unsent({ requestedAt: Date.now() - 90_000 }) }));
+  assert.equal(document.querySelector(".check input").checked, false);
+}));
+
+for (const locale of ["en", "pt-BR"]) test(`a failed receipt read keeps the checkpoint and hides the RPC's words: ${locale}`, () => harness(async s => {
+  const f = await fundingFixtures(locale, unsent({ hash: "0x" + "1".repeat(64), requestedAt: Date.now() - 5 * 60_000 }));
+  f.state.acknowledge = async () => { throw new Error("HTTP request failed."); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.check(); await s.click(locale === "en" ? "Choose payment again" : "Escolher pagamento novamente");
+  assert.match(alertText(), locale === "en" ? /couldn’t check this transfer/ : /Não foi possível conferir este envio/);
+  assert.doesNotMatch(s.text(), /HTTP request/);
+  assert.ok(f.state.pending);
+}));
+
+test("an unreadable Base balance keeps the manual address, its warning and the checkpoint on screen", () => harness(async s => {
+  const f = await fundingFixtures();
+  f.api.refreshBalance = async () => { throw new Error("Base offline"); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await untilText(s, /Base balance unavailable/);
+  assert.match(s.text(), new RegExp(WALLET));
+  assert.match(s.text(), /Send only native USDC on Base/);
+  assert.match(s.text(), /0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/);
+  assert.match(s.text(), /not a deposit address/);
+  assert.equal(s.has("Copy amount"), false, "no amount without a balance");
+}));
+
+test("an unreadable Base balance still shows a pending transfer", () => harness(async s => {
+  const f = await fundingFixtures();
+  f.api.refreshBalance = async () => { f.state.pending = unsent(); throw new Error("Base offline"); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await untilText(s, /Transfer help/);
+}));
+
+test("Brazilian top-ups are in Portuguese, with the closed route and maintenance worded for USDC", () => harness(async s => {
+  const f = await fundingFixtures("pt-BR");
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Conectar carteira");
+  assert.ok(s.has("Transferir USDC"));
+  assert.match(s.text(), /Envie apenas USDC nativo na rede Base/);
+  f.api.adapter.getMaintenanceStatus = async () => ({ active: true });
+  await s.click("Transferir USDC");
+  assert.match(alertText(), /A execução está pausada/);
+  assert.doesNotMatch(alertText(), /Pix/);
+  f.api.adapter.getMaintenanceStatus = async () => ({ active: false });
+  f.api.adapter.getAvailability = async () => ({ NVDA: { buy: false, sell: true } });
+  await s.click("Transferir USDC");
+  assert.match(alertText(), /Esta rota está indisponível no momento/);
+  assert.equal(f.sent.length, 0);
+}));
+
+test("while the wallet picker is open the checkout steps aside, then comes back", () => harness(async s => {
+  const f = await fundingFixtures();
+  let cancel;
+  f.props.auth.connectFundingWallet = () => new Promise((_resolve, reject) => { cancel = reject; });
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  assert.equal(document.querySelector(".modal-backdrop").style.display, "none");
+  await act(async () => cancel(new Error("Wallet connection cancelled")));
+  assert.equal(document.querySelector(".modal-backdrop").style.display, "");
+  assert.match(alertText(), /Wallet connection cancelled/);
+  assert.ok(s.has("Connect wallet"));
+}));
+
+test("a suspended sheet leaves the keyboard to the window above it and takes focus back afterwards", () => harness(async s => {
+  const { Modal } = await flow("../src/components/Modal.jsx");
+  let closed = 0;
+  const render = suspended => s.render(createElement(Modal, { title: "Checkout", suspended, onClose: () => { closed++; } }, createElement("button", null, "Inside")));
+  const press = async key => { const event = new dom.window.KeyboardEvent("keydown", { key, cancelable: true }); await act(async () => { document.dispatchEvent(event); }); return event; };
+  await render(false); await render(true);
+  const above = document.body.appendChild(document.createElement("button"));
+  above.focus();
+  await press("Escape");
+  assert.equal(closed, 0);
+  assert.equal((await press("Tab")).defaultPrevented, false);
+  assert.equal(document.activeElement, above);
+  await render(false);
+  assert.equal(document.activeElement, document.querySelector(".sheet"));
+  await press("Escape");
+  assert.equal(closed, 1);
+  above.remove();
+}));
+
+for (const locale of ["en", "pt-BR"]) test(`a USDC sell review names both sides, asks for no funds and needs consent: ${locale}`, () => harness(async s => {
+  const f = liveUsdcFixtures(locale), api = f.props.runtime.usdc, en = locale === "en";
+  const q = await api.adapter.quoteBuy();
+  api.adapter.quoteSell = async ({ tokenAmount }) => ({ ...q, direction: "SELL", tokenAmount, usdcAmount: 99.8 });
+  api.adapter.registerSell = async () => { f.calls.register++; return { id: "stock-sale" }; };
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, direction: "SELL" }));
+  await s.type("#live-usdc-amount", en ? "0.5" : "0,5");
+  await s.click(en ? "Get quote" : "Ver cotação");
+  const amounts = document.querySelector(".checkout-quote-amounts").textContent;
+  assert.match(amounts, en ? /You sell.*NVDA.*Estimated receipt.*USDC/ : /Você vende.*NVDA.*Recebimento estimado.*USDC/);
+  assert.equal(s.has(en ? "Add USDC" : "Adicionar USDC"), false);
+  const confirm = en ? "Confirm and authorize" : "Confirmar e autorizar";
+  await s.click(confirm);
+  assert.equal(f.calls.register, 0, "disabled without consent");
+  await s.check(); await s.click(confirm);
+  assert.equal(f.calls.register, 1);
+}));
+
+for (const [locale, typed, sent] of [["en", "0,5", "0.5"], ["en", "0.5", "0.5"], ["pt-BR", "0.5", "0.5"], ["pt-BR", "0,5", "0.5"]]) test(`a USDC sell takes either decimal key: ${locale} ${typed}`, () => harness(async s => {
+  const f = liveUsdcFixtures(locale), api = f.props.runtime.usdc, en = locale === "en", quoted = [];
+  const q = await api.adapter.quoteBuy();
+  api.adapter.quoteSell = async ({ tokenAmount }) => { quoted.push(tokenAmount); return { ...q, direction: "SELL", tokenAmount }; };
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, direction: "SELL" }));
+  await s.type("#live-usdc-amount", typed);
+  await s.click(en ? "Get quote" : "Ver cotação");
+  assert.deepEqual(quoted, [sent]);
+}));
+
+test("a Pix sell takes the other decimal key", () => harness(async s => {
+  const props = fixtures(approved), quoted = [];
+  props.runtime.adapter.quoteSell = async ({ tokenAmount }) => { quoted.push(tokenAmount); return quote; };
+  await s.render(createElement(SellFlow, { ...props, holdingRaw: 10n ** 18n }));
+  await s.type("#sell-amount", "0.5");
+  await s.type('input[placeholder^="CPF"]', "fake-test-only@example.com");
+  await s.click("Continuar");
+  assert.deepEqual(quoted, ["0.5"]);
+}));
+
+for (const [locale, direction, hint] of [
+  ["en", "BUY", /such as 1,000\.50/], ["en", "SELL", /such as 0\.5/], ["pt-BR", "BUY", /como 1\.000,50/], ["pt-BR", "SELL", /como 0,5/],
+]) test(`an amount the checkout cannot read is explained, not just refused: ${locale} ${direction}`, () => harness(async s => {
+  const f = liveUsdcFixtures(locale);
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, direction }));
+  assert.doesNotMatch(s.text(), hint, "a readable amount");
+  await s.type("#live-usdc-amount", "1,00,000");
+  assert.match(s.text(), hint);
+  await s.type("#live-usdc-amount", "");
+  assert.doesNotMatch(s.text(), hint, "an empty field");
+}));

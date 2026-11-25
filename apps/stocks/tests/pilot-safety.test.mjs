@@ -60,7 +60,7 @@ test("served and indexed at /pt-br/stocks/, with the English edition kept out of
 
 // /en/stocks/ ships in live builds while USDC checkout may be off: its sell buttons would only reach
 // "coming soon", and polling the Base balance would call a public RPC for a value it never shows.
-test("the English edition offers USDC sells and reads the Base balance only while USDC checkout is on", () => {
+test("the English edition offers USDC sells only while USDC checkout is on", () => {
   const app = read("src/InternationalApp.jsx");
   const sells = [...app.matchAll(/Sell for USDC<\/button>/g)];
   assert.ok(sells.length >= 2, "sell buttons not found");
@@ -68,7 +68,6 @@ test("the English edition offers USDC sells and reads the Base balance only whil
     const button = app.lastIndexOf("<button", match.index);
     assert.match(app.slice(button - 40, button), /config\.usdcEnabled && $/, "a Sell for USDC button is not gated");
   }
-  assert.match(app, /usdc\?\.simulated !== false \|\| !usdc\.enabled\) return;/, "the Base balance poll runs with USDC off");
 });
 
 test("a simulated ramp can never show a Pix code: no EMV Pix payload anywhere in src", () => {

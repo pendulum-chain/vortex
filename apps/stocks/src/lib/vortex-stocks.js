@@ -588,13 +588,26 @@ export function createVortexStocksAdapter({
     return ramp;
   }
 
-  async function readBaseBalance(owner) {
+  async function readBaseBalance(owner, { confirmed = true } = {}) {
     // Two confirmations prevent an unconfirmed incoming transfer from enabling a purchase.
     try {
-      const reader = fundingReader(), head = await reader.getBlockNumber();
-      if (head < 2n) return 0n;
-      return await reader.readContract({ address: BASE_USDC.address, abi: STOCK_TOKEN_ABI, functionName: "balanceOf", args: [owner], blockNumber: head - 2n });
+      const reader = fundingReader();
+      const head = confirmed ? await reader.getBlockNumber() : null;
+      if (head !== null && head < 2n) return 0n;
+      return await reader.readContract({ address: BASE_USDC.address, abi: STOCK_TOKEN_ABI, functionName: "balanceOf", args: [owner],
+        ...(head !== null && { blockNumber: head - 2n }) });
     } catch (error) { throw new StocksRampError("SERVER_ERROR", BASE_UNREADABLE_PT, { cause: error }); }
+  }
+
+  async function readFundingReceipt(hash) {
+    const reader = fundingReader();
+    try {
+      const receipt = await reader.getTransactionReceipt({ hash });
+      return await reader.getBlockNumber() >= receipt.blockNumber + 2n ? receipt.status : null;
+    } catch (error) {
+      if (error?.name === "TransactionReceiptNotFoundError") return null;
+      throw error;
+    }
   }
 
   // Resume a sell that stopped between registration and start (reload, closed tab, rejected
@@ -679,6 +692,7 @@ export function createVortexStocksAdapter({
     kind: "vortex",
     paymentMethod,
     readBaseBalance,
+    readFundingReceipt,
     enabled: Boolean(enabled),
     requiresVortexSession: true,
     getAvailability,

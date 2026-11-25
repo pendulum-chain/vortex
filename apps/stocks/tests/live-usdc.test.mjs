@@ -106,3 +106,25 @@ test("turning off new USDC quotes still permits only owned registered recovery a
   await assert.rejects(s.adapter.resumeSell({rampId:"other",walletAddress:WALLET,wallet:s.wallet}),e=>e.code==="STOCKS_RAMP_NOT_ENABLED");
   await assert.rejects(buy(s),e=>e.code==="STOCKS_RAMP_NOT_ENABLED");
 });
+
+for (const [name, head, receipt, expected] of [
+  ["needs two blocks on top", 101n, { status: "success", blockNumber: 100n }, null],
+  ["is final two blocks later", 102n, { status: "success", blockNumber: 100n }, "success"],
+  ["reports a revert", 102n, { status: "reverted", blockNumber: 100n }, "reverted"],
+  ["is unknown while missing", 102n, Object.assign(new Error("missing"), { name: "TransactionReceiptNotFoundError" }), null],
+]) test("a funding receipt " + name, async () => {
+  const hash = "0x" + "a".repeat(64);
+  const s = setup(), baseClient = { getBlockNumber: async () => head, getTransactionReceipt: async args => {
+    assert.equal(args.hash, hash);
+    if (receipt instanceof Error) throw receipt;
+    return receipt;
+  } };
+  const adapter = createVortexStocksAdapter({ enabled: true, network: "robinhood", apiBase: "http://test.invalid", session: fakeSession(), activeRampStore: s.activeRampStore, ephemeralStore: s.ephemeralStore, createClient: s.sdk.createClient, paymentMethod: "usdc", baseClient });
+  assert.equal(await adapter.readFundingReceipt(hash), expected);
+});
+
+test("an unreadable funding receipt is an error, never a missing transfer", async () => {
+  const s = setup(), baseClient = { getBlockNumber: async () => 102n, getTransactionReceipt: async () => { throw new Error("HTTP request failed."); } };
+  const adapter = createVortexStocksAdapter({ enabled: true, network: "robinhood", apiBase: "http://test.invalid", session: fakeSession(), activeRampStore: s.activeRampStore, ephemeralStore: s.ephemeralStore, createClient: s.sdk.createClient, paymentMethod: "usdc", baseClient });
+  await assert.rejects(adapter.readFundingReceipt("0x" + "a".repeat(64)), /HTTP request failed/);
+});

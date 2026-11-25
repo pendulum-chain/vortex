@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { clearPurchaseSelection, estimatePurchase, PREVIEW_INTENT_TTL_MS, purchaseSelection, readPurchaseSelection, savePurchaseSelection } from "../src/lib/purchase-preview.js";
+import { parseAmountInput, displayAmount } from "../src/lib/amount-input.js";
 import { STOCKS_KEYS } from "../src/lib/stores.js";
 import { jsonMemory, forbiddenFetch, withFetch } from "./helpers.mjs";
 
@@ -34,8 +35,8 @@ test("fractional tokens are available at each existing checkout minimum", () => 
 });
 
 test("preview amounts use checkout-compatible plain decimal strings", () => {
-  assert.equal(purchaseSelection({ ...pix, amount: "100,00" }).amount, "100");
-  assert.equal(purchaseSelection({ ...usdc, amount: "10,123456" }).amount, "10.123456");
+  assert.equal(purchaseSelection({ ...pix, amount: "100.00" }).amount, "100");
+  assert.equal(purchaseSelection({ ...usdc, amount: "10.123456" }).amount, "10.123456");
   for (const amount of ["1e3", "-100", "Infinity", "500abc", "1.000,00", "100.01", "1000001", ""]) assert.equal(purchaseSelection({ ...pix, amount }), null, amount);
   assert.equal(purchaseSelection({ ...usdc, amount: "10.0000001" }), null);
   assert.equal(purchaseSelection({ ...usdc, amount: "1000000" }).amount, "1000000");
@@ -80,4 +81,40 @@ test("expired, future-dated or tampered drafts cannot restore a checkout", () =>
 test("unavailable session storage keeps the user on the preview instead of losing a draft", () => {
   assert.throws(() => savePurchaseSelection(pix, { storage: { set: () => false } }), /guardar/);
   assert.throws(() => savePurchaseSelection({ ...pix, amount: "0" }, { storage: { set: () => { throw new Error("must not write"); } } }), /Confira/);
+});
+
+test("localized input round-trips through sign-in as a canonical amount", () => {
+  for (const [locale, text, canonical] of [
+    ["en", "10,000", "10000"], ["en", "1,000", "1000"], ["en", "1,000.000001", "1000.000001"],
+    ["pt-BR", "1.000,000001", "1000.000001"], ["pt-BR", "10,123", "10.123"], ["en", "10.123", "10.123"],
+  ]) {
+    const amount = parseAmountInput(text, locale, 6);
+    assert.equal(amount, canonical);
+    const { storage } = jsonMemory();
+    savePurchaseSelection({ ...usdc, amount, locale }, { storage });
+    assert.equal(parseAmountInput(displayAmount(readPurchaseSelection({ storage, locale }).amount, locale), locale, 6), canonical);
+  }
+  assert.equal(parseAmountInput("500,00", "pt-BR", 0), "500");
+  assert.equal(parseAmountInput("0.123", "pt-BR", 18), "0.123", "a pasted fractional token amount cannot become 123 tokens");
+  assert.equal(parseAmountInput("1.000,50", "pt-BR", 0), null);
+  assert.equal(parseAmountInput("1,234.000000000000000001", "en", 18), "1234.000000000000000001");
+  for (const input of ["1,00,000", "1.000,00", "100.0000001", "100,0000001", "-100", "1e3", "100.", "100,", ",5", "0,5,0", "0.5.0"]) {
+    assert.equal(parseAmountInput(input, "en", 6), null, input);
+  }
+});
+
+// An iPhone shows only its region's decimal key, whatever the page's language.
+test("the other language's decimal key works, and never turns grouping into a fraction or the reverse", () => {
+  for (const [text, en, pt] of [
+    ["0,5", "0.5", "0.5"], ["0.5", "0.5", "0.5"], ["25,50", "25.5", "25.5"], ["25.50", "25.5", "25.5"],
+    ["0,125", "0.125", "0.125"], ["0.125", "0.125", "0.125"], ["1234,567", "1234.567", "1234.567"], ["1234.567", "1234.567", "1234.567"],
+    ["1,500", "1500", "1.5"], ["1.500", "1.5", "1500"], ["1,1250", "1.125", "1.125"], ["1.1250", "1.125", "1.125"],
+    ["1,234,567", "1234567", null], ["1.234.567", null, "1234567"], ["1,234.5", "1234.5", null], ["1.234,5", null, "1234.5"],
+  ]) {
+    assert.equal(parseAmountInput(text, "en", 18), en, `en ${text}`);
+    assert.equal(parseAmountInput(text, "pt-BR", 18), pt, `pt-BR ${text}`);
+  }
+  assert.equal(parseAmountInput("500.00", "pt-BR", 0), "500");
+  assert.equal(parseAmountInput("500.25", "pt-BR", 0), null, "Pix takes whole reais");
+  assert.equal(parseAmountInput("500.000", "pt-BR", 0), "500000");
 });
