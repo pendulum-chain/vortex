@@ -4,7 +4,7 @@ import { ReserveBalance } from "../components/FeeSummary.jsx";
 import { formatCostAmount } from "../lib/fee-summary.js";
 import { LiveUsdcCosts } from "../components/QuoteCosts.jsx";
 import { Notice } from "../components/ui.jsx";
-import { errorMessage } from "./parts.jsx";
+import { errorMessage, needsCode, OtpStep } from "./parts.jsx";
 import { formatTokensEn, formatUsdc } from "../lib/international.js";
 import { formatTokenAmount } from "../lib/token.js";
 import { decimalRaw, usdcPriceChanged } from "../lib/live-usdc.js";
@@ -34,8 +34,11 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   currentOwner.current = owner;
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const sessionReady = () => runtime.verification.hasSession({ email, privyDid: auth.user?.privyDid });
+  const enterOtp = next => {
+    setSent(false); setCode(""); setReturnStep(next); setStep("otp");
+  };
   const errorText = e => {
-    if (e?.status === 401 || e?.code === "AUTH_REQUIRED") { setReturnStep(ramp || resume ? "resume" : step); setStep("otp"); }
+    if (step !== "otp" && needsCode(e)) enterOtp(ramp || resume ? "resume" : step);
     if (pt) return errorMessage(e, "Não foi possível continuar. Seus fundos permanecem na carteira ou na operação indicada abaixo.");
     const messages = { RAMP_IN_PROGRESS: "You already have an unfinished order. Resume it before starting another.", INVALID_FEES: "The costs could not be verified. Refresh the quote.", INVALID_QUOTE: "This quote is unavailable. Get a fresh quote.", INSUFFICIENT_BALANCE: "The confirmed balance is insufficient. Wait for your transfer or reduce the amount.", SELL_EXPIRED: "The confirmation window ended. Keep the operation reference if an authorization was already sent.", MAINTENANCE_ACTIVE: "Execution is temporarily paused. Keep this order and try again later.", MAINTENANCE_STATUS_UNAVAILABLE: "We could not verify service availability. Try again shortly.", WRONG_ROUTE: "The route does not match your order. No new authorization was signed.", WALLET_NOT_READY: "Your wallet is still being prepared. Try again shortly.", AUTH_REQUIRED: "Verify your email to continue." };
     if (e?.code === 4001 || /rejected|denied/i.test(e?.message ?? "")) return "Wallet confirmation cancelled. You can resume this same order.";
@@ -55,7 +58,7 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
     setQuote(q); setAccepted(false); return q;
   }
   const prepare = () => run(async () => {
-    if (!sessionReady()) { setReturnStep("amount"); setStep("otp"); return; }
+    if (!sessionReady()) { enterOtp("amount"); return; }
     await freshQuote(); setBalance(await api.refreshBalance(owner)); setStep("review");
   });
   useEffect(() => {
@@ -105,7 +108,7 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   }
   const confirm = () => run(async () => {
     if (!quote) return;
-    if (!sessionReady()) { setReturnStep("review"); setStep("otp"); return; }
+    if (!sessionReady()) { enterOtp("review"); return; }
     const confirmed = await api.refreshBalance(owner); setBalance(confirmed);
     if (direction === "BUY" && confirmed < decimalRaw(quote.rawQuote.inputAmount)) {
       runtime.fundingIntents.save(owner, { symbol: token.symbol, direction, amount, quote, expiresAt: Date.now() + 30 * 60_000 });
@@ -124,7 +127,7 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
     await adapter.startRamp(next.id, { walletAddress: owner }); setStep("processing");
   });
   const retry = () => run(async () => {
-    if (!sessionReady()) { setReturnStep("resume"); setStep("otp"); return; }
+    if (!sessionReady()) { enterOtp("resume"); return; }
     const active = runtime.activeRampStore.get(owner), id = ramp?.id || resume?.rampId || active?.rampId;
     if (id) await continueRamp(id); else { setStep("amount"); await freshQuote(); setStep("review"); }
   });
@@ -157,12 +160,11 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
       {!api.enabled && !resume && !ramp ? <Notice title={t("USDC is coming soon", "USDC em breve")}>{t("Base USDC funding is being enabled. No payment or signature is requested.", "Estamos preparando o pagamento com USDC na Base. Nenhum pagamento ou assinatura será solicitado.")}</Notice> : <>
         {step === "amount" && <CheckoutRoute direction={direction} symbol={token.symbol} />}
         {notice && step === "review" && <Notice tone="info">{notice}</Notice>}
-        {step === "otp" && <>
-          <h3>{t("Verify your email", "Confirme seu e-mail")}</h3><p>{t("Use the code sent by Vortex to link this order to your account.", "Use o código enviado pela Vortex para vincular esta operação à sua conta.")}</p>
-          <label className="field-label" htmlFor="usdc-email">E-mail</label><input className="text-input" id="usdc-email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
-          <button className="btn btn--secondary btn--full" disabled={busy} onClick={() => run(async () => { await runtime.verification.requestOtp(email); setSent(true); })}>{t("Send code", "Enviar código")}</button>
-          {sent && <><label className="field-label" htmlFor="usdc-code">{t("Email code", "Código do e-mail")}</label><input className="text-input" id="usdc-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value)} /><button className="btn btn--primary btn--full" disabled={busy} onClick={() => run(async () => { await runtime.verification.verifyOtp(email, code, { privyDid: auth.user?.privyDid }); setStep(returnStep); })}>{t("Verify", "Confirmar")}</button></>}
-        </>}
+        {step === "otp" && <OtpStep locale={runtime.locale} email={email} setEmail={setEmail} otp={code} setOtp={setCode}
+          sent={sent} busy={busy} error={error}
+          onSend={() => run(async () => { await runtime.verification.requestOtp(email); setCode(""); setSent(true); })}
+          onVerify={() => run(async () => { await runtime.verification.verifyOtp(email, code, { privyDid: auth.user?.privyDid }); setCode(""); setSent(false); setStep(returnStep); })}
+          onChangeEmail={() => { setSent(false); setCode(""); setError(""); }} />}
         {step === "amount" && <>
           <label className="field-label" htmlFor="live-usdc-amount">{direction === "BUY" ? t("How much would you like to invest?", "Quanto você quer investir?") : t("How many tokens would you like to sell?", "Quantos tokens você quer vender?")}</label>
           <div className="amount-input checkout-input"><input id="live-usdc-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={e => setAmount(e.target.value.replace(",", "."))} /><span>{direction === "BUY" ? "USDC" : token.symbol}</span></div>
@@ -201,7 +203,7 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
         {step === "success" && <div className="result"><div className="result__seal">✓</div><h3>{direction === "BUY" ? t("Your Stock Tokens have arrived", "Seus tokens chegaram") : t("Your USDC is on Base", "Seu USDC está na Base")}</h3><p className="result__amount">{direction === "SELL" ? money(ramp?.usdcAmount, 6) : `${(pt ? formatTokenAmount(ramp?.tokenAmount ?? "0") : formatTokensEn(ramp?.tokenAmount))} ${token.symbol}`}</p><button className="btn btn--primary btn--full" onClick={onClose}>{t("Done", "Concluir")}</button></div>}
         {step === "issue" && <Notice tone="warning" title={t("This order needs attention", "Esta operação precisa de atenção")}>{t("Do not register another order to recover these funds. Keep the reference below for support.", "Não crie outra operação para recuperar estes fundos. Guarde o código abaixo para o suporte.")}</Notice>}
       </>}
-      {error && <p className="field-error" role="alert">{error}</p>}
+      {error && step !== "otp" && <p className="field-error" role="alert">{error}</p>}
       {(ramp?.id || resume?.rampId) && <p className="op-ref">{t("Order reference", "Código da operação")}: <code>{ramp?.id || resume.rampId}</code></p>}
     </div>
   </Modal>;

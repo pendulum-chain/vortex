@@ -715,6 +715,9 @@ a.holding-row:hover { background: #FAFAF7; }
 select.text-input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%); background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat; }
 .otp-input { width: 100%; height: 64px; border: 1px solid var(--hairline-strong); border-radius: var(--radius-md); font-family: var(--font-numeric); font-size: 30px; font-weight: 500; letter-spacing: 0.45em; text-align: center; padding-left: 0.45em; }
 .otp-input:focus { outline: none; border-color: var(--anil-600); box-shadow: 0 0 0 3px var(--anil-100); }
+.otp-email { display: inline; overflow-wrap: anywhere; }
+.otp-actions { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0 12px; }
+.otp-actions button { min-height: 48px; }
 .field-error { color: var(--negative); font-size: 15px; font-weight: 500; }
 .demo-hint { padding: 10px 14px; border-radius: var(--radius-md); background: var(--warning-tint); color: var(--warning); font-size: 14px; }
 

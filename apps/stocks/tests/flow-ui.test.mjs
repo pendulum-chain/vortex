@@ -720,6 +720,43 @@ function liveUsdcFixtures(locale = "en") {
   return { props, calls, intents, fund: value => { balance = value; } };
 }
 
+for (const [locale, quoteLabel, sendLabel, resendLabel, verifyLabel, sentText] of [
+  ["pt-BR", "Ver cotação", "Enviar código por e-mail", "Reenviar código", "Confirmar código", /Código enviado para/],
+  ["en", "Get quote", "Send email code", "Resend code", "Verify code", /Code sent to/],
+]) test(`USDC ${locale} replaces the send action with code entry after delivery`, () => harness(async s => {
+  const f = liveUsdcFixtures(locale);
+  let requests = 0, attempts = 0;
+  f.props.runtime.verification = {
+    hasSession: () => false,
+    requestOtp: async () => { requests++; },
+    verifyOtp: async (_email, code) => {
+      attempts++;
+      assert.equal(code.length, 6);
+      if (attempts === 1) throw Object.assign(new Error("Invalid code"), { status: 401 });
+    },
+  };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click(quoteLabel);
+  assert.equal(requests, 0);
+  assert.equal(s.has(resendLabel), false);
+  await s.click(sendLabel);
+  assert.equal(requests, 1);
+  assert.match(document.querySelector(".flow-section [role=status]")?.textContent, sentText);
+  assert.equal(s.has(sendLabel), false);
+  assert.equal(document.activeElement, document.querySelector(".otp-input"));
+  await s.type(".otp-input", "111111");
+  await s.click(verifyLabel);
+  assert.equal(s.has(resendLabel), true);
+  await s.click(resendLabel);
+  assert.equal(requests, 2);
+  assert.equal(document.querySelector(".otp-input").value, "");
+  await s.type(".otp-input", "222222");
+  await s.click(verifyLabel);
+  assert.equal(attempts, 2);
+  assert.equal(s.has(quoteLabel), true);
+  assert.equal(f.calls.register, 0);
+}));
+
 test("live USDC offers a manual transfer fallback without fiat KYC or purchase authorization", () => harness(async s => {
   const f = liveUsdcFixtures();
   await s.render(createElement(LiveUsdcFlow, f.props));await s.click("Get quote");
