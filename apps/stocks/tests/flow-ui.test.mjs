@@ -1071,6 +1071,17 @@ test("a reverted transfer says so, and its receipt is read before the balance", 
   assert.ok(s.has("Connect wallet"));
 }));
 
+test("a transfer is tied to the open checkout", () => harness(async s => {
+  const f = await fundingFixtures();
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet"); await s.click("Transfer USDC");
+  assert.equal(f.sent[0].isCurrent(), true);
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, auth: { ...f.props.auth, address: SENDER } }));
+  assert.equal(f.sent[0].isCurrent(), false, "another account");
+  await s.render(null);
+  assert.equal(f.sent[0].isCurrent(), false, "closed");
+}));
+
 test("a top-up asks for the shortfall of the fresh quote, and the balance check compares the two", () => harness(async s => {
   const f = await fundingFixtures();
   await s.render(createElement(LiveUsdcFlow, f.props));
@@ -1181,4 +1192,54 @@ test("Brazilian top-ups are in Portuguese, with the closed route and maintenance
   await s.click("Transferir USDC");
   assert.match(alertText(), /Esta rota está indisponível no momento/);
   assert.equal(f.sent.length, 0);
+}));
+
+test("while the wallet picker is open the checkout steps aside, then comes back", () => harness(async s => {
+  const f = await fundingFixtures();
+  let cancel;
+  f.props.auth.connectFundingWallet = () => new Promise((_resolve, reject) => { cancel = reject; });
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  assert.equal(document.querySelector(".modal-backdrop").style.display, "none");
+  await act(async () => cancel(new Error("Wallet connection cancelled")));
+  assert.equal(document.querySelector(".modal-backdrop").style.display, "");
+  assert.match(alertText(), /Wallet connection cancelled/);
+  assert.ok(s.has("Connect wallet"));
+}));
+
+test("a suspended sheet leaves the keyboard to the window above it and takes focus back afterwards", () => harness(async s => {
+  const { Modal } = await flow("../src/components/Modal.jsx");
+  let closed = 0;
+  const render = suspended => s.render(createElement(Modal, { title: "Checkout", suspended, onClose: () => { closed++; } }, createElement("button", null, "Inside")));
+  const press = async key => { const event = new dom.window.KeyboardEvent("keydown", { key, cancelable: true }); await act(async () => { document.dispatchEvent(event); }); return event; };
+  await render(false); await render(true);
+  const above = document.body.appendChild(document.createElement("button"));
+  above.focus();
+  await press("Escape");
+  assert.equal(closed, 0);
+  assert.equal((await press("Tab")).defaultPrevented, false);
+  assert.equal(document.activeElement, above);
+  await render(false);
+  assert.equal(document.activeElement, document.querySelector(".sheet"));
+  await press("Escape");
+  assert.equal(closed, 1);
+  above.remove();
+}));
+
+for (const locale of ["en", "pt-BR"]) test(`a USDC sell review names both sides, asks for no funds and needs consent: ${locale}`, () => harness(async s => {
+  const f = liveUsdcFixtures(locale), api = f.props.runtime.usdc, en = locale === "en";
+  const q = await api.adapter.quoteBuy();
+  api.adapter.quoteSell = async ({ tokenAmount }) => ({ ...q, direction: "SELL", tokenAmount, usdcAmount: 99.8 });
+  api.adapter.registerSell = async () => { f.calls.register++; return { id: "stock-sale" }; };
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, direction: "SELL" }));
+  await s.type("#live-usdc-amount", en ? "0.5" : "0,5");
+  await s.click(en ? "Get quote" : "Ver cotação");
+  const amounts = document.querySelector(".checkout-quote-amounts").textContent;
+  assert.match(amounts, en ? /You sell.*NVDA.*Estimated receipt.*USDC/ : /Você vende.*NVDA.*Recebimento estimado.*USDC/);
+  assert.equal(s.has(en ? "Add USDC" : "Adicionar USDC"), false);
+  const confirm = en ? "Confirm and authorize" : "Confirmar e autorizar";
+  await s.click(confirm);
+  assert.equal(f.calls.register, 0, "disabled without consent");
+  await s.check(); await s.click(confirm);
+  assert.equal(f.calls.register, 1);
 }));
