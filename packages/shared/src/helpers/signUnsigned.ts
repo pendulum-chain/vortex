@@ -1,5 +1,6 @@
-import { ApiPromise, Keyring } from "@polkadot/api";
-import { AddressOrPair } from "@polkadot/api/types";
+import type { ApiPromise } from "@polkadot/api";
+import type { AddressOrPair } from "@polkadot/api/types";
+import { Keyring } from "@polkadot/keyring";
 import { hexToU8a } from "@polkadot/util";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { createWalletClient, fallback, http, WalletClient } from "viem";

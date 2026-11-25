@@ -1,4 +1,4 @@
-import { Keyring } from "@polkadot/api";
+import { Keyring } from "@polkadot/keyring";
 import { u8aToHex } from "@polkadot/util";
 import { cryptoWaitReady, hdEthereum, mnemonicGenerate } from "@polkadot/util-crypto";
 import { mnemonicToSeedSync } from "@scure/bip39";
@@ -22,6 +22,8 @@ export function createMoonbeamEphemeral(): EphemeralAccount {
 }
 
 export async function createPendulumEphemeral(): Promise<EphemeralAccount> {
+  // The API facade is external to the browser SDK. Use the keyring bundled with util-crypto
+  // so this wait initializes the WASM instance the keyring actually uses.
   await cryptoWaitReady();
   const seedPhrase = mnemonicGenerate();
 
