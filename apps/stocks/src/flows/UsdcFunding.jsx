@@ -4,6 +4,7 @@ import { formatUnits } from "viem";
 import { formatCostAmount } from "../lib/fee-summary.js";
 import { ArrowRight, Check, Copy, Wallet } from "../components/icons.js";
 import { canReviewPendingTransfer } from "../lib/usdc-wallet-funding.js";
+import { BASE_USDC } from "../lib/vortex-stocks.js";
 
 const short = address => `${address.slice(0, 6)}…${address.slice(-4)}`;
 const amount = (raw, locale) => formatCostAmount(raw == null ? null : Number(formatUnits(raw, 6)), "USDC", locale);
@@ -78,14 +79,15 @@ export function UsdcFunding({ owner, balance, remaining, balanceUnavailable, sen
 
     {canReviewPendingTransfer(transfer) && !ready && <TransferHelp key={`${transfer.requestedAt}:${transfer.hash}`} transfer={transfer} busy={busy} t={t} onAcknowledge={onAcknowledge} />}
 
-    {!ready && remaining != null && !transfer && <details className="checkout-manual" open={!canConnect ? true : undefined}>
+    {!ready && !transfer && <details className="checkout-manual" open={!canConnect ? true : undefined}>
       <summary>{canConnect ? t("Send from an exchange or another app", "Enviar de uma corretora ou outro app") : t("Send from an exchange or wallet", "Enviar de uma corretora ou carteira")}</summary>
-      <p className="checkout-hint">{t("In the sending app, select native USDC and the Base network.", "No app de origem, selecione USDC nativo e a rede Base.")}</p>
+      <p className="checkout-hint"><b>{t("Send only native USDC on Base.", "Envie apenas USDC nativo na rede Base.")}</b> {t("Other tokens or networks cannot fund this order.", "Outros tokens ou redes não servem para esta operação.")}</p>
       <div className="checkout-address"><span>{t("Your fatia. wallet address", "Endereço da sua carteira fatia.")}</span><code>{owner}</code></div>
       <div className="checkout-copy">
         <button className="btn btn--secondary" onClick={() => copy(owner, "address")}><Copy size={17} aria-hidden="true" />{copied === "address" ? t("Address copied", "Endereço copiado") : t("Copy address", "Copiar endereço")}</button>
         {remaining > 0n && <button className="btn btn--secondary" type="button" onClick={() => copy(formatUnits(remaining, 6), "amount")}>{copied === "amount" ? t("Amount copied", "Valor copiado") : t("Copy amount", "Copiar valor")}</button>}
       </div>
+      <p className="checkout-hint">{t("USDC contract on Base (not a deposit address)", "Contrato do USDC na Base (não é endereço de depósito)")}: <code>{BASE_USDC.address}</code></p>
       {copied === "error" && <p className="checkout-hint" role="status">{t("Copy the address or amount by selecting the text.", "Selecione o texto para copiar o endereço ou o valor.")}</p>}
       <details className="checkout-qr"><summary>{t("Show address QR code", "Mostrar QR code do endereço")}</summary>
         <div className="qr"><QRCodeSVG value={owner} size={136} title={t("Your Base wallet address", "Endereço da sua carteira na Base")} /></div>

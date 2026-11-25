@@ -1007,6 +1007,16 @@ async function fundingFixtures(locale = "en", pending = null) {
 const alertText = () => document.querySelector("[role=alert]")?.textContent ?? "";
 const unsent = (patch = {}) => ({ hash: null, requestedAt: Date.now() - 60_000, from: SENDER, amount: "75000000", ...patch });
 
+test("a reverted transfer says so, and its receipt is read before the balance", () => harness(async s => {
+  const f = await fundingFixtures("en", unsent({ hash: "0x" + "1".repeat(64) })), order = [], refresh = f.api.refreshBalance;
+  f.api.walletFunding.check = async () => { order.push("receipt"); f.state.pending = null; return "reverted"; };
+  f.api.refreshBalance = async owner => { order.push("balance"); return refresh(owner); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await untilText(s, /The transfer failed on Base/);
+  assert.deepEqual(order, ["receipt", "balance"]);
+  assert.ok(s.has("Connect wallet"));
+}));
+
 for (const [name, error, after, expected] of [
   ["cancelled in the wallet", { code: 4001 }, null, /cancelled in your wallet/],
   ["cancelled over WalletConnect", { code: 5000 }, null, /cancelled in your wallet/],
@@ -1070,4 +1080,23 @@ for (const locale of ["en", "pt-BR"]) test(`a failed receipt read keeps the chec
   assert.match(alertText(), locale === "en" ? /couldn’t check this transfer/ : /Não foi possível conferir este envio/);
   assert.doesNotMatch(s.text(), /HTTP request/);
   assert.ok(f.state.pending);
+}));
+
+test("an unreadable Base balance keeps the manual address, its warning and the checkpoint on screen", () => harness(async s => {
+  const f = await fundingFixtures();
+  f.api.refreshBalance = async () => { throw new Error("Base offline"); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await untilText(s, /Base balance unavailable/);
+  assert.match(s.text(), new RegExp(WALLET));
+  assert.match(s.text(), /Send only native USDC on Base/);
+  assert.match(s.text(), /0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/);
+  assert.match(s.text(), /not a deposit address/);
+  assert.equal(s.has("Copy amount"), false, "no amount without a balance");
+}));
+
+test("an unreadable Base balance still shows a pending transfer", () => harness(async s => {
+  const f = await fundingFixtures();
+  f.api.refreshBalance = async () => { f.state.pending = unsent(); throw new Error("Base offline"); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await untilText(s, /Transfer help/);
 }));

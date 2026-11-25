@@ -655,6 +655,7 @@ a.holding-row:hover { background: #FAFAF7; }
 .checkout-amount__balance { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; padding-top: 10px; border-top: 1px solid var(--hairline); font-size: 13px; color: var(--text-muted); }
 .checkout-amount__balance b { font: 500 13px var(--font-numeric); color: var(--ink); }
 .checkout-hint { font-size: 13px; color: var(--text-muted); line-height: 1.45; }
+.checkout-hint code { overflow-wrap: anywhere; }
 .checkout-next { display: flex; align-items: flex-start; gap: 8px; padding: 11px 12px; border-radius: 10px; background: var(--anil-50); }
 .checkout-next svg { flex: none; margin-top: 2px; color: var(--anil-700); }
 .checkout-status, .checkout-sender { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 12px; font-size: 14px; }

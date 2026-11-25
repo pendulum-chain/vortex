@@ -79,17 +79,14 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
     const update = async () => {
       if (polling || lock.current) return;
       polling = true;
-      try {
-        const value = await api.refreshBalance(owner);
-        const status = await funding?.check(owner).catch(() => null);
-        if (!current || lock.current) return;
-        setBalance(value);
-        setBalanceUnavailable(false);
-        setTransfer(funding?.pending(owner) || null);
-        if (status === "reverted") setError(t("The transfer failed on Base. Check your wallet and try again.", "O envio falhou na rede Base. Confira sua carteira e tente novamente."));
-      } catch {
-        if (current && !lock.current) { setBalance(null); setBalanceUnavailable(true); }
-      } finally { polling = false; }
+      // The receipt first: once it is confirmed, the balance read after it already includes the transfer.
+      const status = await funding?.check(owner).catch(() => null);
+      const value = await api.refreshBalance(owner).catch(() => null);
+      polling = false;
+      if (!current || lock.current) return;
+      setBalance(value); setBalanceUnavailable(value == null);
+      setTransfer(funding?.pending(owner) || null);
+      if (status === "reverted") setError(t("The transfer failed on Base. Check your wallet and try again.", "O envio falhou na rede Base. Confira sua carteira e tente novamente."));
     };
     update(); const timer = setInterval(update, 5000); return () => { current = false; clearInterval(timer); };
   }, [step, api, owner]);
