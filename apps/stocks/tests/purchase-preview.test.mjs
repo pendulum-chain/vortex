@@ -95,10 +95,26 @@ test("localized input round-trips through sign-in as a canonical amount", () => 
     assert.equal(parseAmountInput(displayAmount(readPurchaseSelection({ storage, locale }).amount, locale), locale, 6), canonical);
   }
   assert.equal(parseAmountInput("500,00", "pt-BR", 0), "500");
-  assert.equal(parseAmountInput("0.123", "pt-BR", 18), null, "a pasted fractional token amount cannot become 123 tokens");
+  assert.equal(parseAmountInput("0.123", "pt-BR", 18), "0.123", "a pasted fractional token amount cannot become 123 tokens");
   assert.equal(parseAmountInput("1.000,50", "pt-BR", 0), null);
   assert.equal(parseAmountInput("1,234.000000000000000001", "en", 18), "1234.000000000000000001");
-  for (const input of ["10,00", "1,00,000", "1.000,00", "100.0000001", "-100", "1e3", "100."]) {
+  for (const input of ["1,00,000", "1.000,00", "100.0000001", "100,0000001", "-100", "1e3", "100.", "100,", ",5", "0,5,0", "0.5.0"]) {
     assert.equal(parseAmountInput(input, "en", 6), null, input);
   }
+});
+
+// An iPhone shows only its region's decimal key, whatever the page's language.
+test("the other language's decimal key works, and never turns grouping into a fraction or the reverse", () => {
+  for (const [text, en, pt] of [
+    ["0,5", "0.5", "0.5"], ["0.5", "0.5", "0.5"], ["25,50", "25.5", "25.5"], ["25.50", "25.5", "25.5"],
+    ["0,125", "0.125", "0.125"], ["0.125", "0.125", "0.125"], ["1234,567", "1234.567", "1234.567"], ["1234.567", "1234.567", "1234.567"],
+    ["1,500", "1500", "1.5"], ["1.500", "1.5", "1500"], ["1,1250", "1.125", "1.125"], ["1.1250", "1.125", "1.125"],
+    ["1,234,567", "1234567", null], ["1.234.567", null, "1234567"], ["1,234.5", "1234.5", null], ["1.234,5", null, "1234.5"],
+  ]) {
+    assert.equal(parseAmountInput(text, "en", 18), en, `en ${text}`);
+    assert.equal(parseAmountInput(text, "pt-BR", 18), pt, `pt-BR ${text}`);
+  }
+  assert.equal(parseAmountInput("500.00", "pt-BR", 0), "500");
+  assert.equal(parseAmountInput("500.25", "pt-BR", 0), null, "Pix takes whole reais");
+  assert.equal(parseAmountInput("500.000", "pt-BR", 0), "500000");
 });

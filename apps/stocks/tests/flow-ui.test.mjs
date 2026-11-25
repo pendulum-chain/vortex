@@ -1243,3 +1243,35 @@ for (const locale of ["en", "pt-BR"]) test(`a USDC sell review names both sides,
   await s.check(); await s.click(confirm);
   assert.equal(f.calls.register, 1);
 }));
+
+for (const [locale, typed, sent] of [["en", "0,5", "0.5"], ["en", "0.5", "0.5"], ["pt-BR", "0.5", "0.5"], ["pt-BR", "0,5", "0.5"]]) test(`a USDC sell takes either decimal key: ${locale} ${typed}`, () => harness(async s => {
+  const f = liveUsdcFixtures(locale), api = f.props.runtime.usdc, en = locale === "en", quoted = [];
+  const q = await api.adapter.quoteBuy();
+  api.adapter.quoteSell = async ({ tokenAmount }) => { quoted.push(tokenAmount); return { ...q, direction: "SELL", tokenAmount }; };
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, direction: "SELL" }));
+  await s.type("#live-usdc-amount", typed);
+  await s.click(en ? "Get quote" : "Ver cotação");
+  assert.deepEqual(quoted, [sent]);
+}));
+
+test("a Pix sell takes the other decimal key", () => harness(async s => {
+  const props = fixtures(approved), quoted = [];
+  props.runtime.adapter.quoteSell = async ({ tokenAmount }) => { quoted.push(tokenAmount); return quote; };
+  await s.render(createElement(SellFlow, { ...props, holdingRaw: 10n ** 18n }));
+  await s.type("#sell-amount", "0.5");
+  await s.type('input[placeholder^="CPF"]', "fake-test-only@example.com");
+  await s.click("Continuar");
+  assert.deepEqual(quoted, ["0.5"]);
+}));
+
+for (const [locale, direction, hint] of [
+  ["en", "BUY", /such as 1,000\.50/], ["en", "SELL", /such as 0\.5/], ["pt-BR", "BUY", /como 1\.000,50/], ["pt-BR", "SELL", /como 0,5/],
+]) test(`an amount the checkout cannot read is explained, not just refused: ${locale} ${direction}`, () => harness(async s => {
+  const f = liveUsdcFixtures(locale);
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, direction }));
+  assert.doesNotMatch(s.text(), hint, "a readable amount");
+  await s.type("#live-usdc-amount", "1,00,000");
+  assert.match(s.text(), hint);
+  await s.type("#live-usdc-amount", "");
+  assert.doesNotMatch(s.text(), hint, "an empty field");
+}));

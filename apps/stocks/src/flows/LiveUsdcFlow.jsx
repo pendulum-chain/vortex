@@ -227,6 +227,7 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
         {step === "amount" && <>
           <label className="field-label" htmlFor="live-usdc-amount">{direction === "BUY" ? t("How much would you like to invest?", "Quanto você quer investir?") : t("How many tokens would you like to sell?", "Quantos tokens você quer vender?")}</label>
           <div className="amount-input checkout-input"><input id="live-usdc-amount" inputMode="decimal" autoComplete="off" value={input} onChange={e => setInput(e.target.value)} /><span>{direction === "BUY" ? "USDC" : token.symbol}</span></div>
+          {amount === null && input.trim() && <p className="checkout-hint" role="status">{direction === "BUY" ? t("Use a number such as 1,000.50.", "Use um valor como 1.000,50.") : t("Use a number such as 0.5.", "Use um número como 0,5.")}</p>}
           {direction === "BUY" && <div className="quick-values checkout-presets">{[25,100,250].map(n => <button key={n} aria-pressed={amount === String(n)} onClick={() => setInput(String(n))}>{n} USDC</button>)}</div>}
           <button className="btn btn--primary btn--full btn--lg" disabled={busy || !validAmount} onClick={prepare}>{busy ? t("Getting quote…", "Buscando cotação…") : t("Get quote", "Ver cotação")}</button>
           {direction === "BUY" && <p className="checkout-hint">{t("Minimum 10 USDC. You’ll receive a Stock Token that tracks the share price.", "Mínimo de 10 USDC. Você recebe um token que acompanha o preço da ação.")}</p>}
