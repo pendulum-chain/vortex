@@ -887,10 +887,10 @@ button.payment-choice { cursor: pointer; }
 .preview-values button { min-height: 44px; font-size: 13px; }
 .preview-result { display: grid; gap: 12px; border-top: 1px solid var(--hairline); padding-top: 16px; }
 .preview-result__label { font-weight: 600; font-size: 15px; }
-.preview-result .breakdown > div { padding: 12px; gap: 12px; font-size: 13px; }
-.preview-result .breakdown dt { min-width: 0; }
-.preview-result .breakdown .is-total dt { white-space: normal; }
-.preview-result .breakdown .is-total dd { font-size: 15px; }
+.estimate-receipt .breakdown > div { padding: 12px; gap: 12px; font-size: 13px; }
+.estimate-receipt .breakdown dt { min-width: 0; }
+.estimate-receipt .breakdown .is-total dt { white-space: normal; }
+.estimate-receipt .breakdown .is-total dd { font-size: 15px; }
 .preview-note, .preview-assurance { color: var(--text-muted); font-size: 12px; line-height: 1.55; }
 .preview-assurance { border-top: 1px solid var(--hairline); padding-top: 12px; }
 .featured-minimum { color: var(--text-muted); font-size: 14px; margin: -8px 0 18px; }
@@ -930,9 +930,9 @@ button.payment-choice { cursor: pointer; }
 .reserve-balance small { display: block; color: var(--text-muted); margin-top: 4px; font-size: 12px; line-height: 1.5; }
 .reserve-balance strong { flex-shrink: 0; max-width: 42%; font-family: var(--font-numeric); text-align: right; font-size: 14px; }
 .fee-card > .reserve-balance { border-radius: 0; border-bottom: 1px solid var(--hairline); }
-.preview-result .fee-card .breakdown .is-total { display: block; padding: 16px; }
-.preview-result .fee-card .breakdown .is-total dd { margin-top: 8px; text-align: left; font-size: 25px; }
-.preview-result .fee-card .breakdown .is-total dd small { font-family: var(--font-body); font-size: 14px; }
+.estimate-receipt .breakdown .is-total { display: block; padding: 16px; }
+.estimate-receipt .breakdown .is-total dd { margin-top: 8px; text-align: left; font-size: 25px; }
+.estimate-receipt .breakdown .is-total dd small { font-family: var(--font-body); font-size: 14px; }
 @media (max-width: 600px) {
   .fee-summary > summary { gap: 0 12px; padding-inline: 12px; }
   .fee-summary__amount { max-width: 180px; font-size: 13px; }

@@ -17,7 +17,7 @@ export function PreviewReceipt({ preview }) {
   const reserve = preview.costs.find(cost => cost.provider === "reserve")?.amount || 0;
   const rows = preview.costs.filter(cost => cost.provider !== "reserve").map(cost => ({ id: DIRECT_PROVIDERS.find(item => item.provider === cost.provider)?.id, amount: cost.amount, includedIn: "fees" }));
   return (
-    <div className="fee-card">
+    <div className="fee-card estimate-receipt">
       <dl className="breakdown"><div><dt>{en ? "You pay" : "Você paga"}</dt><dd>{money(preview.amount)}</dd></div></dl>
       <FeeSummary rows={rows} total={preview.total} reserve={reserve} basis={preview.amount} currency={preview.currency} method={method} locale={locale} />
       <ReserveBalance amount={reserve} currency={preview.currency} locale={locale} />

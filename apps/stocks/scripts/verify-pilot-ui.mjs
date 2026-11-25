@@ -33,6 +33,17 @@ try {
     }
     assert.match(await landingExample.locator(".fee-summary > summary").innerText(), /4,00/);
     assert.match(await landingExample.locator(".reserve-balance strong").innerText(), /0,71/);
+    for (const receipt of [landingExample, estimate]) {
+      const clipped = await receipt.evaluate(card => {
+        const frame = card.getBoundingClientRect();
+        return [...card.querySelectorAll(".is-total dt, .is-total dd")].some(item => {
+          const range = document.createRange();
+          range.selectNodeContents(item);
+          return [...range.getClientRects()].some(rect => rect.right > frame.right + 1 || rect.left < frame.left - 1);
+        });
+      });
+      assert.equal(clipped, false, "The entire amount and token estimate must be visible");
+    }
     await landingExample.screenshot({ path: `${output}/pix-example-${viewport.width}.png` });
     await page.screenshot({ path: `${output}/public-preview-${viewport.width}.png` });
     await page.goto(`${url}#/acao/NVDA?demoFlow=buy-quote`, { waitUntil: "networkidle" });
