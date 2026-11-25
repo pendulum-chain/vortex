@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { LEGAL_URLS } from "@vortexfi/consumer-kit";
 import { BRAND } from "./brand.js";
+import { BaseUsdcBalance } from "./components/BaseUsdcBalance.jsx";
 import { Modal } from "./components/Modal.jsx";
 import { useMarket, useNow, usePortfolio, useRuntime } from "./hooks.js";
 import { STOCK_TOKENS } from "./lib/stocks.js";
@@ -33,17 +34,13 @@ export default function InternationalApp({ auth, config }) {
   const visible = STOCK_TOKENS.filter((t) => `${t.symbol} ${t.underlyingName}`.toLowerCase().includes(query.toLowerCase()));
   const usdc = runtime?.usdc;
   const holdings = signed && auth.address && usdc?.enabled && usdc.simulated !== false ? usdc.positions(auth.address).filter((h) => h.raw > 0n) : portfolio.valued?.holdings || [];
+  const simulatedHoldings = Boolean(usdc?.enabled && usdc.simulated !== false);
+  const holdingsKnown = simulatedHoldings || (portfolio.status === "ok" && !portfolio.read?.failed?.length);
+  const priced = holdings.every(h => market.state.prices[h.symbol]?.usd > 0);
   const totalUsd = holdings.reduce((sum, h) => sum + number(h.raw) * (market.state.prices[h.symbol]?.usd || 0), 0);
-  useEffect(() => {
-    if (!signed || !auth.address || usdc?.simulated !== false || !usdc.enabled) return;
-    let alive = true;
-    const refresh = () => usdc.refreshBalance(auth.address).then(() => { if (alive) setVersion(v => v + 1); }).catch(() => {});
-    refresh(); const timer = setInterval(refresh, 15000); return () => { alive = false; clearInterval(timer); };
-  }, [signed, auth.address, usdc]);
-  const balance = signed && auth.address && usdc?.enabled ? Number(usdc.balanceRaw(auth.address)) / 1e6 : null;
   const history = signed && auth.address && usdc?.enabled && usdc.simulated !== false ? usdc.history(auth.address) : [];
   const liveHistory = signed && auth.address && usdc?.simulated === false
-    ? mergeHistory(localHistoryRows(runtime.activeRampStore.history(auth.address)), serverHistory?.owner === auth.address ? serverHistory.rows : []) : [];
+    ? mergeHistory(localHistoryRows(runtime.activeRampStore.history(auth.address)), serverHistory?.owner === auth.address ? serverHistory.rows : [], pending?.rampId) : [];
   useEffect(() => {
     if (!runtime || !signed || !auth.address || usdc?.simulated !== false) return;
     let current = true;
@@ -103,7 +100,7 @@ export default function InternationalApp({ auth, config }) {
   const token = modal?.symbol ? STOCK_TOKENS.find((t) => t.symbol === modal.symbol) : null;
   const busyAuth = auth.status === "loading" || Boolean(auth.queued);
   return <div lang="en">
-    <a className="skip-link" href="#conteudo">Skip to content</a>
+    <button type="button" className="skip-link" onClick={() => document.getElementById("conteudo")?.focus()}>Skip to content</button>
     {config.mode !== "live" && <div className="mode-banner" role="note"><b>Simulation.</b> Prices and payments are illustrative. No real money moves.</div>}
     <header className="site-header"><div className="wrap site-header__inner">
       <a className="brand" href="#/" aria-label={`${BRAND.lockupAlt}, home`}><img src={`${import.meta.env.BASE_URL}${BRAND.assets.wordmark}`} width="88" height="42" alt={BRAND.name} /><span className="brand__by">{BRAND.endorsement}</span></a>
@@ -119,8 +116,8 @@ export default function InternationalApp({ auth, config }) {
         <p className="hint">Bank payments are planned.</p>
       </>}
       {pending && <section className="notice notice--info" role="status"><b>You have an unfinished {pending.paymentMethod === "usdc" ? "USDC" : "Pix"} order.</b><button className="btn btn--secondary" onClick={() => start(pending.symbol)}>Resume order</button></section>}
-      {signed && <section className="section" id="portfolio"><div className="section__head"><div><p className="eyebrow">Your wallet</p><h2 className="section__title">Portfolio</h2></div><div><b>{portfolio.valued || usdc?.enabled ? formatUsd(totalUsd) : "—"}</b><p className="hint">Available Base USDC: {balance === null ? "—" : formatUsdc(balance, 4)}</p></div></div>
-        {holdings.length ? <div className="card international-holdings">{holdings.map((h) => <div key={h.symbol}><span><b>{h.symbol}</b><small>{formatTokensEn(formatUnits(BigInt(h.raw), 18))} tokens</small></span><b>{formatUsd(number(h.raw) * market.state.prices[h.symbol]?.usd)}</b>{config.usdcEnabled && <button className="btn btn--secondary" onClick={() => start(h.symbol, "SELL")}>Sell for USDC</button>}</div>)}</div> : <p className="hint">Your Stock Tokens appear here after a completed purchase.</p>}
+      {signed && <section className="section" id="portfolio"><div className="section__head"><div><p className="eyebrow">Your wallet</p><h2 className="section__title">Portfolio</h2></div><div><b>{holdingsKnown && priced ? formatUsd(totalUsd) : "—"}</b><BaseUsdcBalance api={usdc} owner={auth.address} refreshKey={version} /></div></div>
+        {holdings.length ? <div className="card international-holdings">{holdings.map((h) => <div key={h.symbol}><span><b>{h.symbol}</b><small>{formatTokensEn(formatUnits(BigInt(h.raw), 18))} tokens</small></span><b>{formatUsd(number(h.raw) * market.state.prices[h.symbol]?.usd)}</b>{config.usdcEnabled && <button className="btn btn--secondary" onClick={() => start(h.symbol, "SELL")}>Sell for USDC</button>}</div>)}</div> : <p className="hint">{holdingsKnown ? "Your Stock Tokens appear here after a completed purchase." : portfolio.status === "loading" ? "Checking holdings…" : "Holdings unavailable."}</p>}
       </section>}
       {selected ? <section className="section"><a className="back-link" href="#/">← All stocks</a><div className="detail-head"><div className="ticker-tile ticker-tile--lg">{selected.symbol}</div><div><h1>{selected.underlyingName}</h1><p>Stock Token · Robinhood Chain</p></div></div><p className="price-block__value">{formatUsd(market.state.prices[selected.symbol]?.usd)}</p><p className="source-line">{config.prices === "demo" ? "Illustrative demo price" : "Reference: CoinGecko · execution price shown in the quote"}</p><p className="preview-minimum">Price of one token. Buy a fraction from 10 USDC.</p><div className="international-detail-preview"><PurchasePreview key={selected.symbol} symbol={selected.symbol} prices={market.state.prices} locale="en" onContinue={startPreview} canContinue={() => config.usdcEnabled || config.mode !== "live"} /></div>{signed && config.usdcEnabled && <button className="btn btn--secondary btn--lg" onClick={() => start(selected.symbol, "SELL")}>Sell for USDC</button>}</section> : <section className="section"><div className="section__head"><div><p className="eyebrow">Explore</p><h2 className="section__title">Choose your next slice.</h2><p className="hint">Buy fractions from 10 USDC. Prices below are per token.</p></div><label className="international-search">Search stocks<input value={query} onChange={(e) => setQuery(e.target.value.slice(0, 60))} placeholder="Nvidia, Apple, S&P 500…" /></label></div><div className="card international-stocks">{visible.map((t) => <div key={t.symbol}><a href={stockHash(t.symbol)}><span className="ticker-tile">{t.symbol}</span><span><b>{t.underlyingName}</b><small>Stock Token</small></span></a><span className="mono">{formatUsd(market.state.prices[t.symbol]?.usd)}</span><button className="btn btn--secondary" onClick={() => navigate(stockHash(t.symbol))}>Preview</button></div>)}</div><p className="source-line">{config.prices === "demo" ? "Illustrative prices for this simulation." : "Reference prices: CoinGecko. The executable quote determines the purchase price."}</p></section>}
       {liveHistory.length > 0 && <section className="section"><h2 className="section__title">Recent activity</h2><div className="card international-holdings">{liveHistory.map(row => <div key={row.id}><b>{row.direction === "BUY" ? "Buy" : "Sell"} {row.symbol}</b><span>{row.paymentMethod === "usdc" ? formatUsdc(row.usdcAmount, 6) : "Pix"}</span><small>{row.status} · {row.id}</small></div>)}</div></section>}

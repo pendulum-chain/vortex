@@ -372,9 +372,7 @@ main:focus { outline: none; }
 @media (min-width: 640px) { .receipt { padding: 24px; } }
 .receipt__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .receipt__head h3 { font-size: 19px; font-weight: 600; letter-spacing: -0.015em; }
-.receipt__amount { display: flex; align-items: baseline; gap: 10px; margin-top: 18px; padding: 14px 18px; border: 1px solid var(--hairline-strong); border-radius: var(--radius-md); }
-.receipt__amount span { color: var(--text-muted); font-size: 20px; }
-.receipt__amount strong { font-family: var(--font-display); font-size: 36px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.1; }
+.receipt > .fee-card { margin-top: 16px; }
 .receipt__note { margin-top: 12px; font-size: 13px; color: var(--text-muted); }
 
 .faq { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
@@ -942,4 +940,11 @@ button.payment-choice { cursor: pointer; }
   .fee-summary__body { padding-inline: 12px; }
   .fee-summary__group h3 { font-size: 14px; }
   .fee-summary__group h3 > span:last-child { font-size: 12px; }
+}
+
+@media (max-width: 380px) {
+  .fee-summary__value { justify-content: space-between; gap: 8px; }
+  .fee-summary__amount { text-align: left; }
+  .fee-summary__amount small { display: block; margin-left: 0; }
+  .fee-summary__toggle { min-width: 0; }
 }

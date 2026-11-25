@@ -866,3 +866,128 @@ for (const reserve of [null, { brl: 0.71, ethAmount: "0.00005" }]) {
     assert.match(document.querySelector(".fee-summary > summary").textContent.replace(/\u00a0/g, " "), /R\$ 3,00/);
   }));
 }
+
+for (const useSaved of [true, false]) test("a different funding draft requires a choice, use saved = " + useSaved, () => harness(async s => {
+  const f = liveUsdcFixtures(), api = f.props.runtime.usdc;
+  const quote = await api.adapter.quoteBuy();
+  f.intents.set(WALLET, { amount: "100", symbol: "NVDA", direction: "BUY", quote });
+  const quoted = [];
+  api.adapter.quoteBuy = async ({ brlAmount }) => {
+    quoted.push(brlAmount);
+    return { ...quote, usdcAmount: brlAmount, rawQuote: { ...quote.rawQuote, inputAmount: brlAmount } };
+  };
+  api.walletFunding = { supported: true, pending: () => ({ hash: "0x" + "1".repeat(64) }), check: async () => null };
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, initialAmount: "25" }));
+  assert.ok(s.has("Use new amount · 25 USDC") && s.has("Continue saved amount · 100 USDC"));
+  assert.equal(s.has("Transfer USDC"), false);
+  if (useSaved) {
+    await s.click("Continue saved amount · 100 USDC");
+    assert.deepEqual(quoted, []);
+    assert.equal(f.intents.get(WALLET).amount, "100");
+  } else {
+    await s.click("Use new amount · 25 USDC");
+    assert.equal(document.querySelector("#live-usdc-amount").value, "25");
+    await s.click("Get quote"); await s.click("Add USDC");
+    assert.deepEqual(quoted, ["25"]);
+    assert.equal(f.intents.get(WALLET).amount, "25");
+  }
+  assert.match(s.text(), /Waiting for Base confirmations/);
+  assert.equal(s.has("Transfer USDC"), false);
+  assert.equal(f.calls.register, 0);
+}));
+
+test("an error before registration asks for a fresh quote and fresh consent", () => harness(async s => {
+  const f = liveUsdcFixtures(); f.fund(100_000_000n);
+  const api = f.props.runtime.usdc.adapter;
+  const original = api.quoteBuy;
+  let quoted = 0;
+  api.quoteBuy = async args => { quoted++; return original(args); };
+  api.registerBuy = async () => { f.calls.register++; throw new Error("provider offline"); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Get quote"); await s.check(); await s.click("Confirm and authorize");
+  assert.ok(s.has("Review a fresh quote"));
+  assert.doesNotMatch(s.text(), /unfinished order|Order reference|Resume order/i);
+  await s.click("Review a fresh quote");
+  assert.equal(quoted, 2);
+  assert.equal(document.querySelector(".check input").checked, false);
+  assert.equal(f.calls.register, 1);
+}));
+
+test("a durable registration checkpoint survives a failure before the UI callback", () => harness(async s => {
+  const f = liveUsdcFixtures(); f.fund(100_000_000n);
+  let record;
+  f.props.runtime.activeRampStore.get = () => record;
+  f.props.runtime.usdc.adapter.registerBuy = async ({ quote }) => {
+    f.calls.register++;
+    record = { quoteId: quote.id, paymentMethod: "usdc", symbol: "NVDA", rampType: "BUY", rampId: "durable-order" };
+    throw new Error("disconnected");
+  };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Get quote"); await s.check(); await s.click("Confirm and authorize");
+  assert.match(s.text(), /durable-order/);
+  await s.click("Resume order");
+  assert.equal(f.calls.register, 1);
+  assert.equal(f.calls.resume, 1);
+}));
+
+test("selling stock tokens works when the Base balance RPC is unavailable", () => harness(async s => {
+  const f = liveUsdcFixtures("pt-BR"), api = f.props.runtime.usdc;
+  const q = await api.adapter.quoteBuy();
+  let reads = 0, received;
+  api.refreshBalance = async () => { reads++; throw new Error("Base offline"); };
+  api.adapter.quoteSell = async ({ tokenAmount }) => { received = tokenAmount; return { ...q, direction: "SELL", tokenAmount }; };
+  api.adapter.registerSell = async () => { f.calls.register++; return { id: "stock-sale" }; };
+  await s.render(createElement(LiveUsdcFlow, { ...f.props, direction: "SELL" }));
+  await s.type("#live-usdc-amount", "0,123456789012345678");
+  await s.click("Ver cotação"); await s.check(); await s.click("Confirmar e autorizar");
+  assert.equal(received, "0.123456789012345678");
+  assert.equal(reads, 0);
+  assert.equal(f.calls.register, 1);
+  assert.equal(f.calls.start, 1);
+}));
+
+test("Base balance distinguishes loading, offline, last confirmed, zero and a new wallet", () => harness(async s => {
+  const { BaseUsdcBalance } = await flow("../src/components/BaseUsdcBalance.jsx");
+  const reads = [], cache = new Map();
+  const api = { enabled: true, simulated: false, balanceRaw: owner => cache.get(owner) ?? null,
+    refreshBalance: owner => new Promise((resolve, reject) => reads.push({ reject, ok(raw) { cache.set(owner, raw); resolve(raw); } })) };
+  const render = (owner, version) => s.render(createElement(BaseUsdcBalance, { api, owner, refreshKey: version }));
+  await render(WALLET, 0); assert.match(s.text(), /Checking balance/);
+  await act(async () => reads[0].reject(new Error())); assert.match(s.text(), /Balance unavailable/);
+  await render(WALLET, 1);
+  await act(async () => reads[1].ok(25_000_000n)); assert.match(s.text(), /25.0000 USDC/);
+  await render(WALLET, 2);
+  await act(async () => reads[2].reject(new Error())); assert.match(s.text(), /25.0000 USDC \(last confirmed/);
+  await render("other", 0); assert.doesNotMatch(s.text(), /25.0000/);
+  await act(async () => reads[3].ok(0n)); assert.match(s.text(), /0.0000 USDC$/);
+  const disabled = { ...api, enabled: false };
+  await s.render(createElement(BaseUsdcBalance, { api: disabled, owner: WALLET }));
+  assert.equal(reads.length, 4);
+  assert.doesNotMatch(s.text(), /USDC: [0-9]/);
+}));
+
+test("a concurrent USDC order for a different quote never resumes under this purchase", () => harness(async s => {
+  const f = liveUsdcFixtures(); f.fund(100_000_000n);
+  let active;
+  f.props.runtime.activeRampStore.get = () => active;
+  f.props.runtime.usdc.adapter.registerBuy = async () => {
+    active = { rampId: "different-order", paymentMethod: "usdc", rampType: "BUY", symbol: "NVDA", quoteId: "other-quote" };
+    throw new Error("already open");
+  };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Get quote"); await s.check(); await s.click("Confirm and authorize");
+  assert.match(s.text(), /Another order is already open/);
+  assert.equal(s.has("Resume order"), false);
+  assert.equal(f.calls.start, 0);
+}));
+
+test("pasting whole reais with centavos preserves the Pix quote amount", () => harness(async s => {
+  const props = fixtures({ kycStatus: "approved", canBuy: true });
+  const requested = [];
+  props.runtime.adapter.quoteBuy = async ({ brlAmount }) => { requested.push(brlAmount); return quote; };
+  await s.render(createElement(BuyFlow, props));
+  await s.type("#buy-amount", "500,25"); await s.click("Continuar");
+  assert.deepEqual(requested, []);
+  await s.type("#buy-amount", "500,00"); await s.click("Continuar");
+  assert.deepEqual(requested, [500]);
+}));

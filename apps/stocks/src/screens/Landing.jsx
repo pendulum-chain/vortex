@@ -4,31 +4,24 @@ import { B2BBand } from "../components/SiteFooter.jsx";
 import { BRAND } from "../brand.js";
 import { ROBINHOOD_CHAIN_DOCS } from "../components/TokenRights.jsx";
 import { Notice, SectionLink, StockRow, TickerTile } from "../components/ui.jsx";
-import { formatBRL, formatNumber } from "../format.js";
+import { formatBRL } from "../format.js";
 import { DEMO_PRICES_BRL, sourceLinePt, updatedAgoPt } from "../lib/market.js";
 import { MIN_BUY } from "../lib/purchase-options.js";
 import { exploreHash } from "../lib/routes.js";
 import { DEFAULT_ORDER, SHARED_COPY_PT, findStock, hoursPt } from "../lib/stocks.js";
-import { formatTokenAmount } from "../lib/token.js";
 import { FairFeesHero } from "../components/FairFeesHero.jsx";
-import { PurchasePreview } from "../components/PurchasePreview.jsx";
+import { PurchasePreview, PreviewReceipt } from "../components/PurchasePreview.jsx";
 import { estimatePurchase } from "../lib/purchase-preview.js";
 
 const EXAMPLE_AMOUNT = 500;
 
 function CostReceipt({ price }) {
   const example = estimatePurchase({ symbol: "NVDA", method: "pix", amount: String(EXAMPLE_AMOUNT), locale: "pt-BR" }, price || DEMO_PRICES_BRL.NVDA);
-  const fees = { total: example.total };
-  const tokens = example.tokenAmount;
+  if (!example) return null;
   return (
     <div className="card receipt">
       <div className="receipt__head"><h3>Comprar Nvidia</h3><TickerTile symbol="NVDA" size="sm" /></div>
-      <div className="receipt__amount" aria-label={`Valor de exemplo: ${formatBRL(EXAMPLE_AMOUNT)}`}><span>R$</span><strong>{EXAMPLE_AMOUNT}</strong></div>
-      <dl className="breakdown" style={{ marginTop: 14 }}>
-        <div><dt>Você paga</dt><dd>{formatBRL(EXAMPLE_AMOUNT)}</dd></div>
-        <div><dt>Custo total (já incluído)</dt><dd>{formatBRL(fees.total)} · {formatNumber((fees.total / EXAMPLE_AMOUNT) * 100, 2)}%</dd></div>
-        <div className="is-total"><dt>Você recebe</dt><dd>≈ {formatTokenAmount(tokens)} NVDA (token)</dd></div>
-      </dl>
+      <PreviewReceipt preview={example} />
       <p className="receipt__note">Exemplo ilustrativo, com uma pequena reserva de ETH que fica na sua carteira. A cotação final é atualizada antes do pagamento.</p>
     </div>
   );
@@ -112,7 +105,7 @@ export function Landing({ market, rampOpen, onPreview, canPreviewContinue, onLea
             <p className="section__lede">Veja quanto você paga, os custos incluídos e quantos tokens recebe. Sem mensalidade ou taxa de custódia da {BRAND.name}</p>
             <ul className="costs__list">
               <li><span className="costs__icon"><CurrencyCircleDollar size={22} aria-hidden="true" /></span><div><b>Saiba para onde vai cada valor</b><span>Abra os detalhes da cotação para ver a conversão, a compra do token e a taxa Vortex. A {BRAND.name} não cobra uma taxa extra.</span></div></li>
-              <li><span className="costs__icon"><Bank size={22} aria-hidden="true" /></span><div><b>Taxas de rede incluídas</b><span>O custo de receber os tokens e, quando incluída, uma pequena reserva de ETH, que fica na sua carteira.</span></div></li>
+              <li><span className="costs__icon"><Bank size={22} aria-hidden="true" /></span><div><b>Taxas de rede incluídas</b><span>Veja a taxa de envio. Se houver uma reserva de ETH para usar depois, ela aparece em uma linha separada e fica na sua carteira.</span></div></li>
               <li><span className="costs__icon"><HandCoins size={22} aria-hidden="true" /></span><div><b>Venda com Pix</b><span>Na venda, as taxas aparecem antes e o valor líquido cai na sua chave Pix.</span></div></li>
             </ul>
           </div>

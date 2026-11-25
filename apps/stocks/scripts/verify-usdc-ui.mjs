@@ -13,6 +13,17 @@ try {
     const errors = [], forbidden = [];
     page.on("pageerror", e => errors.push(e.message));
     await page.route(/\/api\/(production|staging)|api\.vortexfinance|api\.relay\.link|api\.coingecko\.com|economia\.awesomeapi/, async r => { forbidden.push(r.request().url()); await r.abort(); });
+    await page.goto(`${origin}/en/stocks/#/acao/AAPL`, { waitUntil: "networkidle" });
+    const skip = page.getByRole("button", { name: "Skip to content" });
+    await skip.focus();
+    await page.keyboard.press("Enter");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "conteudo");
+    assert.equal(new URL(page.url()).hash, "#/acao/AAPL");
+    const amount = page.getByRole("textbox", { name: "Your investment amount" });
+    await amount.fill("10,000");
+    await page.getByRole("button", { name: "See purchase costs" }).click();
+    assert.match(await page.locator(".fee-card .breakdown dd").first().innerText(), /10,000.00 USDC/);
+    await page.locator(".preview-result").screenshot({ path: `${output}/grouped-estimate-${viewport.width}.png` });
     await page.goto(`${origin}/en/stocks/`,{waitUntil:"networkidle"});
     await page.getByRole("heading", {name:/fair fees/, level:1}).waitFor();
     assert.equal(await page.locator("html").getAttribute("lang"),"en");

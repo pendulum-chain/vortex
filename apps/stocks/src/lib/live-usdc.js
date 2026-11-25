@@ -10,7 +10,7 @@ export function createLiveUsdc({ config, session, stores, adapterOptions = {} })
     paymentMethod: "usdc", ...adapterOptions });
   return {
     simulated: false, enabled: Boolean(config.usdcEnabled), adapter, walletFunding: createUsdcWalletFunding(adapter),
-    balanceRaw: owner => balances.get(owner?.toLowerCase()) ?? 0n,
+    balanceRaw: owner => balances.get(owner?.toLowerCase()) ?? null,
     async refreshBalance(owner) {
       const value = BigInt(await adapter.readBaseBalance(owner));
       balances.set(owner.toLowerCase(), value);

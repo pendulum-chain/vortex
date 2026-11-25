@@ -26,6 +26,14 @@ try {
     await preview.getByText("Sua estimativa", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Continuar com Google" }).count(), 0, "Preview works without login");
     await preview.getByRole("button", { name: "Continuar com Pix", exact: true }).waitFor();
+    const landingExample = page.locator(".receipt .fee-card");
+    const estimate = preview.locator(".fee-card");
+    for (const selector of [".fee-summary > summary", ".reserve-balance strong", ".is-total dd"]) {
+      assert.equal(await landingExample.locator(selector).innerText(), await estimate.locator(selector).innerText());
+    }
+    assert.match(await landingExample.locator(".fee-summary > summary").innerText(), /4,00/);
+    assert.match(await landingExample.locator(".reserve-balance strong").innerText(), /0,71/);
+    await landingExample.screenshot({ path: `${output}/pix-example-${viewport.width}.png` });
     await page.screenshot({ path: `${output}/public-preview-${viewport.width}.png` });
     await page.goto(`${url}#/acao/NVDA?demoFlow=buy-quote`, { waitUntil: "networkidle" });
     const generate = page.getByRole("button", { name: /Gerar Pix de/ });

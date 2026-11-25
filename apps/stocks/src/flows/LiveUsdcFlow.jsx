@@ -1,3 +1,5 @@
+import { purchaseSelection } from "../lib/purchase-preview.js";
+import { displayAmount, parseAmountInput } from "../lib/amount-input.js";
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "../components/Modal.jsx";
 import { ReserveBalance } from "../components/FeeSummary.jsx";
@@ -16,10 +18,16 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   const pt = runtime.locale !== "en", t = (en, br) => pt ? br : en;
   const money = (value, digits = 6) => formatUsdc(value, digits, pt ? "pt-BR" : "en-US");
   const api = runtime.usdc, adapter = api.adapter, owner = auth.address;
-  const saved = runtime.fundingIntents.get(owner);
-  const draft = saved?.symbol === token.symbol && saved.direction === direction ? saved : null;
-  const [amount, setAmount] = useState(String(draft?.amount ?? initialAmount ?? (direction === "BUY" ? "100" : "0.1")));
-  const [step, setStep] = useState(resume ? "resume" : draft ? "funding" : "amount");
+  const [draft] = useState(() => {
+    const saved = runtime.fundingIntents.get(owner);
+    return saved?.symbol === token.symbol && saved.direction === direction ? saved : null;
+  });
+  const precision = direction === "BUY" ? 6 : 18;
+  const differentAmount = draft && initialAmount != null && parseAmountInput(draft.amount, "en", precision) !== parseAmountInput(initialAmount, "en", precision);
+  const [input, setInput] = useState(() => displayAmount(draft?.amount ?? initialAmount ?? (direction === "BUY" ? "100" : "0.1"), runtime.locale));
+  const amount = parseAmountInput(input, runtime.locale, precision);
+  const validAmount = direction === "BUY" ? Boolean(purchaseSelection({ amount, locale: runtime.locale, method: "usdc", symbol: token.symbol })) : Boolean(amount && amount !== "0");
+  const [step, setStep] = useState(resume ? "resume" : differentAmount ? "choose" : draft ? "funding" : "amount");
   const [quote, setQuote] = useState(draft?.quote ?? null), [ramp, setRamp] = useState(null);
   const [balance, setBalance] = useState(null), [accepted, setAccepted] = useState(false);
   const [balanceUnavailable, setBalanceUnavailable] = useState(false);
@@ -37,12 +45,12 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   const enterOtp = next => {
     setSent(false); setCode(""); setReturnStep(next); setStep("otp");
   };
-  const errorText = e => {
-    if (step !== "otp" && needsCode(e)) enterOtp(ramp || resume ? "resume" : step);
+  const errorText = (e, recoveryStep = step) => {
+    if (step !== "otp" && needsCode(e)) enterOtp(ramp || resume ? "resume" : recoveryStep);
     if (pt) return errorMessage(e, "Não foi possível continuar. Seus fundos permanecem na carteira ou na operação indicada abaixo.");
-    const messages = { RAMP_IN_PROGRESS: "You already have an unfinished order. Resume it before starting another.", INVALID_FEES: "The costs could not be verified. Refresh the quote.", INVALID_QUOTE: "This quote is unavailable. Get a fresh quote.", INSUFFICIENT_BALANCE: "The confirmed balance is insufficient. Wait for your transfer or reduce the amount.", SELL_EXPIRED: "The confirmation window ended. Keep the operation reference if an authorization was already sent.", MAINTENANCE_ACTIVE: "Execution is temporarily paused. Keep this order and try again later.", MAINTENANCE_STATUS_UNAVAILABLE: "We could not verify service availability. Try again shortly.", WRONG_ROUTE: "The route does not match your order. No new authorization was signed.", WALLET_NOT_READY: "Your wallet is still being prepared. Try again shortly.", AUTH_REQUIRED: "Verify your email to continue." };
+    const messages = { RAMP_IN_PROGRESS: "You already have an unfinished order. Resume it before starting another.", INVALID_FEES: "The costs could not be verified. Refresh the quote.", INVALID_QUOTE: "This quote is unavailable. Get a fresh quote.", INSUFFICIENT_BALANCE: "The confirmed balance is insufficient. Wait for your transfer or reduce the amount.", SELL_EXPIRED: "The confirmation window ended. Keep the operation reference if an authorization was already sent.", MAINTENANCE_ACTIVE: "Execution is temporarily paused. Try again later.", MAINTENANCE_STATUS_UNAVAILABLE: "We could not verify service availability. Try again shortly.", WRONG_ROUTE: "The route does not match your order. No new authorization was signed.", WALLET_NOT_READY: "Your wallet is still being prepared. Try again shortly.", AUTH_REQUIRED: "Verify your email to continue." };
     if (e?.code === 4001 || /rejected|denied/i.test(e?.message ?? "")) return "Wallet confirmation cancelled. You can resume this same order.";
-    return messages[e?.code] || "We could not continue. Keep your order reference and retry this same order. No new order will be registered while it is unfinished.";
+    return messages[e?.code] || (recoveryStep === "resume" || ramp || resume ? "We could not continue. Keep your order reference and retry this same order." : "We could not continue. Please try again.");
   };
   async function run(fn) {
     if (lock.current) return;
@@ -51,6 +59,7 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
     finally { lock.current = false; if (alive.current) setBusy(false); }
   }
   async function freshQuote() {
+    if (!validAmount) throw new Error(t("Enter a valid amount.", "Informe um valor válido."));
     const listing = await adapter.getAvailability({ force: true });
     if (!listing[token.symbol]?.[direction === "BUY" ? "buy" : "sell"]) throw Object.assign(new Error(t("This route is temporarily unavailable.", "Esta rota está indisponível no momento.")), { code: "TOKEN_UNAVAILABLE" });
     const q = direction === "BUY" ? await adapter.quoteBuy({ symbol: token.symbol, brlAmount: amount, walletAddress: owner }) : await adapter.quoteSell({ symbol: token.symbol, tokenAmount: amount });
@@ -59,7 +68,9 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   }
   const prepare = () => run(async () => {
     if (!sessionReady()) { enterOtp("amount"); return; }
-    await freshQuote(); setBalance(await api.refreshBalance(owner)); setStep("review");
+    await freshQuote();
+    if (direction === "BUY") setBalance(await api.refreshBalance(owner));
+    setStep("review");
   });
   useEffect(() => {
     if (!api.enabled || step !== "funding") return;
@@ -109,7 +120,8 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   const confirm = () => run(async () => {
     if (!quote) return;
     if (!sessionReady()) { enterOtp("review"); return; }
-    const confirmed = await api.refreshBalance(owner); setBalance(confirmed);
+    const confirmed = direction === "BUY" ? await api.refreshBalance(owner) : null;
+    setBalance(confirmed);
     if (direction === "BUY" && confirmed < decimalRaw(quote.rawQuote.inputAmount)) {
       runtime.fundingIntents.save(owner, { symbol: token.symbol, direction, amount, quote, expiresAt: Date.now() + 30 * 60_000 });
       setStep("funding"); return;
@@ -119,12 +131,32 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
       return;
     }
     if (quote.expiresAt - Date.now() < 15000) { await freshQuote(); setNotice(t("Quote refreshed. Review and confirm again.", "Cotação atualizada. Revise e confirme novamente.")); return; }
-    const wallet = await runtime.walletSeam(auth, direction === "BUY" ? runtime.baseChain : undefined);
-    setStep("resume");
-    const register = direction === "BUY" ? adapter.registerBuy : adapter.registerSell;
-    const next = await register({ quote, walletAddress: owner, wallet, onRegistered: r => { setRamp(r); runtime.fundingIntents.clear(owner); } });
-    setRamp(next); runtime.fundingIntents.clear(owner);
-    await adapter.startRamp(next.id, { walletAddress: owner }); setStep("processing");
+    let registeredId;
+    try {
+      const wallet = await runtime.walletSeam(auth, direction === "BUY" ? runtime.baseChain : undefined);
+      const register = direction === "BUY" ? adapter.registerBuy : adapter.registerSell;
+      const next = await register({ quote, walletAddress: owner, wallet, onRegistered: record => {
+        registeredId = record.id;
+        setRamp(record); setStep("resume"); runtime.fundingIntents.clear(owner);
+      } });
+      registeredId = next.id;
+      setRamp(next); runtime.fundingIntents.clear(owner);
+      await adapter.startRamp(next.id, { walletAddress: owner }); setStep("processing");
+    } catch (e) {
+      const active = runtime.activeRampStore.get(owner);
+      const sameQuote = active?.rampId && active.paymentMethod === "usdc" && active.quoteId === quote.id && active.symbol === token.symbol && active.rampType === direction;
+      if (registeredId || sameQuote) {
+        setRamp(previous => previous || { id: registeredId || active.rampId });
+        setStep("resume"); setError(errorText(e, "resume"));
+      } else if (active?.rampId || e?.code === "RAMP_IN_PROGRESS") {
+        setStep("other-order");
+      } else {
+        setQuote(null); setAccepted(false); setNotice(""); setStep("requote");
+        if (needsCode(e)) enterOtp("requote");
+        else if (["INSUFFICIENT_BALANCE", "INVALID_QUOTE", "INVALID_FEES", "MAINTENANCE_ACTIVE", "MAINTENANCE_STATUS_UNAVAILABLE", "WALLET_NOT_READY", "WRONG_ROUTE"].includes(e?.code)) setError(errorText(e, "requote"));
+        else setError(t("We couldn’t prepare this order. Review a fresh quote to try again.", "Não foi possível preparar a operação. Revise uma nova cotação para tentar de novo."));
+      }
+    }
   });
   const retry = () => run(async () => {
     if (!sessionReady()) { enterOtp("resume"); return; }
@@ -158,6 +190,16 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   return <Modal title={`${direction === "BUY" ? t("Buy", "Comprar") : t("Sell", "Vender")} ${token.symbol} · USDC`} lang={pt ? "pt-BR" : "en"} closeLabel={t("Close", "Fechar")} onClose={onClose} closeDisabled={busy} variant="checkout" suspended={connecting} stepKey={step}>
     <div className="flow-section checkout">
       {!api.enabled && !resume && !ramp ? <Notice title={t("USDC is coming soon", "USDC em breve")}>{t("Base USDC funding is being enabled. No payment or signature is requested.", "Estamos preparando o pagamento com USDC na Base. Nenhum pagamento ou assinatura será solicitado.")}</Notice> : <>
+        {step === "choose" && <>
+          <h3>{t("Which amount would you like to use?", "Qual valor você quer usar?")}</h3>
+          <p>{t("You have a saved funding amount for this stock. Money already sent stays in your wallet.", "Você tem um valor salvo para esta compra. O dinheiro já enviado continua na sua carteira.")}</p>
+          <button className="btn btn--primary btn--full" onClick={() => {
+            runtime.fundingIntents.clear(owner); setInput(displayAmount(initialAmount, runtime.locale)); setQuote(null); setStep("amount");
+          }}>{t("Use new amount", "Usar novo valor")} · {displayAmount(initialAmount, runtime.locale)} USDC</button>
+          <button className="btn btn--secondary btn--full" onClick={() => setStep("funding")}>{t("Continue saved amount", "Continuar com valor salvo")} · {displayAmount(draft.amount, runtime.locale)} USDC</button>
+        </>}
+        {step === "requote" && <button className="btn btn--primary btn--full" disabled={busy} onClick={prepare}>{t("Review a fresh quote", "Revisar nova cotação")}</button>}
+        {step === "other-order" && <><p>{t("Another order is already open in this wallet. Return to your activity to resume it.", "Já existe uma operação em andamento nesta carteira. Volte ao histórico para retomá-la.")}</p><button className="btn btn--primary" onClick={onClose}>{t("Close", "Fechar")}</button></>}
         {step === "amount" && <CheckoutRoute direction={direction} symbol={token.symbol} />}
         {notice && step === "review" && <Notice tone="info">{notice}</Notice>}
         {step === "otp" && <OtpStep locale={runtime.locale} email={email} setEmail={setEmail} otp={code} setOtp={setCode}
@@ -167,9 +209,9 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
           onChangeEmail={() => { setSent(false); setCode(""); setError(""); }} />}
         {step === "amount" && <>
           <label className="field-label" htmlFor="live-usdc-amount">{direction === "BUY" ? t("How much would you like to invest?", "Quanto você quer investir?") : t("How many tokens would you like to sell?", "Quantos tokens você quer vender?")}</label>
-          <div className="amount-input checkout-input"><input id="live-usdc-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={e => setAmount(e.target.value.replace(",", "."))} /><span>{direction === "BUY" ? "USDC" : token.symbol}</span></div>
-          {direction === "BUY" && <div className="quick-values checkout-presets">{[25,100,250].map(n => <button key={n} aria-pressed={amount === String(n)} onClick={() => setAmount(String(n))}>{n} USDC</button>)}</div>}
-          <button className="btn btn--primary btn--full btn--lg" disabled={busy} onClick={prepare}>{busy ? t("Getting quote…", "Buscando cotação…") : t("Get quote", "Ver cotação")}</button>
+          <div className="amount-input checkout-input"><input id="live-usdc-amount" inputMode="decimal" autoComplete="off" value={input} onChange={e => setInput(e.target.value)} /><span>{direction === "BUY" ? "USDC" : token.symbol}</span></div>
+          {direction === "BUY" && <div className="quick-values checkout-presets">{[25,100,250].map(n => <button key={n} aria-pressed={amount === String(n)} onClick={() => setInput(String(n))}>{n} USDC</button>)}</div>}
+          <button className="btn btn--primary btn--full btn--lg" disabled={busy || !validAmount} onClick={prepare}>{busy ? t("Getting quote…", "Buscando cotação…") : t("Get quote", "Ver cotação")}</button>
           {direction === "BUY" && <p className="checkout-hint">{t("Minimum 10 USDC. You’ll receive a Stock Token that tracks the share price.", "Mínimo de 10 USDC. Você recebe um token que acompanha o preço da ação.")}</p>}
         </>}
         {step === "review" && quote && <>
