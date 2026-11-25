@@ -10,6 +10,7 @@ import { errorMessage, needsCode, OtpStep } from "./parts.jsx";
 import { formatTokensEn, formatUsdc } from "../lib/international.js";
 import { formatTokenAmount } from "../lib/token.js";
 import { decimalRaw, usdcPriceChanged } from "../lib/live-usdc.js";
+import { isWalletRejection } from "../lib/usdc-wallet-funding.js";
 import { CheckoutRoute, UsdcFunding } from "./UsdcFunding.jsx";
 
 // Funding stays in the user's Base wallet. A fresh review and explicit confirmation precede every
@@ -172,19 +173,28 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
     catch { setError(t("Wallet connection cancelled. Try again or use a manual transfer.", "Conexão cancelada. Tente de novo ou envie manualmente.")); }
     finally { setConnecting(false); }
   });
+  const transferError = (e, fallback) => isWalletRejection(e)
+    ? t("Transfer cancelled in your wallet. You can try again.", "Envio cancelado na carteira. Você pode tentar novamente.")
+    : {
+      WRONG_ACCOUNT: t("Select a different sending wallet on Base.", "Selecione outra carteira de origem na rede Base."),
+      SENDER_BALANCE: t("This wallet doesn’t have enough USDC on Base.", "Esta carteira não tem USDC suficiente na rede Base."),
+      FUNDING_BALANCE_CHANGED: t("Your balance is updating. Check the amount before sending.", "Seu saldo está sendo atualizado. Confira o valor antes de enviar."),
+      TRANSFER_PENDING: t("A transfer is already being checked. Check your wallet activity.", "Já há um envio em verificação. Confira o histórico da sua carteira."),
+      MANUAL_FUNDING_REQUIRED: t("This browser can’t prepare the transfer safely. Send the USDC manually instead.", "Este navegador não consegue preparar o envio com segurança. Envie o USDC manualmente."),
+    }[e?.code] || fallback;
   const send = () => run(async () => {
     try {
       await funding.send({ owner, wallet: sender, shortfall: remaining, required, isCurrent: () => alive.current && currentOwner.current === owner });
     } catch (e) {
-      const message = {
-        4001: t("Transfer cancelled in your wallet. You can try again.", "Envio cancelado na carteira. Você pode tentar novamente."),
-        WRONG_ACCOUNT: t("Select a different sending wallet on Base.", "Selecione outra carteira de origem na rede Base."),
-        SENDER_BALANCE: t("This wallet doesn’t have enough USDC on Base.", "Esta carteira não tem USDC suficiente na rede Base."),
-        FUNDING_BALANCE_CHANGED: t("Your balance is updating. Check the amount before sending.", "Seu saldo está sendo atualizado. Confira o valor antes de enviar."),
-        TRANSFER_PENDING: t("A transfer is already being checked. Check your wallet activity.", "Já há um envio em verificação. Confira o histórico da sua carteira."),
-      }[e?.code];
-      setError(message || t("Check your wallet activity before retrying the transfer.", "Confira o histórico da sua carteira antes de tentar outro envio."));
+      setError(transferError(e, funding.pending(owner)
+        ? t("Check your wallet activity before retrying the transfer.", "Confira o histórico da sua carteira antes de tentar outro envio.")
+        : t("The transfer was not sent. Try again or send manually.", "O envio não foi feito. Tente de novo ou envie manualmente.")));
     } finally { setTransfer(funding.pending(owner)); }
+  });
+  const acknowledge = () => run(async () => {
+    try { await funding.acknowledgeUnsent(owner, transfer); }
+    catch (e) { setError(transferError(e, t("We couldn’t check this transfer on Base. Try again shortly.", "Não foi possível conferir este envio na Base. Tente de novo em instantes."))); }
+    finally { setTransfer(funding.pending(owner)); }
   });
   const out = q => q.direction === "BUY" ? `${(pt ? formatTokenAmount(q.tokenAmount) : formatTokensEn(q.tokenAmount))} ${token.symbol}` : money(q.usdcAmount, 6);
   return <Modal title={`${direction === "BUY" ? t("Buy", "Comprar") : t("Sell", "Vender")} ${token.symbol} · USDC`} lang={pt ? "pt-BR" : "en"} closeLabel={t("Close", "Fechar")} onClose={onClose} closeDisabled={busy} variant="checkout" suspended={connecting} stepKey={step}>
@@ -239,7 +249,7 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
           canConnect={Boolean(funding?.supported && auth.connectFundingWallet)} busy={busy} locale={runtime.locale} t={t}
           onConnect={connect} onSend={send} onReview={prepare} onClose={onClose}
           onEdit={() => { runtime.fundingIntents.clear(owner); setQuote(null); setAccepted(false); setStep("amount"); }}
-          onAcknowledge={() => run(async () => { await funding.acknowledgeUnsent(owner); setTransfer(funding.pending(owner)); })} />}
+          onAcknowledge={acknowledge} />}
         {step === "resume" && <><h3>{t("Continue this order", "Continuar esta operação")}</h3><p>{t("An unfinished order is saved on this device. We check its state before requesting any authorization.", "Esta operação está salva neste aparelho. Conferimos o status antes de solicitar uma autorização.")}</p><button className="btn btn--primary btn--full" disabled={busy} onClick={retry}>{busy ? t("Preparing…", "Preparando…") : t("Resume order", "Retomar operação")}</button></>}
         {step === "processing" && <div className="result" role="status"><span className="spinner" aria-hidden="true" /><h3>{direction === "BUY" ? t("Buying your stock tokens", "Comprando seus tokens de ações") : t("Selling your stock tokens", "Vendendo seus tokens de ações")}</h3><p>{t("Track this order from your activity.", "Acompanhe esta operação no seu histórico.")}</p></div>}
         {step === "success" && <div className="result"><div className="result__seal">✓</div><h3>{direction === "BUY" ? t("Your Stock Tokens have arrived", "Seus tokens chegaram") : t("Your USDC is on Base", "Seu USDC está na Base")}</h3><p className="result__amount">{direction === "SELL" ? money(ramp?.usdcAmount, 6) : `${(pt ? formatTokenAmount(ramp?.tokenAmount ?? "0") : formatTokensEn(ramp?.tokenAmount))} ${token.symbol}`}</p><button className="btn btn--primary btn--full" onClick={onClose}>{t("Done", "Concluir")}</button></div>}

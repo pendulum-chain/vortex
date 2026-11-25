@@ -991,3 +991,83 @@ test("pasting whole reais with centavos preserves the Pix quote amount", () => h
   await s.type("#buy-amount", "500,00"); await s.click("Continuar");
   assert.deepEqual(requested, [500]);
 }));
+
+// Top-ups from an external wallet. The fake is the app's contract, not its storage: see usdc-wallet-funding.test.mjs.
+const SENDER = "0x00000000000000000000000000000000000000d1";
+async function fundingFixtures(locale = "en", pending = null) {
+  const f = liveUsdcFixtures(locale), api = f.props.runtime.usdc, sent = [];
+  f.fund(25_000_000n);
+  const state = { pending, sent, send: async () => {}, acknowledge: async () => { state.pending = null; }, status: null };
+  f.props.auth.connectFundingWallet = async () => ({ address: SENDER });
+  api.walletFunding = { supported: true, pending: () => state.pending, check: async () => state.status,
+    send: async details => { sent.push(details); await state.send(); }, acknowledgeUnsent: (owner, shown) => state.acknowledge(shown) };
+  f.intents.set(WALLET, { symbol: "NVDA", direction: "BUY", amount: "100", quote: await api.adapter.quoteBuy() });
+  return { ...f, api, state, sent };
+}
+const alertText = () => document.querySelector("[role=alert]")?.textContent ?? "";
+const unsent = (patch = {}) => ({ hash: null, requestedAt: Date.now() - 60_000, from: SENDER, amount: "75000000", ...patch });
+
+for (const [name, error, after, expected] of [
+  ["cancelled in the wallet", { code: 4001 }, null, /cancelled in your wallet/],
+  ["cancelled over WalletConnect", { code: 5000 }, null, /cancelled in your wallet/],
+  ["stopped before the prompt", {}, null, /was not sent/],
+  ["without a checkpoint", { code: "MANUAL_FUNDING_REQUIRED" }, null, /Send the USDC manually/],
+  ["left open in the wallet", {}, unsent(), /Check your wallet activity/],
+]) test(`a transfer ${name} says what happened`, () => harness(async s => {
+  const f = await fundingFixtures();
+  f.state.send = async () => { f.state.pending = after; throw Object.assign(new Error("raw wallet error"), error); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet"); await s.click("Transfer USDC");
+  assert.match(alertText(), expected);
+  assert.doesNotMatch(s.text(), /raw wallet error/);
+  assert.equal(s.has("Transfer USDC"), after === null);
+}));
+
+test("after a reload an open request names its wallet and amount, and the manual address stays away", () => harness(async s => {
+  const f = await fundingFixtures("en", unsent({ requestedAt: Date.now() }));
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  assert.match(s.text(), /Check the sending wallet/);
+  assert.match(s.text(), /choose again in a minute/);
+  assert.equal(document.querySelector(".checkout-status code").title, SENDER);
+  assert.match(document.querySelector(".checkout-status").textContent, /75\.00.*USDC/);
+  assert.equal(s.has("Connect wallet"), false);
+  assert.doesNotMatch(s.text(), new RegExp(WALLET));
+  assert.doesNotMatch(s.text(), /Transfer help/, "too early: the wallet may still show the request");
+}));
+
+test("discarding an uncertain transfer takes a statement about that transfer", () => harness(async s => {
+  const f = await fundingFixtures("en", unsent());
+  let discarded = 0;
+  const shown = f.state.pending;
+  f.state.acknowledge = async about => { assert.equal(about, shown); discarded++; f.state.pending = null; };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  assert.match(s.text(), /No transfer request is open and no transfer is pending/);
+  await s.click("Choose payment again");
+  assert.equal(discarded, 0, "disabled until the box is ticked");
+  await s.check(); await s.click("Choose payment again");
+  assert.equal(discarded, 1);
+  // The next uncertain transfer starts unticked.
+  f.state.send = async () => { f.state.pending = unsent({ requestedAt: Date.now() - 61_000 }); throw new Error("lost"); };
+  await s.click("Connect wallet"); await s.click("Transfer USDC");
+  assert.equal(document.querySelector(".check input").checked, false);
+}));
+
+test("an uncertain transfer replaced while the box is ticked starts unticked", () => harness(async s => {
+  const { UsdcFunding } = await flow("../src/flows/UsdcFunding.jsx");
+  const props = { owner: WALLET, balance: 25_000_000n, remaining: 75_000_000n, canConnect: true, locale: "en", t: en => en };
+  await s.render(createElement(UsdcFunding, { ...props, transfer: unsent() }));
+  await s.check();
+  assert.equal(document.querySelector(".check input").checked, true);
+  await s.render(createElement(UsdcFunding, { ...props, transfer: unsent({ requestedAt: Date.now() - 90_000 }) }));
+  assert.equal(document.querySelector(".check input").checked, false);
+}));
+
+for (const locale of ["en", "pt-BR"]) test(`a failed receipt read keeps the checkpoint and hides the RPC's words: ${locale}`, () => harness(async s => {
+  const f = await fundingFixtures(locale, unsent({ hash: "0x" + "1".repeat(64), requestedAt: Date.now() - 5 * 60_000 }));
+  f.state.acknowledge = async () => { throw new Error("HTTP request failed."); };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.check(); await s.click(locale === "en" ? "Choose payment again" : "Escolher pagamento novamente");
+  assert.match(alertText(), locale === "en" ? /couldn’t check this transfer/ : /Não foi possível conferir este envio/);
+  assert.doesNotMatch(s.text(), /HTTP request/);
+  assert.ok(f.state.pending);
+}));

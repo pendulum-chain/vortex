@@ -16,9 +16,21 @@ export function CheckoutRoute({ direction, symbol }) {
   </div>;
 }
 
+// Keyed by its transfer: a statement about one request never counts for the next one.
+function TransferHelp({ transfer, busy, t, onAcknowledge }) {
+  const [confirmed, setConfirmed] = useState(false);
+  return <details className="checkout-manual">
+    <summary>{t("Transfer help", "Ajuda com o envio")}</summary>
+    <label className="check"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />
+      <span>{transfer.hash
+        ? t("My wallet shows this transfer is no longer pending.", "Minha carteira mostra que este envio não está mais pendente.")
+        : t("I checked my wallet. No transfer request is open and no transfer is pending.", "Conferi minha carteira. Nenhuma solicitação de envio está aberta e não há envio pendente.")}</span></label>
+    <button className="btn btn--secondary btn--full" onClick={onAcknowledge} disabled={!confirmed || busy}>{t("Choose payment again", "Escolher pagamento novamente")}</button>
+  </details>;
+}
+
 export function UsdcFunding({ owner, balance, remaining, balanceUnavailable, sender, transfer, canConnect, busy, locale, t, onConnect, onSend, onAcknowledge, onReview, onClose, onEdit }) {
   const [copied, setCopied] = useState("");
-  const [confirmUnsent, setConfirmUnsent] = useState(false);
   async function copy(value, key) {
     try { await navigator.clipboard.writeText(value); setCopied(key); }
     catch { setCopied("error"); }
@@ -44,7 +56,10 @@ export function UsdcFunding({ owner, balance, remaining, balanceUnavailable, sen
       {transfer.hash ? <span className="spinner" aria-hidden="true" /> : <Wallet size={20} aria-hidden="true" />}
       <div>
         <b>{transfer.hash ? t("Waiting for Base confirmations", "Aguardando confirmações na Base") : t("Check the sending wallet", "Confira a carteira de origem")}</b>
-        <p>{transfer.hash ? t("We’ll update your balance automatically.", "Seu saldo será atualizado automaticamente.") : t("Check its activity before trying another transfer.", "Confira o histórico antes de fazer outro envio.")}</p>
+        <p>{transfer.hash ? t("We’ll update your balance automatically.", "Seu saldo será atualizado automaticamente.")
+          : canReviewPendingTransfer(transfer) ? t("Check its activity before trying another transfer.", "Confira o histórico antes de fazer outro envio.")
+            : t("Approve or reject the request there. You can choose again in a minute.", "Aprove ou recuse a solicitação na carteira. Você poderá escolher de novo em um minuto.")}</p>
+        {transfer.from && <p>{amount(BigInt(transfer.amount), locale)} · <code title={transfer.from}>{short(transfer.from)}</code></p>}
         {transfer.hash && <a href={`https://basescan.org/tx/${transfer.hash}`} target="_blank" rel="noreferrer">{t("View transaction", "Ver transação")}</a>}
       </div>
     </div>}
@@ -61,14 +76,7 @@ export function UsdcFunding({ owner, balance, remaining, balanceUnavailable, sen
           : t("Connect the wallet that holds your USDC on Base.", "Conecte a carteira onde você tem USDC na Base.")}</p>
       </> : null}
 
-    {canReviewPendingTransfer(transfer) && !ready && <details className="checkout-manual">
-      <summary>{t("Transfer help", "Ajuda com o envio")}</summary>
-      <label className="check"><input type="checkbox" checked={confirmUnsent} onChange={e => setConfirmUnsent(e.target.checked)} />
-        <span>{transfer.hash
-          ? t("My wallet shows this transfer was cancelled or failed.", "Minha carteira mostra que o envio foi cancelado ou falhou.")
-          : t("I checked my wallet. No transfer was submitted.", "Conferi minha carteira. Nenhum envio foi feito.")}</span></label>
-      <button className="btn btn--secondary btn--full" onClick={onAcknowledge} disabled={!confirmUnsent || busy}>{t("Choose payment again", "Escolher pagamento novamente")}</button>
-    </details>}
+    {canReviewPendingTransfer(transfer) && !ready && <TransferHelp key={`${transfer.requestedAt}:${transfer.hash}`} transfer={transfer} busy={busy} t={t} onAcknowledge={onAcknowledge} />}
 
     {!ready && remaining != null && !transfer && <details className="checkout-manual" open={!canConnect ? true : undefined}>
       <summary>{canConnect ? t("Send from an exchange or another app", "Enviar de uma corretora ou outro app") : t("Send from an exchange or wallet", "Enviar de uma corretora ou carteira")}</summary>
