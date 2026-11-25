@@ -154,6 +154,36 @@ contract VortexForwarder {
     ///      never re-times it, so chunking cannot restart the recovery clock.
     uint64 public batchOpenedAt;
 
+    /// @dev Late-arrival ledger for the permissionless swap. The marker above times the
+    ///      funds that opened the batch; EURe that arrives into a batch that is already
+    ///      open would inherit that older clock, so a marker armed long ago (by a stray
+    ///      token, or by a payment still waiting) would expose a payment the moment it
+    ///      is minted. Such an arrival is booked here instead, into TRIGGER_DELAY-long
+    ///      windows, and stays closed to the permissionless swap until two window
+    ///      boundaries have passed: at least TRIGGER_DELAY, at most twice that.
+    ///      `eureSeen` is the EURe balance when arrivals were last booked, the two sums
+    ///      are what arrived into the open batch during window `arrivalWindow` and the
+    ///      one before it. They are never reduced by a swap or a recovery, so together
+    ///      they bound from above how much of the balance is that young. They start
+    ///      over whenever the marker moves: a marker set now times everything on the
+    ///      clone for a full TRIGGER_DELAY by itself. The price: until then, an arrival
+    ///      the keeper has already converted keeps counting against whatever older
+    ///      EURe is left, for its own two windows at most. The ledger sees only the
+    ///      net change between two bookings, so EURe the issuer removes and a mint
+    ///      that replaces it before the next booking are not told apart.
+    uint64 public arrivalWindow;
+    uint256 public eureSeen;
+    uint256 public arrivedThisWindow;
+    uint256 public arrivedLastWindow;
+
+    /// @dev When the guardian or a keeper last swapped on this clone. Its swaps leave USDC
+    ///      here until it forwards the whole payment, and the batch marker cannot tell
+    ///      that USDC from a balance nobody is coming for: the marker may be days old
+    ///      (see `arrivalWindow`). The permissionless `forwardAll` therefore also waits
+    ///      TRIGGER_DELAY after this moment. Only a privileged swap writes it, so nobody
+    ///      else can hold that path shut.
+    uint64 public keeperSwappedAt;
+
     uint256 private _reentrancyGuard;
 
     // ----------------------------------------------------------------- events
@@ -207,10 +237,13 @@ contract VortexForwarder {
     error TransferFailed();
     error Reentrancy();
     error InvalidRoute();
+    error InvalidTriggerDelay();
 
     // ------------------------------------------------------------ constructor
 
     constructor(ImmutableConfig memory cfg) {
+        // The arrival windows divide by it: zero would revert every poke, swap and recovery.
+        if (cfg.triggerDelay == 0) revert InvalidTriggerDelay();
         EURE = IERC20(cfg.eure);
         EURC = IERC20(cfg.eurc);
         USDC = IERC20(cfg.usdc);
@@ -319,16 +352,44 @@ contract VortexForwarder {
 
     /// @notice Permissionless. Opens the batch marker when funds are present and it is
     ///         not armed yet (start time for RECOVERY_DELAY / TRIGGER_DELAY); clears it
-    ///         when the clone is empty. Never re-times an armed marker.
+    ///         when the clone is empty. Never re-times an armed marker. Also books EURe
+    ///         that arrived into an open batch, which starts that arrival's own wait for
+    ///         the permissionless swap.
     function poke() external {
+        _bookArrivals();
         _syncBatch(false);
+    }
+
+    /// @dev Books EURe that arrived since the last call. Runs before any EURe leaves in
+    ///      the same call, so an arrival can never hide behind an outflow. An arrival
+    ///      seen while no batch is open is not booked: the marker it arms is set no
+    ///      earlier than now and times it. One seen while a batch is open goes into the
+    ///      current window (see `arrivalWindow`).
+    function _bookArrivals() internal {
+        uint64 window = uint64(block.timestamp / TRIGGER_DELAY);
+        if (window != arrivalWindow) {
+            arrivedLastWindow = window == arrivalWindow + 1 ? arrivedThisWindow : 0;
+            arrivedThisWindow = 0;
+            arrivalWindow = window;
+        }
+        uint256 balance = EURE.balanceOf(address(this));
+        if (balance > eureSeen && batchOpenedAt != 0) arrivedThisWindow += balance - eureSeen;
+        eureSeen = balance;
+    }
+
+    /// @dev EURe the permissionless swap may take: the booked balance less what arrived
+    ///      into an open batch during the current and the previous window.
+    function _agedEure() internal view returns (uint256) {
+        uint256 late = arrivedThisWindow + arrivedLastWindow;
+        return eureSeen > late ? eureSeen - late : 0;
     }
 
     /// @dev Armed against the IMMUTABLE swap floor, not the guardian-tunable minSwapAmount,
     ///      so no guardian action can keep a funded batch from being timed (review r1 F1).
-    ///      `reset` re-times the marker for whatever remains after a forward or a
-    ///      recovery closed the previous batch; otherwise an armed marker is left alone so
-    ///      a partial swap can never restart the recovery clock.
+    ///      `reset` re-times the marker for whatever remains after the keeper's forward or
+    ///      a recovery closed the previous batch; otherwise the marker of a funded clone
+    ///      is left alone, so a partial swap can never restart the recovery clock and no
+    ///      permissionless call can re-time what is waiting.
     function _syncBatch(bool reset) internal {
         bool funded = EURE.balanceOf(address(this)) >= FACTORY.MIN_SWAP_FLOOR() || USDC.balanceOf(address(this)) > 0;
         uint64 next = 0;
@@ -337,6 +398,10 @@ contract VortexForwarder {
         }
         if (next != batchOpenedAt) {
             batchOpenedAt = next;
+            // The marker moved. Set now, or armed later, it times whatever is on the clone
+            // by itself, so the late arrivals booked under the old one start over.
+            arrivedThisWindow = 0;
+            arrivedLastWindow = 0;
             emit Poked(next);
         }
     }
@@ -345,7 +410,9 @@ contract VortexForwarder {
 
     /// @notice Convert `amountIn` EURe held by this contract to USDC, which stays on the
     ///         clone until `forward`. Callable by guardian/keepers any time; by anyone once
-    ///         the batch marker is older than TRIGGER_DELAY (liveness fallback).
+    ///         the batch marker is older than TRIGGER_DELAY (liveness fallback), and then
+    ///         only up to the EURe that did not arrive into the open batch during the
+    ///         current or the previous TRIGGER_DELAY window (see `arrivalWindow`).
     /// @param referenceRate The partner-agreed reference (EUR/USD, ORACLE_DECIMALS) the
     ///        fee bands are priced against. A privileged caller must supply one within
     ///        MAX_REFERENCE_DEVIATION_BPS of Chainlink; a permissionless caller's value is
@@ -368,11 +435,12 @@ contract VortexForwarder {
         nonReentrant
         whenNotPaused
     {
+        _bookArrivals();
         bool privileged = _privileged();
-        if (!privileged && !_batchOlderThan(TRIGGER_DELAY)) revert NotAuthorizedYet();
+        if (!privileged && (!_batchOlderThan(TRIGGER_DELAY) || amountIn > _agedEure())) revert NotAuthorizedYet();
 
         if (amountIn < FACTORY.minSwapAmount()) revert BelowMinimum();
-        if (amountIn > FACTORY.perSwapCap() || amountIn > EURE.balanceOf(address(this))) revert InvalidAmount();
+        if (amountIn > FACTORY.perSwapCap() || amountIn > eureSeen) revert InvalidAmount();
 
         uint256 oraclePrice = _oraclePrice();
         uint256 referenceUsed = privileged ? _checkedReference(referenceRate, oraclePrice) : oraclePrice;
@@ -389,6 +457,7 @@ contract VortexForwarder {
         // undoes the swap and any subsidy transfer alike.
         if (usdcReceived - fee + subsidy < oracleFloor) revert InsufficientOutput();
 
+        if (privileged) keeperSwappedAt = uint64(block.timestamp);
         _syncBatch(false);
         emit SwapExecuted(msg.sender, routeIndex, amountIn, usdcReceived, referenceUsed, fee, subsidy);
     }
@@ -417,6 +486,7 @@ contract VortexForwarder {
 
         usdcReceived = USDC.balanceOf(address(this)) - usdcBefore;
         if (eureBefore - EURE.balanceOf(address(this)) != amountIn) revert InputNotConsumed();
+        eureSeen = eureBefore - amountIn;
     }
 
     /// @dev Applies the fee bands (docs/architecture-monerium-b2b-onramp.md, "Fees, reference rate and subsidy"),
@@ -508,14 +578,23 @@ contract VortexForwarder {
 
     /// @notice Pushes the whole USDC balance to `destination`. Keeper any time (also the
     ///         home for unsolicited USDC, R09); anyone once the batch marker is older than
-    ///         TRIGGER_DELAY, so a Vortex outage can never trap converted funds on chain.
-    ///         Batches may merge on that path — the per-payment mapping is the keeper's.
+    ///         TRIGGER_DELAY and the keeper has not swapped here for that long. A Vortex
+    ///         outage can therefore never trap converted funds on chain, and nobody else
+    ///         can forward the chunks of a payment the keeper is converting, unless the
+    ///         keeper then stays silent for TRIGGER_DELAY. Batches may merge on that
+    ///         path — the per-payment mapping is the keeper's. A permissionless forward
+    ///         never re-times the marker for what stays behind (it closes the batch only
+    ///         when the clone is left unfunded), so it cannot postpone the permissionless
+    ///         swap.
     function forwardAll() external nonReentrant whenNotPaused {
-        if (!_privileged() && !_batchOlderThan(TRIGGER_DELAY)) revert NotAuthorizedYet();
+        bool privileged = _privileged();
+        if (!privileged && (!_batchOlderThan(TRIGGER_DELAY) || block.timestamp - keeperSwappedAt < TRIGGER_DELAY)) {
+            revert NotAuthorizedYet();
+        }
         uint256 amount = USDC.balanceOf(address(this));
         if (amount == 0) revert InvalidAmount();
         _transfer(USDC, destination, amount);
-        _syncBatch(true);
+        _syncBatch(privileged);
         emit Forwarded(msg.sender, amount);
     }
 
@@ -531,9 +610,9 @@ contract VortexForwarder {
     function recover(uint256 eureAmount, uint256 usdcAmount) external nonReentrant onlyKeeper {
         if (!_batchOlderThan(RECOVERY_DELAY)) revert DelayNotElapsed();
         if (eureAmount == 0 && usdcAmount == 0) revert InvalidAmount();
-        if (eureAmount > EURE.balanceOf(address(this)) || usdcAmount > USDC.balanceOf(address(this))) {
-            revert InvalidAmount();
-        }
+        _bookArrivals();
+        if (eureAmount > eureSeen || usdcAmount > USDC.balanceOf(address(this))) revert InvalidAmount();
+        eureSeen -= eureAmount;
         _transfer(EURE, recoveryAddress, eureAmount);
         _transfer(USDC, recoveryAddress, usdcAmount);
         _syncBatch(true);
