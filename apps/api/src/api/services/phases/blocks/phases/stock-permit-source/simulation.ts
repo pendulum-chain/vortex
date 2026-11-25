@@ -37,6 +37,15 @@ export interface StockPermitSourceMetadata {
 }
 
 export const StockPermitSourceContext = defineContext<StockPermitSourceMetadata>()("stockPermitSource");
+/** The same source for Gold. Its own key keeps Gold's block state, and with it the one-order lock, apart from the stocks'. */
+export const GoldPermitSourceContext = defineContext<StockPermitSourceMetadata>()("goldPermitSource");
+
+export type PermitSourceContext = typeof StockPermitSourceContext | typeof GoldPermitSourceContext;
+
+/** The phase a context's permit, pull and executor run under. */
+export function permitSourcePhase(context: PermitSourceContext): "goldPermitTransfer" | "stockPermitTransfer" {
+  return context.key === GoldPermitSourceContext.key ? "goldPermitTransfer" : "stockPermitTransfer";
+}
 
 export interface StockPermitProbe {
   domain: TypedDataDomain;

@@ -247,6 +247,8 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "relayBridge":
     case "stockPermitTransfer":
     case "stockSettlementTopUp":
+    case "goldPermitTransfer":
+    case "goldSettlementTopUp":
     case "gasReserveTopUp":
     case "stockBackupApprove":
     case "relayBackupApprove":
@@ -266,6 +268,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "baseCleanupUsdc":
     case "baseCleanupEurc":
     case "baseCleanupAxlUsdc":
+    case "baseCleanupPaxg":
     case "alfredOnrampMintFallback":
     case "alfredpayOfframpTransferFallback":
     case "ethereumCleanupUsdc":

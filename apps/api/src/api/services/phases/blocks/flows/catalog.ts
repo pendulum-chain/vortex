@@ -18,7 +18,7 @@ import {
 import httpStatus from "http-status";
 import { config } from "../../../../../config/vars";
 import { APIError } from "../../../../errors/api-error";
-import { isGoldBaseRoute } from "../core/gold-base";
+import { isBaseUsdcGoldRoute, isBrlPixGoldRoute, isGoldBaseRoute } from "../core/gold-base";
 import type { FlowIdentity } from "../core/identity";
 import { assertFlowIdentity } from "../core/identity";
 import type { FlowMetadata } from "../core/metadata";
@@ -48,6 +48,7 @@ import {
   eurOnrampBaseSameChainSwapFlow,
   makeEurOnrampBaseSameChainSwapFlow
 } from "./eur-onramp-base-same-chain";
+import { baseUsdcGoldBuyFlow, baseUsdcGoldSellFlow, brlOfframpBaseGoldFlow, brlOnrampBaseGoldFlow } from "./gold-base";
 import { makeMoneriumOnrampPolygonCrossChainFlow } from "./monerium-onramp-polygon-cross-chain";
 import { makeMoneriumOnrampPolygonSameChainFlow } from "./monerium-onramp-polygon-same-chain";
 
@@ -96,7 +97,23 @@ import {
   makeBaseUsdcStockSellFlow
 } from "./base-usdc-robinhood-stock";
 
+// PAXG on Base, per rail and direction. Every generic matcher that could reach it excludes it, so each matches alone.
+const goldFlowDefinitions: FlowDefinition[] = (
+  [
+    [brlOnrampBaseGoldFlow, RampDirection.BUY, isBrlPixGoldRoute],
+    [brlOfframpBaseGoldFlow, RampDirection.SELL, isBrlPixGoldRoute],
+    [baseUsdcGoldBuyFlow, RampDirection.BUY, isBaseUsdcGoldRoute],
+    [baseUsdcGoldSellFlow, RampDirection.SELL, isBaseUsdcGoldRoute]
+  ] as const
+).map(([flow, direction, isRoute]) => ({
+  create: () => flow,
+  executorFlow: flow,
+  legacyCompatible: false,
+  matches: request => request.rampType === direction && isRoute(request)
+}));
+
 const flowDefinitions: FlowDefinition[] = [
+  ...goldFlowDefinitions,
   {
     create(request) {
       if (!isStockSymbol(request.outputCurrency)) throw new APIError({ message: "Unsupported stock token", status: 400 });

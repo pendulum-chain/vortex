@@ -8,6 +8,14 @@ import {
   requiresManualReconciliation
 } from "../../../../../errors/phase-error";
 import type { StateMetadata } from "../../../meta-state-types";
+import {
+  BASE_PANCAKE_V3_QUOTER_V2,
+  BASE_PANCAKE_V3_ROUTER,
+  BASE_PAXG_USDC_POOL,
+  GOLD_TOKEN,
+  goldSwapPath,
+  goldSwapTokens
+} from "../../core/gold-base";
 import { defineContext, getBlockMetadata, getBlockState, isRecord } from "../../core/metadata";
 import {
   isStockSymbol,
@@ -18,9 +26,11 @@ import {
 } from "../../core/robinhood-stocks";
 import { POLYGON_EURE_USDC_TARGET, POLYGON_USDC, stockSwapPath, stockSwapTokens, type UniswapSwapTarget } from "./contract";
 import {
+  quoteGoldSwap,
   quotePolygonEureToUsdc,
   quoteStockSwap,
   UniswapV3FixedSwapContext,
+  verifyGoldSwapDeployment,
   verifyPolygonEureUsdcDeployment,
   verifyStockSwapDeployment
 } from "./simulation";
@@ -54,9 +64,34 @@ export interface StockRouteSwapState {
   swapSentOutsideApi?: true;
 }
 
-/** The block state key that holds the swap's own state: the stock route's, or the fixed Polygon swap's. */
-export const swapStateKey = (route: Pick<UniswapRoute, "stock">): string =>
-  route.stock ? STOCK_ROUTE_CONTEXT_KEY : UniswapV3FixedSwapContext.key;
+export const GOLD_SWAP_CONTEXT_KEY = "goldSwap";
+const GoldSwapStateContext = defineContext<unknown>()(GOLD_SWAP_CONTEXT_KEY);
+
+/** `blocks.goldSwap.swap` in the quote metadata. */
+export interface GoldSwapRouteMetadata {
+  hardMinimumOutputRaw: string;
+  inputAmountRaw: string;
+  inputToken: string;
+  network: typeof Networks.Base;
+  outputAmountRaw: string;
+  outputToken: string;
+  path: string;
+  pools: string[];
+  quoter: string;
+  router: string;
+  routerKind: "v1";
+  softMinimumOutputRaw: string;
+}
+
+/** The GoldSwap preparation state. */
+export interface GoldSwapState {
+  /** See `swapSentOutsideApi`. */
+  swapSentOutsideApi?: true;
+  swapDeadline: string;
+}
+/** The block state key that holds the swap's own state: the stock route's, the Gold swap's, or the fixed Polygon swap's. */
+export const swapStateKey = (route: Pick<UniswapRoute, "neverFails" | "stock">): string =>
+  route.stock ? STOCK_ROUTE_CONTEXT_KEY : route.neverFails ? GOLD_SWAP_CONTEXT_KEY : UniswapV3FixedSwapContext.key;
 
 /**
  * Whether the fixed swap whose state sits under `stateKey` was mined without the API having sent it, so it filled at a
@@ -74,6 +109,8 @@ export interface UniswapRoute extends UniswapSwapTarget {
   deadline: string;
   hardMinimumOutputRaw: string;
   inputSymbol: string;
+  /** Set on Gold routes, whose input is the user's own funds on the ephemeral: failures hold or pause like a stock route's. */
+  neverFails?: true;
   outputSymbol: string;
   outputToken: `0x${string}`;
   quote(amountIn: bigint): Promise<bigint>;
@@ -166,9 +203,80 @@ function resolveStockRoute(block: Record<string, unknown>, state: StateMetadata,
   };
 }
 
-/** Reads `blocks.stockRoute.swap` when present, otherwise the fixed Polygon block. */
+/** Whether a failure on this route holds or pauses the ramp instead of failing it. */
+export function holdsOnFailure(route: Pick<UniswapRoute, "neverFails" | "stock">): boolean {
+  return route.stock !== undefined || route.neverFails === true;
+}
+
+/** Metadata is only trusted as far as it agrees with the pinned pool. */
+function resolveGoldRoute(block: Record<string, unknown>, state: StateMetadata, signer: `0x${string}`): UniswapRoute {
+  const { direction } = block;
+  const swap = block.swap as GoldSwapRouteMetadata;
+  if (direction !== RampDirection.BUY && direction !== RampDirection.SELL) {
+    throw new Error(`direction ${String(direction)} is invalid`);
+  }
+  const { inputToken, outputToken } = goldSwapTokens(direction);
+  const path = goldSwapPath(direction);
+  if (
+    swap.network !== Networks.Base ||
+    swap.routerKind !== "v1" ||
+    !samePin(swap.router, BASE_PANCAKE_V3_ROUTER) ||
+    !samePin(swap.quoter, BASE_PANCAKE_V3_QUOTER_V2) ||
+    !samePin(swap.inputToken, inputToken) ||
+    !samePin(swap.outputToken, outputToken) ||
+    !samePin(swap.path, path) ||
+    swap.pools.length !== 1 ||
+    !samePin(swap.pools[0], BASE_PAXG_USDC_POOL)
+  ) {
+    throw new Error("swap does not match the Gold pins");
+  }
+  const hardMinimum = BigInt(swap.hardMinimumOutputRaw);
+  if (BigInt(swap.inputAmountRaw) <= 0n || hardMinimum <= 0n || BigInt(swap.softMinimumOutputRaw) < hardMinimum) {
+    throw new Error("swap amounts or minimums are invalid");
+  }
+  const { swapDeadline } = getBlockState<GoldSwapState>(state, GoldSwapStateContext);
+  if (BigInt(swapDeadline) <= 0n) {
+    throw new Error("swap deadline is invalid");
+  }
+
+  const isBuy = direction === RampDirection.BUY;
+  return {
+    amountInRaw: swap.inputAmountRaw,
+    deadline: swapDeadline,
+    hardMinimumOutputRaw: swap.hardMinimumOutputRaw,
+    inputSymbol: isBuy ? "USDC" : GOLD_TOKEN,
+    inputToken,
+    kind: "v1",
+    label: "Base PAXG/USDC",
+    network: Networks.Base,
+    neverFails: true,
+    outputSymbol: isBuy ? GOLD_TOKEN : "USDC",
+    outputToken,
+    path,
+    quote: amountIn => quoteGoldSwap(direction, amountIn),
+    recipient: signer,
+    router: BASE_PANCAKE_V3_ROUTER,
+    signer,
+    softMinimumOutputRaw: swap.softMinimumOutputRaw,
+    verifyDeployment: verifyGoldSwapDeployment
+  };
+}
+
+/** Reads `blocks.stockRoute.swap` or `blocks.goldSwap.swap` when present, otherwise the fixed Polygon block. */
 export function resolveUniswapRoute(quoteMetadata: unknown, state: StateMetadata, signer: `0x${string}`): UniswapRoute {
-  const stockBlock = (quoteMetadata as { blocks?: Record<string, unknown> } | null)?.blocks?.[STOCK_ROUTE_CONTEXT_KEY];
+  const blocks = (quoteMetadata as { blocks?: Record<string, unknown> } | null)?.blocks;
+  const goldBlock = blocks?.[GOLD_SWAP_CONTEXT_KEY];
+  if (isRecord(goldBlock)) {
+    try {
+      return resolveGoldRoute(goldBlock, state, signer);
+    } catch (error) {
+      // The input is already on the ephemeral, so a route that cannot be trusted pauses instead of failing the ramp.
+      throw new ReconciliationRequiredPhaseError(
+        `Uniswap gold route cannot be resolved: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+  const stockBlock = blocks?.[STOCK_ROUTE_CONTEXT_KEY];
   if (isRecord(stockBlock)) {
     try {
       return resolveStockRoute(stockBlock, state, signer);

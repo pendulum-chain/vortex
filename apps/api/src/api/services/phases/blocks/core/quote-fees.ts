@@ -14,6 +14,7 @@ import Anchor from "../../../../../models/anchor.model";
 import { APIError } from "../../../../errors/api-error";
 import { findPartnerWithPricing } from "../../../partners/partner-pricing.service";
 import { priceFeedService } from "../../../priceFeed.service";
+import { isBaseUsdcGoldRoute } from "./gold-base";
 import { getTargetFiatCurrency, validateChainSupport } from "./helpers";
 import { isStockQuoteUnavailableError } from "./robinhood-stocks";
 
@@ -261,7 +262,7 @@ async function calculateAnchorFee(
 export async function calculateFeeComponents(request: CalculateFeeComponentsRequest): Promise<FeeComponentsResult> {
   try {
     // Validate chain support
-    validateChainSupport(request.rampType, request.from, request.to);
+    validateChainSupport(request.rampType, request.from, request.to, isBaseUsdcGoldRoute(request));
 
     // Determine the target fiat currency for fees
     const feeCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);

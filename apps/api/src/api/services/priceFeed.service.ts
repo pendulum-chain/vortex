@@ -11,6 +11,7 @@ import Big from "big.js";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import { fetchWithTimeout } from "../helpers/fetchWithTimeout";
+import { GOLD_TOKEN, readGoldReferencePrice } from "./phases/blocks/core/gold-base";
 import { isStockSymbol, readFreshStockPriceUsd } from "./phases/blocks/core/robinhood-stocks";
 
 // Cache entry interface
@@ -336,7 +337,7 @@ export class PriceFeedService {
    * @param amount - The amount to convert
    * @param fromCurrency - The source currency
    * @param toCurrency - The target currency
-   * @param network - Pass Robinhood Chain to price `fromCurrency` as an allowlisted stock. Prices are otherwise keyed by symbol across networks.
+   * @param network - Pass Robinhood Chain to price `fromCurrency` as an allowlisted stock, or Base to price PAXG from its Chainlink feed. Prices are otherwise keyed by symbol across networks.
    * @returns The converted amount as a string
    */
   public async convertCurrency(
@@ -349,6 +350,11 @@ export class PriceFeedService {
     const symbol = fromCurrency.toUpperCase();
     if (network === Networks.Robinhood && isStockSymbol(symbol)) {
       const amountUsd = new Big(amount).mul(await readFreshStockPriceUsd(symbol)).toString();
+      return this.convertCurrencyStrict(amountUsd, EvmToken.USDC, toCurrency, decimals);
+    }
+    // PAXG's symbol price comes from the token list loaded once at boot, so on Base it is read from the feed instead.
+    if (network === Networks.Base && symbol === GOLD_TOKEN) {
+      const amountUsd = new Big(amount).mul((await readGoldReferencePrice()).priceUsd).toString();
       return this.convertCurrencyStrict(amountUsd, EvmToken.USDC, toCurrency, decimals);
     }
     return this.convertCurrencyStrict(amount, fromCurrency, toCurrency, decimals);

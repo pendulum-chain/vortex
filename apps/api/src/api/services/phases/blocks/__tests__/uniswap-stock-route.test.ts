@@ -8,6 +8,13 @@ import { type FakeEvm, installFakeEvm } from "../../../../../test-utils/fake-wor
 import { ReconciliationRequiredPhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from "../../../../errors/phase-error";
 import * as financialOperationNamespace from "../core/financial-operation";
 import {
+  BASE_PANCAKE_V3_QUOTER_V2,
+  BASE_PANCAKE_V3_ROUTER,
+  BASE_PAXG_USDC_POOL,
+  goldSwapPath,
+  goldSwapTokens
+} from "../core/gold-base";
+import {
   ROBINHOOD_STOCKS,
   ROBINHOOD_UNISWAP_FACTORY,
   ROBINHOOD_UNISWAP_QUOTER_V2,
@@ -33,7 +40,8 @@ import { validateUniswapApproval, validateUniswapSwap } from "../phases/uniswap-
 
 const financialOperationReal = { ...financialOperationNamespace };
 const operationAttempts: string[] = [];
-const operationRows = new Map<string, "submitted" | "confirmed">();
+/** "unclaimed" is a row an earlier entry created without ever claiming a send. */
+const operationRows = new Map<string, "submitted" | "confirmed" | "unclaimed">();
 /** Makes the journal fail where it would claim the operation, as a process that stops there does. */
 let crashAtClaim = false;
 
@@ -52,6 +60,10 @@ mock.module("../core/financial-operation", () => ({
     reconcile?: (operation: unknown) => Promise<unknown>;
   }) => {
     operationAttempts.push(attemptClass);
+    if (operationRows.get(attemptClass) === "unclaimed") {
+      const reconciled = reconcile ? await reconcile({ status: "not_started" }) : null;
+      if (reconciled !== null) return reconciled;
+    }
     if (operationRows.get(attemptClass) === "submitted") {
       const reconciled = reconcile ? await reconcile({}) : null;
       if (reconciled === null) throw new Error(`operation ${attemptClass} has submitted outcome`);
@@ -919,6 +931,215 @@ describe("stock route execution", () => {
     expect(paused).toBeInstanceOf(ReconciliationRequiredPhaseError);
     expect((paused as Error).message).toContain("soft minimum");
     expect(sendRawTransaction).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A Gold route swaps the customer's own funds on the ephemeral, so it holds, pauses and sends again like a stock
+   * route. Each test here fails if the executors treat it like the Polygon route, which fails the ramp instead.
+   */
+  describe("on a Gold route", () => {
+    const goldBlock = (direction: RampDirection) => {
+      const buy = direction === RampDirection.BUY;
+      return {
+        direction,
+        swap: {
+          hardMinimumOutputRaw: buy ? "23750000000000000" : "94952500",
+          inputAmountRaw: buy ? "100000000" : "25000000000000000",
+          ...goldSwapTokens(direction),
+          network: Networks.Base,
+          outputAmountRaw: buy ? "25000000000000000" : "99950000",
+          path: goldSwapPath(direction),
+          pools: [BASE_PAXG_USDC_POOL],
+          quoter: BASE_PANCAKE_V3_QUOTER_V2,
+          router: BASE_PANCAKE_V3_ROUTER,
+          routerKind: "v1",
+          softMinimumOutputRaw: buy ? "24500000000000000" : "97951000"
+        }
+      };
+    };
+
+    async function goldRampState(direction: RampDirection, phase: "uniswapApprove" | "uniswapSwap") {
+      const stateMetadata = {
+        blockState: { goldSwap: { swapDeadline: FUTURE_DEADLINE } },
+        evmEphemeralAddress: ephemeral.address,
+        flow: { id: "test-flow", version: 1 }
+      };
+      const metadata = { blocks: { goldSwap: goldBlock(direction) } };
+      const route = resolveUniswapRoute(metadata, stateMetadata as never, ephemeral.address);
+      const approval = approvalBlueprint(route);
+      const swap = swapBlueprint(route);
+      QuoteTicket.findByPk = mock(async () => ({ metadata })) as typeof QuoteTicket.findByPk;
+      return {
+        route,
+        state: {
+          currentPhase: phase,
+          errorLogs: [],
+          get() {
+            return this;
+          },
+          id: "ramp-gold-1",
+          phaseHistory: [] as unknown[],
+          presignedTxs: [await sign(approval, 8453), await sign(swap, 8453)],
+          quoteId: "quote-gold-1",
+          state: stateMetadata,
+          unsignedTxs: [approval, swap],
+          async update(update: Record<string, unknown>) {
+            Object.assign(this, update);
+            return this;
+          }
+        }
+      };
+    }
+
+    /** The input is on the ephemeral, and after the swap so is an output at the soft minimum. */
+    const goldBalances = (route: UniswapRoute): Partial<Dependencies> => ({
+      getBalance: async token => BigInt(token === route.inputToken ? route.amountInRaw : route.softMinimumOutputRaw)
+    });
+
+    it.each([RampDirection.BUY, RampDirection.SELL])("runs a %s's approval and swap", async direction => {
+      const approve = await goldRampState(direction, "uniswapApprove");
+      const approved = dependencies(approve.route, {
+        ...goldBalances(approve.route),
+        getAllowance: async () => BigInt(approve.route.amountInRaw)
+      });
+      expect(await run(UniswapApproveExecutor, approve.state, approved.deps)).toBeNull();
+      const swap = await goldRampState(direction, "uniswapSwap");
+      const swapped = dependencies(swap.route, goldBalances(swap.route));
+      expect(await run(UniswapSwapExecutor, swap.state, swapped.deps)).toBeNull();
+      expect(swapped.sendRawTransaction).toHaveBeenCalledTimes(1);
+      // No issuer pause applies to gold.
+      expect(swapped.deps.readStockFlags).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["uniswapSwap", UniswapSwapExecutor],
+      ["uniswapApprove", UniswapApproveExecutor]
+    ] as const)("holds %s below the soft minimum, sending nothing, and pauses once that has lasted an hour", async (phase, Executor) => {
+      const { route, state } = await goldRampState(RampDirection.BUY, phase);
+      const { deps, sendRawTransaction } = dependencies(route, {
+        ...goldBalances(route),
+        quote: async () => BigInt(route.softMinimumOutputRaw) - 1n
+      });
+
+      const held = await run(Executor, state, deps);
+      expect(held).toBeInstanceOf(RecoverablePhaseError);
+      expect(held).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
+
+      state.phaseHistory = [{ phase, timestamp: new Date(Date.now() - 61 * 60_000) }];
+      const paused = await run(Executor, state, deps);
+      expect(paused).toBeInstanceOf(ReconciliationRequiredPhaseError);
+      expect((paused as Error).message).toContain("soft minimum");
+      expect(sendRawTransaction).not.toHaveBeenCalled();
+    });
+
+    it("pauses when a presigned transaction is missing, never failing the ramp", async () => {
+      const { route, state } = await goldRampState(RampDirection.SELL, "uniswapSwap");
+      state.presignedTxs = [];
+      const error = await run(UniswapSwapExecutor, state, dependencies(route, goldBalances(route)).deps);
+      expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
+      expect(error).not.toBeInstanceOf(UnrecoverablePhaseError);
+    });
+
+    it("retries a preflight read failure without failing the ramp", async () => {
+      const { route, state } = await goldRampState(RampDirection.BUY, "uniswapSwap");
+      const { deps, sendRawTransaction } = dependencies(route, {
+        ...goldBalances(route),
+        verifyDeployment: async () => {
+          throw new Error("RPC unavailable");
+        }
+      });
+      const error = await run(UniswapSwapExecutor, state, deps);
+      expect(error).toBeInstanceOf(RecoverablePhaseError);
+      expect(error).not.toBeInstanceOf(ReconciliationRequiredPhaseError);
+      expect(sendRawTransaction).not.toHaveBeenCalled();
+    });
+
+    it.each([RampDirection.BUY, RampDirection.SELL])("pauses a %s when a mined swap reverted, never failing the ramp", async direction => {
+      const { route, state } = await goldRampState(direction, "uniswapSwap");
+      const { deps } = dependencies(route, { ...goldBalances(route), waitForReceipt: async () => ({ status: "reverted" }) });
+      const error = await run(UniswapSwapExecutor, state, deps);
+      expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
+      expect((error as Error).message).toContain("reverted");
+    });
+
+    it("pauses a swap that filled below its hard minimum", async () => {
+      const { route, state } = await goldRampState(RampDirection.SELL, "uniswapSwap");
+      const { deps } = dependencies(route, {
+        getBalance: async token => (token === route.inputToken ? BigInt(route.amountInRaw) : BigInt(route.hardMinimumOutputRaw) - 1n)
+      });
+      const error = await run(UniswapSwapExecutor, state, deps);
+      expect(error).toBeInstanceOf(ReconciliationRequiredPhaseError);
+      expect((error as Error).message).toContain("below");
+    });
+
+    const sentOutsideApi = (state: { state: { blockState: Record<string, unknown> } }) =>
+      (state.state.blockState.goldSwap as { swapSentOutsideApi?: true }).swapSentOutsideApi;
+
+    it.each([
+      ["on its first entry", undefined],
+      ["with a journal row that never claimed a send", "unclaimed"]
+    ] as const)("marks a swap that was mined without the API sending it, %s", async (_label, row) => {
+      // The customer holds the presigned swap and can broadcast it past the soft minimum. Such a fill gets no top-up.
+      const { route, state } = await goldRampState(RampDirection.BUY, "uniswapSwap");
+      const { deps, sendRawTransaction } = dependencies(route, {
+        ...goldBalances(route),
+        getAllowance: async () => 0n,
+        getReceipt: async () => ({ status: "success" as const })
+      });
+      operationAttempts.length = 0;
+      operationRows.clear();
+      if (row) operationRows.set("uniswap-presigned-broadcast", row);
+      try {
+        await new UniswapSwapExecutor(deps).execute(state as never);
+      } finally {
+        operationRows.clear();
+      }
+      expect(sendRawTransaction).not.toHaveBeenCalled();
+      expect(sentOutsideApi(state)).toBe(true);
+      // The rest of the preparation state stays.
+      expect(state.state.blockState.goldSwap).toMatchObject({ swapDeadline: FUTURE_DEADLINE });
+    });
+
+    it("does not mark a swap the API sent itself and finds mined when it resumes", async () => {
+      const { route, state } = await goldRampState(RampDirection.BUY, "uniswapSwap");
+      const { deps } = dependencies(route, {
+        ...goldBalances(route),
+        getAllowance: async () => 0n,
+        getReceipt: async () => ({ status: "success" as const })
+      });
+      operationAttempts.length = 0;
+      operationRows.clear();
+      operationRows.set("uniswap-presigned-broadcast", "submitted");
+      try {
+        await new UniswapSwapExecutor(deps).execute(state as never);
+      } finally {
+        operationRows.clear();
+      }
+      expect(sentOutsideApi(state)).toBeUndefined();
+    });
+
+    it("does not mark a swap it sends itself", async () => {
+      const { route, state } = await goldRampState(RampDirection.SELL, "uniswapSwap");
+      const { deps, sendRawTransaction } = dependencies(route, goldBalances(route));
+      expect(await run(UniswapSwapExecutor, state, deps)).toBeNull();
+      expect(sendRawTransaction).toHaveBeenCalledTimes(1);
+      expect(sentOutsideApi(state)).toBeUndefined();
+    });
+
+    it("sends a swap again that was claimed in the journal but has no receipt", async () => {
+      const { route, state } = await goldRampState(RampDirection.SELL, "uniswapSwap");
+      const { deps, sendRawTransaction } = dependencies(route, goldBalances(route));
+      operationAttempts.length = 0;
+      operationRows.clear();
+      operationRows.set("uniswap-presigned-broadcast", "submitted");
+      try {
+        await new UniswapSwapExecutor(deps).execute(state as never);
+      } finally {
+        operationRows.clear();
+      }
+      expect(sendRawTransaction).toHaveBeenCalledTimes(1);
+      expect(operationAttempts).toEqual(["uniswap-presigned-broadcast"]);
+    });
   });
 
   it("uses the route's own chain and tokens through the default dependencies", async () => {

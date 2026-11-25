@@ -18,6 +18,7 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../errors/api-error";
+import { isBaseUsdcGoldRoute } from "../phases/blocks/core/gold-base";
 import { isBaseUsdcRobinhoodRoute } from "../phases/blocks/core/robinhood-stocks";
 
 /**
@@ -84,6 +85,9 @@ export function quoteToSigningNetworks(quote: FreshnessQuote): SigningNetworks {
     } else if (isBaseUsdcRobinhoodRoute(quote as Parameters<typeof isBaseUsdcRobinhoodRoute>[0])) {
       // Stock sold on Robinhood Chain, USDC fees and delivery on Base.
       evm.add(Networks.Robinhood);
+      evm.add(Networks.Base);
+    } else if (isBaseUsdcGoldRoute(quote as Parameters<typeof isBaseUsdcGoldRoute>[0])) {
+      // Gold sold for native USDC: the pull, the swap, the fees and the delivery are all on Base.
       evm.add(Networks.Base);
     }
     return { evm: [...evm], substrate: [...substrate] };

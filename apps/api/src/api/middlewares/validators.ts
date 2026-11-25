@@ -362,6 +362,7 @@ export const validateAveniaKycTokenImport: RequestHandler = (req, res, next) => 
   next();
 };
 
+import { isBaseUsdcGoldRoute } from "../services/phases/blocks/core/gold-base";
 import { isBaseUsdcRobinhoodRoute } from "../services/phases/blocks/core/robinhood-stocks";
 
 const validateSupportedFiatCurrency = (
@@ -404,7 +405,11 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
     return;
   }
 
-  if (!isBaseUsdcRobinhoodRoute(req.body) && !validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)) {
+  if (
+    !isBaseUsdcRobinhoodRoute(req.body) &&
+    !isBaseUsdcGoldRoute(req.body) &&
+    !validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)
+  ) {
     observeQuoteValidationFailure(req, "quote_create");
     return;
   }

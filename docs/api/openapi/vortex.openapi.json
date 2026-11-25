@@ -836,6 +836,7 @@
           "baseCleanupBrla",
           "baseCleanupEurc",
           "baseCleanupAxlUsdc",
+          "baseCleanupPaxg",
           "ethereumCleanupUsdc",
           "robinhoodCleanupStock"
         ],
@@ -3863,6 +3864,8 @@
           "relayBridge",
           "stockPermitTransfer",
           "stockSettlementTopUp",
+          "goldPermitTransfer",
+          "goldSettlementTopUp",
           "gasReserveTopUp",
           "stockBackupApprove",
           "relayBackupApprove",

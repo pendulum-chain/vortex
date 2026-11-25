@@ -10,7 +10,7 @@ import { throwIfAborted } from "../../core/cancellation";
 import { resendPresignedTransaction } from "../../core/evm-transactions";
 import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { readStockFlags } from "../../core/robinhood-stocks";
-import { classifyStockRouteFailure, resolveUniswapRoute, swapStateKey, type UniswapRoute } from "./route";
+import { classifyStockRouteFailure, holdsOnFailure, resolveUniswapRoute, swapStateKey, type UniswapRoute } from "./route";
 import { validateUniswapApproval, validateUniswapSwap } from "./validation";
 
 interface Receipt {
@@ -71,7 +71,11 @@ function defaultDependencies(route: UniswapRoute): UniswapV3ExecutionDependencie
   };
 }
 
-/** The soft minimum holds the API's own send. A fill the API did not choose is marked, and no later top-up makes it whole. */
+/**
+ * The customer signs the swap on their own device, so they hold it and can broadcast it themselves once its approval
+ * is mined, at any pool price down to the swap's on-chain minimum. The soft minimum only holds the API's own send. A
+ * fill the API did not choose is marked, and no later top-up makes it whole.
+ */
 async function noteSwapSentOutsideApi(state: RampState, route: UniswapRoute): Promise<void> {
   logger.warn(
     `UNISWAP_SWAP_SENT_OUTSIDE_API: the swap was mined without the API sending it. ramp=${state.id} network=${route.network}`
@@ -118,7 +122,7 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
     try {
       return await this.executeRoute(state, route, dependencies, signal);
     } catch (error) {
-      throw route.stock ? classifyStockRouteFailure(error) : error;
+      throw holdsOnFailure(route) ? classifyStockRouteFailure(error) : error;
     }
   }
 
@@ -159,7 +163,7 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
     return transaction;
   }
 
-  /** No retry can change a presigned transaction, so on a stock route a bad one pauses for an operator. */
+  /** No retry can change a presigned transaction, so on a stock or Gold route a bad one pauses for an operator. */
   protected async validatedTransaction(
     state: RampState,
     route: UniswapRoute,
@@ -172,7 +176,7 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
       await validatePresignedEvmTransactionAgainstUnsigned(signed, unsigned);
       return await validate(signed, route);
     } catch (error) {
-      if (!route.stock) throw error;
+      if (!holdsOnFailure(route)) throw error;
       throw this.createReconciliationRequiredError(error instanceof Error ? error.message : String(error));
     }
   }
@@ -220,14 +224,14 @@ abstract class UniswapV3Executor extends BasePhaseHandler {
         return { hash };
       },
       provider: route.network,
-      // Only a stock route sends again: the Polygon route fails the ramp on a mined revert, so it keeps pausing.
+      // Only a stock or Gold route sends again: the Polygon route fails the ramp on a mined revert, so it keeps pausing.
       // Only a claimed row may have been sent; an unclaimed one goes through the claim first.
       reconcile: async operation => {
         const mined = settledReceipt ?? (await dependencies.getReceipt(deterministicHash));
         if (mined?.status === "success" && operation.status === "not_started") await onSentOutsideApi?.();
         return settle(
           mined ??
-            (route.stock && operation.status !== "not_started"
+            (holdsOnFailure(route) && operation.status !== "not_started"
               ? await resendPresignedTransaction(transaction, dependencies)
               : null)
         );
@@ -253,7 +257,7 @@ export class UniswapApproveExecutor extends UniswapV3Executor {
     const transaction = await this.validatedTransaction(state, route, "approval", validateUniswapApproval);
     this.pauseAfterDeadline(route);
     await this.holdWhileStockPaused(state, route, dependencies);
-    if (route.stock) {
+    if (holdsOnFailure(route)) {
       // A mined approval burns the first main nonce and with it the backup approval, so hold while that exit is still open.
       this.holdBelowSoftMinimum(state, route, await dependencies.quote(BigInt(route.amountInRaw)));
     }

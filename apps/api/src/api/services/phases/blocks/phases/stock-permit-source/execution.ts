@@ -23,7 +23,7 @@ import { getBlockState } from "../../core/metadata";
 import { isStockSymbol, readStockFlags } from "../../core/robinhood-stocks";
 import { moneriumPermitAbi } from "../monerium-self-transfer/contract";
 import { resolveUniswapRoute } from "../uniswap-v3-fixed-swap/route";
-import { STOCK_PERMIT_GAS_LIMIT, StockPermitSourceContext } from "./simulation";
+import { type PermitSourceContext, permitSourcePhase, STOCK_PERMIT_GAS_LIMIT, StockPermitSourceContext } from "./simulation";
 import { stockSourcePin } from "./source";
 import type { StockPermitSourceState } from "./transactions";
 import { readStockPermit, readStockTransfer, type StockPermitExpectation, type ValidatedStockPermit } from "./validation";
@@ -125,8 +125,13 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
     super();
   }
 
+  /** Where this source keeps its block state. Gold overrides it, and with it the phase it runs under. */
+  protected get context(): PermitSourceContext {
+    return StockPermitSourceContext;
+  }
+
   public getPhaseName(): RampPhase {
-    return "stockPermitTransfer";
+    return permitSourcePhase(this.context);
   }
 
   protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
@@ -416,7 +421,7 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
 
   private getState(state: RampState): ExecutionState {
     try {
-      return getBlockState<ExecutionState>(state.state, StockPermitSourceContext);
+      return getBlockState<ExecutionState>(state.state, this.context);
     } catch (error) {
       throw this.createUnrecoverableError(`StockPermitSource: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -426,7 +431,7 @@ export class StockPermitTransferExecutor extends BasePhaseHandler {
     await state.update({
       state: {
         ...state.state,
-        blockState: { ...state.state.blockState, [StockPermitSourceContext.key]: { ...this.getState(state), ...patch } }
+        blockState: { ...state.state.blockState, [this.context.key]: { ...this.getState(state), ...patch } }
       }
     });
   }

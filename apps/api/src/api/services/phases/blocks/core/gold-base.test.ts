@@ -109,32 +109,55 @@ describe("PAXG on Base", () => {
     expect(isGoldRouteEnabled({ ...usdcSell, to: Networks.Ethereum })).toBe(false);
   });
 
-  it("is not picked up by the generic BRL flows, which would route it through Squid", () => {
+  it("routes each of the four requests to its own Gold flow and nothing else", () => {
     const request = { inputAmount: "1", network: Networks.Base };
-    expect(() => resolveBlockFlow({ ...request, ...pixBuy })).toThrow(/No block flow mapped/);
-    expect(() => resolveBlockFlow({ ...request, ...pixSell })).toThrow(/No block flow mapped/);
-    // PAXG on Ethereum keeps its routed flows.
+    expect(resolveBlockFlow({ ...request, ...pixBuy }).name).toBe("BrlOnrampBaseGold");
+    expect(resolveBlockFlow({ ...request, ...pixSell }).name).toBe("BrlOfframpBaseGold");
+    expect(resolveBlockFlow({ ...request, ...usdcBuy }).name).toBe("BaseUsdcGoldBuy");
+    expect(resolveBlockFlow({ ...request, ...usdcSell }).name).toBe("BaseUsdcGoldSell");
+  });
+
+  it("leaves PAXG on Ethereum, other Base tokens and other base-to-base pairs where they were", () => {
+    const request = { inputAmount: "1", network: Networks.Base };
+    // PAXG on Ethereum keeps its Squid-routed flows.
     expect(resolveBlockFlow({ ...request, ...pixSell, from: Networks.Ethereum, network: Networks.Ethereum }).name).toBe(
       "BrlOfframpBase"
     );
     expect(resolveBlockFlow({ ...request, ...pixBuy, network: Networks.Ethereum, to: Networks.Ethereum }).name).toBe(
       "BrlOnrampBaseCrossChain"
     );
-    // Other Base tokens are untouched.
     expect(resolveBlockFlow({ ...request, ...pixSell, inputCurrency: EvmToken.USDC }).name).toBe("BrlOfframpBase");
+    expect(resolveBlockFlow({ ...request, ...pixBuy, outputCurrency: EvmToken.USDC }).name).toBe("BrlOnrampBaseSameChain");
+    // Base to Base serves Gold alone.
+    expect(() => resolveBlockFlow({ ...request, ...usdcBuy, outputCurrency: EvmToken.USDT })).toThrow(/No block flow mapped/);
+    expect(() => resolveBlockFlow({ ...request, ...usdcBuy, inputCurrency: EvmToken.USDT })).toThrow(/No block flow mapped/);
+    expect(() => resolveBlockFlow({ ...request, ...usdcSell, outputCurrency: EvmToken.USDT })).toThrow(/No block flow mapped/);
+    // Gold against another fiat rail has no flow.
+    expect(() =>
+      resolveBlockFlow({ ...request, ...pixBuy, from: EPaymentMethod.SEPA, inputCurrency: FiatToken.EURC })
+    ).toThrow(/No block flow mapped/);
   });
 
-  it("is matched by no generic flow, whatever fiat currency and rail pay for it", () => {
+  it("is matched by its own four flows alone, whatever fiat currency and rail pay for it", () => {
+    const goldFlows = ["BrlOnrampBaseGold", "BrlOfframpBaseGold", "BaseUsdcGoldBuy", "BaseUsdcGoldSell"];
     const rails = [...Object.values(EPaymentMethod), ...Object.values(Networks)];
+    let matched = 0;
     for (const fiat of [...Object.values(FiatToken), EvmToken.USDC, EvmToken.USDT]) {
       for (const rail of rails) {
-        const buy = { from: rail, inputAmount: "1", inputCurrency: fiat, network: Networks.Base, outputCurrency: paxg };
-        const sell = { inputAmount: "1", inputCurrency: paxg, network: Networks.Base, outputCurrency: fiat, to: rail };
-        expect(() => resolveBlockFlow({ ...buy, rampType: RampDirection.BUY, to: Networks.Base })).toThrow(/No block flow mapped/);
-        expect(() => resolveBlockFlow({ ...sell, from: Networks.Base, rampType: RampDirection.SELL })).toThrow(
-          /No block flow mapped/
-        );
+        const common = { inputAmount: "1", network: Networks.Base };
+        for (const request of [
+          { ...common, from: rail, inputCurrency: fiat, outputCurrency: paxg, rampType: RampDirection.BUY, to: Networks.Base },
+          { ...common, from: Networks.Base, inputCurrency: paxg, outputCurrency: fiat, rampType: RampDirection.SELL, to: rail }
+        ]) {
+          if (isBrlPixGoldRoute(request) || isBaseUsdcGoldRoute(request)) {
+            expect(goldFlows).toContain(resolveBlockFlow(request).name);
+            matched++;
+          } else {
+            expect(() => resolveBlockFlow(request)).toThrow(/No block flow mapped/);
+          }
+        }
       }
     }
+    expect(matched).toBe(4);
   });
 });

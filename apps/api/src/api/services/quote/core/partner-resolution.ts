@@ -7,11 +7,14 @@ import ProfilePartnerAssignment from "../../../../models/profilePartnerAssignmen
 import { APIError } from "../../../errors/api-error";
 import { UUID_PATTERN } from "../../../helpers/uuid";
 import { findPartnerWithPricing, PartnerWithPricing } from "../../partners/partner-pricing.service";
+import { isBaseUsdcGoldRoute } from "../../phases/blocks/core/gold-base";
 import { getTargetFiatCurrency } from "../../phases/blocks/core/helpers";
 import { isBaseUsdcRobinhoodRoute, isBrlPixRobinhoodRoute } from "../../phases/blocks/core/robinhood-stocks";
 import type { PartnerPricingSource } from "./types";
 
 const STOCKS_PRICING_PARTNER = "vortex-stocks";
+/** Prices Gold bought or sold with native USDC, which has no fiat rail and so no default pricing row. */
+const GOLD_PRICING_PARTNER = "vortex-gold";
 
 type QuotePartnerResolutionRequest = CreateQuoteRequest & {
   controllingManagerProfileId?: string;
@@ -61,11 +64,12 @@ async function findPartnerByIdForRamp(
 /** Prices from the internal row whoever calls, and fails closed rather than quoting at default fees. */
 async function resolveStocksPartner(
   request: QuotePartnerResolutionRequest,
-  fiatCurrency: RampCurrency
+  fiatCurrency: RampCurrency,
+  pricingPartner = STOCKS_PRICING_PARTNER
 ): Promise<ResolvedQuotePartner> {
-  const partner = await findPartnerWithPricing({ name: STOCKS_PRICING_PARTNER }, request.rampType, fiatCurrency);
+  const partner = await findPartnerWithPricing({ name: pricingPartner }, request.rampType, fiatCurrency);
   if (!partner) {
-    logger.error(`Pricing partner '${STOCKS_PRICING_PARTNER}' is missing or inactive for rampType=${request.rampType}.`);
+    logger.error(`Pricing partner '${pricingPartner}' is missing or inactive for rampType=${request.rampType}.`);
     throw new APIError({
       isPublic: true,
       message: QuoteError.FailedToCalculateQuote,
@@ -106,6 +110,9 @@ export async function resolveQuotePartner(
 
   if (isBrlPixRobinhoodRoute(request) || isBaseUsdcRobinhoodRoute(request)) {
     return resolveStocksPartner(request, fiatCurrency);
+  }
+  if (isBaseUsdcGoldRoute(request)) {
+    return resolveStocksPartner(request, fiatCurrency, GOLD_PRICING_PARTNER);
   }
 
   if (request.partnerId) {

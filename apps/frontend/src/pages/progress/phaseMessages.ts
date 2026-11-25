@@ -88,6 +88,8 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     finalSettlementSubsidy: getDestinationTransferMessage(),
     fundEphemeral: t("pages.progress.fundEphemeral"),
     gasReserveTopUp: getDestinationTransferMessage(),
+    goldPermitTransfer: getTransferringMessage(),
+    goldSettlementTopUp: getDestinationTransferMessage(),
     hydrationSwap: t("pages.progress.hydrationSwap", {
       inputAssetSymbol: "USDC",
       outputAssetSymbol: outputAssetSymbol

@@ -107,19 +107,22 @@ apps/api/src/api/services/phases/blocks/
     quote.ts                                   # production simulation, validation, persistence
     quote-response.ts                          # public response from flow metadata
     robinhood-stocks.ts                        # per-symbol pins, issuer flags, Chainlink price guard
+    gold-base.ts                               # PAXG on Base: contract, pool and feed pins, route predicates, switches
     settlement.ts                              # structural settlement baseline helpers
   flows/catalog.ts                             # authoritative request -> flow mapping
   register-handlers.ts                         # catalog-derived executor registration
   phases/                                      # one directory per block-owned phase
     alfredpay-{mint,offramp}/                  # provider lifecycle and execution
-    avenia-{direct-mint,mint,moonbeam-mint,stock-mint}/ # BRL onramp variants
+    avenia-{direct-mint,gold-mint,mint,moonbeam-mint,stock-mint}/ # BRL onramp variants
     avenia-{offramp-fee,offramp-payout,pendulum-offramp}/
     mykobo-{mint,offramp-fee,offramp-payout}/  # legacy EUR recovery phases
     monerium-{issue,self-transfer}/            # active EUR issue/self-transfer phases
-    uniswap-v3-fixed-swap/                     # pinned Uniswap V3 routes: Polygon EURe/USDC and stock tokens
+    uniswap-v3-fixed-swap/                     # pinned v3 routes: Polygon EURe/USDC, stock tokens, PAXG on Base
     stock-route/                               # Relay bridge plus Uniswap swap on Robinhood Chain, both directions
     stock-permit-source/                       # seller's permit and pull, or one verified transfer
     stock-settlement/                          # exact-amount top-up and the stock cleanup approval
+    gold-{permit-source,swap,settlement}/      # PAXG on Base: the stock permit source under Gold's phase, the pinned
+                                               # PancakeSwap pool swap, and the exact-amount top-up
     gas-reserve-top-up/                        # ETH the quote charged, sent to the buyer
     {evm,assethub}-offramp-source/             # source validation and tx plans
     fund-ephemeral/                            # EVM/Substrate funding and source-hash checks
@@ -361,7 +364,7 @@ route.
 | `backupSquidRouterApprove`, `backupSquidRouterSwap`, `backupApprove` | backup | `SquidRouterSwap` | contingency for *its* bridge falling short |
 | `stockBackupApprove` | backup | `StockRouteBuy`, `StockRouteSell` | operator recovery of the swap input, with `reuseFirstMainNonce` |
 | `relayBackupApprove` | backup | `StockRouteSell` | operator recovery of a Relay refund, with `reuseFirstMainNonce` |
-| `baseCleanupBrla` | cleanup | `AveniaMint` | sweeps dust of the token *it* minted |
+| `baseCleanupBrla` | cleanup | `AveniaMint`, `AveniaStockMint`, `AveniaGoldMint` | sweeps dust of the token *it* minted |
 | `baseCleanupUsdc` | cleanup | `NablaSwap` | sweeps dust of *its* swap output |
 | `polygonCleanup`, `alfredOnrampMintFallback` | cleanup | `AlfredpayMint` | cleanup and contingency transfer for its minted token |
 | `robinhoodCleanupStock` | cleanup | `StockSettlement` | sweeps a stock surplus after completion |
