@@ -1,5 +1,6 @@
-import { ApiPromise, Keyring } from "@polkadot/api";
-import { SubmittableExtrinsic } from "@polkadot/api/types";
+import type { ApiPromise } from "@polkadot/api";
+import type { SubmittableExtrinsic } from "@polkadot/api/types";
+import { Keyring } from "@polkadot/keyring";
 import { Extrinsic } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
 import logger from "../logger";

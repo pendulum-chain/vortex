@@ -20,12 +20,18 @@ Robinhood Chain, id 4663). Logic is lifted from the post-fix Gold code (`apps/go
   dynamic `import()` in `vortex/client.js` only), `./chains`, and `./privy`
   (`createPrivyConfig` + `ConsumerPrivyProvider.jsx`, the only React/Privy file, for a lazy
   chunk). `tests/boundaries.test.mjs` enforces this.
-- **One login:** the same Privy app id, `CONSUMER_LOGIN_METHODS` (Google first, e-mail as
-  overflow; identical to Gold's `PrivyShell`) and origin give one Privy user and one embedded
+- **One login:** the same Privy app id, `CONSUMER_LOGIN_METHODS` (Google and e-mail, the
+  same as Gold's `PrivyShell`; apps list Google first in their own sign-in) and origin give one Privy user and one embedded
   wallet across the apps. The sign-in is branded **"Entrar com Vortex"** (noun "ID Vortex",
   `CONSUMER_SIGN_IN`); never "Conta Vortex". The Privy modal header is fixed by the kit; apps
   pass only their accent colour, logo and login message (Stocks' English simulation translates the
   header and the message).
+- **External wallets only fund, never sign in:** `createPrivyConfig({ externalWalletFunding: true })`
+  declares `FUNDING_WALLETS` and adds `connectFundingWallet` to `ConsumerAuth`. Privy creates connectors
+  only from `appearance.walletList`, which it ignores next to `loginMethodsAndOrder`, so such a config
+  uses `loginMethods`, and Privy's window then shows only the method passed to `login`. Never set `defaultChain`: Privy forces it on external wallets too. Privy reports no
+  event when its picker is dismissed and reports errors its Retry can still fix, so a connection ends on
+  success, picker close (`useModalStatus`), logout or unmount; `address` stays the embedded wallet's.
 - **Vortex OTP session:** per-tab `sessionStorage` under Gold's key
   `satoshi:vortex-session:v2`, bound to the Privy DID (`hasSession({email, privyDid})`).
   Refresh is coalesced and only a 401 ends the session. A `localStorage` backend is possible

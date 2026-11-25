@@ -1,3 +1,4 @@
+import { parseAmountInput } from "../lib/amount-input.js";
 // Buy flow: Gold's TransactionFlow state machine over the ramp adapter.
 //   (method: Pix, or leave for the USDC checkout) -> amount -> (code) -> prepare: availability, quote, price guard, readiness -> (kyc) -> confirm
 //   confirm -> re-quote if it expires within 15 s, else register -> pix -> start -> processing
@@ -24,12 +25,11 @@ import { PixStep } from "./PixStep.jsx";
 const PROGRESS = ["Valor", "Segurança", "Revisão", "Pix"];
 const PROGRESS_INDEX = { method: 0, amount: 0, otp: 1, kyc: 1, confirm: 2, pix: 3 };
 
-function AmountStep({ token, price, amount, setAmount, onNext, busy, error }) {
-  const valid = validBuyAmount(amount);
+function AmountStep({ token, price, amount, amountInput, setAmount, onNext, busy, error }) {
+  const valid = validBuyAmount(amount) && amount.length <= 7;
   const estimate = valid ? estimateTokensForBrl(amount, price?.brl) : null;
   const now = new Date();
   const market = usMarketStatus(now);
-  const display = amount ? new Intl.NumberFormat("pt-BR").format(Number(amount)) : "";
   return (
     <div className="flow-section">
       <TokenSummary token={token} price={price} />
@@ -37,7 +37,7 @@ function AmountStep({ token, price, amount, setAmount, onNext, busy, error }) {
         <label className="field-label" htmlFor="buy-amount">Quanto deseja investir?</label>
         <div className="amount-input">
           <span aria-hidden="true">R$</span>
-          <input id="buy-amount" inputMode="numeric" autoComplete="off" value={display} onChange={(event) => setAmount(event.target.value.replace(/\D/g, "").slice(0, 7))} aria-describedby="buy-hint" />
+          <input id="buy-amount" inputMode="numeric" autoComplete="off" value={amountInput} maxLength={18} onChange={(event) => setAmount(event.target.value)} aria-describedby="buy-hint" />
         </div>
       </div>
       <div className="quick-values" role="group" aria-label="Valores rápidos">
@@ -91,7 +91,8 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume: r
   const wallet = auth.address;
   const privyDid = auth.user?.privyDid;
   const [step, setStep] = useState(resume ? "resuming" : onPayUsdc && initialAmount == null && !demoQuote ? "method" : "amount");
-  const [amount, setAmount] = useState(validBuyAmount(initialAmount) ? String(initialAmount) : String(DEFAULT_BUY));
+  const [amountInput, setAmount] = useState(validBuyAmount(initialAmount) ? String(initialAmount) : String(DEFAULT_BUY));
+  const amount = parseAmountInput(amountInput, "pt-BR", 0);
   const [email, setEmail] = useState(auth.user?.email || "");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -275,7 +276,7 @@ export default function BuyFlow({ token, auth, runtime, market, flags, resume: r
   return (
     <Modal title={title} onClose={onClose} wide closeDisabled={closeDisabled} stepKey={step} headerExtra={progress != null ? <FlowProgress labels={PROGRESS} current={progress} /> : null}>
       {step === "method" && <MethodStep direction="BUY" onPix={() => setStep("amount")} onUsdc={onPayUsdc} />}
-      {step === "amount" && <AmountStep token={token} price={price} amount={amount} setAmount={setAmount} onNext={continueFromAmount} busy={busy} error={error} />}
+      {step === "amount" && <AmountStep token={token} price={price} amount={amount} amountInput={amountInput} setAmount={setAmount} onNext={continueFromAmount} busy={busy} error={error} />}
       {step === "otp" && <OtpStep email={email} setEmail={setEmail} otp={otp} setOtp={setOtp} sent={otpSent} onSend={sendOtp} onVerify={verifyOtp} busy={busy} error={error} demoCode={verification.demoCode} />}
       {step === "kyc" && <KycStep kyc={runtime.kyc} quote={quote} email={email} initialName={auth.user?.name} onApproved={() => { setNotice(""); setStep("confirm"); }} />}
       {step === "confirm" && quote && <ConfirmStep key={quote.id} token={token} quote={quote} guard={guard} reference={reference} multiplierWei={multiplierWei} onConfirm={generatePix} onRefresh={refreshQuote} busy={busy} error={error} notice={notice} />}

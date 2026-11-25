@@ -98,24 +98,30 @@ export function MethodStep({ direction, onPix, onUsdc }) {
   );
 }
 
-export function OtpStep({ email, setEmail, otp, setOtp, sent, onSend, onVerify, busy, error, demoCode }) {
+export function OtpStep({ email, setEmail, otp, setOtp, sent, onSend, onVerify, busy, error, demoCode, locale = "pt-BR", onChangeEmail }) {
+  const t = (pt, en) => locale === "en" ? en : pt;
   return (
     <div className="flow-section">
-      <StepIntro icon={ShieldCheck} title="Confirme seu e-mail">Para continuar com Pix, informe o código enviado pela Vortex ao seu e-mail.</StepIntro>
+      <StepIntro icon={ShieldCheck} title={t("Confirme seu e-mail", "Verify your email")}>
+        {!sent && t("A Vortex envia um código para confirmar seu e-mail.", "Vortex sends a code to verify your email.")}
+      </StepIntro>
       {!sent ? (
         <>
-          <label><span className="field-label">E-mail para o código</span><input className="text-input" type="email" inputMode="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@exemplo.com" /></label>
+          <label><span className="field-label">{t("E-mail para o código", "Email for the code")}</span><input className="text-input" type="email" inputMode="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("voce@exemplo.com", "you@example.com")} /></label>
           {error && <p className="field-error" role="alert">{error}</p>}
-          <button className="btn btn--primary btn--lg btn--full" type="button" onClick={onSend} disabled={busy || !/^\S+@\S+\.\S+$/.test(email)}>{busy ? <><span className="spinner" aria-hidden="true" /> Enviando…</> : "Enviar código por e-mail"}</button>
+          <button className="btn btn--primary btn--lg btn--full" type="button" onClick={onSend} disabled={busy || !/^\S+@\S+\.\S+$/.test(email)}>{busy ? <><span className="spinner" aria-hidden="true" /> {t("Enviando…", "Sending…")}</> : t("Enviar código por e-mail", "Send email code")}</button>
         </>
       ) : (
         <>
-          <Notice tone="positive">Código enviado para <b style={{ display: "inline" }}>{email}</b>.</Notice>
-          <label><span className="field-label">Código de 6 dígitos</span><input className="otp-input" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="••••••" /></label>
+          <Notice tone="positive" role="status">{t("Código enviado para", "Code sent to")} <b className="otp-email">{email}</b>.</Notice>
+          <label><span className="field-label">{t("Código de 6 dígitos", "6-digit code")}</span><input className="otp-input" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="••••••" /></label>
           {demoCode && <p className="demo-hint">Ambiente de teste: use o código <b className="mono">{demoCode}</b>.</p>}
           {error && <p className="field-error" role="alert">{error}</p>}
-          <button className="btn btn--primary btn--lg btn--full" type="button" onClick={onVerify} disabled={otp.length !== 6 || busy}>{busy ? <><span className="spinner" aria-hidden="true" /> Verificando…</> : "Confirmar código"}</button>
-          <button className="back-button" type="button" onClick={onSend} disabled={busy}>Reenviar código</button>
+          <button className="btn btn--primary btn--lg btn--full" type="button" onClick={onVerify} disabled={otp.length !== 6 || busy}>{busy ? <><span className="spinner" aria-hidden="true" /> {t("Aguarde…", "Please wait…")}</> : t("Confirmar código", "Verify code")}</button>
+          <div className="otp-actions">
+            <button className="back-button" type="button" onClick={onSend} disabled={busy}>{t("Reenviar código", "Resend code")}</button>
+            {onChangeEmail && <button className="back-button" type="button" onClick={onChangeEmail} disabled={busy}>{t("Alterar e-mail", "Change email")}</button>}
+          </div>
         </>
       )}
     </div>

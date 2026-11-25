@@ -1,3 +1,4 @@
+import { parseAmountInput } from "../lib/amount-input.js";
 // Sell flow: Gold's SellFlow over the ramp adapter.
 //   (method: Pix, or leave for the USDC checkout) -> amount (tokens + Pix key) -> (code) -> prepare: availability, wallet on Robinhood Chain, balance
 //   and ETH, quote, price guard, readiness -> (kyc) -> review -> register + sign -> start -> processing
@@ -41,7 +42,7 @@ function WalletAddress({ address }) {
   );
 }
 
-function AmountStep({ token, price, raw, amount, setAmount, pixKey, setPixKey, onNext, busy, error }) {
+function AmountStep({ token, price, raw, amount, amountInput, setAmount, pixKey, setPixKey, onNext, busy, error }) {
   const valid = validSellAmount(amount, raw) && pixKey.trim().length >= 5;
   let estimate = null;
   try { estimate = price?.brl && tokensToWei(amount) > 0n ? Number(String(amount).replace(",", ".")) * price.brl : null; } catch { estimate = null; }
@@ -53,7 +54,7 @@ function AmountStep({ token, price, raw, amount, setAmount, pixKey, setPixKey, o
       <div>
         <label className="field-label" htmlFor="sell-amount">Quantos tokens deseja vender?</label>
         <div className="amount-input amount-input--tokens">
-          <input id="sell-amount" inputMode="decimal" autoComplete="off" placeholder="0,00" value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^\d,.]/g, ""))} aria-describedby="sell-hint" />
+          <input id="sell-amount" inputMode="decimal" autoComplete="off" placeholder="0,00" value={amountInput} onChange={(event) => setAmount(event.target.value)} aria-describedby="sell-hint" />
           <span className="amount-input__suffix mono" aria-hidden="true">{token.symbol}</span>
         </div>
       </div>
@@ -116,7 +117,8 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
   const privyDid = auth.user?.privyDid;
   const [step, setStep] = useState(resume ? "resuming" : onSellUsdc && !demoReserveUsed ? "method" : "amount");
   const [raw, setRaw] = useState(() => BigInt(holdingRaw || 0n));
-  const [amount, setAmount] = useState(() => (demoReserveUsed ? toInput(maxSellAmount(holdingRaw || 0n)) : ""));
+  const [amountInput, setAmount] = useState(() => (demoReserveUsed ? toInput(maxSellAmount(holdingRaw || 0n)) : ""));
+  const amount = parseAmountInput(amountInput, "pt-BR", 18);
   const [pixKey, setPixKey] = useState(() => (demoReserveUsed ? auth.user?.email || "" : ""));
   const [email, setEmail] = useState(auth.user?.email || "");
   const [otp, setOtp] = useState("");
@@ -307,7 +309,7 @@ export default function SellFlow({ token, auth, runtime, market, flags, holdingR
   return (
     <Modal title={title} onClose={onClose} wide closeDisabled={closeDisabled} stepKey={step} headerExtra={progress != null ? <FlowProgress labels={PROGRESS} current={progress} /> : null}>
       {step === "method" && <MethodStep direction="SELL" onPix={() => setStep("amount")} onUsdc={onSellUsdc} />}
-      {step === "amount" && <AmountStep token={token} price={price} raw={raw} amount={amount} setAmount={setAmount} pixKey={pixKey} setPixKey={setPixKey} onNext={continueFromAmount} busy={busy} error={error} />}
+      {step === "amount" && <AmountStep token={token} price={price} raw={raw} amount={amount} amountInput={amountInput} setAmount={setAmount} pixKey={pixKey} setPixKey={setPixKey} onNext={continueFromAmount} busy={busy} error={error} />}
       {step === "otp" && <OtpStep email={email} setEmail={setEmail} otp={otp} setOtp={setOtp} sent={otpSent} onSend={sendOtp} onVerify={verifyOtp} busy={busy} error={error} demoCode={verification.demoCode} />}
       {step === "kyc" && <KycStep kyc={runtime.kyc} quote={quote} email={email} initialName={auth.user?.name} onApproved={() => { setNotice(""); setStep("review"); }} />}
       {step === "review" && quote && <ReviewStep key={quote.id} token={token} quote={quote} guard={guard} reference={reference} pixKey={pixKey} ethWei={ethWei} requiredWei={requiredWei} address={wallet} onConfirm={execute} onRefresh={refresh} busy={busy} error={error} notice={notice} />}

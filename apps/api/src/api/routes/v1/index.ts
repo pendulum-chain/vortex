@@ -1,7 +1,5 @@
 import { Request, Response, Router } from "express";
 import { config } from "../../../config/vars";
-import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
-import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import { setAlfredpayCountryFromRoute } from "../../middlewares/alfredpay.middleware";
 import apiClientEventsRoutes from "./admin/api-client-events.route";
 import managedProfileManagersRoutes from "./admin/managed-profile-managers.route";
@@ -44,26 +42,7 @@ import siweRoutes from "./siwe.route";
 import storageRoutes from "./storage.route";
 import webhookRoutes from "./webhook.route";
 
-type ChainStatus = {
-  pendulum: unknown;
-  moonbeam: unknown;
-};
-
 const router: Router = Router({ mergeParams: true });
-
-async function sendStatusWithPk(_: Request, res: Response): Promise<void> {
-  const chainStatus: ChainStatus = {
-    moonbeam: await sendMoonbeamStatusWithPk(),
-    pendulum: await sendPendulumStatusWithPk()
-  };
-
-  res.json(chainStatus);
-}
-
-/**
- * GET v1/status
- */
-router.get("/status", sendStatusWithPk);
 
 /**
  * GET v1/docs

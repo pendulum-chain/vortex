@@ -15,8 +15,8 @@ export function purchaseSelection(input) {
   if (!input || !["pix", "usdc"].includes(input.method) || !["pt-BR", "en"].includes(input.locale) || (input.locale === "en" && input.method !== "usdc")) return null;
   const token = findStock(input.symbol);
   const text = String(input.amount ?? "").trim();
-  const valid = input.method === "pix" ? /^\d+(?:[,.]0{1,2})?$/.test(text) : /^\d+(?:[,.]\d{1,6})?$/.test(text);
-  const amount = Number(text.replace(",", "."));
+  const valid = input.method === "pix" ? /^\d+(?:\.0{1,2})?$/.test(text) : /^\d+(?:\.\d{1,6})?$/.test(text);
+  const amount = Number(text);
   if (!token || !valid || !Number.isFinite(amount) || amount < PREVIEW_MINIMUM[input.method] || amount > MAX_AMOUNT) return null;
   return { symbol: token.symbol, method: input.method, amount: String(amount), locale: input.locale };
 }
