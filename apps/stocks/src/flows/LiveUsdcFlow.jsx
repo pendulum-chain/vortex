@@ -10,6 +10,7 @@ import { errorMessage, needsCode, OtpStep } from "./parts.jsx";
 import { formatTokensEn, formatUsdc } from "../lib/international.js";
 import { formatTokenAmount } from "../lib/token.js";
 import { decimalRaw, usdcPriceChanged } from "../lib/live-usdc.js";
+import { assertMaintenanceAvailable } from "../lib/maintenance.js";
 import { isWalletRejection } from "../lib/usdc-wallet-funding.js";
 import { CheckoutRoute, UsdcFunding } from "./UsdcFunding.jsx";
 
@@ -48,8 +49,10 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
   };
   const errorText = (e, recoveryStep = step) => {
     if (step !== "otp" && needsCode(e)) enterOtp(ramp || resume ? "resume" : recoveryStep);
+    if (pt && e?.code === "MAINTENANCE_ACTIVE") return "A execução está pausada no momento. Tente novamente mais tarde.";
+    if (pt && e?.code === "MAINTENANCE_STATUS_UNAVAILABLE") return "Não foi possível verificar a disponibilidade do serviço. Tente novamente em instantes.";
     if (pt) return errorMessage(e, "Não foi possível continuar. Seus fundos permanecem na carteira ou na operação indicada abaixo.");
-    const messages = { RAMP_IN_PROGRESS: "You already have an unfinished order. Resume it before starting another.", INVALID_FEES: "The costs could not be verified. Refresh the quote.", INVALID_QUOTE: "This quote is unavailable. Get a fresh quote.", INSUFFICIENT_BALANCE: "The confirmed balance is insufficient. Wait for your transfer or reduce the amount.", SELL_EXPIRED: "The confirmation window ended. Keep the operation reference if an authorization was already sent.", MAINTENANCE_ACTIVE: "Execution is temporarily paused. Try again later.", MAINTENANCE_STATUS_UNAVAILABLE: "We could not verify service availability. Try again shortly.", WRONG_ROUTE: "The route does not match your order. No new authorization was signed.", WALLET_NOT_READY: "Your wallet is still being prepared. Try again shortly.", AUTH_REQUIRED: "Verify your email to continue." };
+    const messages = { RAMP_IN_PROGRESS: "You already have an unfinished order. Resume it before starting another.", INVALID_FEES: "The costs could not be verified. Refresh the quote.", INVALID_QUOTE: "This quote is unavailable. Get a fresh quote.", INSUFFICIENT_BALANCE: "The confirmed balance is insufficient. Wait for your transfer or reduce the amount.", SELL_EXPIRED: "The confirmation window ended. Keep the operation reference if an authorization was already sent.", MAINTENANCE_ACTIVE: "Execution is temporarily paused. Try again later.", MAINTENANCE_STATUS_UNAVAILABLE: "We could not verify service availability. Try again shortly.", WRONG_ROUTE: "The route does not match your order. No new authorization was signed.", WALLET_NOT_READY: "Your wallet is still being prepared. Try again shortly.", AUTH_REQUIRED: "Verify your email to continue.", TOKEN_UNAVAILABLE: "This route is temporarily unavailable." };
     if (e?.code === 4001 || /rejected|denied/i.test(e?.message ?? "")) return "Wallet confirmation cancelled. You can resume this same order.";
     return messages[e?.code] || (recoveryStep === "resume" || ramp || resume ? "We could not continue. Keep your order reference and retry this same order." : "We could not continue. Please try again.");
   };
@@ -59,11 +62,14 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
     try { await fn(); } catch (e) { if (alive.current) setError(errorText(e)); }
     finally { lock.current = false; if (alive.current) setBusy(false); }
   }
-  async function freshQuote() {
+  async function fetchQuote() {
     if (!validAmount) throw new Error(t("Enter a valid amount.", "Informe um valor válido."));
     const listing = await adapter.getAvailability({ force: true });
     if (!listing[token.symbol]?.[direction === "BUY" ? "buy" : "sell"]) throw Object.assign(new Error(t("This route is temporarily unavailable.", "Esta rota está indisponível no momento.")), { code: "TOKEN_UNAVAILABLE" });
-    const q = direction === "BUY" ? await adapter.quoteBuy({ symbol: token.symbol, brlAmount: amount, walletAddress: owner }) : await adapter.quoteSell({ symbol: token.symbol, tokenAmount: amount });
+    return direction === "BUY" ? adapter.quoteBuy({ symbol: token.symbol, brlAmount: amount, walletAddress: owner }) : adapter.quoteSell({ symbol: token.symbol, tokenAmount: amount });
+  }
+  async function freshQuote() {
+    const q = await fetchQuote();
     if (usdcPriceChanged(quote, q)) setNotice(t("The price or costs changed beyond your earlier limits. Review this new quote before authorizing anything.", "O preço ou os custos passaram dos limites anteriores. Revise esta nova cotação antes de autorizar."));
     setQuote(q); setAccepted(false); return q;
   }
@@ -180,8 +186,12 @@ export default function LiveUsdcFlow({ token, auth, runtime, direction = "BUY", 
       MANUAL_FUNDING_REQUIRED: t("This browser can’t prepare the transfer safely. Send the USDC manually instead.", "Este navegador não consegue preparar o envio com segurança. Envie o USDC manualmente."),
     }[e?.code] || fallback;
   const send = () => run(async () => {
+    // A saved amount can be half an hour old: the route must still be open before any USDC is requested.
+    if (!sessionReady()) { enterOtp("funding"); return; }
+    await assertMaintenanceAvailable(adapter.getMaintenanceStatus);
+    const fresh = await fetchQuote();
     try {
-      await funding.send({ owner, wallet: sender, shortfall: remaining, required, isCurrent: () => alive.current && currentOwner.current === owner });
+      await funding.send({ owner, wallet: sender, shortfall: remaining, required: decimalRaw(fresh.rawQuote.inputAmount), isCurrent: () => alive.current && currentOwner.current === owner });
     } catch (e) {
       setError(transferError(e, funding.pending(owner)
         ? t("Check your wallet activity before retrying the transfer.", "Confira o histórico da sua carteira antes de tentar outro envio.")

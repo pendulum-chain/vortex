@@ -709,7 +709,7 @@ function liveUsdcFixtures(locale = "en") {
     fees: { network: 0.15, service: 0.05, total: 0.20, currency: "USDC" },
     rawQuote: { inputAmount: "100", outputAmount: "0.5", totalFeeFiat: "0.20", anchorFeeFiat: "0", vortexFeeFiat: "0.05", networkFeeFiat: "0.15", routingStrategy: "direct" } };
   const ramp = { id: "live-usdc-order", direction: "BUY", symbol: "NVDA", currentPhase: "initial", classification: "processing" };
-  const adapter = { getAvailability: async () => open, quoteBuy: async () => ({ ...liveQuote, expiresAt: Date.now()+60000 }),
+  const adapter = { getAvailability: async () => open, getMaintenanceStatus: async () => ({ active: false }), quoteBuy: async () => ({ ...liveQuote, expiresAt: Date.now()+60000 }),
     registerBuy: async ({ onRegistered }) => { calls.register++; active = { rampId: ramp.id }; onRegistered(ramp); throw new Error("rejected"); },
     resumeSell: async () => { calls.resume++; return ramp; }, startRamp: async () => { calls.start++; }, getRamp: async () => ({...ramp,currentPhase:"relayBridge"}) };
   const props = fixtures(notReady("not_started"));
@@ -1007,6 +1007,60 @@ async function fundingFixtures(locale = "en", pending = null) {
 const alertText = () => document.querySelector("[role=alert]")?.textContent ?? "";
 const unsent = (patch = {}) => ({ hash: null, requestedAt: Date.now() - 60_000, from: SENDER, amount: "75000000", ...patch });
 
+for (const [name, close, expected] of [
+  ["a closed direction", f => { f.api.adapter.getAvailability = async () => ({ NVDA: { buy: false, sell: true } }); }, /temporarily unavailable/],
+  ["maintenance", f => { f.api.adapter.getMaintenanceStatus = async () => ({ active: true }); }, /paused/],
+  ["an unreadable maintenance status", f => { f.api.adapter.getMaintenanceStatus = async () => null; }, /could not verify service/],
+  ["a refused quote", f => { f.api.adapter.quoteBuy = async () => { throw Object.assign(new Error("no"), { code: "INVALID_QUOTE" }); }; }, /Get a fresh quote/],
+]) test(`a saved top-up asks the wallet for nothing during ${name}`, () => harness(async s => {
+  const f = await fundingFixtures();
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  close(f);
+  await s.click("Transfer USDC");
+  assert.equal(f.sent.length, 0);
+  assert.match(alertText(), expected);
+}));
+
+test("an expired session asks for the code before a top-up and comes back to it", () => harness(async s => {
+  const f = await fundingFixtures();
+  let session = true;
+  f.props.runtime.verification = { hasSession: () => session, requestOtp: async () => {}, verifyOtp: async () => { session = true; } };
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  session = false;
+  await s.click("Transfer USDC");
+  assert.equal(f.sent.length, 0);
+  await s.click("Send email code"); await s.type(".otp-input", "111111"); await s.click("Verify code");
+  await s.click("Transfer USDC");
+  assert.equal(f.sent.length, 1);
+}));
+
+test("the checks before a top-up leave the reviewed quote alone, so the next review compares with it", () => harness(async s => {
+  const f = await fundingFixtures();
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  const original = f.api.adapter.quoteBuy, worse = async () => ({ ...(await original()), tokenAmountWei: "400000000000000000" });
+  f.api.adapter.quoteBuy = worse;
+  f.state.send = async () => { throw Object.assign(new Error("no"), { code: 4001 }); };
+  await s.click("Transfer USDC"); await s.click("Change amount"); await s.click("Get quote");
+  assert.doesNotMatch(s.text(), /changed beyond your earlier limits/, "a new amount has no earlier limits");
+}));
+
+test("a price that moved between the review and the arrival is pointed out in the new review", () => harness(async s => {
+  const f = await fundingFixtures();
+  const original = f.api.adapter.quoteBuy;
+  f.api.adapter.quoteBuy = async () => ({ ...(await original()), tokenAmountWei: "400000000000000000" });
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  f.state.send = async () => { f.fund(100_000_000n); throw Object.assign(new Error("no"), { code: 4001 }); };
+  await s.click("Transfer USDC");
+  f.fund(100_000_000n);
+  await untilText(s, /Funding complete/);
+  await s.click("Review fresh quote");
+  assert.match(s.text(), /changed beyond your earlier limits/);
+}));
+
 test("a reverted transfer says so, and its receipt is read before the balance", () => harness(async s => {
   const f = await fundingFixtures("en", unsent({ hash: "0x" + "1".repeat(64) })), order = [], refresh = f.api.refreshBalance;
   f.api.walletFunding.check = async () => { order.push("receipt"); f.state.pending = null; return "reverted"; };
@@ -1015,6 +1069,17 @@ test("a reverted transfer says so, and its receipt is read before the balance", 
   await untilText(s, /The transfer failed on Base/);
   assert.deepEqual(order, ["receipt", "balance"]);
   assert.ok(s.has("Connect wallet"));
+}));
+
+test("a top-up asks for the shortfall of the fresh quote, and the balance check compares the two", () => harness(async s => {
+  const f = await fundingFixtures();
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Connect wallet");
+  const original = f.api.adapter.quoteBuy;
+  f.api.adapter.quoteBuy = async () => { const q = await original(); return { ...q, rawQuote: { ...q.rawQuote, inputAmount: "101" } }; };
+  await s.click("Transfer USDC");
+  assert.equal(f.sent[0].shortfall, 75_000_000n, "the amount the buyer saw");
+  assert.equal(f.sent[0].required, 101_000_000n, "funding.send refuses the pair: FUNDING_BALANCE_CHANGED");
 }));
 
 for (const [name, error, after, expected] of [
@@ -1099,4 +1164,21 @@ test("an unreadable Base balance still shows a pending transfer", () => harness(
   f.api.refreshBalance = async () => { f.state.pending = unsent(); throw new Error("Base offline"); };
   await s.render(createElement(LiveUsdcFlow, f.props));
   await untilText(s, /Transfer help/);
+}));
+
+test("Brazilian top-ups are in Portuguese, with the closed route and maintenance worded for USDC", () => harness(async s => {
+  const f = await fundingFixtures("pt-BR");
+  await s.render(createElement(LiveUsdcFlow, f.props));
+  await s.click("Conectar carteira");
+  assert.ok(s.has("Transferir USDC"));
+  assert.match(s.text(), /Envie apenas USDC nativo na rede Base/);
+  f.api.adapter.getMaintenanceStatus = async () => ({ active: true });
+  await s.click("Transferir USDC");
+  assert.match(alertText(), /A execução está pausada/);
+  assert.doesNotMatch(alertText(), /Pix/);
+  f.api.adapter.getMaintenanceStatus = async () => ({ active: false });
+  f.api.adapter.getAvailability = async () => ({ NVDA: { buy: false, sell: true } });
+  await s.click("Transferir USDC");
+  assert.match(alertText(), /Esta rota está indisponível no momento/);
+  assert.equal(f.sent.length, 0);
 }));
