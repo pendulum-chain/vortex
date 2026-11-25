@@ -18,9 +18,25 @@ const resolved = import.meta.resolve("@vortexfi/sdk");
 if (!resolved.endsWith("/dist/browser/index.js")) {
   throw new Error(`Expected the browser SDK artifact, resolved ${resolved}`);
 }
-if ((await readFile(new URL(resolved), "utf8")).includes("fs/promises")) {
+const artifact = await readFile(new URL(resolved), "utf8");
+if (artifact.includes("fs/promises")) {
   throw new Error("Browser SDK artifact must not contain Node filesystem imports");
 }
+
+// Importing @polkadot/api starts its WASM in Node, but bundlers drop that side effect, so the cold
+// registration below can pass here and still fail in an app. Check the artifact itself: crypto must
+// come from the bundle, never from the external API package.
+const apiImports = [...artifact.matchAll(/import\s*([^;"]*?)\s*from\s*"@polkadot\/api[^"]*"/g)].flatMap(([, clause]) =>
+  clause
+    .replace(/[{}]/g, "")
+    .split(",")
+    .map(name => name.trim().split(" ")[0])
+);
+assert.deepEqual(
+  [...new Set(apiImports)].sort(),
+  ["ApiPromise", "WsProvider"],
+  "The browser SDK may only take the RPC client from @polkadot/api"
+);
 
 const { VortexSdk } = await import("@vortexfi/sdk");
 try {
